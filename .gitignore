@@ -1,0 +1,15 @@
+**.idea/
+**.ipynb_checkpoints/
+.vscode/
+data/
+env/
+venv/
+images/
+videos/
+results/
+**__pycache__
+**.pyc
+.onager
+archive/
+*.vagrant/
+*.sif
