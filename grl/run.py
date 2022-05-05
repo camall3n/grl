@@ -10,16 +10,12 @@ from mdp import MDP, AbstractMDP
 from mc import mc
 
 
-def run_algos(T, R, gamma, p0, phi):
+def run_algos(T, R, gamma, p0, phi, Pi_phi):
     mdp = MDP([T], [R], gamma)
     
     amdp = None
     if phi is not None:
         amdp = AbstractMDP(mdp, phi)
-
-    Pi_phi = [
-        np.array([0, 0, 0, 0]),
-    ]
 
     # MDP
     logging.info('\n===== MDP =====')
@@ -45,7 +41,6 @@ def run_algos(T, R, gamma, p0, phi):
             logging.info(f'pi: {pi}')
 
 if __name__ == '__main__':
-
     # Args
     parser = argparse.ArgumentParser()
     parser.add_argument('--spec', default='example_11', type=str)
@@ -62,12 +57,13 @@ if __name__ == '__main__':
         rootLogger.addHandler(logging.FileHandler(f'logs/{args.spec}-{time.time()}.log'))
 
     # Get (PO)MDP definition
-    T, R, gamma, p0, phi = getattr(examples_lib, args.spec)()
+    T, R, gamma, p0, phi, Pi_phi = getattr(examples_lib, args.spec)()
     logging.info(f'T:\n {T}')
     logging.info(f'R:\n {R}')
     logging.info(f'gamma: {gamma}')
     logging.info(f'p0:\n {p0}')
     logging.info(f'phi:\n {phi}')
+    logging.info(f'Pi_phi:\n {Pi_phi}')
 
     # Run algos
-    run_algos(T, R, gamma, p0, phi)
+    run_algos(T, R, gamma, p0, phi, Pi_phi)
