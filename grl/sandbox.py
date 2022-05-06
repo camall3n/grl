@@ -68,7 +68,7 @@ for pi in [np.array([1, 0, 0, 0])]:
     print(v, pi)
 
 #%% ----
-
+# Example 11
 T = np.array([
     [0, 1, 0, 0],
     [0, 0, 1, 0],
