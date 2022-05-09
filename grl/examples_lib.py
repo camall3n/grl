@@ -2,13 +2,31 @@ import sys
 
 import numpy as np
 
+"""
+Library of POMDP specifications. Each function returns a tuple of the form:
+    (
+        T:      transition tensor,
+        R:      reward tensor,
+        gamma:  discount factor,
+        p0:     starting state probabilities,
+        phi:    observation matrix,
+        Pi_phi: policies
+    )
+
+Functions named 'example_*' come from examples in the GRL workbook.
+"""
+
 def load(name):
     """
     Loads a pre-defined POMDP
     :param name: the name of the function defining the POMDP
     """
 
-    spec = getattr(sys.modules[__name__], name)()
+    try:
+        spec = getattr(sys.modules[__name__], name)()
+    except AttributeError as e:
+        raise NotImplementedError(f'{name} must be defined in examples_lib.py') from None
+
     if len(spec) != 6:
         raise ValueError("Expecting POMDP specification of the form: (T, R, gamma, p0, phi, Pi_phi)")
     if len(spec[0].shape) != 3:
@@ -17,6 +35,7 @@ def load(name):
         raise ValueError("R tensor must be 3d")
 
     return spec
+
 
 def example_11():
     T = np.array([[
@@ -49,7 +68,8 @@ def example_11():
     
     return T, R, 0.5, p0, phi, Pi_phi
 
-def example_13():
+    
+def example_14():
     T_up = np.array([
         [0, 0, 0, 1],
         [0, 0, 1, 0],
@@ -89,3 +109,54 @@ def example_13():
     ]
 
     return T, R, 0.5, p0, phi, Pi_phi
+
+
+def tiger():
+    """
+    From: "Acting Optimally in Partially Observable Stochastic Domains"
+    https://aaai.org/Papers/AAAI/1994/AAAI94-157.pdf
+    """
+    T_listen = np.array([
+        [1, 0], # tiger_left state
+        [0, 1]  # tiger_right state
+    ])
+    T_open_left = np.array([
+        [0.5, 0.5],
+        [0.5, 0.5]
+    ])
+    T_open_right = np.array([
+        [0.5, 0.5],
+        [0.5, 0.5]
+    ])
+    T = np.array([T_listen, T_open_left, T_open_right])
+
+    R_listen = np.array([
+        [-1, -1],
+        [-1, -1]
+    ])
+    # For rewards after "open" actions, only the start state and action matter
+    # (the game resets after picking a door so the next state is random)
+    R_open_left = np.array([
+        [10, 10], 
+        [-100, -100]
+    ])
+    R_open_right = np.array([
+        [-100, -100],
+        [10, 10]
+    ])
+    R = np.array([R_listen, R_open_left, R_open_right])
+
+    p0 = 0.5 * np.ones(len(T[0]))
+
+    phi = np.array([
+        [0.85, 0.15],
+        [0.15, 0.85],
+    ])
+
+    Pi_phi = [
+        np.array([0, 0]),
+        np.array([1, 1]),
+        np.array([2, 2]),
+    ]
+
+    return T, R, 0.75, p0, phi, Pi_phi
