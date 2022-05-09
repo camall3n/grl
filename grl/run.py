@@ -10,7 +10,7 @@ from mc import mc
 
 def run_algos(T, R, gamma, p0, phi, Pi_phi):
     mdp = MDP(T, R, gamma)
-    
+
     amdp = None
     if phi is not None:
         amdp = AbstractMDP(mdp, phi)
@@ -45,8 +45,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--spec', default='example_11', type=str)
     parser.add_argument('--log', action='store_true')
+    parser.add_argument('-f', '--fool-ipython')# hack to allow running in ipython notebooks
 
     args = parser.parse_args()
+    del args.fool_ipython
     if args.spec not in dir(examples_lib):
         raise NotImplementedError(f'{args.spec} not defined in examples_lib')
 
