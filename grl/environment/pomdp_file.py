@@ -339,27 +339,10 @@ class POMDPFile:
         next state.
         """
         if next_state_raw == '*':
-            # for i in range(len(self.states)):
-                # self.__reward_ob(a, start_state, i, obs_raw, prob)
             self.R[a, start_state, :] = prob
         else:
             next_state = self.states.index(next_state_raw)
-            # self.__reward_ob(a, start_state, next_state, obs_raw, prob)
             self.R[a, start_state, next_state] = prob
-
-    # def __reward_ob(self, a, start_state, next_state, obs_raw, prob):
-    #     """
-    #     reward_ob means we're at the observation of the unrolling of the
-    #     reward expression. start_state is the number of the real start
-    #     state, next_state is the number of the real next state, and
-    #     obs_raw could be * or the name of the real observation.
-    #     """
-    #     if obs_raw == '*':
-    #         for i in range(len(self.observations)):
-    #             self.R[a, start_state, next_state, i] = prob
-    #     else:
-    #         obs = self.observations.index(obs_raw)
-    #         self.R[a, start_state, next_state, obs] = prob
 
     def get_spec(self):
         return self.T, self.R, self.discount, self.start, self.Z, None 
