@@ -1,5 +1,7 @@
 import numpy as np
 
+from .examples_lib import to_dict
+
 class POMDPFile:
     """
     Adapted from https://github.com/mbforbes/py-pomdp/blob/master/pomdp.py
@@ -31,6 +33,7 @@ class POMDPFile:
         self.Z = None
         self.R = None
         self.start = None
+        self.Pi_phi = None
 
         # go through line by line
         i = 0
@@ -60,6 +63,10 @@ class POMDPFile:
                 if self.R is None:
                     self.R = np.zeros((len(self.actions), len(self.states), len(self.states)))
                 i = self.__get_reward(i)
+            elif line.startswith('Pi_phi'):
+                if self.Pi_phi is None:
+                    self.Pi_phi = []
+                i = self.__get_pi_phi(i)
             else:
                 raise Exception("Unrecognized line: " + line)
 
@@ -109,7 +116,6 @@ class POMDPFile:
 
     def __get_start(self, i):
         # TODO: handle other formats for this keyword
-
         line = self.contents[i]
 
          # Check if values are on this line or the next line
@@ -344,8 +350,24 @@ class POMDPFile:
             next_state = self.states.index(next_state_raw)
             self.R[a, start_state, next_state] = prob
 
+    def __get_pi_phi(self, i):
+        # TODO: get all lines to support multiple policies
+
+        line = self.contents[i]
+
+         # Check if values are on this line or the next line
+        if len(line.split()) == 1:
+            i += 1
+            line = self.contents[i].split()
+        else:
+            line = line.split()[1:]
+
+        self.Pi_phi.append(np.array(line).astype('int'))
+
+        return i + 1
+
     def get_spec(self):
-        return self.T, self.R, self.discount, self.start, self.Z, None 
+        return to_dict(self.T, self.R, self.discount, self.start, self.Z, self.Pi_phi)
 
     def print_summary(self):
         print("discount:", self.discount)

@@ -10,17 +10,17 @@ from mdp import MDP, AbstractMDP
 from mc import mc
 
 
-def run_algos(T, R, gamma, p0, phi, Pi_phi, n_steps, max_rollout_steps):
-    mdp = MDP(T, R, gamma)
+def run_algos(spec, n_steps, max_rollout_steps):
+    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
 
     amdp = None
-    if phi is not None:
-        amdp = AbstractMDP(mdp, phi)
+    if spec['phi'] is not None:
+        amdp = AbstractMDP(mdp, spec['phi'])
 
     # MDP
     logging.info('\n===== MDP =====')
-    for pi in Pi_phi:
-        v, q, pi = mc(mdp, pi, p0=p0, alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    for pi in spec['Pi_phi']:
+        v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
         logging.info("\nmc_states: all")
         logging.info(f'v: {v}')
         logging.info(f'pi: {pi}')
@@ -28,14 +28,14 @@ def run_algos(T, R, gamma, p0, phi, Pi_phi, n_steps, max_rollout_steps):
     # AMDP
     logging.info('\n===== AMDP =====')
     if amdp:
-        for pi in Pi_phi:
-            v, q, pi = mc(amdp, pi, p0=p0, alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+        for pi in spec['Pi_phi']:
+            v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
             logging.info("\nmc_states: all")
             logging.info(f'v: {v}')
             logging.info(f'pi: {pi}')
 
-        for pi in Pi_phi:
-            v, q, pi = mc(amdp, pi, p0=p0, alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+        for pi in spec['Pi_phi']:
+            v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
             logging.info("\nmc_states: first")
             logging.info(f'v: {v}')
             logging.info(f'pi: {pi}')
@@ -67,8 +67,10 @@ if __name__ == '__main__':
         np.random.seed(args.seed)
 
     # Get (PO)MDP definition
-    T, R, gamma, p0, phi, Pi_phi = environment.load(args.spec)
+    spec = environment.load(args.spec)
+    logging.info(f'n_steps:\n {args.n_steps}')
+    logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
 
 
     # Run algos
-    run_algos(T, R, gamma, p0, phi, Pi_phi, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.n_steps, args.max_rollout_steps)

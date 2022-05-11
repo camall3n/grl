@@ -104,7 +104,6 @@ class MDP:
     def step(self, s, a):
         T = self.T[a]
         pr_next_s = one_hot(s, self.n_states) @ T
-        pr_next_s /= np.sum(pr_next_s)
         sp = np.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         pr_next_next_s = self.T[:, sp, :]
