@@ -13,9 +13,12 @@ def load(name):
 
     # try to load from examples_lib first
     # then from pomdp_files
+    spec = None
     try:
         spec = getattr(examples_lib, name)()
     except AttributeError as _:
+        pass
+    if spec is None:
         try:
             spec = POMDPFile(name).get_spec()
         except FileNotFoundError as _:
@@ -30,7 +33,7 @@ def load(name):
 
     # Use a random policy if not specified
     if spec['Pi_phi'] is None:
-        spec['Pi_phi'] = [np.random.choice(len(spec[['T']]), len(spec['T'][0]))]
+        spec['Pi_phi'] = [np.random.choice(len(spec['T']), len(spec['T'][0]))]
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so

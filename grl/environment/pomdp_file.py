@@ -153,7 +153,10 @@ class POMDPFile:
         elif len(pieces) == 2:
             # case 3: T: <action> : <start-state>
             # %f %f ... %f
-            start_state = self.states.index(pieces[1])
+            if '*' in pieces[1]:
+                start_state = slice(None)
+            else:
+                start_state = self.states.index(pieces[1])
             next_line = self.contents[i+1]
             probs = next_line.split()
             assert len(probs) == len(self.states)
@@ -207,16 +210,28 @@ class POMDPFile:
 
         if len(pieces) == 4:
             # case 1: O: <action> : <next-state> : <obs> %f
-            next_state = self.states.index(pieces[1])
-            obs = self.observations.index(pieces[2])
+            if '*' in pieces[1]:
+                next_state = slice(None)
+            else:
+                next_state = self.states.index(pieces[1])
+            if '*' in pieces[2]:
+                obs = slice(None)
+            else:
+                obs = self.observations.index(pieces[2])
             prob = float(pieces[3])
             self.Z[action, next_state, obs] = prob
             return i + 1
         elif len(pieces) == 3:
             # case 2: O: <action> : <next-state> : <obs>
             # %f
-            next_state = self.states.index(pieces[1])
-            obs = self.observations.index(pieces[2])
+            if '*' in pieces[1]:
+                next_state = slice(None)
+            else:
+                next_state = self.states.index(pieces[1])
+            if '*' in pieces[2]:
+                obs = slice(None)
+            else:
+                obs = self.observations.index(pieces[2])
             next_line = self.contents[i+1]
             prob = float(next_line)
             self.Z[action, next_state, obs] = prob
@@ -224,7 +239,10 @@ class POMDPFile:
         elif len(pieces) == 2:
             # case 3: O: <action> : <next-state>
             # %f %f ... %f
-            next_state = self.states.index(pieces[1])
+            if '*' in pieces[1]:
+                next_state = slice(None)
+            else:
+                next_state = self.states.index(pieces[1])
             next_line = self.contents[i+1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
