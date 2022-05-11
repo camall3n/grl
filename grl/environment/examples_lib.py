@@ -1,5 +1,3 @@
-import sys 
-
 import numpy as np
 
 """
@@ -15,27 +13,6 @@ Library of POMDP specifications. Each function returns a tuple of the form:
 
 Functions named 'example_*' come from examples in the GRL workbook.
 """
-
-def load(name):
-    """
-    Loads a pre-defined POMDP
-    :param name: the name of the function defining the POMDP
-    """
-
-    try:
-        spec = getattr(sys.modules[__name__], name)()
-    except AttributeError as e:
-        raise NotImplementedError(f'{name} must be defined in examples_lib.py') from None
-
-    if len(spec) != 6:
-        raise ValueError("Expecting POMDP specification of the form: (T, R, gamma, p0, phi, Pi_phi)")
-    if len(spec[0].shape) != 3:
-        raise ValueError("T tensor must be 3d")
-    if len(spec[1].shape) != 3:
-        raise ValueError("R tensor must be 3d")
-
-    return spec
-
 
 def example_11():
     T = np.array([[
@@ -137,12 +114,12 @@ def tiger():
     # For rewards after "open" actions, only the start state and action matter
     # (the game resets after picking a door so the next state is random)
     R_open_left = np.array([
-        [10, 10], 
-        [-100, -100]
+        [-100, -100], 
+        [10, 10]
     ])
     R_open_right = np.array([
-        [-100, -100],
-        [10, 10]
+        [10, 10],
+        [-100, -100]
     ])
     R = np.array([R_listen, R_open_left, R_open_right])
 
@@ -154,8 +131,9 @@ def tiger():
     ])
 
     Pi_phi = [
-        np.array([0, 0]),
         np.array([1, 1]),
+        np.array([1, 2]),
+        np.array([2, 1]),
         np.array([2, 2]),
     ]
 

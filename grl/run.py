@@ -3,7 +3,9 @@ import logging
 import pathlib
 import time
 
-import examples_lib
+import numpy as np
+
+import environment
 from mdp import MDP, AbstractMDP
 from mc import mc
 
@@ -48,6 +50,7 @@ if __name__ == '__main__':
                         help='max steps for mc rollouts (useful for POMDPs with no terminal state)')
     parser.add_argument('--log', action='store_true')
     parser.add_argument('-f', '--fool-ipython')# hack to allow running in ipython notebooks
+    parser.add_argument('--seed', default=None, type=int)
 
     args = parser.parse_args()
     del args.fool_ipython
@@ -58,14 +61,12 @@ if __name__ == '__main__':
         rootLogger = logging.getLogger()
         rootLogger.addHandler(logging.FileHandler(f'logs/{args.spec}-{time.time()}.log'))
 
+    if args.seed:
+        np.random.seed(args.seed)
+
     # Get (PO)MDP definition
-    T, R, gamma, p0, phi, Pi_phi = examples_lib.load(args.spec)
-    logging.info(f'T:\n {T}')
-    logging.info(f'R:\n {R}')
-    logging.info(f'gamma: {gamma}')
-    logging.info(f'p0:\n {p0}')
-    logging.info(f'phi:\n {phi}')
-    logging.info(f'Pi_phi:\n {Pi_phi}')
+    T, R, gamma, p0, phi, Pi_phi = environment.load(args.spec)
+
 
     # Run algos
     run_algos(T, R, gamma, p0, phi, Pi_phi, args.max_rollout_steps)
