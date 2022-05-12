@@ -9,7 +9,7 @@ Library of POMDP specifications. Each function returns a dict of the form:
         p0:     starting state probabilities,
         phi:    observation matrix,
         Pi_phi: policies
-    {
+    }
 
 Functions named 'example_*' come from examples in the GRL workbook.
 """

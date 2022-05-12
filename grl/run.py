@@ -55,7 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_steps', default=20000, type=int,
                         help='number of rollouts to run')
     parser.add_argument('--max_rollout_steps', default=None, type=int,
-                        help='max steps for mc rollouts (useful for POMDPs with no terminal state)')
+                        help='max steps for mc rollouts')
     parser.add_argument('--log', action='store_true')
     parser.add_argument('-f', '--fool-ipython')# hack to allow running in ipython notebooks
     parser.add_argument('--seed', default=None, type=int)
