@@ -11,7 +11,7 @@ def load(name):
     :param name: the name of the function or .POMDP file defining the POMDP
     """
 
-    # try to load from examples_lib first
+    # Try to load from examples_lib first
     # then from pomdp_files
     spec = None
     try:

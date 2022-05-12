@@ -8,37 +8,43 @@ import numpy as np
 import environment
 from mdp import MDP, AbstractMDP
 from mc import mc
-
+from policy_eval import policy_eval
 
 def run_algos(spec, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
 
-    amdp = None
-    if spec['phi'] is not None:
-        amdp = AbstractMDP(mdp, spec['phi'])
-
-    # MDP
-    logging.info('\n===== MDP =====')
+    # Policy Eval
+    logging.info('\n===== Policy Eval =====')
     for pi in spec['Pi_phi']:
+        mdp_vals, amdp_vals = policy_eval(amdp, pi)
+        logging.info(f'\npi: {pi}')
+        logging.info(f'\nmdp: {mdp_vals}')
+        logging.info(f'amdp: {amdp_vals}')
+        logging.info('\n-----------')
+
+    # Sampling
+    logging.info('\n\n===== Sampling =====')
+    for pi in spec['Pi_phi']:
+        logging.info(f'\npi: {pi}')
+
+        # MC*
+        # MDP
         v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info("\nmc_states: all")
-        logging.info(f'v: {v}')
-        logging.info(f'pi: {pi}')
+        logging.info("\n- mc_states: all")
+        logging.info(f'mdp: {v}')
 
-    # AMDP
-    logging.info('\n===== AMDP =====')
-    if amdp:
-        for pi in spec['Pi_phi']:
-            v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-            logging.info("\nmc_states: all")
-            logging.info(f'v: {v}')
-            logging.info(f'pi: {pi}')
+        # AMDP
+        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+        logging.info(f'amdp: {v}')
 
-        for pi in spec['Pi_phi']:
-            v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-            logging.info("\nmc_states: first")
-            logging.info(f'v: {v}')
-            logging.info(f'pi: {pi}')
+        # MC1
+        # ADMP
+        logging.info("\n- mc_states: first")
+        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+        logging.info(f'amdp: {v}')
+
+        logging.info('\n-----------')
 
 if __name__ == '__main__':
     # Usage: python run.py --spec example_11 --log
