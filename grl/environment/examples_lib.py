@@ -14,6 +14,49 @@ Library of POMDP specifications. Each function returns a dict of the form:
 Functions named 'example_*' come from examples in the GRL workbook.
 """
 
+def example_3():
+    # b, r1, r2, t, t, t, t
+    p = 0.75
+    q = 0.75
+    T = np.array([[
+        [0, p, 1-p, 0, 0, 0, 0],
+        [0, 0, 0, q, 1-q, 0, 0],
+        [0, 0, 0, 0, 0, q, 1-q],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+    ]])
+
+    R = np.array([[
+        [0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 5, 3, 0, 0],
+        [0, 0, 0, 0, 0, 0, 3],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+    ]])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([[
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+        [0, 0, 1],
+        [0, 0, 1],
+        [0, 0, 1],
+    ]])
+
+    Pi_phi = [
+        np.array([0, 0, 0, 0, 0, 0, 0]),
+    ]
+    
+    return to_dict(T, R, 1.0, p0, phi, Pi_phi)
+
 def example_11():
     T = np.array([[
         [0, 1, 0, 0],

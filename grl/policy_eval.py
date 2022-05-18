@@ -2,24 +2,23 @@ import numpy as np
 
 def policy_eval(pomdp, pi):
     """
-    For all s, V_pi(s) = sum_(s')[T(s,pi(s),s') * (R(s,pi(s),s') + gamma*V_pi(s'))]
-
     :param pomdp:   AMDP
     :param pi:      list/array of actions
     """
 
     # Create list of linear equations
+    # For all s, V_pi(s) = sum_(s')[T(s,pi(s),s') * (R(s,pi(s),s') + gamma*V_pi(s'))]
     a = []
     b = []
-    for obs in range(pomdp.base_mdp.n_obs):
-        a_t = np.zeros(pomdp.base_mdp.n_obs)
-        a_t[obs] = -1 # subtract V_pi(obs) to right side
+    for s in range(pomdp.n_states):
+        a_t = np.zeros(pomdp.n_states)
+        a_t[s] = -1 # subtract V_pi(s) to right side
         b_t = 0
-        possible_next_obss = np.where(pomdp.T[pi[obs],obs] != 0.)[0]
-        for next_obs in possible_next_obss:
-            t = pomdp.T[pi[obs],obs,next_obs]
-            b_t -= t * pomdp.R[pi[obs],obs,next_obs] # subtract constants to left side
-            a_t[next_obs] += t * pomdp.gamma
+        possible_next_ss = np.where(pomdp.T[pi[s],s] != 0.)[0]
+        for next_s in possible_next_ss:
+            t = pomdp.T[pi[s],s,next_s]
+            b_t -= t * pomdp.R[pi[s],s,next_s] # subtract constants to left side
+            a_t[next_s] += t * pomdp.gamma
 
         a.append(a_t)
         b.append(b_t)
@@ -28,9 +27,27 @@ def policy_eval(pomdp, pi):
     mdp_vals = np.linalg.solve(a, b)
 
     # Solve amdp 
+    # Find the likelihood, P_pi(s), of reaching each state
+    #   and use this likelihood to weight how much of the sum it gets
+    # For all s, P_pi(s) = sum_s"[P_pi(s") * sum_a[T(s",a,s)]],
+    #   where s" is the prev state
+    a = []
+    for s in range(pomdp.n_states):
+        a_t = np.zeros(pomdp.n_states)
+        a_t[s] = -1 # subtract P_pi(s) to right side
+        for prev_s in range(pomdp.n_states):
+            t = pomdp.T[pi[prev_s],prev_s,s].sum()
+            a_t[prev_s] += t
+
+        a.append(a_t)
+        
+    b = -1 * pomdp.p0
+    weights = np.linalg.solve(a, b)
+
     amdp_vals = np.zeros(pomdp.n_obs)
     for i in range(pomdp.phi.shape[-1]):
         col = pomdp.phi[:,:,i].copy().astype('float')[pi[i]]
+        col *= weights
         col /= col.sum()
         v = mdp_vals * col
         amdp_vals[i] += v.sum()

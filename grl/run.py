@@ -12,7 +12,7 @@ from policy_eval import policy_eval
 
 def run_algos(spec, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
     # Policy Eval
     logging.info('\n===== Policy Eval =====')
