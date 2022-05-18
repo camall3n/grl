@@ -382,7 +382,16 @@ class POMDPFile:
 
         self.Pi_phi.append(np.array(line).astype('int'))
 
-        return i + 1
+        # Keep going if there are more
+        # Assume for now that Pi_phi is the last section of the file
+        while True:
+            i += 1
+            if i > len(self.contents)-1:
+                break
+            line = self.contents[i].split()
+            self.Pi_phi.append(np.array(line).astype('int'))
+
+        return i
 
     def get_spec(self):
         return to_dict(self.T, self.R, self.discount, self.start, self.Z, self.Pi_phi)

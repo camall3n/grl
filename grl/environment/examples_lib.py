@@ -73,12 +73,13 @@ def example_14():
     p0[0] = 0.75
     p0[1] = 0.25
 
-    phi = np.array([[
+    phi = np.array([
         [1, 0, 0],
         [1, 0, 0],
         [0, 1, 0],
         [0, 0, 1]
-    ]])
+    ])
+    phi = np.array([phi, phi])
 
     Pi_phi = [
         np.array([0, 0, 0, 0]),
@@ -87,70 +88,6 @@ def example_14():
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
-
-def tiger_terminal():
-    """
-    From: "Acting Optimally in Partially Observable Stochastic Domains"
-    https://aaai.org/Papers/AAAI/1994/AAAI94-157.pdf
-
-    Added a terminal state.
-    """
-    T_listen = np.array([
-        [1., 0, 0], # tiger_left state
-        [0, 1, 0], # tiger_right state
-        [0, 0, 0]
-    ])
-    T_open = np.array([
-        [0, 0, 1],
-        [0, 0, 1],
-        [0, 0, 0]
-    ])
-    T = np.array([T_listen, T_open, T_open]) # listen, open_left, open_right
-
-    R_listen = np.array([
-        [-1, 0, 0],
-        [0, -1, 0],
-        [0, 0, 0]
-    ])
-    R_open_left = np.array([
-        [0, 0, -100], 
-        [0, 0, 10],
-        [0, 0, 0]
-    ])
-    R_open_right = np.array([
-        [0, 0, 10],
-        [0, 0, -100],
-        [0, 0, 0]
-    ])
-    R = np.array([R_listen, R_open_left, R_open_right])
-
-    p0 = np.array([0.5, 0.5, 0])
-
-    phi_listen = np.array([
-        [0.85, 0.15, 0],
-        [0.15, 0.85, 0],
-        [0, 0, 1]
-    ])
-    phi_open_left = np.array([
-        [0.5, 0.5, 0],
-        [0.5, 0.5, 0],
-        [0, 0, 1]
-    ])
-    phi_open_right = np.array([
-        [0.5, 0.5, 0],
-        [0.5, 0.5, 0],
-        [0, 0, 1]
-    ])
-    phi = np.array([phi_listen, phi_open_left, phi_open_right])
-
-    Pi_phi = [
-        np.array([1, 1, 0]),
-        np.array([1, 2, 0]),
-        np.array([2, 1, 0]),
-        np.array([2, 2, 0]),
-    ]
-
-    return to_dict(T, R, 0.75, p0, phi, Pi_phi)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi):
     return {

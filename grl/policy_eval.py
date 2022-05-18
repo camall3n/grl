@@ -30,7 +30,7 @@ def policy_eval(pomdp, pi):
     # Solve amdp 
     amdp_vals = np.zeros(pomdp.n_obs)
     for i in range(pomdp.phi.shape[-1]):
-        col = pomdp.phi[:,:,i].copy().astype('float')[0]
+        col = pomdp.phi[:,:,i].copy().astype('float')[pi[i]]
         col /= col.sum()
         v = mdp_vals * col
         amdp_vals[i] += v.sum()
