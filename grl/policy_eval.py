@@ -29,19 +29,19 @@ def policy_eval(pomdp, pi):
     # Solve amdp 
     # Find the likelihood, P_pi(s), of reaching each state
     #   and use this likelihood to weight how much of the sum it gets
-    # For all s, P_pi(s) = sum_s"[P_pi(s") * sum_a[T(s",a,s)]],
+    # For all s, P_pi(s) = p0(s) + sum_s"[P_pi(s") * gamma * T(s",pi(s"),s)],
     #   where s" is the prev state
     a = []
     for s in range(pomdp.n_states):
         a_t = np.zeros(pomdp.n_states)
         a_t[s] = -1 # subtract P_pi(s) to right side
         for prev_s in range(pomdp.n_states):
-            t = pomdp.T[pi[prev_s],prev_s,s].sum()
+            t = pomdp.gamma * pomdp.T[pi[prev_s],prev_s,s]
             a_t[prev_s] += t
 
         a.append(a_t)
         
-    b = -1 * pomdp.p0
+    b = -1 * pomdp.p0 # subtract p0(s) to left side
     weights = np.linalg.solve(a, b)
 
     amdp_vals = np.zeros(pomdp.n_obs)
