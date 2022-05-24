@@ -8,7 +8,7 @@ import numpy as np
 import environment
 from mdp import MDP, AbstractMDP
 from mc import mc
-from policy_eval import policy_eval
+from policy_eval import PolicyEval
 
 def run_algos(spec, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
@@ -17,10 +17,12 @@ def run_algos(spec, n_steps, max_rollout_steps):
     # Policy Eval
     logging.info('\n===== Policy Eval =====')
     for pi in spec['Pi_phi']:
-        mdp_vals, amdp_vals = policy_eval(amdp, pi)
+        pe = PolicyEval(amdp, pi)
+        mdp_vals, amdp_vals, td_vals = pe.run()
         logging.info(f'\npi: {pi}')
         logging.info(f'\nmdp: {mdp_vals}')
         logging.info(f'amdp: {amdp_vals}')
+        logging.info(f'td: {td_vals}')
         logging.info('\n-----------')
 
     # Sampling
