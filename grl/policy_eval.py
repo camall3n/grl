@@ -6,15 +6,15 @@ class PolicyEval:
     def __init__(self, amdp, pi):
         """
         :param amdp:   AMDP
-        :param pi:     list/array of actions
+        :param pi:     A policy
         """
         self.amdp = amdp
         self.pi = pi
 
-    def run(self):
+    def run(self, with_gamma):
         # MC*
         mdp_vals = self.solve_mdp(self.amdp)
-        weights = self.get_weights()
+        weights = self.get_weights(with_gamma)
         amdp_vals = self.solve_amdp(mdp_vals, weights)
 
         # TD
@@ -44,7 +44,7 @@ class PolicyEval:
 
         return np.linalg.solve(a, b)
 
-    def get_weights(self):
+    def get_weights(self, with_gamma):
         """
         Finds the likelihood, P_pi(s), of reaching each state.
         For all s, P_pi(s) = p0(s) + sum_s"[P_pi(s") * gamma * T(s",pi(s"),s)],
@@ -55,8 +55,9 @@ class PolicyEval:
             a_t = np.zeros(self.amdp.n_states)
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
-                t =  self.amdp.T[self.pi[prev_s],prev_s,s]
-                # t = self.amdp.gamma * self.amdp.T[self.pi[prev_s],prev_s,s]
+                t = self.amdp.T[self.pi[prev_s],prev_s,s]
+                if with_gamma:
+                    t *= self.amdp.gamma
                 a_t[prev_s] += t
 
             a.append(a_t)
