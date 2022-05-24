@@ -41,11 +41,4 @@ def load(name):
     spec['T'] = np.nan_to_num(spec['T']) # terminal states had all zeros -> nan
     spec['p0'] /= spec['p0'].sum()
 
-    logging.info(f'T:\n {spec["T"]}')
-    logging.info(f'R:\n {spec["R"]}')
-    logging.info(f'gamma: {spec["gamma"]}')
-    logging.info(f'p0:\n {spec["p0"]}')
-    logging.info(f'phi:\n {spec["phi"]}')
-    logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
-
     return spec

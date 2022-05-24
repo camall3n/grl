@@ -76,9 +76,15 @@ if __name__ == '__main__':
     if args.seed:
         np.random.seed(args.seed)
 
-    # Get (PO)MDP definition
-    logging.info(f'spec:\n {args.spec}\n')
+    # Get POMDP definition
     spec = environment.load(args.spec)
+    logging.info(f'spec:\n {args.spec}\n')
+    logging.info(f'T:\n {spec["T"]}')
+    logging.info(f'R:\n {spec["R"]}')
+    logging.info(f'gamma: {spec["gamma"]}')
+    logging.info(f'p0:\n {spec["p0"]}')
+    logging.info(f'phi:\n {spec["phi"]}')
+    logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
     logging.info(f'n_steps:\n {args.n_steps}')
     logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
 

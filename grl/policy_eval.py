@@ -71,7 +71,7 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]] # TODO: phi indexing correct?
+            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
@@ -80,10 +80,13 @@ class PolicyEval:
         return amdp_vals
 
     def create_td_model(self, weights):
+        """
+        Generates effective TD(0) model
+        """
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]] # TODO: phi indexing correct?
+            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
             w = weights * col # Prob of being in each state * prob of it emitting curr obs i
             w_t = (w / w.sum())[:,None] * self.amdp.T
             w_r = w[:,None] * self.amdp.T
