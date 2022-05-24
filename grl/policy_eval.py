@@ -24,7 +24,7 @@ class PolicyEval:
 
     def solve_mdp(self, mdp):
         """
-        Solves for V using linear equations
+        Solves for V using linear equations.
         For all s, V_pi(s) = sum_(s')[T(s,pi(s),s') * (R(s,pi(s),s') + gamma*V_pi(s'))]
         """
         a = []
@@ -70,7 +70,7 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
+            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]] # TODO: phi indexing correct?
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
@@ -79,42 +79,27 @@ class PolicyEval:
         return amdp_vals
 
     def create_td_model(self, weights):
-        T_obs_state = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_states))
-        T_state_obs =  np.zeros((len(self.amdp.T), self.amdp.n_states, self.amdp.n_obs))
-
-        for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]] #TODO: phi indexing correct?
-            w = col.copy() * weights
-
-            w /= w.sum()
-            T = self.amdp.T * w[:,None]
-            T_obs_state[:,i] = T.sum(1)
-            
-            T = self.amdp.T * weights[:,None]
-            T = self.amdp.T * col
-            T_state_obs[:,:,i] = T.sum(2)
-
+        T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
-            w = weights * col.copy() # Prob of being in each state * prob of it emitting curr obs i
-            w = w[:,None] * self.amdp.T
+            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]] # TODO: phi indexing correct?
+            w = weights * col # Prob of being in each state * prob of it emitting curr obs i
+            w_t = (w / w.sum())[:,None] * self.amdp.T
+            w_r = w[:,None] * self.amdp.T
 
             for j in range(self.amdp.n_obs):
-                w2 = w.copy()
                 col2 = self.amdp.phi[:,:,j].copy().astype('float')[self.pi[i]]
-                w2 *= col2 # Prob of next_state emitting next_obs j
 
+                # T
+                w2 = w_t * col2 # Prob of next_state emitting next_obs j
+                T_obs_obs[:,i,j] = w2.reshape((len(self.amdp.T),-1)).sum(1)
+
+                # R
+                w2 = w_r * col2
                 sum = w2.reshape((len(self.amdp.R),-1)).sum((1))
                 if np.all(sum != 0):
-                    w2 /= sum[:,None,None]
+                    w2 /= sum[:,None,None] # Normalize probs within each action
                 R = (self.amdp.R * w2)
                 R_obs_obs[:,i,j] = R.reshape((len(self.amdp.R),-1)).sum(1)
-
-        # Convert from obs->state to obs->obs
-        T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
-        for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
-            T_obs_obs[:,:,i] = (T_obs_state*(col>0)).sum(2)
 
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
