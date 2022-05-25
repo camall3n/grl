@@ -5,10 +5,10 @@ import time
 
 import numpy as np
 
-import environment
-from mdp import MDP, AbstractMDP
-from mc import mc
-from policy_eval import PolicyEval
+from .environment import *
+from .mdp import MDP, AbstractMDP
+from .mc import mc
+from .policy_eval import PolicyEval
 
 def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])

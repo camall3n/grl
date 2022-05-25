@@ -1,6 +1,6 @@
 import numpy as np
 
-from mdp import MDP
+from .mdp import MDP
 
 class PolicyEval:
     def __init__(self, amdp, pi):

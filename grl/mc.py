@@ -1,7 +1,5 @@
 import numpy as np
 
-from mdp import MDP, AbstractMDP, one_hot
-
 def discount(rewards, gamma):
     gamma_powers = np.arange(len(rewards))
     gamma_multipliers = np.power(gamma, gamma_powers)
