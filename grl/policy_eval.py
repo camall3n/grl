@@ -11,10 +11,13 @@ class PolicyEval:
         self.amdp = amdp
         self.pi = pi
 
-    def run(self, with_gamma):
+    def run(self, no_gamma):
+        """ 
+        :param no_gamma: if True, do not discount the weighted average value expectation
+        """
         # MC*
         mdp_vals = self.solve_mdp(self.amdp)
-        weights = self.get_weights(with_gamma)
+        weights = self.get_weights(no_gamma)
         amdp_vals = self.solve_amdp(mdp_vals, weights)
 
         # TD
@@ -44,7 +47,7 @@ class PolicyEval:
 
         return np.linalg.solve(a, b)
 
-    def get_weights(self, with_gamma):
+    def get_weights(self, no_gamma):
         """
         Finds the likelihood, P_pi(s), of reaching each state.
         For all s, P_pi(s) = p0(s) + sum_s"[P_pi(s") * gamma * T(s",pi(s"),s)],
@@ -56,7 +59,7 @@ class PolicyEval:
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
                 t = self.amdp.T[self.pi[prev_s],prev_s,s]
-                if with_gamma:
+                if not no_gamma:
                     t *= self.amdp.gamma
                 a_t[prev_s] += t
 

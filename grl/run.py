@@ -10,7 +10,7 @@ from mdp import MDP, AbstractMDP
 from mc import mc
 from policy_eval import PolicyEval
 
-def run_algos(spec, with_gamma, n_steps, max_rollout_steps):
+def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
@@ -18,7 +18,7 @@ def run_algos(spec, with_gamma, n_steps, max_rollout_steps):
     logging.info('\n===== Policy Eval =====')
     for pi in spec['Pi_phi']:
         pe = PolicyEval(amdp, pi)
-        mdp_vals, amdp_vals, td_vals = pe.run(with_gamma)
+        mdp_vals, amdp_vals, td_vals = pe.run(no_gamma)
         logging.info(f'\npi: {pi}')
         logging.info(f'\nmdp: {mdp_vals}')
         logging.info(f'amdp: {amdp_vals}')
@@ -54,8 +54,8 @@ if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
     parser.add_argument('--spec', default='example_11', type=str)
-    parser.add_argument('--with_gamma', action='store_true',
-                        help='do policy eval with *discounted* weighted average value expectation where applicable')
+    parser.add_argument('--no_gamma', action='store_true',
+                        help='do not discount the weighted average value expectation in policy eval')
     parser.add_argument('--n_steps', default=20000, type=int,
                         help='number of rollouts to run')
     parser.add_argument('--max_rollout_steps', default=None, type=int,
@@ -90,4 +90,4 @@ if __name__ == '__main__':
 
 
     # Run algos
-    run_algos(spec, args.with_gamma, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.no_gamma, args.n_steps, args.max_rollout_steps)
