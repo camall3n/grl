@@ -28,7 +28,7 @@ class PolicyEval:
     def solve_mdp(self, mdp):
         """
         Solves for V using linear equations.
-        For all s, V_pi(s) = sum_(s')[T(s,pi(s),s') * (R(s,pi(s),s') + gamma*V_pi(s'))]
+        For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
         """
         a = []
         b = []
@@ -103,10 +103,10 @@ class PolicyEval:
 
                 # R
                 w2 = w_r * col2
-                sum = w2.reshape((len(self.amdp.R),-1)).sum((1))
-                if np.all(sum != 0):
-                    w2 /= sum[:,None,None] # Normalize probs within each action
-                R = (self.amdp.R * w2)
-                R_obs_obs[:,i,j] = R.reshape((len(self.amdp.R),-1)).sum(1)
+                with np.errstate(invalid='ignore'):
+                    w2 /= w2.reshape(len(self.amdp.R),-1).sum(1)[:,None,None] # Normalize probs within each action
+                w2 = np.nan_to_num(w2)
+                R = self.amdp.R * w2
+                R_obs_obs[:,i,j] = R.reshape(len(self.amdp.R),-1).sum(1)
 
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)

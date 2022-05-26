@@ -49,7 +49,7 @@ def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
         logging.info('\n-----------')
 
 if __name__ == '__main__':
-    # Usage: python run.py --spec example_11 --log
+    # Usage: python -m grl.run --spec example_11 --log
 
     # Args
     parser = argparse.ArgumentParser()

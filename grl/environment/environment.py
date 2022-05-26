@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 
 from . import examples_lib
@@ -37,7 +35,9 @@ def load(name):
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
-    spec['T'] /= spec['T'].sum(2)[:, :, None]
+
+    with np.errstate(invalid='ignore'):
+        spec['T'] /= spec['T'].sum(2)[:, :, None]
     spec['T'] = np.nan_to_num(spec['T']) # terminal states had all zeros -> nan
     spec['p0'] /= spec['p0'].sum()
 
