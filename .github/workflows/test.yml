@@ -15,5 +15,6 @@ jobs:
       with:
         python-version: '3.x'
     - run: |
-        pip install pytest
+        sudo apt-get install libgmp3-dev
+        pip install pytest -r requirements.txt
         pytest tests
