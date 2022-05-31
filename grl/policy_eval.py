@@ -36,11 +36,13 @@ class PolicyEval:
             a_t = np.zeros(mdp.n_states)
             a_t[s] = -1 # subtract V_pi(s) to right side
             b_t = 0
-            possible_next_ss = np.where(mdp.T[self.pi[s],s] != 0.)[0]
-            for next_s in possible_next_ss:
-                t = mdp.T[self.pi[s],s,next_s]
-                b_t -= t * mdp.R[self.pi[s],s,next_s] # subtract constants to left side
-                a_t[next_s] += t * mdp.gamma
+            for next_s in range(mdp.n_states):
+                t = mdp.T * self.pi[s][:, None, None]
+                t = t.sum(0)[s,next_s]
+                r = mdp.R * self.pi[s][:, None, None]
+                r = r.sum(0)[s,next_s]
+                a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
+                b_t -= t * r # subtract constants to left side
 
             a.append(a_t)
             b.append(b_t)
@@ -58,7 +60,8 @@ class PolicyEval:
             a_t = np.zeros(self.amdp.n_states)
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
-                t = self.amdp.T[self.pi[prev_s],prev_s,s]
+                t = self.amdp.T * self.pi[prev_s][:, None, None]
+                t = t.sum(0)[prev_s,s]
                 if not no_gamma:
                     t *= self.amdp.gamma
                 a_t[prev_s] += t
@@ -74,8 +77,8 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
-            col *= weights
+            col = self.amdp.phi[:,:,i] * self.pi[i][:, None, None]
+            col = col * weights
             col /= col.sum()
             v = mdp_vals * col
             amdp_vals[i] += v.sum()
@@ -89,16 +92,18 @@ class PolicyEval:
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
+            col = self.amdp.phi[:,:,i] * self.pi[i][:, None]
+            col = col.sum(0).squeeze()
             w = weights * col # Prob of being in each state * prob of it emitting curr obs i
             w_t = (w / w.sum())[:,None] * self.amdp.T
             w_r = w[:,None] * self.amdp.T
 
             for j in range(self.amdp.n_obs):
-                col2 = self.amdp.phi[:,:,j].copy().astype('float')[self.pi[i]]
+                col2 = self.amdp.phi[:,:,j] * self.pi[i][:, None]
+                col2 = col2.sum(0).squeeze()
 
                 # T
-                w2 = w_t * col2 # Prob of next_state emitting next_obs j
+                w2 = w_t * col2 # Further weight by prob of next_state emitting next_obs j
                 T_obs_obs[:,i,j] = w2.reshape((len(self.amdp.T),-1)).sum(1)
 
                 # R
@@ -108,5 +113,5 @@ class PolicyEval:
                 w2 = np.nan_to_num(w2)
                 R = self.amdp.R * w2
                 R_obs_obs[:,i,j] = R.reshape(len(self.amdp.R),-1).sum(1)
-
+            
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
