@@ -21,7 +21,7 @@ def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
         mdp_vals, amdp_vals, td_vals = pe.run(no_gamma)
         logging.info(f'\npi: {pi}')
         logging.info(f'\nmdp: {mdp_vals}')
-        logging.info(f'amdp: {amdp_vals}')
+        logging.info(f'mc*: {amdp_vals}')
         logging.info(f'td: {td_vals}')
         logging.info('\n-----------')
 
