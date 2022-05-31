@@ -22,8 +22,9 @@ class POMDPFile:
             T
             Z
             R
+            Pi_phi
         """
-        f = open(f'environment/pomdp_files/{filename}.POMDP', 'r')
+        f = open(f'grl/environment/pomdp_files/{filename}.POMDP', 'r')
         self.contents = [
             x.strip() for x in f.readlines()
             if (not (x.startswith("#") or x.isspace()))
@@ -369,29 +370,27 @@ class POMDPFile:
             self.R[a, start_state, next_state] = prob
 
     def __get_pi_phi(self, i):
-        # TODO: get all lines to support multiple policies
+        components = []
 
         line = self.contents[i]
 
-         # Check if values are on this line or the next line
+         # Check if first values are on this line or the next line
         if len(line.split()) == 1:
             i += 1
             line = self.contents[i].split()
         else:
             line = line.split()[1:]
+        components.append(np.array(line).astype('float'))
 
-        self.Pi_phi.append(np.array(line).astype('int'))
-
-        # Keep going if there are more
-        # Assume for now that Pi_phi is the last section of the file
-        while True:
+        for _ in range(len(self.states) - 1):
             i += 1
-            if i > len(self.contents)-1:
-                break
             line = self.contents[i].split()
-            self.Pi_phi.append(np.array(line).astype('int'))
+            components.append(np.array(line).astype('float'))
 
-        return i
+        pi = np.vstack(components)
+        self.Pi_phi.append(pi)
+
+        return i + 1
 
     def get_spec(self):
         return to_dict(self.T, self.R, self.discount, self.start, self.Z, self.Pi_phi)

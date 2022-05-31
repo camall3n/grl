@@ -77,9 +77,11 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i] * self.pi[i][:, None, None]
+            col = self.amdp.phi[:,:,i] * self.pi[i][:, None]
             col = col * weights
-            col /= col.sum()
+            with np.errstate(invalid='ignore'):
+                col /= col.sum()
+            col = np.nan_to_num(col)
             v = mdp_vals * col
             amdp_vals[i] += v.sum()
 
@@ -95,7 +97,9 @@ class PolicyEval:
             col = self.amdp.phi[:,:,i] * self.pi[i][:, None]
             col = col.sum(0).squeeze()
             w = weights * col # Prob of being in each state * prob of it emitting curr obs i
-            w_t = (w / w.sum())[:,None] * self.amdp.T
+            with np.errstate(invalid='ignore'):
+                w_t = (w / w.sum())[:,None] * self.amdp.T
+            w_t = np.nan_to_num(w_t)
             w_r = w[:,None] * self.amdp.T
 
             for j in range(self.amdp.n_obs):
