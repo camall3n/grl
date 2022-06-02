@@ -12,7 +12,7 @@ class PolicyEval:
         self.pi = pi
 
     def run(self, no_gamma):
-        """ 
+        """
         :param no_gamma: if True, do not discount the weighted average value expectation
         """
         # MC*
@@ -64,7 +64,7 @@ class PolicyEval:
                 a_t[prev_s] += t
 
             a.append(a_t)
-            
+
         b = -1 * self.amdp.p0 # subtract p0(s) to left side
         return np.linalg.solve(a, b)
 
@@ -74,7 +74,7 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
+            col = self.amdp.phi[:,i].copy().astype('float')#[self.pi[i]]
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
@@ -82,31 +82,38 @@ class PolicyEval:
 
         return amdp_vals
 
-    def create_td_model(self, weights):
+    def create_td_model(self, occupancy):
         """
         Generates effective TD(0) model
         """
+        print(f'occupancy: {occupancy}')
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
-        for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,:,i].copy().astype('float')[self.pi[i]]
-            w = weights * col # Prob of being in each state * prob of it emitting curr obs i
-            w_t = (w / w.sum())[:,None] * self.amdp.T
-            w_r = w[:,None] * self.amdp.T
+        for curr_ob in range(self.amdp.n_obs):
+            # phi is |S|x|O|
+            ###### curr_a = self.pi[curr_ob]
+            # compute p_π(o|s) for all s
+            p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
+            # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
+            w = occupancy * p_π_of_o_given_s # Prob of being in each state * prob of it emitting curr obs i
+            p_π_of_s_given_o = (w / w.sum())[:,None]
+            # w_r = w[:,None] * self.amdp.T
 
-            for j in range(self.amdp.n_obs):
-                col2 = self.amdp.phi[:,:,j].copy().astype('float')[self.pi[i]]
+            for next_ob in range(self.amdp.n_obs):
+                # Q: what action should this be? [self.pi[i]]
+                p_π_of_op_given_sp = self.amdp.phi[:,next_ob].copy().astype('float')
 
                 # T
-                w2 = w_t * col2 # Prob of next_state emitting next_obs j
-                T_obs_obs[:,i,j] = w2.reshape((len(self.amdp.T),-1)).sum(1)
+                T_contributions = (self.amdp.T * p_π_of_s_given_o * p_π_of_op_given_sp)
+                # sum over s', then over s
+                T_obs_obs[:,curr_ob,next_ob] = T_contributions.sum(2).sum(1)
 
                 # R
-                w2 = w_r * col2
                 with np.errstate(invalid='ignore'):
-                    w2 /= w2.reshape(len(self.amdp.R),-1).sum(1)[:,None,None] # Normalize probs within each action
-                w2 = np.nan_to_num(w2)
-                R = self.amdp.R * w2
-                R_obs_obs[:,i,j] = R.reshape(len(self.amdp.R),-1).sum(1)
+                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob])
+                R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
 
+
+        print(f'T_bar: {T_obs_obs}')
+        print(f'R_bar: {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)

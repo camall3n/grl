@@ -54,7 +54,7 @@ def example_3():
     Pi_phi = [
         np.array([0, 0, 0, 0, 0, 0, 0]),
     ]
-    
+
     return to_dict(T, R, 1.0, p0, phi, Pi_phi)
 
 def example_11():
@@ -75,17 +75,17 @@ def example_11():
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[
+    phi = np.array([
         [1, 0, 0],
         [0, 1, 0],
         [0, 1, 0],
         [0, 0, 1]
-    ]])
+    ])
 
     Pi_phi = [
         np.array([0, 0, 0, 0]),
     ]
-    
+
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
 
@@ -117,10 +117,10 @@ def example_13():
     Pi_phi = [
         np.array([0, 0, 0, 0]),
     ]
-    
+
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
-    
+
 def example_14():
     T_up = np.array([
         [0., 0, 0, 1],
