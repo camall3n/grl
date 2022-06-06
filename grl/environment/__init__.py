@@ -1,1 +1,1 @@
-from .environment import load
+from .environment import load_spec

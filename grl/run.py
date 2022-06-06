@@ -77,7 +77,7 @@ if __name__ == '__main__':
         np.random.seed(args.seed)
 
     # Get POMDP definition
-    spec = environment.load(args.spec)
+    spec = environment.load_spec(args.spec)
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
     logging.info(f'R:\n {spec["R"]}')
