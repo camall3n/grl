@@ -26,27 +26,27 @@ def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
         logging.info('\n-----------')
 
     # Sampling
-    logging.info('\n\n===== Sampling =====')
-    for pi in spec['Pi_phi']:
-        logging.info(f'\npi: {pi}')
+    # logging.info('\n\n===== Sampling =====')
+    # for pi in spec['Pi_phi']:
+    #     logging.info(f'\npi: {pi}')
 
-        # MC*
-        # MDP
-        v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info("\n- mc_states: all")
-        logging.info(f'mdp: {v}')
+    #     # MC*
+    #     # MDP
+    #     v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info("\n- mc_states: all")
+    #     logging.info(f'mdp: {v}')
 
-        # AMDP
-        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info(f'amdp: {v}')
+    #     # AMDP
+    #     v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info(f'amdp: {v}')
 
-        # MC1
-        # ADMP
-        logging.info("\n- mc_states: first")
-        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info(f'amdp: {v}')
+    #     # MC1
+    #     # ADMP
+    #     logging.info("\n- mc_states: first")
+    #     v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info(f'amdp: {v}')
 
-        logging.info('\n-----------')
+    #     logging.info('\n-----------')
 
 if __name__ == '__main__':
     # Usage: python -m grl.run --spec example_11 --log

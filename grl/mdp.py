@@ -1,5 +1,5 @@
 import copy
-import gmpy
+# import gmpy
 import numpy as np
 
 def normalize(M, axis=-1):
