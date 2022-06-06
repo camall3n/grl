@@ -11,7 +11,7 @@ class PolicyEval:
         :param pi:     A policy
         """
         self.amdp = amdp
-        self.pi = pi
+        self.pi_abs = pi
         self.pi_ground = self.amdp.get_ground_policy(pi)
 
     def run(self, no_gamma):
@@ -80,7 +80,7 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,i].copy().astype('float')#[self.pi[i]]
+            col = self.amdp.phi[:,i].copy().astype('float')
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
