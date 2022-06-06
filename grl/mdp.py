@@ -181,7 +181,7 @@ class AbstractMDP(MDP):
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi# array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
-        # self.p0 = p0
+        self.p0 = p0
 
         # self.belief = self.B(pi, t=t)
         # self.T = [self.compute_Tz(self.belief,T_a)

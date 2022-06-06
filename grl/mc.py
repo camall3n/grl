@@ -1,7 +1,5 @@
 import numpy as np
 
-from mdp import MDP, AbstractMDP, one_hot
-
 def discount(rewards, gamma):
     gamma_powers = np.arange(len(rewards))
     gamma_multipliers = np.power(gamma, gamma_powers)
@@ -36,7 +34,7 @@ def rollout(mdp, s, a, pi, max_steps=None):
     mc_returns = [(o, a, g) for ((o, a), g) in zip(oa_pairs, returns)]
     return mc_returns
 
-def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000):
+def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000, max_rollout_steps=None):
     if mc_states not in ['all', 'first']:
         raise ValueError("mc_states must be either 'all' or 'first'")
 
@@ -55,7 +53,7 @@ def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000):
             for s in range(mdp.n_states):
                 obs = mdp.observe(s)
                 for a in range(mdp.n_actions):
-                    q_target = rollout(mdp, s, a, pi)[0][-1]
+                    q_target = rollout(mdp, s, a, pi, max_rollout_steps)[0][-1]
                     mc_returns.append((obs, a, q_target))
         else:
             s = np.random.choice(mdp.n_states, p=p0)
@@ -64,7 +62,7 @@ def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000):
                 a = pi[s]
             else:
                 a = np.random.choice(mdp.n_actions)
-            mc_returns = rollout(mdp, s, a, pi)
+            mc_returns = rollout(mdp, s, a, pi, max_rollout_steps)
 
         encountered_oa_pairs = set()
         for obs, a, q_target in mc_returns:
