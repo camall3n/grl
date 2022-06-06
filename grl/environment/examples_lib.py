@@ -41,7 +41,7 @@ def example_3():
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[
+    phi = np.array([
         [1, 0, 0],
         [0, 1, 0],
         [0, 1, 0],
@@ -49,7 +49,7 @@ def example_3():
         [0, 0, 1],
         [0, 0, 1],
         [0, 0, 1],
-    ]])
+    ])
 
     Pi_phi = [
         np.array([0, 0, 0, 0, 0, 0, 0]),
@@ -107,12 +107,12 @@ def example_13():
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[
+    phi = np.array([
         [1, 0, 0],
         [0, 1, 0],
         [1, 0, 0],
         [0, 0, 1]
-    ]])
+    ])
 
     Pi_phi = [
         np.array([0, 0, 0, 0]),
@@ -154,7 +154,6 @@ def example_14():
         [0, 1, 0],
         [0, 0, 1]
     ])
-    phi = np.array([phi, phi])
 
     Pi_phi = [
         np.array([0, 0, 0, 0]),

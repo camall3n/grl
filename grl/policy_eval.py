@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .mdp import MDP
@@ -86,7 +88,7 @@ class PolicyEval:
         """
         Generates effective TD(0) model
         """
-        print(f'occupancy: {occupancy}')
+        logging.info(f'occupancy: {occupancy}')
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for curr_ob in range(self.amdp.n_obs):
@@ -97,7 +99,6 @@ class PolicyEval:
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
             w = occupancy * p_π_of_o_given_s # Prob of being in each state * prob of it emitting curr obs i
             p_π_of_s_given_o = (w / w.sum())[:,None]
-            # w_r = w[:,None] * self.amdp.T
 
             for next_ob in range(self.amdp.n_obs):
                 # Q: what action should this be? [self.pi[i]]
@@ -110,10 +111,10 @@ class PolicyEval:
 
                 # R
                 with np.errstate(invalid='ignore'):
-                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob])
+                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob][:, None, None])
                 R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
 
 
-        print(f'T_bar: {T_obs_obs}')
-        print(f'R_bar: {R_obs_obs}')
+        logging.info(f'T_bar: {T_obs_obs}')
+        logging.info(f'R_bar: {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
