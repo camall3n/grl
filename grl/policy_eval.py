@@ -39,13 +39,13 @@ class PolicyEval:
             a_t = np.zeros(mdp.n_states)
             a_t[s] = -1 # subtract V_pi(s) to right side
             b_t = 0
-            t = mdp.T * self.pi_ground[s][:, None, None]
-            r = mdp.R * self.pi_ground[s][:, None, None]
+            T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1)
+            R_pi = np.tensordot(self.pi_ground[s], mdp.R, axes=1)
             for next_s in range(mdp.n_states):
-                t_n = t.sum(0)[s,next_s]
-                r_n = r.sum(0)[s,next_s]
-                a_t[next_s] += t_n * mdp.gamma # add V_pi(s') to right side
-                b_t -= t_n * r_n # subtract constants to left side
+                t = T_pi[s,next_s]
+                r = R_pi[s,next_s]
+                a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
+                b_t -= t * r # subtract constants to left side
 
             a.append(a_t)
             b.append(b_t)
@@ -63,8 +63,8 @@ class PolicyEval:
             a_t = np.zeros(self.amdp.n_states)
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
-                t = self.amdp.T * self.pi_ground[prev_s][:, None, None]
-                t = t.sum(0)[prev_s,s]
+                T_pi = np.tensordot(self.pi_ground[prev_s], self.amdp.T, axes=1)
+                t = T_pi[prev_s,s]
                 if not no_gamma:
                     t *= self.amdp.gamma
                 a_t[prev_s] += t
