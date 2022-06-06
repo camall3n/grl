@@ -12,6 +12,7 @@ class PolicyEval:
         """
         self.amdp = amdp
         self.pi = pi
+        self.pi_ground = self.amdp.get_ground_policy(pi)
 
     def run(self, no_gamma):
         """
@@ -38,10 +39,10 @@ class PolicyEval:
             a_t = np.zeros(mdp.n_states)
             a_t[s] = -1 # subtract V_pi(s) to right side
             b_t = 0
-            possible_next_ss = np.where(mdp.T[self.pi[s],s] != 0.)[0]
+            possible_next_ss = np.where(mdp.T[self.pi_ground[s],s] != 0.)[0]
             for next_s in possible_next_ss:
-                t = mdp.T[self.pi[s],s,next_s]
-                b_t -= t * mdp.R[self.pi[s],s,next_s] # subtract constants to left side
+                t = mdp.T[self.pi_ground[s],s,next_s]
+                b_t -= t * mdp.R[self.pi_ground[s],s,next_s] # subtract constants to left side
                 a_t[next_s] += t * mdp.gamma
 
             a.append(a_t)
@@ -60,7 +61,7 @@ class PolicyEval:
             a_t = np.zeros(self.amdp.n_states)
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
-                t = self.amdp.T[self.pi[prev_s],prev_s,s]
+                t = self.amdp.T[self.pi_ground[prev_s],prev_s,s]
                 if not no_gamma:
                     t *= self.amdp.gamma
                 a_t[prev_s] += t
@@ -113,7 +114,6 @@ class PolicyEval:
                 with np.errstate(invalid='ignore'):
                     R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob][:, None, None])
                 R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
-
 
         logging.info(f'T_bar: {T_obs_obs}')
         logging.info(f'R_bar: {R_obs_obs}')
