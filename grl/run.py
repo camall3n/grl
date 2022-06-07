@@ -10,13 +10,19 @@ from .mdp import MDP, AbstractMDP
 from .mc import mc
 from .policy_eval import PolicyEval
 
-def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
+def run_algos(spec, no_gamma, n_random_policies, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
     # Policy Eval
     logging.info('\n===== Policy Eval =====')
-    for pi in spec['Pi_phi']:
+    policies = spec['Pi_phi']
+    if n_random_policies > 0:
+        policies = amdp.generate_random_policies(n_random_policies)
+
+    discrepancy_ids = []
+    for i, pi in enumerate(policies):
+        logging.info(f'\nid: {i}')
         logging.info(f'\npi: {pi}')
         pe = PolicyEval(amdp, pi)
         mdp_vals, amdp_vals, td_vals = pe.run(no_gamma)
@@ -24,6 +30,15 @@ def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
         logging.info(f'mc*: {amdp_vals}')
         logging.info(f'td: {td_vals}')
         logging.info('\n-----------')
+
+        if not np.allclose(amdp_vals, td_vals):
+            discrepancy_ids.append(i)
+
+    print('\nTD-MC* Discrepancy ids:')
+    if len(discrepancy_ids) > 0:
+        print(f'{discrepancy_ids}')
+    else:
+        print('None')
 
     # Sampling
     # logging.info('\n\n===== Sampling =====')
@@ -56,6 +71,8 @@ if __name__ == '__main__':
     parser.add_argument('--spec', default='example_11', type=str)
     parser.add_argument('--no_gamma', action='store_true',
                         help='do not discount the weighted average value expectation in policy eval')
+    parser.add_argument('--n_random_policies', default=0, type=int,
+                        help='number of random policies to run--if not set, then use specified Pi_phi instead')
     parser.add_argument('--n_steps', default=20000, type=int,
                         help='number of rollouts to run')
     parser.add_argument('--max_rollout_steps', default=None, type=int,
@@ -90,4 +107,4 @@ if __name__ == '__main__':
 
 
     # Run algos
-    run_algos(spec, args.no_gamma, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.no_gamma, args.n_random_policies, args.n_steps, args.max_rollout_steps)
