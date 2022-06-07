@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .mdp import MDP
@@ -9,7 +11,8 @@ class PolicyEval:
         :param pi:     A policy
         """
         self.amdp = amdp
-        self.pi = pi
+        self.pi_abs = pi
+        self.pi_ground = self.amdp.get_ground_policy(pi)
 
     def run(self, no_gamma):
         """
@@ -30,22 +33,26 @@ class PolicyEval:
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
         """
-        a = []
-        b = []
+        # Each index of these lists corresponds to one linear equation 
+        # b = A*V_pi(s)
+        A = [] # Each index will contain a list of |S| coefficients for that equation (list of lists of floats)
+        b = [] # Each index will contain the sum of the constants for that equation   (list of floats)
         for s in range(mdp.n_states):
             a_t = np.zeros(mdp.n_states)
             a_t[s] = -1 # subtract V_pi(s) to right side
             b_t = 0
-            possible_next_ss = np.where(mdp.T[self.pi[s],s] != 0.)[0]
-            for next_s in possible_next_ss:
-                t = mdp.T[self.pi[s],s,next_s]
-                b_t -= t * mdp.R[self.pi[s],s,next_s] # subtract constants to left side
-                a_t[next_s] += t * mdp.gamma
+            T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1)
+            R_pi = np.tensordot(self.pi_ground[s], mdp.R, axes=1)
+            for next_s in range(mdp.n_states):
+                t = T_pi[s,next_s]
+                r = R_pi[s,next_s]
+                a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
+                b_t -= t * r # subtract constants to left side
 
-            a.append(a_t)
+            A.append(a_t)
             b.append(b_t)
 
-        return np.linalg.solve(a, b)
+        return np.linalg.solve(A, b)
 
     def get_weights(self, no_gamma):
         """
@@ -58,7 +65,8 @@ class PolicyEval:
             a_t = np.zeros(self.amdp.n_states)
             a_t[s] = -1 # subtract P_pi(s) to right side
             for prev_s in range(self.amdp.n_states):
-                t = self.amdp.T[self.pi[prev_s],prev_s,s]
+                T_pi = np.tensordot(self.pi_ground[prev_s], self.amdp.T, axes=1)
+                t = T_pi[prev_s,s]
                 if not no_gamma:
                     t *= self.amdp.gamma
                 a_t[prev_s] += t
@@ -74,7 +82,7 @@ class PolicyEval:
         """
         amdp_vals = np.zeros(self.amdp.n_obs)
         for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,i].copy().astype('float')#[self.pi[i]]
+            col = self.amdp.phi[:,i].copy().astype('float')
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
@@ -86,7 +94,7 @@ class PolicyEval:
         """
         Generates effective TD(0) model
         """
-        print(f'occupancy: {occupancy}')
+        logging.info(f'occupancy: {occupancy}')
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for curr_ob in range(self.amdp.n_obs):
@@ -97,7 +105,6 @@ class PolicyEval:
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
             w = occupancy * p_π_of_o_given_s # Prob of being in each state * prob of it emitting curr obs i
             p_π_of_s_given_o = (w / w.sum())[:,None]
-            # w_r = w[:,None] * self.amdp.T
 
             for next_ob in range(self.amdp.n_obs):
                 # Q: what action should this be? [self.pi[i]]
@@ -110,10 +117,9 @@ class PolicyEval:
 
                 # R
                 with np.errstate(invalid='ignore'):
-                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob])
+                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob][:, None, None])
                 R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
 
-
-        print(f'T_bar: {T_obs_obs}')
-        print(f'R_bar: {R_obs_obs}')
+        logging.info(f'T_bar: {T_obs_obs}')
+        logging.info(f'R_bar: {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)

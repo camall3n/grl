@@ -17,36 +17,36 @@ def run_algos(spec, no_gamma, n_steps, max_rollout_steps):
     # Policy Eval
     logging.info('\n===== Policy Eval =====')
     for pi in spec['Pi_phi']:
+        logging.info(f'\npi: {pi}')
         pe = PolicyEval(amdp, pi)
         mdp_vals, amdp_vals, td_vals = pe.run(no_gamma)
-        logging.info(f'\npi: {pi}')
         logging.info(f'\nmdp: {mdp_vals}')
-        logging.info(f'amdp: {amdp_vals}')
+        logging.info(f'mc*: {amdp_vals}')
         logging.info(f'td: {td_vals}')
         logging.info('\n-----------')
 
     # Sampling
-    logging.info('\n\n===== Sampling =====')
-    for pi in spec['Pi_phi']:
-        logging.info(f'\npi: {pi}')
+    # logging.info('\n\n===== Sampling =====')
+    # for pi in spec['Pi_phi']:
+    #     logging.info(f'\npi: {pi}')
 
-        # MC*
-        # MDP
-        v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info("\n- mc_states: all")
-        logging.info(f'mdp: {v}')
+    #     # MC*
+    #     # MDP
+    #     v, q, pi = mc(mdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info("\n- mc_states: all")
+    #     logging.info(f'mdp: {v}')
 
-        # AMDP
-        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info(f'amdp: {v}')
+    #     # AMDP
+    #     v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.001, epsilon=0, mc_states='all', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info(f'amdp: {v}')
 
-        # MC1
-        # ADMP
-        logging.info("\n- mc_states: first")
-        v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
-        logging.info(f'amdp: {v}')
+    #     # MC1
+    #     # ADMP
+    #     logging.info("\n- mc_states: first")
+    #     v, q, pi = mc(amdp, pi, p0=spec['p0'], alpha=0.01, epsilon=0, mc_states='first', n_steps=n_steps, max_rollout_steps=max_rollout_steps)
+    #     logging.info(f'amdp: {v}')
 
-        logging.info('\n-----------')
+    #     logging.info('\n-----------')
 
 if __name__ == '__main__':
     # Usage: python -m grl.run --spec example_11 --log
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         np.random.seed(args.seed)
 
     # Get POMDP definition
-    spec = environment.load(args.spec)
+    spec = environment.load_spec(args.spec)
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
     logging.info(f'R:\n {spec["R"]}')

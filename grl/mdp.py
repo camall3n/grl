@@ -1,5 +1,5 @@
 import copy
-import gmpy
+# import gmpy
 import numpy as np
 
 def normalize(M, axis=-1):
@@ -228,7 +228,7 @@ class AbstractMDP(MDP):
         return (pi @ obs_fn.transpose()).astype(int)
 
     def get_ground_policy(self, pi):
-        return (self.phi @ pi).astype(int)
+        return self.phi @ pi
 
     def abstract_policies(self):
         pi_list = self.piecewise_constant_policies()

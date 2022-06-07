@@ -1,3 +1,4 @@
+# !! Currently broken since code does not support action-dependent obs !!
 # Adapted from http://pomdp.org/examples/tiger.aaai.POMDP  
 # Added a terminal state.
 # # #
@@ -55,7 +56,21 @@ R: open-right : tiger-left : * : * 10
 R: open-right : tiger-right : * : * -100
 
 Pi_phi:
-1 1 0
-1 2 0
-2 1 0
-2 2 0
+0 1 0
+0 1 0
+0 0 0
+
+Pi_phi:
+0 0 1
+0 0 1
+0 0 0
+
+Pi_phi:
+0 1 0
+0 0 1
+0 0 0
+
+Pi_phi:
+0 0 1
+0 1 0
+0 0 0
