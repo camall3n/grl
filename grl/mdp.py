@@ -234,6 +234,13 @@ class AbstractMDP(MDP):
         pi_list = self.piecewise_constant_policies()
         return [self.get_abstract_policy(pi) for pi in pi_list]
 
+    def generate_random_policies(self, n):
+        policies = []
+        for _ in range(n):
+            policies.append(np.random.dirichlet(np.ones(self.n_actions), self.n_obs))
+
+        return policies
+
 class UniformAbstractMDP(AbstractMDP):
     def __init__(self, base_mdp, phi, pi=None, p0=None):
         super().__init__(base_mdp, phi, pi, p0)
