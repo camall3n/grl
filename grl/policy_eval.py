@@ -94,7 +94,7 @@ class PolicyEval:
         """
         Generates effective TD(0) model
         """
-        logging.info(f'occupancy: {occupancy}')
+        logging.info(f'occupancy:\n {occupancy}')
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for curr_ob in range(self.amdp.n_obs):
@@ -120,6 +120,6 @@ class PolicyEval:
                     R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob][:, None, None])
                 R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
 
-        logging.info(f'T_bar: {T_obs_obs}')
-        logging.info(f'R_bar: {R_obs_obs}')
+        logging.info(f'T_bar:\n {T_obs_obs}')
+        logging.info(f'R_bar:\n {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)

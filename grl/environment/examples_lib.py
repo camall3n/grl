@@ -72,6 +72,59 @@ def example_3():
     
     return to_dict(T, R, 1.0, p0, phi, Pi_phi)
 
+def example_7():
+    T = np.array([
+        # r, b, r, t
+        [0., 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0]
+    ])
+    T = np.array([T,T])
+
+    R = np.array([[
+        [0., 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0]
+    ],
+    [
+        [0, 1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ]])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, 1]
+    ])
+
+    Pi_phi = [
+        np.array([
+            [1, 0], # up, down
+            [1, 0],
+            [1, 0]
+        ]),
+        np.array([
+            [0, 1],
+            [0, 1],
+            [0, 1]
+        ]),
+        np.array([
+            [4/7, 3/7],
+            [4/7, 3/7],
+            [4/7, 3/7],
+        ]),
+    ]
+    
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi)
+
 def example_11():
     T = np.array([[
         [0, 1, 0, 0],
@@ -198,6 +251,50 @@ def example_14():
     ]
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
+
+def example_16():
+    gamma_top = 0.5
+    # b, b, terminal
+    T = np.array([
+        [0, gamma_top, 1-gamma_top],
+        [gamma_top, 0, 1-gamma_top],
+        [0, 0, 0]
+    ])
+    T = np.array([T, T])
+
+    R_up = np.array([
+        [0, 1, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ])
+    R_down = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 0]
+    ])
+    R = np.array([R_up, R_down])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        [1, 0],
+        [1, 0],
+        [0, 1]
+    ])
+
+    Pi_phi = [
+        np.array([
+            [1, 0], # up, down
+            [1, 0]
+        ]),
+        np.array([
+            [0, 1],
+            [0, 1]
+        ]),
+    ]
+    
+    return to_dict(T, R, 1, p0, phi, Pi_phi)
 
 def example_18():
     T_up = np.array([
