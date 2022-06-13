@@ -20,11 +20,12 @@ class PolicyEval:
         """
         # MC*
         mdp_vals = self.solve_mdp(self.amdp)
-        weights = self.get_weights(no_gamma)
-        amdp_vals = self.solve_amdp(mdp_vals, weights)
+        occupancy = self.get_weights(no_gamma)
+        amdp_vals = self.solve_amdp(mdp_vals, occupancy)
+        logging.info(f'occupancy:\n {occupancy}')
 
         # TD
-        td_vals = self.solve_mdp(self.create_td_model(weights))
+        td_vals = self.solve_mdp(self.create_td_model(occupancy))
 
         return mdp_vals, amdp_vals, td_vals
 
@@ -94,7 +95,6 @@ class PolicyEval:
         """
         Generates effective TD(0) model
         """
-        logging.info(f'occupancy:\n {occupancy}')
         T_obs_obs = np.zeros((len(self.amdp.T), self.amdp.n_obs, self.amdp.n_obs))
         R_obs_obs = np.zeros((len(self.amdp.R), self.amdp.n_obs, self.amdp.n_obs))
         for curr_ob in range(self.amdp.n_obs):
