@@ -34,11 +34,11 @@ def run_algos(spec, no_gamma, n_random_policies, n_steps, max_rollout_steps):
         if not np.allclose(amdp_vals, td_vals):
             discrepancy_ids.append(i)
 
-    print('\nTD-MC* Discrepancy ids:')
+    logging.info('\nTD-MC* Discrepancy ids:')
     if len(discrepancy_ids) > 0:
-        print(f'{discrepancy_ids}')
+        logging.info(f'{discrepancy_ids}')
     else:
-        print('None')
+        logging.info('None')
 
     # Sampling
     # logging.info('\n\n===== Sampling =====')
