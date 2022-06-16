@@ -1,6 +1,6 @@
 import copy
 # import gmpy
-import numpy as np
+import jax.numpy as np
 
 def normalize(M, axis=-1):
     M = M.astype(float)

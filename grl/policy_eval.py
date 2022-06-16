@@ -1,28 +1,34 @@
 import logging
 
-import numpy as np
+import jax.numpy as np
+from jax.config import config
+config.update("jax_enable_x64", True)
 
 from .mdp import MDP
 
 class PolicyEval:
-    def __init__(self, amdp, pi):
+    def __init__(self, amdp, verbose=True):
         """
-        :param amdp:   AMDP
-        :param pi:     A policy
+        :param amdp:    AMDP
+        :param verbose: log everything
         """
         self.amdp = amdp
-        self.pi_abs = pi
-        self.pi_ground = self.amdp.get_ground_policy(pi)
+        self.verbose = verbose
 
-    def run(self, no_gamma):
+    def run(self, pi_abs, no_gamma):
         """
-        :param no_gamma: if True, do not discount the weighted average value expectation
+        :param pi_abs:   policy to evaluate, defined over abstract state space
+        :param no_gamma: if True, do not discount the occupancy expectation
         """
+        self.pi_ground = self.amdp.get_ground_policy(pi_abs)
+
         # MC*
         mdp_vals = self.solve_mdp(self.amdp)
         occupancy = self.get_weights(no_gamma)
         amdp_vals = self.solve_amdp(mdp_vals, occupancy)
-        logging.info(f'occupancy:\n {occupancy}')
+
+        if self.verbose:
+            logging.info(f'occupancy:\n {occupancy}')
 
         # TD
         td_vals = self.solve_mdp(self.create_td_model(occupancy))
@@ -40,14 +46,16 @@ class PolicyEval:
         b = [] # Each index will contain the sum of the constants for that equation   (list of floats)
         for s in range(mdp.n_states):
             a_t = np.zeros(mdp.n_states)
-            a_t[s] = -1 # subtract V_pi(s) to right side
+            # a_t[s] = -1 # subtract V_pi(s) to right side
+            a_t = a_t.at[s].set(-1)
             b_t = 0
             T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1)
             R_pi = np.tensordot(self.pi_ground[s], mdp.R, axes=1)
             for next_s in range(mdp.n_states):
                 t = T_pi[s,next_s]
                 r = R_pi[s,next_s]
-                a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
+                # a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
+                a_t = a_t.at[next_s].set(a_t[next_s] + t * mdp.gamma)
                 b_t -= t * r # subtract constants to left side
 
             A.append(a_t)
@@ -64,13 +72,15 @@ class PolicyEval:
         a = []
         for s in range(self.amdp.n_states):
             a_t = np.zeros(self.amdp.n_states)
-            a_t[s] = -1 # subtract P_pi(s) to right side
+            # a_t[s] = -1 # subtract P_pi(s) to right side
+            a_t = a_t.at[s].set(-1)
             for prev_s in range(self.amdp.n_states):
                 T_pi = np.tensordot(self.pi_ground[prev_s], self.amdp.T, axes=1)
                 t = T_pi[prev_s,s]
                 if not no_gamma:
                     t *= self.amdp.gamma
-                a_t[prev_s] += t
+                # a_t[prev_s] += t
+                a_t = a_t.at[prev_s].set(a_t[prev_s] + t)
 
             a.append(a_t)
 
@@ -87,7 +97,8 @@ class PolicyEval:
             col *= weights
             col /= col.sum()
             v = mdp_vals * col
-            amdp_vals[i] += v.sum()
+            # amdp_vals[i] += v.sum()
+            amdp_vals = amdp_vals.at[i].set(amdp_vals[i] + v.sum())
 
         return amdp_vals
 
@@ -113,13 +124,19 @@ class PolicyEval:
                 # T
                 T_contributions = (self.amdp.T * p_π_of_s_given_o * p_π_of_op_given_sp)
                 # sum over s', then over s
-                T_obs_obs[:,curr_ob,next_ob] = T_contributions.sum(2).sum(1)
+                # T_obs_obs[:,curr_ob,next_ob] = T_contributions.sum(2).sum(1)
+                T_obs_obs = T_obs_obs.at[:, curr_ob, next_ob].set(T_contributions.sum(2).sum(1))
 
                 # R
-                with np.errstate(invalid='ignore'):
-                    R_contributions = np.nan_to_num(self.amdp.R * T_contributions / T_obs_obs[:,curr_ob,next_ob][:, None, None])
-                R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
+                R_contributions = self.amdp.R * T_contributions 
+                denom = T_obs_obs[:,curr_ob,next_ob][:, None, None]
+                denom = np.where(denom == 0, 1, denom) # Avoid divide by zero (there may be a better way) 
+                R_contributions /= denom
 
-        logging.info(f'T_bar:\n {T_obs_obs}')
-        logging.info(f'R_bar:\n {R_obs_obs}')
+                # R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
+                R_obs_obs = R_obs_obs.at[:, curr_ob, next_ob].set(R_contributions.sum(2).sum(1))
+
+        if self.verbose:
+            logging.info(f'T_bar:\n {T_obs_obs}')
+            logging.info(f'R_bar:\n {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
