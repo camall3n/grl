@@ -172,6 +172,6 @@ class PolicyEval:
             for a in range(mdp.n_actions):
                 for sp in range(mdp.n_states):
                     # q_vals[s,a] += mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp]
-                    q_vals = q_vals.at[s,a].set(q_vals[s,a] + mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp])
+                    q_vals = q_vals.at[s,a].set(q_vals[s,a] + mdp.T[a,s,sp] * (mdp.R[a,s,sp] + mdp.gamma * v_vals[sp]))
 
         return q_vals

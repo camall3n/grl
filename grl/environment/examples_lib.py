@@ -192,6 +192,7 @@ def example_13():
 
     
 def example_14():
+    # b1, b2, r, t
     T_up = np.array([
         [0., 0, 0, 1],
         [0, 0, 1, 0],
@@ -206,13 +207,19 @@ def example_14():
     ])
     T = np.array([T_up, T_down])
 
-    R = np.array([
+    R_up = np.array([
         [0, 0, 0, 1],
+        [0, 0, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0]
+    ])
+    R_down = np.array([
+        [0, 0, 0, 0],
         [0, 0, 0, 1],
         [0, 0, 0, 1],
         [0, 0, 0, 0]
     ])
-    R = np.array([R, R])
+    R = np.array([R_up, R_down])
 
     p0 = np.zeros(len(T[0]))
     p0[0] = 0.75
