@@ -118,9 +118,12 @@ class PolicyEval:
                     for sp in range(self.amdp.n_states):
                         q_vals = q_vals.at[o,a].set(q_vals[o,a] + col[s] *
                                                     (
-                                                        self.amdp.R[a,s,sp] +
-                                                        self.amdp.gamma * self.amdp.T[a,s,sp] * mdp_vals[sp])
-                                                    )
+                                                        self.amdp.T[a,s,sp] *
+                                                        (
+                                                            self.amdp.R[a,s,sp] +
+                                                            self.amdp.gamma * mdp_vals[sp]
+                                                        )
+                                                    ))
 
         return {'v': v_vals, 'q': q_vals}
 
