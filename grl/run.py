@@ -10,6 +10,7 @@ from .mdp import MDP, AbstractMDP
 from .mc import mc
 from .policy_eval import PolicyEval
 from .grad import do_grad
+from .utils import pformat_vals
 
 def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
@@ -27,13 +28,15 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
         logging.info(f'\nid: {i}')
         logging.info(f'\npi:\n {pi}')
         mdp_vals, amdp_vals, td_vals = pe.run(pi, no_gamma)
-        logging.info(f'\nmdp: {mdp_vals}')
-        logging.info(f'mc*: {amdp_vals}')
-        logging.info(f'td: {td_vals}')
+        logging.info(f'\nmdp:\n {np.array(mdp_vals["q"])}')
+        logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
+        logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
+        logging.info(f'td:\n {pformat_vals(td_vals)}')
 
-        if not np.allclose(amdp_vals, td_vals):
+        if not np.allclose(amdp_vals['v'], td_vals['v']) or \
+            not np.allclose(amdp_vals['q'], td_vals['q']):
+
             discrepancy_ids.append(i)
-
             if use_grad:
                 do_grad(pe, pi, no_gamma)
 

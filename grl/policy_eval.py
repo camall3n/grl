@@ -3,6 +3,7 @@ import logging
 import jax.numpy as np
 from jax.config import config
 config.update("jax_enable_x64", True)
+config.update('jax_platform_name', 'cpu')
 
 from .mdp import MDP
 
@@ -22,16 +23,25 @@ class PolicyEval:
         """
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
 
+        mdp_vals = {}
+        amdp_vals = {}
+        td_vals = {}
+
         # MC*
-        mdp_vals = self.solve_mdp(self.amdp)
-        occupancy = self.get_weights(no_gamma)
-        amdp_vals = self.solve_amdp(mdp_vals, occupancy)
+        mdp_vals['v'] = self.solve_mdp(self.amdp)
+        occupancy = self.get_occupancy(no_gamma)
+        amdp_vals = self.solve_amdp(mdp_vals['v'], occupancy)
 
         if self.verbose:
             logging.info(f'occupancy:\n {occupancy}')
 
         # TD
-        td_vals = self.solve_mdp(self.create_td_model(occupancy))
+        td_model = self.create_td_model(occupancy)
+        td_vals['v'] = self.solve_mdp(td_model)
+
+        # Q vals
+        mdp_vals['q'] = self.v_to_q(mdp_vals['v'], self.amdp.base_mdp)
+        td_vals['q'] = self.v_to_q(td_vals['v'], td_model)
 
         return mdp_vals, amdp_vals, td_vals
 
@@ -50,24 +60,24 @@ class PolicyEval:
             a_t = a_t.at[s].set(-1)
             b_t = 0
             T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1)
-            R_pi = np.tensordot(self.pi_ground[s], mdp.R, axes=1)
+            R_pi = np.tensordot(self.pi_ground[s], mdp.R * mdp.T, axes=1)
             for next_s in range(mdp.n_states):
                 t = T_pi[s,next_s]
                 r = R_pi[s,next_s]
                 # a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
                 a_t = a_t.at[next_s].set(a_t[next_s] + t * mdp.gamma)
-                b_t -= t * r # subtract constants to left side
+                b_t -= r # subtract constants to left side
 
             A.append(a_t)
             b.append(b_t)
 
         return np.linalg.solve(A, b)
 
-    def get_weights(self, no_gamma):
+    def get_occupancy(self, no_gamma):
         """
-        Finds the likelihood, P_pi(s), of reaching each state.
-        For all s, P_pi(s) = p0(s) + sum_s"[P_pi(s") * gamma * T(s",pi(s"),s)],
-          where s" is the prev state
+        Finds the visitation count, C_pi(s), of each state.
+        For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
+          where s^ is the prev state
         """
         # Each index of this list corresponds to one linear equation
         # b = A*P_pi(s)
@@ -89,20 +99,30 @@ class PolicyEval:
         b = -1 * self.amdp.p0 # subtract p0(s) to left side
         return np.linalg.solve(A, b)
 
-    def solve_amdp(self, mdp_vals, weights):
+    def solve_amdp(self, mdp_vals, occupancy):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        amdp_vals = np.zeros(self.amdp.n_obs)
-        for i in range(self.amdp.n_obs):
-            col = self.amdp.phi[:,i].copy().astype('float')
-            col *= weights
+        v_vals = np.zeros(self.amdp.n_obs)
+        q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
+        for o in range(self.amdp.n_obs):
+            col = self.amdp.phi[:,o].copy().astype('float')
+            col *= occupancy
             col /= col.sum()
             v = mdp_vals * col
-            # amdp_vals[i] += v.sum()
-            amdp_vals = amdp_vals.at[i].set(amdp_vals[i] + v.sum())
+            # v_vals[o] += v.sum()
+            v_vals = v_vals.at[o].set(v_vals[o] + v.sum())
 
-        return amdp_vals
+            for s in range(self.amdp.n_states):
+                for a in range(self.amdp.n_actions):
+                    for sp in range(self.amdp.n_states):
+                        q_vals = q_vals.at[o,a].set(q_vals[o,a] + col[s] *
+                                                    (
+                                                        self.amdp.R[a,s,sp] +
+                                                        self.amdp.gamma * self.amdp.T[a,s,sp] * mdp_vals[sp])
+                                                    )
+
+        return {'v': v_vals, 'q': q_vals}
 
     def create_td_model(self, occupancy):
         """
@@ -142,3 +162,16 @@ class PolicyEval:
             logging.info(f'T_bar:\n {T_obs_obs}')
             logging.info(f'R_bar:\n {R_obs_obs}')
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
+
+    def v_to_q(self, v_vals, mdp):
+        """
+        Calculates Q values given V values
+        """
+        q_vals = np.zeros((mdp.n_states, mdp.n_actions))
+        for s in range(mdp.n_states):
+            for a in range(mdp.n_actions):
+                for sp in range(mdp.n_states):
+                    # q_vals[s,a] += mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp]
+                    q_vals = q_vals.at[s,a].set(q_vals[s,a] + mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp])
+
+        return q_vals
