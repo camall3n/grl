@@ -28,7 +28,7 @@ class PolicyEval:
         td_vals = {}
 
         # MC*
-        mdp_vals['v'] = self.solve_mdp(self.amdp)
+        mdp_vals = self.solve_mdp(self.amdp)
         occupancy = self.get_occupancy(no_gamma)
         amdp_vals = self.solve_amdp(mdp_vals['v'], occupancy)
 
@@ -36,12 +36,7 @@ class PolicyEval:
             logging.info(f'occupancy:\n {occupancy}')
 
         # TD
-        td_model = self.create_td_model(occupancy)
-        td_vals['v'] = self.solve_mdp(td_model)
-
-        # Q vals
-        mdp_vals['q'] = self.v_to_q(mdp_vals['v'], self.amdp.base_mdp)
-        td_vals['q'] = self.v_to_q(td_vals['v'], td_model)
+        td_vals = self.solve_mdp(self.create_td_model(occupancy))
 
         return mdp_vals, amdp_vals, td_vals
 
@@ -71,7 +66,17 @@ class PolicyEval:
             A.append(a_t)
             b.append(b_t)
 
-        return np.linalg.solve(A, b)
+        v_vals =  np.linalg.solve(A, b)
+
+        # Q vals
+        q_vals = np.zeros((mdp.n_states, mdp.n_actions))
+        for s in range(mdp.n_states):
+            for a in range(mdp.n_actions):
+                for sp in range(mdp.n_states):
+                    # q_vals[s,a] += mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp]
+                    q_vals = q_vals.at[s,a].set(q_vals[s,a] + mdp.T[a,s,sp] * (mdp.R[a,s,sp] + mdp.gamma * v_vals[sp]))
+
+        return {'v': v_vals, 'q': q_vals}
 
     def get_occupancy(self, no_gamma):
         """
@@ -84,7 +89,7 @@ class PolicyEval:
         A = []
         for s in range(self.amdp.n_states):
             a_t = np.zeros(self.amdp.n_states)
-            # a_t[s] = -1 # subtract P_pi(s) to right side
+            # a_t[s] = -1 # subtract C_pi(s) to right side
             a_t = a_t.at[s].set(-1)
             for prev_s in range(self.amdp.n_states):
                 T_pi = np.tensordot(self.pi_ground[prev_s], self.amdp.T, axes=1)
@@ -106,6 +111,7 @@ class PolicyEval:
         v_vals = np.zeros(self.amdp.n_obs)
         q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
         for o in range(self.amdp.n_obs):
+            # V vals
             col = self.amdp.phi[:,o].copy().astype('float')
             col *= occupancy
             col /= col.sum()
@@ -113,6 +119,7 @@ class PolicyEval:
             # v_vals[o] += v.sum()
             v_vals = v_vals.at[o].set(v_vals[o] + v.sum())
 
+            # Q vals
             for s in range(self.amdp.n_states):
                 for a in range(self.amdp.n_actions):
                     for sp in range(self.amdp.n_states):
@@ -164,17 +171,5 @@ class PolicyEval:
         if self.verbose:
             logging.info(f'T_bar:\n {T_obs_obs}')
             logging.info(f'R_bar:\n {R_obs_obs}')
+
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
-
-    def v_to_q(self, v_vals, mdp):
-        """
-        Calculates Q values given V values
-        """
-        q_vals = np.zeros((mdp.n_states, mdp.n_actions))
-        for s in range(mdp.n_states):
-            for a in range(mdp.n_actions):
-                for sp in range(mdp.n_states):
-                    # q_vals[s,a] += mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp]
-                    q_vals = q_vals.at[s,a].set(q_vals[s,a] + mdp.T[a,s,sp] * (mdp.R[a,s,sp] + mdp.gamma * v_vals[sp]))
-
-        return q_vals
