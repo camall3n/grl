@@ -110,21 +110,21 @@ class PolicyEval:
         """
         v_vals = np.zeros(self.amdp.n_obs)
         q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
-        for o in range(self.amdp.n_obs):
+        for ob in range(self.amdp.n_obs):
             # V vals
-            col = self.amdp.phi[:,o].copy().astype('float')
+            col = self.amdp.phi[:,ob].copy().astype('float')
             col *= occupancy
             col /= col.sum()
             v = mdp_vals * col
             # v_vals[o] += v.sum()
-            v_vals = v_vals.at[o].set(v_vals[o] + v.sum())
+            v_vals = v_vals.at[ob].set(v_vals[ob] + v.sum())
 
             # Q vals
             for s in range(self.amdp.n_states):
                 for a in range(self.amdp.n_actions):
                     for sp in range(self.amdp.n_states):
                         q_vals = q_vals.at[
-                            o, a].set(q_vals[o, a] + col[s] *
+                            ob, a].set(q_vals[ob, a] + col[s] *
                                       (self.amdp.T[a, s, sp] *
                                        (self.amdp.R[a, s, sp] +
                                         self.amdp.gamma * mdp_vals[sp])))
