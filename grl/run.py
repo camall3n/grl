@@ -11,7 +11,7 @@ from .mc import mc
 from .policy_eval import PolicyEval
 from .grad import do_grad
 
-def run_algos(spec, no_gamma, n_random_policies, grad, n_steps, max_rollout_steps):
+def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
@@ -34,7 +34,7 @@ def run_algos(spec, no_gamma, n_random_policies, grad, n_steps, max_rollout_step
         if not np.allclose(amdp_vals, td_vals):
             discrepancy_ids.append(i)
 
-            if grad:
+            if use_grad:
                 do_grad(pe, pi, no_gamma)
 
         logging.info('\n-----------')
@@ -78,7 +78,7 @@ if __name__ == '__main__':
                         help='do not discount the weighted average value expectation in policy eval')
     parser.add_argument('--n_random_policies', default=0, type=int,
                         help='number of random policies to run--if not set, then use specified Pi_phi instead')
-    parser.add_argument('--grad', action='store_true',
+    parser.add_argument('--use_grad', action='store_true',
                         help='find policy that minimizes any discrepancies by following gradient')
     parser.add_argument('--n_steps', default=20000, type=int,
                         help='number of rollouts to run')
@@ -114,4 +114,4 @@ if __name__ == '__main__':
 
 
     # Run algos
-    run_algos(spec, args.no_gamma, args.n_random_policies, args.grad, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps, args.max_rollout_steps)

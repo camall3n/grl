@@ -4,13 +4,19 @@ import numpy as np
 
 from jax import grad
 
-def do_grad(pe, pi_abs, no_gamma, lr=1):
+def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
+    """
+    :param policy_eval: PolicyEval object
+    :param pi_abs:      policy over abstract state space
+    :param no_gamma:    passed to policy_eval run() func
+    :param lr:          learning rate
+    """
     def mse_loss(pi):
-        _, amdp_vals, td_vals = pe.run(pi, no_gamma)
+        _, amdp_vals, td_vals = policy_eval.run(pi, no_gamma)
         diff = amdp_vals - td_vals
         return (diff**2).mean()
 
-    pe.verbose = False
+    policy_eval.verbose = False
     old_pi = pi_abs
     i = 0
     done_count = 0
@@ -35,8 +41,8 @@ def do_grad(pe, pi_abs, no_gamma, lr=1):
     logging.info(f'Final gradient pi:\n {pi_abs}')
     logging.info(f'in {i} gradient steps with lr={lr}')
 
-    # pe.verbose = True
-    mdp_vals, amdp_vals, td_vals = pe.run(pi_abs, no_gamma)
+    # policy_eval.verbose = True
+    mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs, no_gamma)
     logging.info('\nFinal vals using gradient pi')
     logging.info(f'mdp: {mdp_vals}')
     logging.info(f'mc*: {amdp_vals}')
