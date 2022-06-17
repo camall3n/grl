@@ -123,14 +123,11 @@ class PolicyEval:
             for s in range(self.amdp.n_states):
                 for a in range(self.amdp.n_actions):
                     for sp in range(self.amdp.n_states):
-                        q_vals = q_vals.at[o,a].set(q_vals[o,a] + col[s] *
-                                                    (
-                                                        self.amdp.T[a,s,sp] *
-                                                        (
-                                                            self.amdp.R[a,s,sp] +
-                                                            self.amdp.gamma * mdp_vals[sp]
-                                                        )
-                                                    ))
+                        q_vals = q_vals.at[
+                            o, a].set(q_vals[o, a] + col[s] *
+                                      (self.amdp.T[a, s, sp] *
+                                       (self.amdp.R[a, s, sp] +
+                                        self.amdp.gamma * mdp_vals[sp])))
 
         return {'v': v_vals, 'q': q_vals}
 
@@ -160,9 +157,9 @@ class PolicyEval:
                 T_obs_obs = T_obs_obs.at[:, curr_ob, next_ob].set(T_contributions.sum(2).sum(1))
 
                 # R
-                R_contributions = self.amdp.R * T_contributions 
+                R_contributions = self.amdp.R * T_contributions
                 denom = T_obs_obs[:,curr_ob,next_ob][:, None, None]
-                denom = np.where(denom == 0, 1, denom) # Avoid divide by zero (there may be a better way) 
+                denom = np.where(denom == 0, 1, denom) # Avoid divide by zero (there may be a better way)
                 R_contributions /= denom
 
                 # R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
