@@ -85,7 +85,7 @@ class PolicyEval:
           where s^ is the prev state
         """
         # Each index of this list corresponds to one linear equation
-        # b = A*P_pi(s)
+        # b = A*C_pi(s)
         A = []
         for s in range(self.amdp.n_states):
             a_t = np.zeros(self.amdp.n_states)
