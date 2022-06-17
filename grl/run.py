@@ -9,8 +9,9 @@ from .environment import *
 from .mdp import MDP, AbstractMDP
 from .mc import mc
 from .policy_eval import PolicyEval
+from .grad import do_grad
 
-def run_algos(spec, no_gamma, n_random_policies, n_steps, max_rollout_steps):
+def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
@@ -20,19 +21,23 @@ def run_algos(spec, no_gamma, n_random_policies, n_steps, max_rollout_steps):
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
 
+    pe = PolicyEval(amdp)
     discrepancy_ids = []
     for i, pi in enumerate(policies):
         logging.info(f'\nid: {i}')
-        logging.info(f'\npi: {pi}')
-        pe = PolicyEval(amdp, pi)
-        mdp_vals, amdp_vals, td_vals = pe.run(no_gamma)
+        logging.info(f'\npi:\n {pi}')
+        mdp_vals, amdp_vals, td_vals = pe.run(pi, no_gamma)
         logging.info(f'\nmdp: {mdp_vals}')
         logging.info(f'mc*: {amdp_vals}')
         logging.info(f'td: {td_vals}')
-        logging.info('\n-----------')
 
         if not np.allclose(amdp_vals, td_vals):
             discrepancy_ids.append(i)
+
+            if use_grad:
+                do_grad(pe, pi, no_gamma)
+
+        logging.info('\n-----------')
 
     logging.info('\nTD-MC* Discrepancy ids:')
     if len(discrepancy_ids) > 0:
@@ -73,6 +78,8 @@ if __name__ == '__main__':
                         help='do not discount the weighted average value expectation in policy eval')
     parser.add_argument('--n_random_policies', default=0, type=int,
                         help='number of random policies to run--if not set, then use specified Pi_phi instead')
+    parser.add_argument('--use_grad', action='store_true',
+                        help='find policy that minimizes any discrepancies by following gradient')
     parser.add_argument('--n_steps', default=20000, type=int,
                         help='number of rollouts to run')
     parser.add_argument('--max_rollout_steps', default=None, type=int,
@@ -107,4 +114,4 @@ if __name__ == '__main__':
 
 
     # Run algos
-    run_algos(spec, args.no_gamma, args.n_random_policies, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps, args.max_rollout_steps)

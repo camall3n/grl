@@ -117,10 +117,10 @@ def example_7():
             [0, 1]
         ]),
         np.array([
-            [4/7, 3/7],
-            [4/7, 3/7],
-            [4/7, 3/7],
-        ]),
+            [4/7, 3/7], # known location of no discrepancy
+            [1, 0],
+            [1, 0],
+        ])
     ]
     
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
