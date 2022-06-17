@@ -40,7 +40,7 @@ class PolicyEval:
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
         """
-        # Each index of these lists corresponds to one linear equation 
+        # Each index of these lists corresponds to one linear equation
         # b = A*V_pi(s)
         A = [] # Each index will contain a list of |S| coefficients for that equation (list of lists of floats)
         b = [] # Each index will contain the sum of the constants for that equation   (list of floats)
@@ -69,7 +69,9 @@ class PolicyEval:
         For all s, P_pi(s) = p0(s) + sum_s"[P_pi(s") * gamma * T(s",pi(s"),s)],
           where s" is the prev state
         """
-        a = []
+        # Each index of this list corresponds to one linear equation
+        # b = A*P_pi(s)
+        A = []
         for s in range(self.amdp.n_states):
             a_t = np.zeros(self.amdp.n_states)
             # a_t[s] = -1 # subtract P_pi(s) to right side
@@ -82,10 +84,10 @@ class PolicyEval:
                 # a_t[prev_s] += t
                 a_t = a_t.at[prev_s].set(a_t[prev_s] + t)
 
-            a.append(a_t)
+            A.append(a_t)
 
         b = -1 * self.amdp.p0 # subtract p0(s) to left side
-        return np.linalg.solve(a, b)
+        return np.linalg.solve(A, b)
 
     def solve_amdp(self, mdp_vals, weights):
         """
