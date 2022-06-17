@@ -44,11 +44,8 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
         logging.info('\n-----------')
 
     logging.info('\nTD-MC* Discrepancy ids:')
-    if len(discrepancy_ids) > 0:
-        logging.info(f'{discrepancy_ids}')
-        logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
-    else:
-        logging.info('None')
+    logging.info(f'{discrepancy_ids}')
+    logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
     # Sampling
     # logging.info('\n\n===== Sampling =====')
