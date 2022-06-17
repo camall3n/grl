@@ -4,6 +4,7 @@ import pathlib
 import time
 
 import numpy as np
+import jax
 
 from .environment import *
 from .mdp import MDP, AbstractMDP
@@ -45,6 +46,7 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
     logging.info('\nTD-MC* Discrepancy ids:')
     if len(discrepancy_ids) > 0:
         logging.info(f'{discrepancy_ids}')
+        logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
     else:
         logging.info('None')
 
@@ -102,6 +104,7 @@ if __name__ == '__main__':
 
     if args.seed:
         np.random.seed(args.seed)
+        jax.random.PRNGKey(args.seed)
 
     # Get POMDP definition
     spec = environment.load_spec(args.spec)

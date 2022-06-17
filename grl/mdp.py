@@ -1,5 +1,6 @@
 import copy
 # import gmpy
+import numpy as onp
 import jax.numpy as np
 
 def normalize(M, axis=-1):
@@ -237,7 +238,7 @@ class AbstractMDP(MDP):
     def generate_random_policies(self, n):
         policies = []
         for _ in range(n):
-            policies.append(np.random.dirichlet(np.ones(self.n_actions), self.n_obs))
+            policies.append(onp.random.dirichlet(np.ones(self.n_actions), self.n_obs))
 
         return policies
 
