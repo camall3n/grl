@@ -23,6 +23,7 @@ class PolicyEval:
         :param pi_abs:   policy to evaluate, defined over abstract state space
         :param no_gamma: if True, do not discount the occupancy expectation
         """
+        self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
 
         mdp_vals = {}
@@ -32,7 +33,7 @@ class PolicyEval:
         # MC*
         mdp_vals = self.solve_mdp(self.amdp)
         occupancy = self.get_occupancy(no_gamma)
-        amdp_vals = self.solve_amdp(mdp_vals['v'], occupancy)
+        amdp_vals = self.solve_amdp(mdp_vals['q'], occupancy)
 
         if self.verbose:
             logging.info(f'occupancy:\n {occupancy}')
@@ -109,31 +110,24 @@ class PolicyEval:
         b = -1 * self.amdp.p0 # subtract p0(s) to left side
         return np.linalg.solve(A, b)
 
-    def solve_amdp(self, mdp_vals, occupancy):
+    def solve_amdp(self, mdp_q_vals, occupancy):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        v_vals = np.zeros(self.amdp.n_obs)
-        q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
+        amdp_q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
+
+        # Q vals
         for ob in range(self.amdp.n_obs):
-            # V vals
             col = self.amdp.phi[:, ob].copy().astype('float')
             col *= occupancy
             col /= col.sum()
-            v = mdp_vals * col
-            # v_vals[o] += v.sum()
-            v_vals = v_vals.at[ob].set(v_vals[ob] + v.sum())
+            weighted_q = (mdp_q_vals * col[:, None]).sum(0)
+            amdp_q_vals = amdp_q_vals.at[ob].set(weighted_q)
 
-            # Q vals
-            for s in range(self.amdp.n_states):
-                for a in range(self.amdp.n_actions):
-                    for sp in range(self.amdp.n_states):
-                        q_vals = q_vals.at[
-                            ob, a].set(q_vals[ob, a] + col[s] *
-                                       (self.amdp.T[a, s, sp] *
-                                        (self.amdp.R[a, s, sp] + self.amdp.gamma * mdp_vals[sp])))
+        # V vals
+        amdp_v_vals = (amdp_q_vals * self.pi_abs).sum(1)
 
-        return {'v': v_vals, 'q': q_vals}
+        return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
     def create_td_model(self, occupancy):
         """
