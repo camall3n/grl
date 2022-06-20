@@ -26,8 +26,12 @@ optional arguments:
   --log                 save output to logs/
   -f FOOL_IPYTHON, --fool-ipython FOOL_IPYTHON
   --seed SEED
-  ```
+```
 
+Example of commonly used command:
+```bash
+python -m grl.run --spec example_3 --no_gamma --log
+```
 
 ## Run tests
 ```bash
