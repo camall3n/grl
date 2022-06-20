@@ -1,6 +1,6 @@
 import numpy as np
 
-from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP, do_grad
+from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP, do_grad, RTOL
 
 def test_grad():
     """
@@ -20,4 +20,4 @@ def test_grad():
     pi = np.array([[1., 0], [1, 0], [1, 0]])
     pi_grad = do_grad(pe, pi, lr=1)
 
-    assert np.allclose(pi_known[0], pi_grad[0], rtol=1e-4) # just assert the red obs policy
+    assert np.allclose(pi_known[0], pi_grad[0], rtol=RTOL) # just assert the red obs policy
