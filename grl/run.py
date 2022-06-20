@@ -5,6 +5,8 @@ import time
 
 import numpy as np
 import jax
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from .environment import *
 from .mdp import MDP, AbstractMDP
@@ -70,6 +72,41 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
 
     #     logging.info('\n-----------')
 
+def heatmap(spec, no_gamma, num=10):
+    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    policy_eval = PolicyEval(amdp, verbose=False)
+    def mse_loss(pi): # TODO: utils
+        _, amdp_vals, td_vals = policy_eval.run(pi, no_gamma)
+        diff = amdp_vals['v'] - td_vals['v'] # TODO: q vals?
+        return (diff**2).mean()
+
+    discrepancies = []
+
+    x = y = np.linspace(0, 1, num)
+    xx, yy = np.meshgrid(x, y)
+    for i in range(num):
+        for j in range(num):
+            p = xx[i,j]
+            q = yy[i,j]
+            pi = np.array([
+                [p, 1-p],
+                [q, 1-q],
+                [0, 0]
+            ])
+            discrepancies.append(mse_loss(pi))
+
+            if (num * i + j + 1) % 10 == 0:
+                print(f'Calculating policy {num * i + j + 1}/{num * num}')
+    
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    ax = sns.heatmap(np.array(discrepancies).reshape((num,num)),
+        xticklabels=xx.flatten().round(3), yticklabels=yy.flatten().round(3))
+    ax.invert_yaxis()
+    ax.set(xlabel='1st obs', ylabel='2nd obs')
+    ax.set_title(args.spec)
+    plt.show()
+
 if __name__ == '__main__':
     # Usage: python -m grl.run --spec example_11 --log
 
@@ -95,7 +132,10 @@ if __name__ == '__main__':
     parser.add_argument('--log', action='store_true', help='save output to logs/')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
     parser.add_argument('--seed', default=None, type=int)
+    parser.add_argument('--heatmap', action='store_true',
+                        help='produce a heatmap for the given pomdp')
 
+    global args
     args = parser.parse_args()
     del args.fool_ipython
 
@@ -121,6 +161,8 @@ if __name__ == '__main__':
     logging.info(f'n_steps:\n {args.n_steps}')
     logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
 
-    # Run algos
-    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
-              args.max_rollout_steps)
+    # Run
+    if args.heatmap:
+        heatmap(spec, args.no_gamma)
+    else:
+        run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps, args.max_rollout_steps)
