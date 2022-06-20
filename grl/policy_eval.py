@@ -31,19 +31,19 @@ class PolicyEval:
         td_vals = {}
 
         # MC*
-        mdp_vals = self.solve_mdp(self.amdp)
-        occupancy = self.get_occupancy(no_gamma)
-        amdp_vals = self.solve_amdp(mdp_vals['q'], occupancy)
+        mdp_vals = self._solve_mdp(self.amdp)
+        occupancy = self._get_occupancy(no_gamma)
+        amdp_vals = self._solve_amdp(mdp_vals['q'], occupancy)
 
         if self.verbose:
             logging.info(f'occupancy:\n {occupancy}')
 
         # TD
-        td_vals = self.solve_mdp(self.create_td_model(occupancy))
+        td_vals = self._solve_mdp(self._create_td_model(occupancy))
 
         return mdp_vals, amdp_vals, td_vals
 
-    def solve_mdp(self, mdp):
+    def _solve_mdp(self, mdp):
         """
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
@@ -84,7 +84,7 @@ class PolicyEval:
 
         return {'v': v_vals, 'q': q_vals}
 
-    def get_occupancy(self, no_gamma):
+    def _get_occupancy(self, no_gamma):
         """
         Finds the visitation count, C_pi(s), of each state.
         For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
@@ -110,7 +110,7 @@ class PolicyEval:
         b = -1 * self.amdp.p0 # subtract p0(s) to left side
         return np.linalg.solve(A, b)
 
-    def solve_amdp(self, mdp_q_vals, occupancy):
+    def _solve_amdp(self, mdp_q_vals, occupancy):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
@@ -129,7 +129,7 @@ class PolicyEval:
 
         return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
-    def create_td_model(self, occupancy):
+    def _create_td_model(self, occupancy):
         """
         Generates effective TD(0) model
         """
