@@ -1,7 +1,8 @@
 import logging
 
-import numpy as np
+from .utils import pformat_vals
 
+import numpy as np
 from jax import grad
 
 def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
@@ -13,7 +14,7 @@ def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
     """
     def mse_loss(pi):
         _, amdp_vals, td_vals = policy_eval.run(pi, no_gamma)
-        diff = amdp_vals - td_vals
+        diff = amdp_vals['v'] - td_vals['v'] # TODO: q vals?
         return (diff**2).mean()
 
     policy_eval.verbose = False
@@ -44,8 +45,8 @@ def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
     # policy_eval.verbose = True
     mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs, no_gamma)
     logging.info('\nFinal vals using gradient pi')
-    logging.info(f'mdp: {mdp_vals}')
-    logging.info(f'mc*: {amdp_vals}')
-    logging.info(f'td: {td_vals}')
+    logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
+    logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
+    logging.info(f'td:\n {pformat_vals(td_vals)}')
 
     return pi_abs
