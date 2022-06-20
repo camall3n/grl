@@ -31,7 +31,6 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
         logging.info(f'\nid: {i}')
         logging.info(f'\npi:\n {pi}')
         mdp_vals, amdp_vals, td_vals = pe.run(pi)
-        logging.info(f'\nmdp:\n {np.array(mdp_vals["q"])}')
         logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
         logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
         logging.info(f'td:\n {pformat_vals(td_vals)}')
