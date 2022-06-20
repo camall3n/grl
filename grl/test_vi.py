@@ -18,7 +18,7 @@ def main():
 
     m_phi = mdp.base_mdp
     v_phi, q_phi, pi_phi = vi(m_phi)
-    pi_phi_grounded = np.kron(pi_phi, np.ones((1,mdp.n_states//m_phi.n_states)))
+    pi_phi_grounded = np.kron(pi_phi, np.ones((1, mdp.n_states // m_phi.n_states)))
     assert np.allclose(pi_phi_grounded, pi)
     print('All tests passed.')
 

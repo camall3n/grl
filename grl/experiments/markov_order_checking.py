@@ -12,7 +12,9 @@ from mdpgen.value_fn import compare_value_fns, partial_ordering, sorted_order, s
 for _ in tqdm(range(100)):
     # Generate (MDP, abstract MDP) pair
     mdp1, mdp2 = generate_markov_mdp_pair(
-        n_states=4, n_abs_states=3, n_actions=2,
+        n_states=4,
+        n_abs_states=3,
+        n_actions=2,
         equal_block_rewards=False,
         equal_block_transitions=False,
     )
@@ -34,12 +36,12 @@ print('All tests passed.')
 graph_value_fns(v_g_list, 'graphviz/arbitrary_both/ground_10')
 graph_value_fns(v_a_list, 'graphviz/arbitrary_both/abstract_10')
 
-
 #%%
 v_phi_star, q_phi_star, pi_phi_star = vi(mdp2)
 v_phi_star
 
 n_policies = mdp1.n_actions**mdp1.n_states
+
 def get_policy(mdp, i):
     assert i < n_policies
     pi_string = gmpy.digits(i, mdp.n_actions).zfill(mdp.n_states)
@@ -81,14 +83,14 @@ for i in range(n_policies):
 #%%
 for pi_i, v_i, v_phi_i in zip(pi_list, v_list, v_phi_list):
     for pi_j, v_j, v_phi_j in zip(pi_list, v_list, v_phi_list):
-        if np.all(pi_j==pi_i):
+        if np.all(pi_j == pi_i):
             continue
 
         # check which values are close to equal in pi_i and pi_j
-        z_eq_mask = ~np.isclose(v_phi_i,v_phi_j, atol=1e-4)
-        x_eq_mask = ~np.isclose(v_i,v_j,atol=1e-4)
+        z_eq_mask = ~np.isclose(v_phi_i, v_phi_j, atol=1e-4)
+        x_eq_mask = ~np.isclose(v_i, v_j, atol=1e-4)
         # such values should be close for all ground states in those abstract states
-        if not np.all(((x_eq_mask @ phi)>0) == z_eq_mask):
+        if not np.all(((x_eq_mask @ phi) > 0) == z_eq_mask):
             print('incompatible masks??')
             break
 

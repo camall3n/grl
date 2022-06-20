@@ -20,21 +20,20 @@ def load_spec(name):
         try:
             spec = POMDPFile(name).get_spec()
         except FileNotFoundError as _:
-            raise NotImplementedError(f'{name} not found in examples_lib.py nor pomdp_files/') from None
+            raise NotImplementedError(
+                f'{name} not found in examples_lib.py nor pomdp_files/') from None
 
     # Check sizes and types
     if len(spec.keys()) != 6:
-        raise ValueError("Expecting POMDP specification of the form: (T, R, gamma, p0, phi, Pi_phi)")
+        raise ValueError(
+            "Expecting POMDP specification of the form: (T, R, gamma, p0, phi, Pi_phi)")
     if len(spec['T'].shape) != 3:
         raise ValueError("T tensor must be 3d")
     if len(spec['R'].shape) != 3:
         raise ValueError("R tensor must be 3d")
 
     spec['Pi_phi'] = np.array(spec['Pi_phi']).astype('float')
-    if not np.all(len(spec['T']) == np.array([
-                                    len(spec['R']),
-                                    len(spec['Pi_phi'][0][0])
-                                    ])):
+    if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
         raise ValueError("T, R, and Pi_phi must contain the same number of actions")
 
     # Make sure probs sum to 1

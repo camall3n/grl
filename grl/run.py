@@ -76,18 +76,25 @@ if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
     parser.add_argument('--spec', default='example_11', type=str)
-    parser.add_argument('--no_gamma', action='store_true',
-                        help='do not discount the weighted average value expectation in policy eval')
-    parser.add_argument('--n_random_policies', default=0, type=int,
-                        help='number of random policies to run--if not set, then use specified Pi_phi instead')
-    parser.add_argument('--use_grad', action='store_true',
+    parser.add_argument(
+        '--no_gamma',
+        action='store_true',
+        help='do not discount the weighted average value expectation in policy eval')
+    parser.add_argument(
+        '--n_random_policies',
+        default=0,
+        type=int,
+        help='number of random policies to run--if not set, then use specified Pi_phi instead')
+    parser.add_argument('--use_grad',
+                        action='store_true',
                         help='find policy that minimizes any discrepancies by following gradient')
-    parser.add_argument('--n_steps', default=20000, type=int,
-                        help='number of rollouts to run')
-    parser.add_argument('--max_rollout_steps', default=None, type=int,
+    parser.add_argument('--n_steps', default=20000, type=int, help='number of rollouts to run')
+    parser.add_argument('--max_rollout_steps',
+                        default=None,
+                        type=int,
                         help='max steps for mc rollouts')
     parser.add_argument('--log', action='store_true')
-    parser.add_argument('-f', '--fool-ipython')# hack to allow running in ipython notebooks
+    parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
     parser.add_argument('--seed', default=None, type=int)
 
     args = parser.parse_args()
@@ -115,6 +122,6 @@ if __name__ == '__main__':
     logging.info(f'n_steps:\n {args.n_steps}')
     logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
 
-
     # Run algos
-    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps, args.max_rollout_steps)
+    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
+              args.max_rollout_steps)

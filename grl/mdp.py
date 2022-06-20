@@ -9,7 +9,7 @@ def normalize(M, axis=-1):
         denoms = M.sum(axis=axis, keepdims=True)
     else:
         denoms = M.sum()
-    M = np.divide(M, denoms.astype(float), out=np.zeros_like(M), where=(denoms!=0))
+    M = np.divide(M, denoms.astype(float), out=np.zeros_like(M), where=(denoms != 0))
     return M
 
 def is_stochastic(M):
@@ -17,13 +17,13 @@ def is_stochastic(M):
 
 def random_sparse_mask(size, sparsity):
     n_rows, n_cols = size
-    p = (1-sparsity)# probability of 1
-    q = (n_cols*p - 1)/(n_cols-1)# get remaining probability after mandatory 1s
+    p = (1 - sparsity) # probability of 1
+    q = (n_cols * p - 1) / (n_cols - 1) # get remaining probability after mandatory 1s
     if 0 < q <= 1:
-        some_ones = np.random.choice([0,1],size=(n_rows, n_cols-1),p=[1-q, q])
-        mask = np.concatenate([np.ones((n_rows,1)), some_ones], axis=1)
+        some_ones = np.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
+        mask = np.concatenate([np.ones((n_rows, 1)), some_ones], axis=1)
     else:
-        mask = np.concatenate([np.ones((n_rows,1)), np.zeros((n_rows, n_cols-1))], axis=1)
+        mask = np.concatenate([np.ones((n_rows, 1)), np.zeros((n_rows, n_cols - 1))], axis=1)
     for row in mask:
         np.random.shuffle(row)
     return mask
@@ -38,30 +38,32 @@ def random_reward_matrix(Rmin, Rmax, size):
     return R
 
 def random_observation_fn(n_states, n_obs_per_block):
-    all_state_splits = [random_transition_matrix(size=(1,n_obs_per_block))
-                        for _ in range(n_states)]
+    all_state_splits = [
+        random_transition_matrix(size=(1, n_obs_per_block)) for _ in range(n_states)
+    ]
     all_state_splits = np.stack(all_state_splits).squeeze()
     #e.g.[[p, 1-p],
     #     [q, 1-q],
     #     ...]
 
-    obs_fn_mask = np.kron(np.eye(n_states), np.ones((1,n_obs_per_block)))
+    obs_fn_mask = np.kron(np.eye(n_states), np.ones((1, n_obs_per_block)))
     #e.g.[[1, 1, 0, 0, 0, 0, ...],
     #     [0, 0, 1, 1, 0, 0, ...],
     #     ...]
 
-    tiled_split_probs = np.kron(np.ones((1,n_states)), all_state_splits)
+    tiled_split_probs = np.kron(np.ones((1, n_states)), all_state_splits)
     #e.g.[[p, 1-p, p, 1-p, p, 1-p, ...],
     #     [q, 1-q, q, 1-q, q, 1-q, ...],
     #     ...]
 
-    observation_fn = obs_fn_mask*tiled_split_probs
+    observation_fn = obs_fn_mask * tiled_split_probs
     return observation_fn
 
 def one_hot(x, n):
     return np.eye(n)[x]
 
 class MDP:
+
     def __init__(self, T, R, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
@@ -91,7 +93,7 @@ class MDP:
 
     def stationary_distribution(self, pi=None, p0=None, max_steps=200):
         if p0 is None:
-            state_distr = np.ones(self.n_states)/self.n_states
+            state_distr = np.ones(self.n_states) / self.n_states
         else:
             state_distr = p0
         old_distr = state_distr
@@ -123,39 +125,40 @@ class MDP:
         if pi is None:
             T_pi = np.mean(self.T, axis=0)
         else:
-            T_pi = self.T[pi, np.arange(self.n_states),:]
+            T_pi = self.T[pi, np.arange(self.n_states), :]
         return T_pi
 
     def get_N(self, pi):
         return self.T_pi(pi)
 
     def get_I(self, pi):
-        pi_one_hot = one_hot(pi,self.n_actions).transpose()[:,:,None]
-        N = self.get_N(pi)[None,:,:]
-        I = np.divide(self.T*pi_one_hot, N, out=np.zeros_like(self.T), where=N!=0)
+        pi_one_hot = one_hot(pi, self.n_actions).transpose()[:, :, None]
+        N = self.get_N(pi)[None, :, :]
+        I = np.divide(self.T * pi_one_hot, N, out=np.zeros_like(self.T), where=N != 0)
         return I
 
     @classmethod
     def generate(cls, n_states, n_actions, sparsity=0, gamma=0.9, Rmin=-1, Rmax=1):
-        T = []# List of s -> s transition matrices, one for each action
-        R = []# List of s -> s reward matrices, one for each action
+        T = [] # List of s -> s transition matrices, one for each action
+        R = [] # List of s -> s reward matrices, one for each action
         for a in range(n_actions):
             T_a = random_transition_matrix(size=(n_states, n_states))
             R_a = random_reward_matrix(Rmin, Rmax, (n_states, n_states))
             if sparsity > 0:
                 mask = random_sparse_mask((n_states, n_states), sparsity)
-                T_a = normalize(T_a*mask)
-                R_a = R_a*mask
+                T_a = normalize(T_a * mask)
+                R_a = R_a * mask
             T.append(T_a)
             R.append(R_a)
         mdp = cls(T, R, gamma)
         return mdp
 
 class BlockMDP(MDP):
+
     def __init__(self, base_mdp, n_obs_per_block=2, obs_fn=None):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
-        self.n_states = base_mdp.n_states*n_obs_per_block
+        self.n_states = base_mdp.n_states * n_obs_per_block
 
         if obs_fn is None:
             obs_fn = random_observation_fn(base_mdp.n_states, n_obs_per_block)
@@ -164,8 +167,8 @@ class BlockMDP(MDP):
 
         obs_mask = (obs_fn > 0).astype(int)
 
-        self.T = []# List of x -> x transition matrices, one for each action
-        self.R = []# List of x -> x reward matrices, one for each action
+        self.T = [] # List of x -> x transition matrices, one for each action
+        self.R = [] # List of x -> x reward matrices, one for each action
         for a in range(self.n_actions):
             Ta, Ra = base_mdp.T[a], base_mdp.R[a]
             Tx_a = obs_mask.transpose() @ Ta @ obs_fn
@@ -177,10 +180,11 @@ class BlockMDP(MDP):
         self.obs_fn = obs_fn
 
 class AbstractMDP(MDP):
+
     def __init__(self, base_mdp, phi, pi=None, p0=None, t=200):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
-        self.phi = phi# array: base_mdp.n_states, n_abstract_states
+        self.phi = phi # array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
         self.p0 = p0
 
@@ -212,7 +216,7 @@ class AbstractMDP(MDP):
     #                      out=np.zeros_like(Tz), where=(Tz!=0) )
 
     def is_abstract_policy(self, pi):
-        agg_states = (self.phi.sum(axis=0)>1)
+        agg_states = (self.phi.sum(axis=0) > 1)
         for idx, is_agg in enumerate(agg_states):
             agg_cluster = (one_hot(idx, self.n_obs) @ self.phi.transpose()).astype(bool)
             if not np.all(pi[agg_cluster] == pi[agg_cluster][0]):
@@ -243,15 +247,16 @@ class AbstractMDP(MDP):
         return policies
 
 class UniformAbstractMDP(AbstractMDP):
+
     def __init__(self, base_mdp, phi, pi=None, p0=None):
         super().__init__(base_mdp, phi, pi, p0)
 
     def B(self, pi, t=200):
         p = self._replace_stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
-        return normalize(p*self.phi.transpose())
+        return normalize(p * self.phi.transpose())
 
     def _replace_stationary_distribution(self, pi=None, p0=None, max_steps=200):
-        return np.ones(self.base_mdp.n_states)/self.base_mdp.n_states
+        return np.ones(self.base_mdp.n_states) / self.base_mdp.n_states
 
 def test():
     # Generate a random base MDP
@@ -260,11 +265,11 @@ def test():
 
     # Add block structure to the base MDP
     mdp2 = BlockMDP(mdp1, n_obs_per_block=2)
-    assert all([np.allclose(mdp2.base_mdp.T[a],mdp1.T[a]) for a in range(mdp1.n_actions)])
-    assert all([np.allclose(mdp2.base_mdp.R[a],mdp1.R[a]) for a in range(mdp1.n_actions)])
+    assert all([np.allclose(mdp2.base_mdp.T[a], mdp1.T[a]) for a in range(mdp1.n_actions)])
+    assert all([np.allclose(mdp2.base_mdp.R[a], mdp1.R[a]) for a in range(mdp1.n_actions)])
 
     # Construct abstract MDP of the block MDP using perfect abstraction function
-    phi = (mdp2.obs_fn.transpose()>0).astype(int)
+    phi = (mdp2.obs_fn.transpose() > 0).astype(int)
     mdp3 = AbstractMDP(mdp2, phi)
     assert np.allclose(mdp1.T, mdp3.T)
     assert np.allclose(mdp1.R, mdp3.R)

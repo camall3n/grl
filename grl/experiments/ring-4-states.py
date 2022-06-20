@@ -8,7 +8,6 @@ from mdpgen.markov import generate_markov_mdp_pair, generate_non_markov_mdp_pair
 
 from mdpgen.value_fn import compare_value_fns, partial_ordering, sorted_order, sort_value_fns, graph_value_fns
 
-
 #%%
 # Generate (MDP, abstract MDP) pair
 T = np.array([
@@ -22,7 +21,7 @@ R = np.array([
     [4, 4, 4, 4],
     [2, 2, 2, 2],
     [1, 1, 1, 1],
-])/4
+]) / 4
 
 mdp1 = MDP([T, T.transpose()], [R, R.transpose()], gamma=0.9)
 phi = np.array([
@@ -39,7 +38,6 @@ v_g_star, pi_g_star
 
 v_a_star, q_a_star, pi_a_star = vi(mdp2)
 v_a_star, pi_a_star
-
 
 pi_g_list = mdp2.piecewise_constant_policies()
 pi_a_list = mdp2.abstract_policies()

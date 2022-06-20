@@ -18,7 +18,8 @@ def rollout(mdp, s, a, pi, max_steps=None):
     a_t = a
     done = not np.any(mdp.T[a_t][s_t])
     if done:
-        raise RuntimeError('Cannot perform rollout with action {} from terminal state {}'.format(a_t, s_t))
+        raise RuntimeError('Cannot perform rollout with action {} from terminal state {}'.format(
+            a_t, s_t))
     while not done:
         next_s, r_t, done = mdp.step(s_t, a_t)
         next_obs = mdp.observe(next_s)
@@ -34,7 +35,14 @@ def rollout(mdp, s, a, pi, max_steps=None):
     mc_returns = [(o, a, g) for ((o, a), g) in zip(oa_pairs, returns)]
     return mc_returns
 
-def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000, max_rollout_steps=None):
+def mc(mdp,
+       pi,
+       p0=None,
+       alpha=1,
+       epsilon=0,
+       mc_states='all',
+       n_steps=1000,
+       max_rollout_steps=None):
     if mc_states not in ['all', 'first']:
         raise ValueError("mc_states must be either 'all' or 'first'")
 
@@ -44,8 +52,8 @@ def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000, max_
     if p0 is not None and len(p0) != mdp.n_states:
         raise ValueError("p0 must be a valid distribution over ground states")
 
-    V_max = mdp.R_max/(1-mdp.gamma)
-    V_min = mdp.R_min/(1-mdp.gamma)
+    V_max = mdp.R_max / (1 - mdp.gamma)
+    V_min = mdp.R_min / (1 - mdp.gamma)
     q = [V_min * np.ones(mdp.n_obs) for _ in range(mdp.n_actions)]
     for i in range(n_steps):
         if p0 is None:
@@ -67,7 +75,7 @@ def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000, max_
         encountered_oa_pairs = set()
         for obs, a, q_target in mc_returns:
             if mc_states == 'all' or (obs, a) not in encountered_oa_pairs:
-                q[a][obs] = (1-alpha) * q[a][obs] + (alpha) * q_target
+                q[a][obs] = (1 - alpha) * q[a][obs] + (alpha) * q_target
             encountered_oa_pairs.add((obs, a))
 
     v = np.empty_like(q[0])
@@ -78,15 +86,14 @@ def mc(mdp, pi, p0=None, alpha=1, epsilon=0, mc_states='all', n_steps=1000, max_
     v = v.squeeze()
     return v, q, pi
 
-
 def test_discount():
     r = np.arange(5)
     gamma = 0.5
     expected = np.array([
-        0 + gamma*1 + gamma**2 * 2 + gamma**3 * 3 + gamma**4 * 4,
-        1 + gamma*2 + gamma**2 * 3 + gamma**3 * 4,
-        2 + gamma*3 + gamma**2 * 4,
-        3 + gamma*4,
+        0 + gamma * 1 + gamma**2 * 2 + gamma**3 * 3 + gamma**4 * 4,
+        1 + gamma * 2 + gamma**2 * 3 + gamma**3 * 4,
+        2 + gamma * 3 + gamma**2 * 4,
+        3 + gamma * 4,
         4,
     ])
     assert all(expected == discount(r, gamma))

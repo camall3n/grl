@@ -8,7 +8,6 @@ from mdpgen.markov import generate_markov_mdp_pair, generate_non_markov_mdp_pair
 
 from mdpgen.value_fn import compare_value_fns, partial_ordering, sorted_order, sort_value_fns, graph_value_fns
 
-
 #%%
 # This reproduces the example from Li, Walsh, Littman (2006) where a
 # π*-preserving abstraction does not have the same optimal policy as the ground MDP
@@ -17,30 +16,18 @@ from mdpgen.value_fn import compare_value_fns, partial_ordering, sorted_order, s
 # Similarly, R(z',a,z) depends on the same additional history, so the abstraction
 # is not Markov either.
 T_list = np.array([
-    [[0, 1, 0, 0.0],
-     [0, 0, 0, 1],
-     [0, 0, 0, 1],
-     [0, 0, 0, 1]],
-
-    [[0, 0, 1, 0],
-     [0, 0, 0, 1],
-     [0, 0, 0, 1],
-     [0, 0, 0, 1]],
+    [[0, 1, 0, 0.0], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1]],
+    [[0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1]],
 ])
-R = np.array([
-    [0, 0.5, 0, 0],
-    [0, 0, 0, 1],
-    [0, 0, 0, 2],
-    [0, 0, 0, 0]
-])
+R = np.array([[0, 0.5, 0, 0], [0, 0, 0, 1], [0, 0, 0, 2], [0, 0, 0, 0]])
 phi = np.array([
-    [1,0,0],
-    [0,1,0],
-    [0,1,0],
-    [0,0,1],
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 1, 0],
+    [0, 0, 1],
 ])
 mdp1 = MDP(T_list, [R, R], gamma=0.9)
-mdp2 = AbstractMDP(mdp1, phi, p0=np.array([1,0,0,0]), t=1)
+mdp2 = AbstractMDP(mdp1, phi, p0=np.array([1, 0, 0, 0]), t=1)
 mdp2 = AbstractMDP(mdp1, phi)
 is_markov(mdp2)
 
@@ -57,7 +44,6 @@ mdp2.p0
 agg_state = mdp2.phi.sum(axis=0) > 1
 np.stack([mdp2.B(pi, t=1)[agg_state] for pi in pi_g_list])
 
-
 v_phi_pi_phi_star, _, pi_phi_star = vi(mdp2)
 v_pi_phi_star = vi(mdp1, mdp2.get_ground_policy(pi_phi_star))[0]
 
@@ -69,8 +55,8 @@ for v in v_g_list:
 else:
     print('All examples had proper ordering.')
 #%%
-graph_value_fns(v_g_list)#, 'graphviz/non_markov_b/ground_17')
-graph_value_fns(v_a_list)#, 'graphviz/non_markov_b/abstract_17')
+graph_value_fns(v_g_list) #, 'graphviz/non_markov_b/ground_17')
+graph_value_fns(v_a_list) #, 'graphviz/non_markov_b/abstract_17')
 
 v_pi_phi_star
 np.asarray(v_g_list).round(3)

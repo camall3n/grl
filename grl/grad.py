@@ -12,6 +12,7 @@ def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
     :param no_gamma:    passed to policy_eval run() func
     :param lr:          learning rate
     """
+
     def mse_loss(pi):
         _, amdp_vals, td_vals = policy_eval.run(pi, no_gamma)
         diff = amdp_vals['v'] - td_vals['v'] # TODO: q vals?
@@ -31,7 +32,7 @@ def do_grad(policy_eval, pi_abs, no_gamma, lr=1):
         pi_abs -= lr * pi_grad
 
         # Normalize
-        pi_abs = pi_abs.clip(0,1)
+        pi_abs = pi_abs.clip(0, 1)
         pi_abs /= pi_abs.sum(axis=1, keepdims=True)
 
         if np.allclose(old_pi, pi_abs):

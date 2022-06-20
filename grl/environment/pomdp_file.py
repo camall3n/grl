@@ -10,6 +10,7 @@ class POMDPFile:
     
     For more info on format: http://pomdp.org/code/pomdp-file-spec.html
     """
+
     def __init__(self, filename):
         """
         Parses .pomdp file and loads info into this object's fields.
@@ -26,8 +27,7 @@ class POMDPFile:
         """
         f = open(f'grl/environment/pomdp_files/{filename}.POMDP', 'r')
         self.contents = [
-            x.strip() for x in f.readlines()
-            if (not (x.startswith("#") or x.isspace()))
+            x.strip() for x in f.readlines() if (not (x.startswith("#") or x.isspace()))
         ]
 
         self.T = None
@@ -58,7 +58,8 @@ class POMDPFile:
                 i = self.__get_transition(i)
             elif line.startswith('O'):
                 if self.Z is None:
-                    self.Z = np.zeros((len(self.actions),len(self.states), len(self.observations)))
+                    self.Z = np.zeros(
+                        (len(self.actions), len(self.states), len(self.observations)))
                 i = self.__get_observation(i)
             elif line.startswith('R'):
                 if self.R is None:
@@ -74,7 +75,7 @@ class POMDPFile:
         # Default to uniform distribution over starting states
         if self.start is None:
             n_states = len(self.T[0])
-            self.start = 1/n_states * np.ones(n_states)
+            self.start = 1 / n_states * np.ones(n_states)
 
         # cleanup
         f.close()
@@ -119,7 +120,7 @@ class POMDPFile:
         # TODO: handle other formats for this keyword
         line = self.contents[i]
 
-         # Check if values are on this line or the next line
+        # Check if values are on this line or the next line
         if len(line.split()) == 1:
             i += 1
             line = self.contents[i].split()
@@ -147,7 +148,7 @@ class POMDPFile:
             # %f
             start_state = self.states.index(pieces[1])
             next_state = self.states.index(pieces[2])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             prob = float(next_line)
             self.T[action, start_state, next_state] = prob
             return i + 2
@@ -158,7 +159,7 @@ class POMDPFile:
                 start_state = slice(None)
             else:
                 start_state = self.states.index(pieces[1])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.states)
             for j in range(len(probs)):
@@ -166,7 +167,7 @@ class POMDPFile:
                 self.T[action, start_state, j] = prob
             return i + 2
         elif len(pieces) == 1:
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             if next_line == "identity":
                 # case 4: T: <action>
                 # identity
@@ -195,7 +196,7 @@ class POMDPFile:
                     for k in range(len(probs)):
                         prob = float(probs[k])
                         self.T[action, j, k] = prob
-                    next_line = self.contents[i+2+j]
+                    next_line = self.contents[i + 2 + j]
                 return i + 1 + len(self.states)
         else:
             raise Exception("Cannot parse line " + line)
@@ -233,7 +234,7 @@ class POMDPFile:
                 obs = slice(None)
             else:
                 obs = self.observations.index(pieces[2])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             prob = float(next_line)
             self.Z[action, next_state, obs] = prob
             return i + 2
@@ -244,7 +245,7 @@ class POMDPFile:
                 next_state = slice(None)
             else:
                 next_state = self.states.index(pieces[1])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
             for j in range(len(probs)):
@@ -252,7 +253,7 @@ class POMDPFile:
                 self.Z[action, next_state, j] = prob
             return i + 2
         elif len(pieces) == 1:
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             if next_line == "identity":
                 # case 4: O: <action>
                 # identity
@@ -281,7 +282,7 @@ class POMDPFile:
                     for k in range(len(probs)):
                         prob = float(probs[k])
                         self.Z[action, j, k] = prob
-                    next_line = self.contents[i+2+j]
+                    next_line = self.contents[i + 2 + j]
                 return i + 1 + len(self.states)
         else:
             raise Exception("Cannot parse line: " + line)
@@ -309,15 +310,14 @@ class POMDPFile:
             obs_raw = pieces[3]
             prob = float(pieces[4]) if len(pieces) == 5 \
                 else float(self.contents[i+1])
-            self.__reward_ss(
-                action, start_state_raw, next_state_raw, obs_raw, prob)
+            self.__reward_ss(action, start_state_raw, next_state_raw, obs_raw, prob)
             return i + 1 if len(pieces) == 5 else i + 2
         elif len(pieces == 3):
             # case 2: R: <action> : <start-state> : <next-state>
             # %f %f ... %f
             start_state = self.states.index(pieces[1])
             next_state = self.states.index(pieces[2])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
             for j in range(len(probs)):
@@ -331,14 +331,14 @@ class POMDPFile:
             # ...
             # %f %f ... %f
             start_state = self.states.index(pieces[1])
-            next_line = self.contents[i+1]
+            next_line = self.contents[i + 1]
             for j in range(len(self.states)):
                 probs = next_line.split()
                 assert len(probs) == len(self.observations)
                 for k in range(len(probs)):
                     prob = float(probs[k])
                     self.R[action, start_state, j, k] = prob
-                next_line = self.contents[i+2+j]
+                next_line = self.contents[i + 2 + j]
             return i + 1 + len(self.states)
         else:
             raise Exception("Cannot parse line: " + line)
@@ -374,7 +374,7 @@ class POMDPFile:
 
         line = self.contents[i]
 
-         # Check if first values are on this line or the next line
+        # Check if first values are on this line or the next line
         if len(line.split()) == 1:
             i += 1
             line = self.contents[i].split()
@@ -408,7 +408,6 @@ class POMDPFile:
         print("Z:", self.Z)
         print("")
         print("R:", self.R)
-
 
 def is_numeric(lst):
     if len(lst) == 1:
