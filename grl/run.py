@@ -75,11 +75,10 @@ if __name__ == '__main__':
 
     # Args
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='example_11', type=str)
-    parser.add_argument(
-        '--no_gamma',
-        action='store_true',
-        help='do not discount the weighted average value expectation in policy eval')
+    parser.add_argument('--spec', default='example_11', type=str, help='name of POMDP spec')
+    parser.add_argument('--no_gamma',
+                        action='store_true',
+                        help='do not discount the occupancy expectation in policy eval')
     parser.add_argument(
         '--n_random_policies',
         default=0,
@@ -93,7 +92,7 @@ if __name__ == '__main__':
                         default=None,
                         type=int,
                         help='max steps for mc rollouts')
-    parser.add_argument('--log', action='store_true')
+    parser.add_argument('--log', action='store_true', help='save output to logs/')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
     parser.add_argument('--seed', default=None, type=int)
 
