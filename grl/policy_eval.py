@@ -48,7 +48,7 @@ class PolicyEval:
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
         """
-        Pi_pi = pi.transpose()[...,None]
+        Pi_pi = pi.transpose()[..., None]
         T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
         R_pi = (Pi_pi * mdp.T * mdp.R).sum(axis=0).sum(axis=-1) # R^π(s)
 
