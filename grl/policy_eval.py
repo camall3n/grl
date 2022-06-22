@@ -31,7 +31,7 @@ class PolicyEval:
         td_vals = {}
 
         # MC*
-        mdp_vals = self._solve_mdp(self.amdp)
+        mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
         occupancy = self._get_occupancy(no_gamma)
         amdp_vals = self._solve_amdp(mdp_vals['q'], occupancy)
 
@@ -39,32 +39,22 @@ class PolicyEval:
             logging.info(f'occupancy:\n {occupancy}')
 
         # TD
-        td_vals = self._solve_mdp(self._create_td_model(occupancy))
+        td_vals = self._solve_mdp(self._create_td_model(occupancy), self.pi_abs)
 
         return mdp_vals, amdp_vals, td_vals
 
-    def _solve_mdp(self, mdp):
+    def _solve_mdp(self, mdp, pi):
         """
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
         """
-        # Each index of these lists corresponds to one linear equation
-        # b = A*V_pi(s)
-        # Each index of A will contain a list of |S| coefficients for that equation (list of lists of floats)
-        # Each index of b will contain the sum of the constants for that equation   (list of floats)
-        A = []
-        b = []
-        for s in range(mdp.n_states):
-            T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1) # T^π(s'|s)
-            R_pi = np.tensordot(self.pi_ground[s], mdp.T * mdp.R, axes=1).sum(axis=-1) # R^π(s)
+        Pi_pi = pi.transpose()[...,None]
+        T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
+        R_pi = (Pi_pi * mdp.T * mdp.R).sum(axis=0).sum(axis=-1) # R^π(s)
 
-            a_t = mdp.gamma * T_pi[s]
-            a_t = a_t.at[s].set(a_t[s] - 1) # subtract V_pi(s) to right side
-            b_t = -R_pi[s] # subtract constants to left side
-
-            A.append(a_t)
-            b.append(b_t)
-
+        # A*V_pi(s) = b
+        A = (np.eye(mdp.n_states) - mdp.gamma * T_pi)
+        b = R_pi
         v_vals = np.linalg.solve(A, b)
 
         # Q vals
