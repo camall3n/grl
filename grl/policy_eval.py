@@ -57,14 +57,8 @@ class PolicyEval:
         b = R_pi
         v_vals = np.linalg.solve(A, b)
 
-        # Q vals
-        q_vals = np.zeros((mdp.n_states, mdp.n_actions))
-        for s in range(mdp.n_states):
-            for a in range(mdp.n_actions):
-                for sp in range(mdp.n_states):
-                    # q_vals[s,a] += mdp.R[a,s,sp] + mdp.gamma * mdp.T[a,s,sp] * v_vals[sp]
-                    q_vals = q_vals.at[s, a].set(q_vals[s, a] + mdp.T[a, s, sp] *
-                                                 (mdp.R[a, s, sp] + mdp.gamma * v_vals[sp]))
+        R_sa = (mdp.T * mdp.R).sum(axis=-1)
+        q_vals = (R_sa + (mdp.gamma * mdp.T @ v_vals)).transpose()
 
         return {'v': v_vals, 'q': q_vals}
 
