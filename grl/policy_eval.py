@@ -55,18 +55,12 @@ class PolicyEval:
         A = []
         b = []
         for s in range(mdp.n_states):
-            a_t = np.zeros(mdp.n_states)
-            # a_t[s] = -1 # subtract V_pi(s) to right side
-            a_t = a_t.at[s].set(-1)
-            b_t = 0
-            T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1)
-            R_pi = np.tensordot(self.pi_ground[s], mdp.R * mdp.T, axes=1)
-            for next_s in range(mdp.n_states):
-                t = T_pi[s, next_s]
-                r = R_pi[s, next_s]
-                # a_t[next_s] += t * mdp.gamma # add V_pi(s') to right side
-                a_t = a_t.at[next_s].set(a_t[next_s] + t * mdp.gamma)
-                b_t -= r # subtract constants to left side
+            T_pi = np.tensordot(self.pi_ground[s], mdp.T, axes=1) # T^π(s'|s)
+            R_pi = np.tensordot(self.pi_ground[s], mdp.T * mdp.R, axes=1).sum(axis=-1) # R^π(s)
+
+            a_t = mdp.gamma * T_pi[s]
+            a_t = a_t.at[s].set(a_t[s] - 1) # subtract V_pi(s) to right side
+            b_t = -R_pi[s] # subtract constants to left side
 
             A.append(a_t)
             b.append(b_t)
