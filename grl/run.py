@@ -101,31 +101,27 @@ if __name__ == '__main__':
 
     # Args
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec',
-                        default='example_11',
-                        type=str,
-                        help='name of POMDP spec; evals Pi_phi policies by default')
-    parser.add_argument('--no_gamma',
-                        action='store_true',
-                        help='do not discount the occupancy expectation in policy eval')
-    parser.add_argument('--n_random_policies',
-                        default=0,
-                        type=int,
-                        help='number of random policies to eval; if set (>0), overrides Pi_phi')
-    parser.add_argument('--use_grad',
-                        action='store_true',
-                        help='find policy that minimizes any discrepancies by following gradient')
-    parser.add_argument('--heatmap',
-                        action='store_true',
-                        help='generate a policy-discrepancy heatmap for the given POMDP')
-    parser.add_argument('--n_steps', default=20000, type=int, help='number of rollouts to run')
-    parser.add_argument('--max_rollout_steps',
-                        default=None,
-                        type=int,
-                        help='max steps for mc rollouts')
-    parser.add_argument('--log', action='store_true', help='save output to logs/')
+    # yapf:disable
+    parser.add_argument('--spec', default='example_11', type=str,
+        help='name of POMDP spec; evals Pi_phi policies by default')
+    parser.add_argument('--no_gamma', action='store_true',
+        help='do not discount the occupancy expectation in policy eval')
+    parser.add_argument('--n_random_policies', default=0, type=int,
+        help='number of random policies to eval; if set (>0), overrides Pi_phi')
+    parser.add_argument('--use_grad', action='store_true',
+        help='find policy that minimizes any discrepancies by following gradient')
+    parser.add_argument('--heatmap', action='store_true',
+        help='generate a policy-discrepancy heatmap for the given POMDP')
+    parser.add_argument('--n_steps', default=20000, type=int,
+        help='number of rollouts to run')
+    parser.add_argument('--max_rollout_steps', default=None, type=int,
+        help='max steps for mc rollouts')
+    parser.add_argument('--log', action='store_true',
+        help='save output to logs/')
+    parser.add_argument('--seed', default=None, type=int,
+        help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
-    parser.add_argument('--seed', default=None, type=int)
+    # yapf:enable
 
     global args
     args = parser.parse_args()
