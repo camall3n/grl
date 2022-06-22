@@ -68,24 +68,13 @@ class PolicyEval:
         For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
           where s^ is the prev state
         """
-        # Each index of this list corresponds to one linear equation
-        # b = A*C_pi(s)
-        A = []
-        for s in range(self.amdp.n_states):
-            a_t = np.zeros(self.amdp.n_states)
-            # a_t[s] = -1 # subtract C_pi(s) to right side
-            a_t = a_t.at[s].set(-1)
-            for prev_s in range(self.amdp.n_states):
-                T_pi = np.tensordot(self.pi_ground[prev_s], self.amdp.T, axes=1)
-                t = T_pi[prev_s, s]
-                if not no_gamma:
-                    t *= self.amdp.gamma
-                # a_t[prev_s] += t
-                a_t = a_t.at[prev_s].set(a_t[prev_s] + t)
+        Pi_pi = self.pi_ground.transpose()[..., None]
+        T_pi = (Pi_pi * self.amdp.T).sum(axis=0) # T^π(s'|s)
 
-            A.append(a_t)
-
-        b = -1 * self.amdp.p0 # subtract p0(s) to left side
+        # A*C_pi(s) = b
+        gamma = 1 if no_gamma else self.amdp.gamma
+        A = np.eye(self.amdp.n_states) - gamma * T_pi.transpose()
+        b = self.amdp.p0
         return np.linalg.solve(A, b)
 
     def _solve_amdp(self, mdp_q_vals, occupancy):
