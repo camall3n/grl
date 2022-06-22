@@ -53,6 +53,8 @@ class PolicyEval:
         R_pi = (Pi_pi * mdp.T * mdp.R).sum(axis=0).sum(axis=-1) # R^π(s)
 
         # A*V_pi(s) = b
+        # A = (I - \gamma (T^π))
+        # b = R^π
         A = (np.eye(mdp.n_states) - mdp.gamma * T_pi)
         b = R_pi
         v_vals = np.linalg.solve(A, b)
@@ -72,6 +74,8 @@ class PolicyEval:
         T_pi = (Pi_pi * self.amdp.T).sum(axis=0) # T^π(s'|s)
 
         # A*C_pi(s) = b
+        # A = (I - \gamma (T^π)^T)
+        # b = P_0
         gamma = 1 if no_gamma else self.amdp.gamma
         A = np.eye(self.amdp.n_states) - gamma * T_pi.transpose()
         b = self.amdp.p0
