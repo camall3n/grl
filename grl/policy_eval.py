@@ -9,19 +9,18 @@ config.update('jax_platform_name', 'cpu')
 from .mdp import MDP
 
 class PolicyEval:
-
-    def __init__(self, amdp, verbose=True):
+    def __init__(self, amdp, no_gamma, verbose=True):
         """
         :param amdp:    AMDP
         :param verbose: log everything
         """
         self.amdp = amdp
         self.verbose = verbose
+        self.no_gamma = no_gamma
 
-    def run(self, pi_abs, no_gamma):
+    def run(self, pi_abs):
         """
         :param pi_abs:   policy to evaluate, defined over abstract state space
-        :param no_gamma: if True, do not discount the occupancy expectation
         """
         self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
@@ -32,7 +31,7 @@ class PolicyEval:
 
         # MC*
         mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
-        occupancy = self._get_occupancy(no_gamma)
+        occupancy = self._get_occupancy()
         amdp_vals = self._solve_amdp(mdp_vals['q'], occupancy)
 
         if self.verbose:
@@ -64,7 +63,7 @@ class PolicyEval:
 
         return {'v': v_vals, 'q': q_vals}
 
-    def _get_occupancy(self, no_gamma):
+    def _get_occupancy(self):
         """
         Finds the visitation count, C_pi(s), of each state.
         For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
@@ -76,7 +75,7 @@ class PolicyEval:
         # A*C_pi(s) = b
         # A = (I - \gamma (T^π)^T)
         # b = P_0
-        gamma = 1 if no_gamma else self.amdp.gamma
+        gamma = 1 if self.no_gamma else self.amdp.gamma
         A = np.eye(self.amdp.n_states) - gamma * T_pi.transpose()
         b = self.amdp.p0
         return np.linalg.solve(A, b)
@@ -140,3 +139,8 @@ class PolicyEval:
             logging.info(f'R_bar:\n {R_obs_obs}')
 
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
+
+    def mse_loss(self, pi):
+        _, amdp_vals, td_vals = self.run(pi)
+        diff = amdp_vals['v'] - td_vals['v'] # TODO: q vals?
+        return (diff**2).mean()

@@ -63,7 +63,6 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 class MDP:
-
     def __init__(self, T, R, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
@@ -154,7 +153,6 @@ class MDP:
         return mdp
 
 class BlockMDP(MDP):
-
     def __init__(self, base_mdp, n_obs_per_block=2, obs_fn=None):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
@@ -180,7 +178,6 @@ class BlockMDP(MDP):
         self.obs_fn = obs_fn
 
 class AbstractMDP(MDP):
-
     def __init__(self, base_mdp, phi, pi=None, p0=None, t=200):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
@@ -247,7 +244,6 @@ class AbstractMDP(MDP):
         return policies
 
 class UniformAbstractMDP(AbstractMDP):
-
     def __init__(self, base_mdp, phi, pi=None, p0=None):
         super().__init__(base_mdp, phi, pi, p0)
 

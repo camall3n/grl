@@ -7,8 +7,8 @@ def assert_pe_results(spec, answers):
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
     for i, pi in enumerate(spec['Pi_phi']):
-        pe = PolicyEval(amdp)
-        results = pe.run(pi, True)
+        pe = PolicyEval(amdp, no_gamma=True)
+        results = pe.run(pi)
 
         for k in answers.keys():
             for j, res in enumerate(results):

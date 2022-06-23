@@ -10,7 +10,6 @@ class POMDPFile:
     
     For more info on format: http://pomdp.org/code/pomdp-file-spec.html
     """
-
     def __init__(self, filename):
         """
         Parses .pomdp file and loads info into this object's fields.

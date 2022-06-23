@@ -5,13 +5,15 @@ import time
 
 import numpy as np
 import jax
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from .environment import *
 from .mdp import MDP, AbstractMDP
 from .mc import mc
 from .policy_eval import PolicyEval
 from .grad import do_grad
-from .utils import pformat_vals
+from .utils import pformat_vals, RTOL
 
 def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
@@ -23,23 +25,22 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
 
-    pe = PolicyEval(amdp)
+    pe = PolicyEval(amdp, no_gamma)
     discrepancy_ids = []
     for i, pi in enumerate(policies):
         logging.info(f'\nid: {i}')
         logging.info(f'\npi:\n {pi}')
-        mdp_vals, amdp_vals, td_vals = pe.run(pi, no_gamma)
-        logging.info(f'\nmdp:\n {np.array(mdp_vals["q"])}')
+        mdp_vals, amdp_vals, td_vals = pe.run(pi)
         logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
         logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
         logging.info(f'td:\n {pformat_vals(td_vals)}')
 
-        if not np.allclose(amdp_vals['v'], td_vals['v']) or \
-            not np.allclose(amdp_vals['q'], td_vals['q']):
+        if not np.allclose(amdp_vals['v'], td_vals['v'], rtol=RTOL) or \
+            not np.allclose(amdp_vals['q'], td_vals['q'], rtol=RTOL):
 
             discrepancy_ids.append(i)
             if use_grad:
-                do_grad(pe, pi, no_gamma)
+                do_grad(pe, pi)
 
         logging.info('\n-----------')
 
@@ -70,32 +71,59 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
 
     #     logging.info('\n-----------')
 
+def heatmap(spec, no_gamma, num_ticks=5):
+    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    policy_eval = PolicyEval(amdp, no_gamma, verbose=False)
+
+    discrepancies = []
+    x = y = np.linspace(0, 1, num_ticks)
+    for i in range(num_ticks):
+        p = x[i]
+        for j in range(num_ticks):
+            q = y[j]
+            pi = np.array([[p, 1 - p], [q, 1 - q], [0, 0]])
+            discrepancies.append(policy_eval.mse_loss(pi))
+
+            if (num_ticks * i + j + 1) % 10 == 0:
+                print(f'Calculating policy {num_ticks * i + j + 1}/{num_ticks * num_ticks}')
+
+    ax = sns.heatmap(np.array(discrepancies).reshape((num_ticks, num_ticks)),
+                     xticklabels=x.round(3),
+                     yticklabels=y.round(3))
+    ax.invert_yaxis()
+    ax.set(xlabel='2nd obs', ylabel='1st obs')
+    ax.set_title(args.spec)
+    plt.show()
+
 if __name__ == '__main__':
-    # Usage: python -m grl.run --spec example_11 --log
+    # Usage: python -m grl.run --spec example_3 --no_gamma --log
 
     # Args
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='example_11', type=str, help='name of POMDP spec')
-    parser.add_argument('--no_gamma',
-                        action='store_true',
-                        help='do not discount the occupancy expectation in policy eval')
-    parser.add_argument(
-        '--n_random_policies',
-        default=0,
-        type=int,
-        help='number of random policies to run--if not set, then use specified Pi_phi instead')
-    parser.add_argument('--use_grad',
-                        action='store_true',
-                        help='find policy that minimizes any discrepancies by following gradient')
-    parser.add_argument('--n_steps', default=20000, type=int, help='number of rollouts to run')
-    parser.add_argument('--max_rollout_steps',
-                        default=None,
-                        type=int,
-                        help='max steps for mc rollouts')
-    parser.add_argument('--log', action='store_true', help='save output to logs/')
+    # yapf:disable
+    parser.add_argument('--spec', default='example_11', type=str,
+        help='name of POMDP spec; evals Pi_phi policies by default')
+    parser.add_argument('--no_gamma', action='store_true',
+        help='do not discount the occupancy expectation in policy eval')
+    parser.add_argument('--n_random_policies', default=0, type=int,
+        help='number of random policies to eval; if set (>0), overrides Pi_phi')
+    parser.add_argument('--use_grad', action='store_true',
+        help='find policy that minimizes any discrepancies by following gradient')
+    parser.add_argument('--heatmap', action='store_true',
+        help='generate a policy-discrepancy heatmap for the given POMDP')
+    parser.add_argument('--n_steps', default=20000, type=int,
+        help='number of rollouts to run')
+    parser.add_argument('--max_rollout_steps', default=None, type=int,
+        help='max steps for mc rollouts')
+    parser.add_argument('--log', action='store_true',
+        help='save output to logs/')
+    parser.add_argument('--seed', default=None, type=int,
+        help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
-    parser.add_argument('--seed', default=None, type=int)
+    # yapf:enable
 
+    global args
     args = parser.parse_args()
     del args.fool_ipython
 
@@ -121,6 +149,9 @@ if __name__ == '__main__':
     logging.info(f'n_steps:\n {args.n_steps}')
     logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
 
-    # Run algos
-    run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
-              args.max_rollout_steps)
+    # Run
+    if args.heatmap:
+        heatmap(spec, args.no_gamma)
+    else:
+        run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
+                  args.max_rollout_steps)
