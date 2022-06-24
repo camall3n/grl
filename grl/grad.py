@@ -7,11 +7,11 @@ from jax import grad
 
 def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
     """
-    :param policy_eval:   PolicyEval object
-    :param pi_abs:        policy over abstract state space
-    :param lr:            learning rate
-    :param value_type:  'v' or 'q'
-    :param discrep_type:   'l2' or 'max'
+    :param policy_eval:  PolicyEval object
+    :param pi_abs:       policy over abstract state space
+    :param lr:           learning rate
+    :param value_type:   'v' or 'q'
+    :param discrep_type: 'l2' or 'max'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
         - (see policy_eval.py)
