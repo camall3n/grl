@@ -95,7 +95,7 @@ def heatmap(spec, discrep_type='l2', no_gamma=True, num_ticks=5):
                 loss_fn = policy_eval.max_loss_v
         elif value_type == 'q':
             if discrep_type == 'l2':
-                loss_fn = policy_eval.max_loss_q
+                loss_fn = policy_eval.mse_loss_q
             elif discrep_type == 'max':
                 loss_fn = policy_eval.max_loss_q
 
