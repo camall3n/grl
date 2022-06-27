@@ -45,7 +45,7 @@ class PolicyEval:
     def _solve_mdp(self, mdp, pi):
         """
         Solves for V using linear equations.
-        For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
+        For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
         """
         Pi_pi = pi.transpose()[..., None]
         T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
@@ -66,7 +66,7 @@ class PolicyEval:
     def _get_occupancy(self):
         """
         Finds the visitation count, C_pi(s), of each state.
-        For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
+        For all s, C_pi(s) = p0(s) + sum_s^ sum_a[C_pi(s^) * gamma * T(s|a,s^) * pi(a|s^)],
           where s^ is the prev state
         """
         Pi_pi = self.pi_ground.transpose()[..., None]
