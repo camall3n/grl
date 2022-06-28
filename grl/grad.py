@@ -20,14 +20,16 @@ def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
 
     if value_type == 'v':
         if discrep_type == 'l2':
-            grad_fn = grad(policy_eval.mse_loss_v)
+            loss_fn = policy_eval.mse_loss_v
         elif discrep_type == 'max':
-            grad_fn = grad(policy_eval.max_loss_v)
+            loss_fn = policy_eval.max_loss_v
     elif value_type == 'q':
         if discrep_type == 'l2':
-            grad_fn = grad(policy_eval.mse_loss_q)
+            loss_fn = policy_eval.mse_loss_q
         elif discrep_type == 'max':
-            grad_fn = grad(policy_eval.max_loss_q)
+            loss_fn = policy_eval.max_loss_q
+
+    logging.info(f'\nStarting discrep:\n {loss_fn(pi_abs)}')
 
     policy_eval.verbose = False
     old_pi = pi_abs
@@ -39,7 +41,7 @@ def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
         if i % 10 == 0:
             print('Gradient iteration', i)
 
-        pi_grad = grad_fn(pi_abs)
+        pi_grad = grad(loss_fn)(pi_abs)
         old_pi = pi_abs
         pi_abs -= lr * pi_grad
 
@@ -59,9 +61,10 @@ def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
 
     # policy_eval.verbose = True
     mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs)
-    logging.info('\nFinal vals using gradient pi')
+    logging.info(f'\nFinal vals using gradient pi on value_type {value_type}')
     logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')
+    logging.info(f'discrep:\n {loss_fn(pi_abs)}')
 
     return pi_abs
