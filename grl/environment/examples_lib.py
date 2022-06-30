@@ -75,21 +75,42 @@ def example_7():
     ])
     T = np.array([T, T])
 
-    R = np.array([[[0., 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0]],
-                  [[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]])
+    R = np.array([
+        [
+            [0., 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 0, 0],
+        ],
+        [
+            [0, 1, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+        ],
+    ])
 
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[1, 0, 0], [0, 1, 0], [1, 0, 0], [0, 0, 1]])
+    phi = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, 1],
+    ])
 
     Pi_phi = [
         np.array([
             [1, 0], # up, down
             [1, 0],
-            [1, 0]
+            [1, 0],
         ]),
-        np.array([[0, 1], [0, 1], [0, 1]]),
+        np.array([
+            [0, 1],
+            [0, 1],
+            [0, 1],
+        ]),
         np.array([
             [4 / 7, 3 / 7], # known location of no discrepancy
             [1, 0],
@@ -100,17 +121,36 @@ def example_7():
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
 def example_11():
-    T = np.array([[[0, 1, 0, 0], [0, 0, 1, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 0]]])
+    T = np.array([[
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0.5, 0, 0.5],
+        [0, 0, 0, 0],
+    ]])
 
-    R = np.array([[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0]]])
+    R = np.array([[
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0],
+    ]])
 
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[1, 0, 0], [0, 1, 0], [0, 1, 0], [0, 0, 1]])
+    phi = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
 
     Pi_phi = [
-        np.array([[1], [1], [1]]),
+        np.array([
+            [1],
+            [1],
+            [1],
+        ]),
     ]
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
@@ -200,24 +240,43 @@ def example_16():
 def example_16_terminal():
     gamma_top = 0.5
     # b0, b1, t
-    T = np.array([[0, gamma_top, 1 - gamma_top], [gamma_top, 0, 1 - gamma_top], [0, 0, 0]])
+    T = np.array([
+        [0, gamma_top, 1 - gamma_top],
+        [gamma_top, 0, 1 - gamma_top],
+        [0, 0, 0],
+    ])
     T = np.array([T, T])
 
-    R_up = np.array([[0, 1, 0], [0, 0, 0], [0, 0, 0]])
-    R_down = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+    R_up = np.array([
+        [0, 1, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+    ])
+    R_down = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 0],
+    ])
     R = np.array([R_up, R_down])
 
     p0 = np.zeros(len(T[0]))
     p0[0] = 1
 
-    phi = np.array([[1, 0], [1, 0], [0, 1]])
+    phi = np.array([
+        [1, 0],
+        [1, 0],
+        [0, 1],
+    ])
 
     Pi_phi = [
         np.array([
             [1, 0], # up, down
-            [1, 0]
+            [1, 0],
         ]),
-        np.array([[0, 1], [0, 1]]),
+        np.array([
+            [0, 1],
+            [0, 1],
+        ]),
     ]
 
     return to_dict(T, R, 1, p0, phi, Pi_phi)
@@ -285,6 +344,41 @@ def example_18():
     ]
 
     return to_dict(T, R, 1, p0, phi, Pi_phi)
+
+def example_19():
+    T = np.array([[
+        [0, 0.5, 0.5, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0],
+    ]])
+
+    R = np.array([[
+        [0, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+    ]])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
+
+    Pi_phi = [
+        np.array([
+            [1],
+            [1],
+            [1],
+        ]),
+    ]
+
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi):
     return {

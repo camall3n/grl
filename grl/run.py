@@ -35,12 +35,18 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
         logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
         logging.info(f'td:\n {pformat_vals(td_vals)}')
 
-        if not np.allclose(amdp_vals['v'], td_vals['v'], rtol=RTOL) or \
-            not np.allclose(amdp_vals['q'], td_vals['q'], rtol=RTOL):
+        # Check if there are discrepancies in V or Q
+        # V takes precedence
+        value_type = None
+        if not np.allclose(amdp_vals['v'], td_vals['v'], rtol=RTOL):
+            value_type = 'v'
+        elif not np.allclose(amdp_vals['q'], td_vals['q'], rtol=RTOL):
+            value_type = 'q'
 
+        if value_type:
             discrepancy_ids.append(i)
             if use_grad:
-                do_grad(pe, pi)
+                do_grad(pe, pi, value_type=value_type)
 
         logging.info('\n-----------')
 
@@ -71,30 +77,48 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
 
     #     logging.info('\n-----------')
 
-def heatmap(spec, no_gamma, num_ticks=5):
+def heatmap(spec, discrep_type='l2', no_gamma=True, num_ticks=5):
+    """
+    (Currently have to adjust discrep_type and num_ticks above directly)
+    """
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
     policy_eval = PolicyEval(amdp, no_gamma, verbose=False)
 
-    discrepancies = []
-    x = y = np.linspace(0, 1, num_ticks)
-    for i in range(num_ticks):
-        p = x[i]
-        for j in range(num_ticks):
-            q = y[j]
-            pi = np.array([[p, 1 - p], [q, 1 - q], [0, 0]])
-            discrepancies.append(policy_eval.mse_loss(pi))
+    # Run for both v and q
+    value_types = ['v', 'q']
+    for value_type in value_types:
+        if value_type == 'v':
+            if discrep_type == 'l2':
+                loss_fn = policy_eval.mse_loss_v
+            elif discrep_type == 'max':
+                loss_fn = policy_eval.max_loss_v
+        elif value_type == 'q':
+            if discrep_type == 'l2':
+                loss_fn = policy_eval.mse_loss_q
+            elif discrep_type == 'max':
+                loss_fn = policy_eval.max_loss_q
 
-            if (num_ticks * i + j + 1) % 10 == 0:
-                print(f'Calculating policy {num_ticks * i + j + 1}/{num_ticks * num_ticks}')
+        discrepancies = []
+        x = y = np.linspace(0, 1, num_ticks)
+        for i in range(num_ticks):
+            p = x[i]
+            for j in range(num_ticks):
+                q = y[j]
+                pi = np.array([[p, 1 - p], [q, 1 - q], [0, 0]])
+                discrepancies.append(loss_fn(pi))
 
-    ax = sns.heatmap(np.array(discrepancies).reshape((num_ticks, num_ticks)),
-                     xticklabels=x.round(3),
-                     yticklabels=y.round(3))
-    ax.invert_yaxis()
-    ax.set(xlabel='2nd obs', ylabel='1st obs')
-    ax.set_title(args.spec)
-    plt.show()
+                if (num_ticks * i + j + 1) % 10 == 0:
+                    print(f'Calculating policy {num_ticks * i + j + 1}/{num_ticks * num_ticks}')
+
+        ax = sns.heatmap(np.array(discrepancies).reshape((num_ticks, num_ticks)),
+                         xticklabels=x.round(3),
+                         yticklabels=y.round(3),
+                         cmap='viridis')
+        ax.invert_yaxis()
+        ax.set(xlabel='2nd obs', ylabel='1st obs')
+        ax.set_title(f'{args.spec}, {value_type}_values, {discrep_type}_loss')
+        plt.show()
 
 if __name__ == '__main__':
     # Usage: python -m grl.run --spec example_3 --no_gamma --log
@@ -151,7 +175,7 @@ if __name__ == '__main__':
 
     # Run
     if args.heatmap:
-        heatmap(spec, args.no_gamma)
+        heatmap(spec, no_gamma=args.no_gamma)
     else:
         run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
                   args.max_rollout_steps)

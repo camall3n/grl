@@ -15,8 +15,8 @@ class PolicyEval:
         :param verbose: log everything
         """
         self.amdp = amdp
-        self.verbose = verbose
         self.no_gamma = no_gamma
+        self.verbose = verbose
 
     def run(self, pi_abs):
         """
@@ -24,10 +24,6 @@ class PolicyEval:
         """
         self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
-
-        mdp_vals = {}
-        amdp_vals = {}
-        td_vals = {}
 
         # MC*
         mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
@@ -45,7 +41,7 @@ class PolicyEval:
     def _solve_mdp(self, mdp, pi):
         """
         Solves for V using linear equations.
-        For all s, V_pi(s) = sum_s'[T(s,pi(s),s') * (R(s,pi(s),s') + gamma * V_pi(s'))]
+        For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
         """
         Pi_pi = pi.transpose()[..., None]
         T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
@@ -59,14 +55,14 @@ class PolicyEval:
         v_vals = np.linalg.solve(A, b)
 
         R_sa = (mdp.T * mdp.R).sum(axis=-1) # R(s,a)
-        q_vals = (R_sa + (mdp.gamma * mdp.T @ v_vals)).transpose()
+        q_vals = (R_sa + (mdp.gamma * mdp.T @ v_vals))
 
         return {'v': v_vals, 'q': q_vals}
 
     def _get_occupancy(self):
         """
         Finds the visitation count, C_pi(s), of each state.
-        For all s, C_pi(s) = p0(s) + sum_s^[C_pi(s^) * gamma * T(s^,pi(s^),s)],
+        For all s, C_pi(s) = p0(s) + sum_s^ sum_a[C_pi(s^) * gamma * T(s|a,s^) * pi(a|s^)],
           where s^ is the prev state
         """
         Pi_pi = self.pi_ground.transpose()[..., None]
@@ -84,18 +80,18 @@ class PolicyEval:
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        amdp_q_vals = np.zeros((self.amdp.n_obs, self.amdp.n_actions))
+        amdp_q_vals = np.zeros((self.amdp.n_actions, self.amdp.n_obs))
 
         # Q vals
         for ob in range(self.amdp.n_obs):
             col = self.amdp.phi[:, ob].copy().astype('float')
             col *= occupancy
             col /= col.sum()
-            weighted_q = (mdp_q_vals * col[:, None]).sum(0)
-            amdp_q_vals = amdp_q_vals.at[ob].set(weighted_q)
+            weighted_q = (mdp_q_vals * col).sum(1)
+            amdp_q_vals = amdp_q_vals.at[:, ob].set(weighted_q)
 
         # V vals
-        amdp_v_vals = (amdp_q_vals * self.pi_abs).sum(1)
+        amdp_v_vals = (amdp_q_vals * self.pi_abs.T).sum(0)
 
         return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
@@ -111,7 +107,7 @@ class PolicyEval:
             # compute p_π(o|s) for all s
             p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
-            w = occupancy * p_π_of_o_given_s # Prob of being in each state * prob of it emitting curr obs i
+            w = occupancy * p_π_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
             p_π_of_s_given_o = (w / w.sum())[:, None]
 
             for next_ob in range(self.amdp.n_obs):
@@ -140,7 +136,36 @@ class PolicyEval:
 
         return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
 
-    def mse_loss(self, pi):
+    ##########
+    # Helpers for gradient/heatmap stuff
+    ##########
+
+    def mse_loss_v(self, pi):
+        """
+        sum_o [V_td^pi(o) - V_mc^pi(o)]^2 
+        """
         _, amdp_vals, td_vals = self.run(pi)
-        diff = amdp_vals['v'] - td_vals['v'] # TODO: q vals?
+        diff = amdp_vals['v'] - td_vals['v']
         return (diff**2).mean()
+
+    def mse_loss_q(self, pi):
+        """
+        sum_o sum_a [Q_td^pi(o,a) - Q_mc^pi(o,a)]^2 
+        """
+        _, amdp_vals, td_vals = self.run(pi)
+        diff = amdp_vals['q'] - td_vals['q']
+        return (diff**2).mean()
+
+    def max_loss_v(self, pi):
+        """
+        max_o abs[V_td^pi(o) - V_mc^pi(o)]
+        """
+        _, amdp_vals, td_vals = self.run(pi)
+        return np.abs(amdp_vals['v'] - td_vals['v']).max()
+
+    def max_loss_q(self, pi):
+        """
+        max_o max_a abs[Q_td^pi(o,a) - Q_mc^pi(o,a)]
+        """
+        _, amdp_vals, td_vals = self.run(pi)
+        return np.abs(amdp_vals['q'] - td_vals['q']).max()
