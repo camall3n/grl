@@ -25,10 +25,6 @@ class PolicyEval:
         self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
 
-        mdp_vals = {}
-        amdp_vals = {}
-        td_vals = {}
-
         # MC*
         mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
         occupancy = self._get_occupancy()
