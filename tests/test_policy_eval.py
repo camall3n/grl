@@ -1,12 +1,17 @@
 import numpy as np
 
-from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP
+from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
 
-def assert_pe_results(spec, answers):
+def assert_pe_results(spec, answers, use_memory=False):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    policies = spec['Pi_phi']
 
-    for i, pi in enumerate(spec['Pi_phi']):
+    if use_memory:
+        amdp = memory_cross_product(amdp, spec['T_mem'])
+        policies = spec['Pi_phi_x']
+
+    for i, pi in enumerate(policies):
         pe = PolicyEval(amdp, no_gamma=True)
         results = pe.run(pi)
 
@@ -39,6 +44,32 @@ def test_example_3():
     }
 
     assert_pe_results(spec, answers)
+
+def test_example_7_memory():
+    spec = load_spec('example_7')
+    answers = {
+        'v': [[
+            np.array([1.25, 0.25, 0.5, 0., 0., 1., 0., 0.]),
+            np.array([1.25, 1., 0.5, 0., 0., 0.]),
+            np.array([1.25, 1., 0.5, 0., 0., 0.]),
+        ]],
+        'q': [[
+            np.array([[
+                [0.25, 0.25, 0.5, 0., 1., 1., 0., 0.],
+                [1.25, 1.25, 0.5, 0., 0., 0., 0., 0.],
+            ]]),
+            np.array([[
+                [0.25, 1., 0.5, 0., 0., 0.],
+                [1.25, 0., 0.5, 0., 0., 0.],
+            ]]),
+            np.array([[
+                [0.25, 1., 0.5, 0., 0., 0.],
+                [1.25, 0., 0.5, 0., 0., 0.],
+            ]]),
+        ]],
+    }
+
+    assert_pe_results(spec, answers, use_memory=True)
 
 def test_example_11():
     spec = load_spec('example_11')

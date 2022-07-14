@@ -20,7 +20,7 @@ class PolicyEval:
 
     def run(self, pi_abs):
         """
-        :param pi_abs:   policy to evaluate, defined over abstract state space
+        :param pi_abs: policy to evaluate, defined over abstract state space
         """
         self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
@@ -84,10 +84,15 @@ class PolicyEval:
 
         # Q vals
         for ob in range(self.amdp.n_obs):
-            col = self.amdp.phi[:, ob].copy().astype('float')
-            col *= occupancy
-            col /= col.sum()
-            weighted_q = (mdp_q_vals * col).sum(1)
+            p_π_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
+            w = occupancy * p_π_of_o_given_s
+            # Skip this ob (leave vals at 0) if w is full of 0s
+            # as this means it will never be occupied
+            # and normalizing comes up as nans
+            if np.all(w == 0):
+                continue
+            p_π_of_s_given_o = w / w.sum()
+            weighted_q = (mdp_q_vals * p_π_of_s_given_o).sum(1)
             amdp_q_vals = amdp_q_vals.at[:, ob].set(weighted_q)
 
         # V vals
@@ -108,6 +113,11 @@ class PolicyEval:
             p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
             w = occupancy * p_π_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
+            # Skip this ob (leave vals at 0) if w is full of 0s
+            # as this means it will never be occupied
+            # and normalizing comes up as nans
+            if np.all(w == 0):
+                continue
             p_π_of_s_given_o = (w / w.sum())[:, None]
 
             for next_ob in range(self.amdp.n_obs):

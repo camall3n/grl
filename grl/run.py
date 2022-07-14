@@ -12,10 +12,11 @@ from .environment import *
 from .mdp import MDP, AbstractMDP
 from .mc import mc
 from .policy_eval import PolicyEval
+from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
+def run_algos(spec, no_gamma, n_random_policies, use_memory, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
@@ -25,6 +26,9 @@ def run_algos(spec, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
 
+    if use_memory:
+        amdp = memory_cross_product(amdp, spec['T_mem'])
+        policies = spec['Pi_phi_x']
     pe = PolicyEval(amdp, no_gamma)
     discrepancy_ids = []
     for i, pi in enumerate(policies):
@@ -132,6 +136,8 @@ if __name__ == '__main__':
         help='do not discount the occupancy expectation in policy eval')
     parser.add_argument('--n_random_policies', default=0, type=int,
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
+    parser.add_argument('--use_memory', action='store_true',
+        help='use memory from spec during policy eval')
     parser.add_argument('--use_grad', action='store_true',
         help='find policy that minimizes any discrepancies by following gradient')
     parser.add_argument('--heatmap', action='store_true',
@@ -177,5 +183,5 @@ if __name__ == '__main__':
     if args.heatmap:
         heatmap(spec, no_gamma=args.no_gamma)
     else:
-        run_algos(spec, args.no_gamma, args.n_random_policies, args.use_grad, args.n_steps,
-                  args.max_rollout_steps)
+        run_algos(spec, args.no_gamma, args.n_random_policies, args.use_memory, args.use_grad,
+                  args.n_steps, args.max_rollout_steps)

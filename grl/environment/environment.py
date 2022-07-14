@@ -24,9 +24,9 @@ def load_spec(name):
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None
 
     # Check sizes and types
-    if len(spec.keys()) != 6:
+    if len(spec.keys()) < 6:
         raise ValueError(
-            "Expecting POMDP specification of the form: (T, R, gamma, p0, phi, Pi_phi)")
+            "POMDP specification must contain at least: T, R, gamma, p0, phi, Pi_phi")
     if len(spec['T'].shape) != 3:
         raise ValueError("T tensor must be 3d")
     if len(spec['R'].shape) != 3:
