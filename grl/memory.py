@@ -19,20 +19,14 @@ def memory_cross_product(amdp, T_mem):
     phi_x = np.zeros((n_states_x, phi.shape[-1] * T_mem.shape[-1]))
 
     for s in range(amdp.n_states):
-        # Need to skip getting next_state for terminal states
-        terminal = False
-        if np.all(T[:, s] == 0):
-            terminal = True
-
         T_phi_mem = np.tensordot(phi[s][:-1], T_mem, 1) # T_mem does not include terminal state
         for a in range(T.shape[0]):
-            if not terminal:
-                rows = np.multiply.outer(T[a, s],
-                                         T_phi_mem).swapaxes(0, 1).reshape(n_states_m, n_states_x)
-                T_x[a, (s * n_states_m):(s * n_states_m + n_states_m)] = rows
+            rows = np.multiply.outer(T[a, s],
+                                     T_phi_mem).swapaxes(0, 1).reshape(n_states_m, n_states_x)
+            T_x[a, (s * n_states_m):(s * n_states_m + n_states_m)] = rows
 
-                # Rewards only depend on MDP (not memory function)
-                R_x[a, s * n_states_m:s * n_states_m + n_states_m] = np.repeat(R[a, s], n_states_m)
+            # Rewards only depend on MDP (not memory function)
+            R_x[a, s * n_states_m:s * n_states_m + n_states_m] = np.repeat(R[a, s], n_states_m)
 
             for s_mem in range(n_states_m):
                 phi_x[s * 2 + s_mem][s_mem::n_states_m] = phi[s]
