@@ -28,7 +28,7 @@ class PolicyEval:
         # MC*
         mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
         occupancy = self._get_occupancy()
-        amdp_vals = self._solve_amdp(mdp_vals['q'], occupancy)
+        mc_vals = self._solve_amdp(mdp_vals['q'], occupancy)
 
         if self.verbose:
             logging.info(f'occupancy:\n {occupancy}')
@@ -36,7 +36,7 @@ class PolicyEval:
         # TD
         td_vals = self._solve_mdp(self._create_td_model(occupancy), self.pi_abs)
 
-        return mdp_vals, amdp_vals, td_vals
+        return mdp_vals, mc_vals, td_vals
 
     def _solve_mdp(self, mdp, pi):
         """

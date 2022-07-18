@@ -34,17 +34,22 @@ def run_algos(spec, no_gamma, n_random_policies, use_memory, use_grad, n_steps, 
     for i, pi in enumerate(policies):
         logging.info(f'\nid: {i}')
         logging.info(f'\npi:\n {pi}')
-        mdp_vals, amdp_vals, td_vals = pe.run(pi)
+        mdp_vals, mc_vals, td_vals = pe.run(pi)
         logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-        logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
+        logging.info(f'mc*:\n {pformat_vals(mc_vals)}')
         logging.info(f'td:\n {pformat_vals(td_vals)}')
+        discrep = {
+            'v': np.abs(td_vals['v'] - mc_vals['v']),
+            'q': np.abs(td_vals['q'] - mc_vals['q']),
+        }
+        logging.info(f'td-mc* discrepancy:\n {pformat_vals(discrep)}')
 
         # Check if there are discrepancies in V or Q
         # V takes precedence
         value_type = None
-        if not np.allclose(amdp_vals['v'], td_vals['v'], rtol=RTOL):
+        if not np.allclose(mc_vals['v'], td_vals['v'], rtol=RTOL):
             value_type = 'v'
-        elif not np.allclose(amdp_vals['q'], td_vals['q'], rtol=RTOL):
+        elif not np.allclose(mc_vals['q'], td_vals['q'], rtol=RTOL):
             value_type = 'q'
 
         if value_type:
