@@ -25,8 +25,7 @@ def load_spec(name):
 
     # Check sizes and types
     if len(spec.keys()) < 6:
-        raise ValueError(
-            "POMDP specification must contain at least: T, R, gamma, p0, phi, Pi_phi")
+        raise ValueError("POMDP specification must contain at least: T, R, gamma, p0, phi, Pi_phi")
     if len(spec['T'].shape) != 3:
         raise ValueError("T tensor must be 3d")
     if len(spec['R'].shape) != 3:
