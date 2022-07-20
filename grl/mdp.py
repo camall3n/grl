@@ -105,9 +105,10 @@ class MDP:
 
     def step(self, s, a):
         T = self.T[a]
-        pr_next_s = one_hot(s, self.n_states) @ T
-        sp = np.random.choice(self.n_states, p=pr_next_s)
+        pr_next_s = T[s]
+        sp = onp.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
+        # Check if sp is terminal state
         pr_next_next_s = self.T[:, sp, :]
         done = (pr_next_next_s == 0).all()
         return sp, r, done
@@ -198,8 +199,7 @@ class AbstractMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
-        obs = np.argmax(one_hot(s, self.base_mdp.n_states) @ self.phi)
-        return obs
+        return onp.random.choice(self.n_obs, p=self.phi[s])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)

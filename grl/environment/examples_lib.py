@@ -1,4 +1,6 @@
 import numpy as np
+
+from .memory_lib import *
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -61,7 +63,7 @@ def example_3():
         np.array([
             [p, 1 - p], # up, down
             [q, 1 - q],
-            [0, 0],
+            [1, 0],
         ]),
     ]
 
@@ -109,36 +111,21 @@ def example_7():
             [1, 0],
             [1, 0],
         ]),
-        # np.array([
-        #     [0, 1],
-        #     [0, 1],
-        #     [0, 1],
-        # ]),
-        # np.array([
-        #     [4 / 7, 3 / 7], # known location of no discrepancy
-        #     [1, 0],
-        #     [1, 0],
-        # ])
-    ]
-
-    T_mem = np.array([
-        [ # red
-            [1., 0], # s0, s1
-            [1, 0],
-        ],
-        [ # blue
+        np.array([
             [0, 1],
+            [0, 1],
+            [0, 1],
+        ]),
+        np.array([
+            [4 / 7, 3 / 7], # known location of no discrepancy
             [1, 0],
-        ],
-        [ # terminal
             [1, 0],
-            [1, 0],
-        ],
-    ])
+        ])
+    ]
 
     Pi_phi_x = [
         np.array([
-            [0, 1],
+            [0, 1], # Optimal policy
             [1, 0],
             [1, 0],
             [1, 0],
@@ -147,7 +134,7 @@ def example_7():
         ]),
     ]
 
-    return to_dict(T, R, 0.5, p0, phi, Pi_phi, T_mem, Pi_phi_x)
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi, Pi_phi_x)
 
 def example_11():
     T = np.array([[
@@ -409,7 +396,7 @@ def example_19():
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
-def to_dict(T, R, gamma, p0, phi, Pi_phi, T_mem=None, Pi_phi_x=None):
+def to_dict(T, R, gamma, p0, phi, Pi_phi,  Pi_phi_x=None):
     return {
         'T': T,
         'R': R,
@@ -417,6 +404,5 @@ def to_dict(T, R, gamma, p0, phi, Pi_phi, T_mem=None, Pi_phi_x=None):
         'p0': p0,
         'phi': phi,
         'Pi_phi': Pi_phi,
-        'T_mem': T_mem,
         'Pi_phi_x': Pi_phi_x,
     }

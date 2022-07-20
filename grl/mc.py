@@ -27,7 +27,7 @@ def rollout(mdp, s, a, pi, max_steps=None):
         oa_pairs.append((o_t, a_t))
         s_t = next_s
         o_t = next_obs
-        a_t = pi[s_t]
+        a_t = np.random.choice(mdp.n_actions, p=pi[s_t])
         t += 1
         if max_steps is not None and t >= max_steps:
             break
@@ -52,9 +52,7 @@ def mc(mdp,
     if p0 is not None and len(p0) != mdp.n_states:
         raise ValueError("p0 must be a valid distribution over ground states")
 
-    V_max = mdp.R_max / (1 - mdp.gamma)
-    V_min = mdp.R_min / (1 - mdp.gamma)
-    q = [V_min * np.ones(mdp.n_obs) for _ in range(mdp.n_actions)]
+    q = [np.zeros(mdp.n_obs) for _ in range(mdp.n_actions)]
     for i in range(n_steps):
         if p0 is None:
             mc_returns = []
@@ -67,10 +65,13 @@ def mc(mdp,
             s = np.random.choice(mdp.n_states, p=p0)
             # use epsilon-greedy action selection for first state
             if np.random.uniform() > epsilon:
-                a = pi[s]
+                a = np.random.choice(mdp.n_actions, p=pi[s])
             else:
                 a = np.random.choice(mdp.n_actions)
             mc_returns = rollout(mdp, s, a, pi, max_rollout_steps)
+
+        if i % 1000 == 0:
+            print(f'Sampling step: {i}/{n_steps}')
 
         encountered_oa_pairs = set()
         for obs, a, q_target in mc_returns:
@@ -81,9 +82,9 @@ def mc(mdp,
     v = np.empty_like(q[0])
     for s in range(mdp.n_states):
         obs = mdp.observe(s)
-        v[obs] = q[pi[s]][obs]
-    #
-    v = v.squeeze()
+        a = np.random.choice(mdp.n_actions, p=pi[s])
+        v[obs] += q[a][obs]
+
     return v, q, pi
 
 def test_discount():
