@@ -4,7 +4,7 @@ from . import examples_lib
 from . import memory_lib
 from .pomdp_file import POMDPFile
 
-def load_spec(name, memory_id):
+def load_spec(name, memory_id=0):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -31,8 +31,7 @@ def load_spec(name, memory_id):
         try:
             spec['T_mem'] = getattr(memory_lib, mem_name)
         except AttributeError as _:
-            raise NotImplementedError(
-                f'{mem_name} not found in memory_lib.py') from None
+            raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
 
     # Check sizes and types
     if len(spec.keys()) < 6:

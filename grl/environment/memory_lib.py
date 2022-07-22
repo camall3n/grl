@@ -2,6 +2,21 @@ import numpy as np
 
 ### 1 bit memory functions with three obs: r, b, t
 
+memory_1 = np.array([
+    [ # red
+        [1., 0], # s0, s1
+        [1, 0],
+    ],
+    [ # blue
+        [1, 0],
+        [1, 0],
+    ],
+    [ # terminal
+        [1, 0],
+        [1, 0],
+    ],
+])
+
 memory_4 = np.array([
     [ # red
         [1., 0], # s0, s1

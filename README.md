@@ -7,7 +7,7 @@ pip install -r requirements.txt
 ```
 usage: run.py [-h] [--spec SPEC] [--method METHOD] [--no_gamma]
               [--n_random_policies N_RANDOM_POLICIES]
-              [--use_memory USE_MEMORY] [--use_grad] [--heatmap]
+              [--use_memory USE_MEMORY] [--use_grad USE_GRAD] [--heatmap]
               [--n_steps N_STEPS] [--max_rollout_steps MAX_ROLLOUT_STEPS]
               [--log] [--seed SEED] [-f FOOL_IPYTHON]
 
@@ -22,8 +22,8 @@ optional arguments:
                         overrides Pi_phi
   --use_memory USE_MEMORY
                         use memory function during policy eval if set (>0)
-  --use_grad            find policy that minimizes any discrepancies by
-                        following gradient
+  --use_grad USE_GRAD   find policy ("p") or memory ("m") that minimizes any
+                        discrepancies by following gradient
   --heatmap             generate a policy-discrepancy heatmap for the given
                         POMDP
   --n_steps N_STEPS     number of rollouts to run

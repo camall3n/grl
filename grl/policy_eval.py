@@ -7,12 +7,14 @@ config.update("jax_enable_x64", True)
 config.update('jax_platform_name', 'cpu')
 
 from .mdp import MDP
+from .memory import memory_cross_product
 
 class PolicyEval:
     def __init__(self, amdp, no_gamma, verbose=True):
         """
-        :param amdp:    AMDP
-        :param verbose: log everything
+        :param amdp:     AMDP
+        :param no_gamma: no gamma in occupancy
+        :param verbose:  log everything
         """
         self.amdp = amdp
         self.no_gamma = no_gamma
@@ -150,32 +152,22 @@ class PolicyEval:
     # Helpers for gradient/heatmap stuff
     ##########
 
-    def mse_loss_v(self, pi):
+    def mse_loss(self, pi, value_type, **kwargs):
         """
         sum_o [V_td^pi(o) - V_mc^pi(o)]^2 
         """
-        _, amdp_vals, td_vals = self.run(pi)
-        diff = amdp_vals['v'] - td_vals['v']
+        _, mc_vals, td_vals = self.run(pi)
+        diff = mc_vals[value_type] - td_vals[value_type]
         return (diff**2).mean()
 
-    def mse_loss_q(self, pi):
-        """
-        sum_o sum_a [Q_td^pi(o,a) - Q_mc^pi(o,a)]^2 
-        """
-        _, amdp_vals, td_vals = self.run(pi)
-        diff = amdp_vals['q'] - td_vals['q']
-        return (diff**2).mean()
-
-    def max_loss_v(self, pi):
+    def max_loss(self, pi, value_type, **kwargs):
         """
         max_o abs[V_td^pi(o) - V_mc^pi(o)]
         """
-        _, amdp_vals, td_vals = self.run(pi)
-        return np.abs(amdp_vals['v'] - td_vals['v']).max()
+        _, mc_vals, td_vals = self.run(pi)
+        return np.abs(mc_vals[value_type] - td_vals[value_type]).max()
 
-    def max_loss_q(self, pi):
-        """
-        max_o max_a abs[Q_td^pi(o,a) - Q_mc^pi(o,a)]
-        """
-        _, amdp_vals, td_vals = self.run(pi)
-        return np.abs(amdp_vals['q'] - td_vals['q']).max()
+    def memory_loss(self, T_mem, value_type, **kwargs):
+        amdp = memory_cross_product(self.amdp, T_mem)
+        pe = PolicyEval(amdp, self.no_gamma, verbose=False)
+        return pe.mse_loss(kwargs['pi_abs'], value_type)

@@ -7,7 +7,7 @@ def assert_pe_results(spec, answers, use_memory=False):
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
     policies = spec['Pi_phi']
 
-    if use_memory:
+    if use_memory > 0:
         amdp = memory_cross_product(amdp, spec['T_mem'])
         policies = spec['Pi_phi_x']
 
@@ -46,7 +46,18 @@ def test_example_3():
     assert_pe_results(spec, answers)
 
 def test_example_7_memory():
-    spec = load_spec('example_7')
+    spec = load_spec('example_7', memory_id=5)
+    spec['Pi_phi_x'] = [
+        np.array([
+            [0., 1], # Optimal policy with memory
+            [1, 0],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+        ]),
+    ]
+
     answers = {
         'v': [[
             np.array([1.25, 0.25, 0.5, 0., 0., 1., 0., 0.]),

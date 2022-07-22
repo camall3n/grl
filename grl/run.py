@@ -16,15 +16,14 @@ from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-def run_algos(spec, method, no_gamma, n_random_policies, use_memory, use_grad, n_steps,
-              max_rollout_steps):
+def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
-    # Discrepancy outputs are determined using analytical values
+    # Discrepancy results are currently determined using analytical values
 
     policies = spec['Pi_phi']
-    if use_memory:
+    if 'T_mem' in spec.keys():
         amdp = memory_cross_product(amdp, spec['T_mem'])
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
@@ -61,7 +60,7 @@ def run_algos(spec, method, no_gamma, n_random_policies, use_memory, use_grad, n
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    do_grad(pe, pi, value_type=value_type)
+                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type, no_gamma=no_gamma)
 
         if method == 's' or method == 'b':
             # Sampling
@@ -168,8 +167,8 @@ if __name__ == '__main__':
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
     parser.add_argument('--use_memory', default=0, type=int,
         help='use memory function during policy eval if set (>0)')
-    parser.add_argument('--use_grad', action='store_true',
-        help='find policy that minimizes any discrepancies by following gradient')
+    parser.add_argument('--use_grad', default=None, type=str,
+        help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_steps', default=20000, type=int,
@@ -222,5 +221,5 @@ if __name__ == '__main__':
     if args.heatmap:
         heatmap(spec, no_gamma=args.no_gamma)
     else:
-        run_algos(spec, args.method, args.no_gamma, args.n_random_policies, args.use_memory,
-                  args.use_grad, args.n_steps, args.max_rollout_steps)
+        run_algos(spec, args.method, args.no_gamma, args.n_random_policies, args.use_grad,
+                  args.n_steps, args.max_rollout_steps)

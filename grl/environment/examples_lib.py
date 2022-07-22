@@ -110,28 +110,36 @@ def example_7():
             [1, 0], # up, down
             [1, 0],
             [1, 0],
-        ]),
-        np.array([
-            [0, 1],
-            [0, 1],
-            [0, 1],
-        ]),
-        np.array([
-            [4 / 7, 3 / 7], # known location of no discrepancy
-            [1, 0],
-            [1, 0],
+            # ]),
+            # np.array([
+            #     [0, 1],
+            #     [0, 1],
+            #     [0, 1],
+            # ]),
+            # np.array([
+            #     [4 / 7, 3 / 7], # known location of no discrepancy
+            #     [1, 0],
+            #     [1, 0],
         ])
     ]
 
     Pi_phi_x = [
         np.array([
-            [0, 1], # Optimal policy
+            [1., 0],
             [1, 0],
             [1, 0],
             [1, 0],
             [1, 0],
             [1, 0],
         ]),
+        # np.array([
+        #     [0., 1], # Optimal policy with memory
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        # ]),
     ]
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi, Pi_phi_x)
@@ -396,7 +404,7 @@ def example_19():
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
-def to_dict(T, R, gamma, p0, phi, Pi_phi,  Pi_phi_x=None):
+def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
         'R': R,
