@@ -66,34 +66,39 @@ def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_
             # Sampling
             logging.info('\n\n--- Sampling ---')
             # MDP
-            v, q, pi = mc(mdp,
-                          pi_ground,
-                          p0=spec['p0'],
-                          alpha=0.01,
-                          epsilon=0,
-                          mc_states='all',
-                          n_steps=n_steps,
-                          max_rollout_steps=max_rollout_steps)
+            v, q, _ = mc(mdp,
+                         pi_ground,
+                         p0=spec['p0'],
+                         alpha=0.01,
+                         epsilon=0,
+                         mc_states='all',
+                         n_steps=n_steps,
+                         max_rollout_steps=max_rollout_steps)
             mdp_vals = {
                 'v': v,
                 'q': q,
             }
+            # MC
+            v, q, _ = mc(amdp,
+                         pi,
+                         p0=spec['p0'],
+                         alpha=0.01,
+                         epsilon=0,
+                         mc_states='all',
+                         n_steps=n_steps,
+                         max_rollout_steps=max_rollout_steps)
+            mc_vals = {
+                'v': v,
+                'q': q,
+            }
+
             logging.info("\n mc_states: all")
             logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
+            logging.info(f'mc:\n {pformat_vals(mc_vals)}')
 
     logging.info('\nTD-MC* Discrepancy ids:')
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
-    # AMDP
-    # v, q, pi = mc(amdp,
-    #               pi,
-    #               p0=spec['p0'],
-    #               alpha=0.001,
-    #               epsilon=0,
-    #               mc_states='all',
-    #               n_steps=n_steps,
-    #               max_rollout_steps=max_rollout_steps)
-    # logging.info(f'amdp: {v}')
 
     # MC1
     # ADMP

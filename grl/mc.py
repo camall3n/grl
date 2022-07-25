@@ -46,7 +46,12 @@ def mc(mdp,
     if mc_states not in ['all', 'first']:
         raise ValueError("mc_states must be either 'all' or 'first'")
 
-    if pi.shape[0] != mdp.n_states:
+    # If AMDP, convert to pi_ground
+    if hasattr(mdp, 'phi'):
+        pi_ground = mdp.get_ground_policy(pi)
+    else:
+        pi_ground = pi
+    if pi_ground.shape[0] != mdp.n_states:
         raise ValueError("pi must be a valid policy for the ground mdp")
 
     if p0 is not None and len(p0) != mdp.n_states:
@@ -59,18 +64,18 @@ def mc(mdp,
             for s in range(mdp.n_states):
                 obs = mdp.observe(s)
                 for a in range(mdp.n_actions):
-                    q_target = rollout(mdp, s, a, pi, max_rollout_steps)[0][-1]
+                    q_target = rollout(mdp, s, a, pi_ground, max_rollout_steps)[0][-1]
                     mc_returns.append((obs, a, q_target))
         else:
             s = np.random.choice(mdp.n_states, p=p0)
             # use epsilon-greedy action selection for first state
             if np.random.uniform() > epsilon:
-                a = np.random.choice(mdp.n_actions, p=pi[s])
+                a = np.random.choice(mdp.n_actions, p=pi_ground[s])
             else:
                 a = np.random.choice(mdp.n_actions)
-            mc_returns = rollout(mdp, s, a, pi, max_rollout_steps)
+            mc_returns = rollout(mdp, s, a, pi_ground, max_rollout_steps)
 
-        if i % 1000 == 0:
+        if i % (n_steps / 10) == 0:
             print(f'Sampling step: {i}/{n_steps}')
 
         encountered_oa_pairs = set()
@@ -79,11 +84,7 @@ def mc(mdp,
                 q[a][obs] = (1 - alpha) * q[a][obs] + (alpha) * q_target
             encountered_oa_pairs.add((obs, a))
 
-    v = np.empty_like(q[0])
-    for s in range(mdp.n_states):
-        obs = mdp.observe(s)
-        a = np.random.choice(mdp.n_actions, p=pi[s])
-        v[obs] += q[a][obs]
+    v = (q * pi.T).sum(0)
 
     return v, q, pi
 
