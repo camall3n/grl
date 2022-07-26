@@ -31,23 +31,12 @@ def memory_cross_product(amdp, T_mem):
     # It is SMxM
     T_mem_phi = np.tensordot(phi, T_mem, axes=1)
 
-    # T_x_big = np.multiply.outer(T, T_phi_mem).swapaxes(2, 3).swapaxes(3, 4).reshape(
-    #     T.shape[0], n_states, n_states_x, n_states_x)
-    T_x_big = np.outer(T, T_mem_phi).reshape(T.shape[0], n_states, n_states, n_states, n_states_m,
-                                             n_states_m).swapaxes(2, 3).swapaxes(3, 4).reshape(
-                                                 T.shape[0], n_states, n_states_x, n_states_x)
+    # Outer product that compacts the 2 i
+    T_x = np.einsum('ijk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
 
-    for s in range(amdp.n_states):
-        start = s * n_states_m
-        end = s * n_states_m + n_states_m
-        # T_x[:, start:end] = T_x_big[:, s, start:end]
-        T_x = T_x.at[:, start:end].set(T_x_big[:, s, start:end])
-
-        for s_mem in range(n_states_m):
-            # The new obs_x are the original obs times memory states
-            # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
-            # phi_x[s * n_states_m + s_mem, s_mem::n_states_m] = phi[s]
-            phi_x = phi_x.at[s * n_states_m + s_mem, s_mem::n_states_m].set(phi[s])
+    # The new obs_x are the original obs times memory states
+    # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
+    phi_x = np.kron(phi, np.eye(n_states_m))
 
     mdp_x = MDP(T_x, R_x, amdp.gamma)
     # Assuming memory starts with all 0s
