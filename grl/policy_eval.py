@@ -7,20 +7,20 @@ config.update("jax_enable_x64", True)
 config.update('jax_platform_name', 'cpu')
 
 from .mdp import MDP
+from .memory import memory_cross_product
 
 class PolicyEval:
-    def __init__(self, amdp, no_gamma, verbose=True):
+    def __init__(self, amdp, verbose=True):
         """
-        :param amdp:    AMDP
-        :param verbose: log everything
+        :param amdp:     AMDP
+        :param verbose:  log everything
         """
         self.amdp = amdp
-        self.no_gamma = no_gamma
         self.verbose = verbose
 
     def run(self, pi_abs):
         """
-        :param pi_abs:   policy to evaluate, defined over abstract state space
+        :param pi_abs: policy to evaluate, defined over abstract state space
         """
         self.pi_abs = pi_abs
         self.pi_ground = self.amdp.get_ground_policy(pi_abs)
@@ -28,7 +28,7 @@ class PolicyEval:
         # MC*
         mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
         occupancy = self._get_occupancy()
-        amdp_vals = self._solve_amdp(mdp_vals['q'], occupancy)
+        mc_vals = self._solve_amdp(mdp_vals['q'], occupancy)
 
         if self.verbose:
             logging.info(f'occupancy:\n {occupancy}')
@@ -36,7 +36,7 @@ class PolicyEval:
         # TD
         td_vals = self._solve_mdp(self._create_td_model(occupancy), self.pi_abs)
 
-        return mdp_vals, amdp_vals, td_vals
+        return mdp_vals, mc_vals, td_vals
 
     def _solve_mdp(self, mdp, pi):
         """
@@ -71,8 +71,7 @@ class PolicyEval:
         # A*C_pi(s) = b
         # A = (I - \gamma (T^π)^T)
         # b = P_0
-        gamma = 1 if self.no_gamma else self.amdp.gamma
-        A = np.eye(self.amdp.n_states) - gamma * T_pi.transpose()
+        A = np.eye(self.amdp.n_states) - self.amdp.gamma * T_pi.transpose()
         b = self.amdp.p0
         return np.linalg.solve(A, b)
 
@@ -84,10 +83,15 @@ class PolicyEval:
 
         # Q vals
         for ob in range(self.amdp.n_obs):
-            col = self.amdp.phi[:, ob].copy().astype('float')
-            col *= occupancy
-            col /= col.sum()
-            weighted_q = (mdp_q_vals * col).sum(1)
+            p_π_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
+            w = occupancy * p_π_of_o_given_s
+            # Skip this ob (leave vals at 0) if w is full of 0s
+            # as this means it will never be occupied
+            # and normalizing comes up as nans
+            if np.all(w == 0):
+                continue
+            p_π_of_s_given_o = w / w.sum()
+            weighted_q = (mdp_q_vals * p_π_of_s_given_o).sum(1)
             amdp_q_vals = amdp_q_vals.at[:, ob].set(weighted_q)
 
         # V vals
@@ -108,6 +112,11 @@ class PolicyEval:
             p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
             w = occupancy * p_π_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
+            # Skip this ob (leave vals at 0) if w is full of 0s
+            # as this means it will never be occupied
+            # and normalizing comes up as nans
+            if np.all(w == 0):
+                continue
             p_π_of_s_given_o = (w / w.sum())[:, None]
 
             for next_ob in range(self.amdp.n_obs):
@@ -140,32 +149,22 @@ class PolicyEval:
     # Helpers for gradient/heatmap stuff
     ##########
 
-    def mse_loss_v(self, pi):
+    def mse_loss(self, pi, value_type, **kwargs):
         """
         sum_o [V_td^pi(o) - V_mc^pi(o)]^2 
         """
-        _, amdp_vals, td_vals = self.run(pi)
-        diff = amdp_vals['v'] - td_vals['v']
+        _, mc_vals, td_vals = self.run(pi)
+        diff = mc_vals[value_type] - td_vals[value_type]
         return (diff**2).mean()
 
-    def mse_loss_q(self, pi):
-        """
-        sum_o sum_a [Q_td^pi(o,a) - Q_mc^pi(o,a)]^2 
-        """
-        _, amdp_vals, td_vals = self.run(pi)
-        diff = amdp_vals['q'] - td_vals['q']
-        return (diff**2).mean()
-
-    def max_loss_v(self, pi):
+    def max_loss(self, pi, value_type, **kwargs):
         """
         max_o abs[V_td^pi(o) - V_mc^pi(o)]
         """
-        _, amdp_vals, td_vals = self.run(pi)
-        return np.abs(amdp_vals['v'] - td_vals['v']).max()
+        _, mc_vals, td_vals = self.run(pi)
+        return np.abs(mc_vals[value_type] - td_vals[value_type]).max()
 
-    def max_loss_q(self, pi):
-        """
-        max_o max_a abs[Q_td^pi(o,a) - Q_mc^pi(o,a)]
-        """
-        _, amdp_vals, td_vals = self.run(pi)
-        return np.abs(amdp_vals['q'] - td_vals['q']).max()
+    def memory_loss(self, T_mem, value_type, **kwargs):
+        amdp = memory_cross_product(self.amdp, T_mem)
+        pe = PolicyEval(amdp, verbose=False)
+        return pe.mse_loss(kwargs['pi_abs'], value_type)

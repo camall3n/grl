@@ -1,13 +1,17 @@
 import numpy as np
+
+from .memory_lib import *
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
-        T:      transition tensor (terminal states have all outgoing 0s),
-        R:      reward tensor,
-        gamma:  discount factor,
-        p0:     starting state probabilities,
-        phi:    observation matrix (currently the same for all actions),
-        Pi_phi: policies to evaluate
+        T:        transition tensor (terminal states have all outgoing 0s),
+        R:        reward tensor,
+        gamma:    discount factor,
+        p0:       starting state probabilities,
+        phi:      observation matrix (currently the same for all actions),
+        Pi_phi:   policies to evaluate
+        T_mem:    memory transition function
+        Pi_phi_x: policies to evaluate in the cross product of the underyling MDP and memory function
     }
 
 Functions named 'example_*' come from examples in the GRL workbook.
@@ -19,13 +23,13 @@ def example_3():
         [0., 1, 0, 0],
         [0, 0, 0, 1],
         [0, 0, 0, 1],
-        [0, 0, 0, 0],
+        [0, 0, 0, 1],
     ])
     T_down = np.array([
         [0., 0, 1, 0],
         [0, 0, 0, 1],
         [0, 0, 0, 1],
-        [0, 0, 0, 0],
+        [0, 0, 0, 1],
     ])
     T = np.array([T_up, T_down])
 
@@ -59,19 +63,20 @@ def example_3():
         np.array([
             [p, 1 - p], # up, down
             [q, 1 - q],
-            [0, 0],
+            [1, 0],
         ]),
     ]
 
-    return to_dict(T, R, 1.0, p0, phi, Pi_phi)
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
 def example_7():
+
     T = np.array([
         # r, b, r, t
         [0., 1, 0, 0],
         [0, 0, 1, 0],
         [0, 0, 0, 1],
-        [0, 0, 0, 0]
+        [0, 0, 0, 1]
     ])
     T = np.array([T, T])
 
@@ -105,27 +110,46 @@ def example_7():
             [1, 0], # up, down
             [1, 0],
             [1, 0],
-        ]),
-        np.array([
-            [0, 1],
-            [0, 1],
-            [0, 1],
-        ]),
-        np.array([
-            [4 / 7, 3 / 7], # known location of no discrepancy
-            [1, 0],
-            [1, 0],
+            # ]),
+            # np.array([
+            #     [0, 1],
+            #     [0, 1],
+            #     [0, 1],
+            # ]),
+            # np.array([
+            #     [4 / 7, 3 / 7], # known location of no discrepancy
+            #     [1, 0],
+            #     [1, 0],
         ])
     ]
 
-    return to_dict(T, R, 0.5, p0, phi, Pi_phi)
+    Pi_phi_x = [
+        np.array([
+            [1., 0],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+        ]),
+        # np.array([
+        #     [0., 1], # Optimal policy with memory
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        #     [1, 0],
+        # ]),
+    ]
+
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi, Pi_phi_x)
 
 def example_11():
     T = np.array([[
         [0, 1, 0, 0],
         [0, 0, 1, 0],
         [0, 0.5, 0, 0.5],
-        [0, 0, 0, 0],
+        [0, 0, 0, 1],
     ]])
 
     R = np.array([[
@@ -156,7 +180,7 @@ def example_11():
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
 def example_13():
-    T = np.array([[[0, 1, 0, 0], [0, 0, 1, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 0]]])
+    T = np.array([[[0, 1, 0, 0], [0, 0, 1, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1]]])
 
     R = np.array([[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0]]])
 
@@ -173,8 +197,8 @@ def example_13():
 
 def example_14():
     # b1, b2, r, t
-    T_up = np.array([[0., 0, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]])
-    T_down = np.array([[0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 0]])
+    T_up = np.array([[0., 0, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1]])
+    T_down = np.array([[0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1]])
     T = np.array([T_up, T_down])
 
     R_up = np.array([[0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0]])
@@ -243,7 +267,7 @@ def example_16_terminal():
     T = np.array([
         [0, gamma_top, 1 - gamma_top],
         [gamma_top, 0, 1 - gamma_top],
-        [0, 0, 0],
+        [0, 0, 1],
     ])
     T = np.array([T, T])
 
@@ -290,7 +314,7 @@ def example_18():
         [0, 0, 0, 0, 0, 0, 1, 0], # y2
         [0, 0, 0, 0, 0, 0, 0, 1], # c
         [0, 0, 0, 0, 0, 0, 0, 1], # u
-        [0, 0, 0, 0, 0, 0, 0, 0.], # term
+        [0, 0, 0, 0, 0, 0, 0, 1.], # term
     ])
     T_down = np.array([
         [0, 0, 1, 0, 0, 0, 0, 0],
@@ -300,7 +324,7 @@ def example_18():
         [0, 0, 0, 0, 0, 0, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 1],
         [0, 0, 0, 0, 0, 0, 0, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0.],
+        [0, 0, 0, 0, 0, 0, 0, 1.],
     ])
     T = np.array([T_up, T_down])
 
@@ -350,7 +374,7 @@ def example_19():
         [0, 0.5, 0.5, 0],
         [0, 1, 0, 0],
         [0, 0, 0, 1],
-        [0, 0, 0, 0],
+        [0, 0, 0, 1],
     ]])
 
     R = np.array([[
@@ -380,7 +404,7 @@ def example_19():
 
     return to_dict(T, R, 0.5, p0, phi, Pi_phi)
 
-def to_dict(T, R, gamma, p0, phi, Pi_phi):
+def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
         'R': R,
@@ -388,4 +412,5 @@ def to_dict(T, R, gamma, p0, phi, Pi_phi):
         'p0': p0,
         'phi': phi,
         'Pi_phi': Pi_phi,
+        'Pi_phi_x': Pi_phi_x,
     }

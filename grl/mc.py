@@ -9,6 +9,10 @@ def discount(rewards, gamma):
     returns = overdiscounted_returns / gamma_multipliers
     return returns
 
+def accumulate_rewards(rewards):
+    backwards_rewards = np.flip(np.asarray(rewards))
+    return np.flip(np.cumsum(backwards_rewards))
+
 def rollout(mdp, s, a, pi, max_steps=None):
     rewards = []
     oa_pairs = []
@@ -21,17 +25,18 @@ def rollout(mdp, s, a, pi, max_steps=None):
         raise RuntimeError('Cannot perform rollout with action {} from terminal state {}'.format(
             a_t, s_t))
     while not done:
-        next_s, r_t, done = mdp.step(s_t, a_t)
+        next_s, r_t, done = mdp.step(s_t, a_t, mdp.gamma)
         next_obs = mdp.observe(next_s)
         rewards.append(r_t)
         oa_pairs.append((o_t, a_t))
         s_t = next_s
         o_t = next_obs
-        a_t = pi[s_t]
+        a_t = np.random.choice(mdp.n_actions, p=pi[s_t])
         t += 1
         if max_steps is not None and t >= max_steps:
             break
-    returns = discount(rewards, mdp.gamma)
+    # returns = discount(rewards, mdp.gamma)
+    returns = accumulate_rewards(rewards)
     mc_returns = [(o, a, g) for ((o, a), g) in zip(oa_pairs, returns)]
     return mc_returns
 
@@ -46,31 +51,29 @@ def mc(mdp,
     if mc_states not in ['all', 'first']:
         raise ValueError("mc_states must be either 'all' or 'first'")
 
-    if pi.shape[0] != mdp.n_states:
+    # If AMDP, convert to pi_ground
+    if hasattr(mdp, 'phi'):
+        pi_ground = mdp.get_ground_policy(pi)
+    else:
+        pi_ground = pi
+    if pi_ground.shape[0] != mdp.n_states:
         raise ValueError("pi must be a valid policy for the ground mdp")
 
     if p0 is not None and len(p0) != mdp.n_states:
         raise ValueError("p0 must be a valid distribution over ground states")
 
-    V_max = mdp.R_max / (1 - mdp.gamma)
-    V_min = mdp.R_min / (1 - mdp.gamma)
-    q = [V_min * np.ones(mdp.n_obs) for _ in range(mdp.n_actions)]
+    q = [np.zeros(mdp.n_obs) for _ in range(mdp.n_actions)]
     for i in range(n_steps):
-        if p0 is None:
-            mc_returns = []
-            for s in range(mdp.n_states):
-                obs = mdp.observe(s)
-                for a in range(mdp.n_actions):
-                    q_target = rollout(mdp, s, a, pi, max_rollout_steps)[0][-1]
-                    mc_returns.append((obs, a, q_target))
+        s = np.random.choice(mdp.n_states, p=p0)
+        # use epsilon-greedy action selection for first state
+        if np.random.uniform() > epsilon:
+            a = np.random.choice(mdp.n_actions, p=pi_ground[s])
         else:
-            s = np.random.choice(mdp.n_states, p=p0)
-            # use epsilon-greedy action selection for first state
-            if np.random.uniform() > epsilon:
-                a = pi[s]
-            else:
-                a = np.random.choice(mdp.n_actions)
-            mc_returns = rollout(mdp, s, a, pi, max_rollout_steps)
+            a = np.random.choice(mdp.n_actions)
+        mc_returns = rollout(mdp, s, a, pi_ground, max_rollout_steps)
+
+        if i % (n_steps / 10) == 0:
+            print(f'Sampling step: {i}/{n_steps}')
 
         encountered_oa_pairs = set()
         for obs, a, q_target in mc_returns:
@@ -78,12 +81,8 @@ def mc(mdp,
                 q[a][obs] = (1 - alpha) * q[a][obs] + (alpha) * q_target
             encountered_oa_pairs.add((obs, a))
 
-    v = np.empty_like(q[0])
-    for s in range(mdp.n_states):
-        obs = mdp.observe(s)
-        v[obs] = q[pi[s]][obs]
-    #
-    v = v.squeeze()
+    v = (q * pi.T).sum(0)
+
     return v, q, pi
 
 def test_discount():

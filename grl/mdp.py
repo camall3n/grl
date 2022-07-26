@@ -103,13 +103,18 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a):
-        T = self.T[a]
-        pr_next_s = one_hot(s, self.n_states) @ T
-        sp = np.random.choice(self.n_states, p=pr_next_s)
+    def step(self, s, a, gamma):
+        pr_next_s = self.T[a, s, :]
+        sp = onp.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
-        pr_next_next_s = self.T[:, sp, :]
-        done = (pr_next_next_s == 0).all()
+        # Check if sp is terminal state
+        sp_is_absorbing = (self.T[:, sp, sp] == 1)
+        done = sp_is_absorbing.all()
+        # Discounting
+        # End episode with probability 1-gamma
+        if onp.random.uniform() < (1 - gamma):
+            done = True
+
         return sp, r, done
 
     def observe(self, s):
@@ -198,8 +203,7 @@ class AbstractMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
-        obs = np.argmax(one_hot(s, self.base_mdp.n_states) @ self.phi)
-        return obs
+        return onp.random.choice(self.n_obs, p=self.phi[s])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)

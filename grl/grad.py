@@ -1,15 +1,19 @@
 import logging
 
+from .mdp import MDP, AbstractMDP
+from .policy_eval import PolicyEval
+from .memory import memory_cross_product
 from .utils import pformat_vals
 
 import numpy as np
 from jax import grad
 
-def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
+def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     """
-    :param policy_eval:  PolicyEval object
-    :param pi_abs:       policy over abstract state space
+    :param spec:         spec
+    :param pi_abs:       pi_abs
     :param lr:           learning rate
+    :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
     :param discrep_type: 'l2' or 'max'
         - 'l2' uses MSE over all obs(/actions)
@@ -18,53 +22,75 @@ def do_grad(policy_eval, pi_abs, value_type='v', discrep_type='l2', lr=1):
         - Currently has to be adjusted above directly
     """
 
-    if value_type == 'v':
-        if discrep_type == 'l2':
-            loss_fn = policy_eval.mse_loss_v
-        elif discrep_type == 'max':
-            loss_fn = policy_eval.max_loss_v
-    elif value_type == 'q':
-        if discrep_type == 'l2':
-            loss_fn = policy_eval.mse_loss_q
-        elif discrep_type == 'max':
-            loss_fn = policy_eval.max_loss_q
+    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    policy_eval = PolicyEval(amdp)
 
-    logging.info(f'\nStarting discrep:\n {loss_fn(pi_abs)}')
+    if grad_type == 'p':
+        params = pi_abs
+        if 'T_mem' in spec.keys():
+            amdp = memory_cross_product(amdp, spec['T_mem'])
+            policy_eval = PolicyEval(amdp)
+
+        if discrep_type == 'l2':
+            loss_fn = policy_eval.mse_loss
+        elif discrep_type == 'max':
+            loss_fn = policy_eval.max_loss
+
+    elif grad_type == 'm':
+        if 'T_mem' not in spec.keys():
+            raise ValueError(
+                'Must include memory with "--use_memory <id>" to do gradient with memory')
+        params = spec['T_mem']
+        loss_fn = policy_eval.memory_loss
 
     policy_eval.verbose = False
-    old_pi = pi_abs
+    logging.info(f'\nStarting discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
+
     i = 0
     done_count = 0
+    old_params = params
 
     while done_count < 5:
         i += 1
-        if i % 10 == 0:
-            print('Gradient iteration', i)
 
-        pi_grad = grad(loss_fn)(pi_abs)
-        old_pi = pi_abs
-        pi_abs -= lr * pi_grad
+        params_grad = grad(loss_fn, argnums=0)(params, value_type, pi_abs=pi_abs)
+        old_params = params
+        params -= lr * params_grad
 
-        # Normalize
-        pi_abs = pi_abs.clip(0, 1)
-        denom = pi_abs.sum(axis=1, keepdims=True)
+        # Normalize (assuming params are probability distribution)
+        params = params.clip(0, 1)
+        denom = params.sum(axis=-1, keepdims=True)
         denom = np.where(denom == 0, 1, denom) # Avoid divide by zero (there may be a better way)
-        pi_abs /= denom
+        params /= denom
 
-        if np.allclose(old_pi, pi_abs):
+        if i % 10 == 0:
+            print('\n\n')
+            print('Gradient iteration', i)
+            # print('params_grad\n', params_grad)
+            # print()
+            # print('params\n', params)
+
+        if np.allclose(old_params, params):
             done_count += 1
         else:
             done_count = 0
 
-    logging.info(f'Final gradient pi:\n {pi_abs}')
+    # Log results
+    logging.info(f'\n\n---- GRAD RESULTS ----\n')
+    logging.info(f'Final gradient params:\n {params}')
     logging.info(f'in {i} gradient steps with lr={lr}')
 
-    # policy_eval.verbose = True
+    old_amdp = policy_eval.amdp
+    if grad_type == 'm':
+        policy_eval.amdp = memory_cross_product(amdp, params)
+    policy_eval.verbose = True
     mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs)
-    logging.info(f'\nFinal vals using gradient pi on value_type {value_type}')
+    logging.info(f'\nFinal vals using grad_type {grad_type} on value_type {value_type}')
     logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')
-    logging.info(f'discrep:\n {loss_fn(pi_abs)}')
+    policy_eval.amdp = old_amdp
+    logging.info(f'discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
 
-    return pi_abs
+    return params
