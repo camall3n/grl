@@ -12,7 +12,7 @@ python -m grl.run --spec example_7
 
 For this example, there is a discrepancy between MC* and TD. To run it with a previously defined memory function from the spec:
 ```bash
-python -m grl.run --spec example_7 --use_memory 0
+python -m grl.run --spec example_7 --use_memory 5
 ```
 
 If the memory function doesn't resolve it, try to find one that does:
