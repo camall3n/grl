@@ -104,13 +104,12 @@ class MDP:
         return state_distr
 
     def step(self, s, a, gamma):
-        T = self.T[a]
-        pr_next_s = T[s]
+        pr_next_s = self.T[a, s, :]
         sp = onp.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         # Check if sp is terminal state
-        pr_next_next_s = self.T[:, sp, :]
-        done = (pr_next_next_s[:, sp] == 1).all()
+        sp_is_absorbing = (self.T[:, sp, sp] == 1)
+        done = sp_is_absorbing.all()
         # Discounting
         # End episode with probability 1-gamma
         if onp.random.uniform() < (1 - gamma):

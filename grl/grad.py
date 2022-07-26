@@ -67,9 +67,9 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         if i % 10 == 0:
             print('\n\n')
             print('Gradient iteration', i)
-            print('params_grad\n', params_grad)
-            print()
-            print('params\n', params)
+            # print('params_grad\n', params_grad)
+            # print()
+            # print('params\n', params)
 
         if np.allclose(old_params, params):
             done_count += 1

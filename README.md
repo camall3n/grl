@@ -35,7 +35,7 @@ optional arguments:
                         number of random policies to eval; if set (>0),
                         overrides Pi_phi
   --use_memory USE_MEMORY
-                        use memory function during policy eval if set (>0)
+                        use memory function during policy eval if set
   --use_grad USE_GRAD   find policy ("p") or memory ("m") that minimizes any
                         discrepancies by following gradient
   --heatmap             generate a policy-discrepancy heatmap for the given

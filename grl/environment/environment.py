@@ -4,7 +4,7 @@ from . import examples_lib
 from . import memory_lib
 from .pomdp_file import POMDPFile
 
-def load_spec(name, memory_id=0):
+def load_spec(name, memory_id=None):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -26,7 +26,7 @@ def load_spec(name, memory_id=0):
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None
 
-    if memory_id > 0:
+    if memory_id is not None:
         mem_name = f'memory_{memory_id}'
         try:
             spec['T_mem'] = getattr(memory_lib, mem_name)

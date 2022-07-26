@@ -166,8 +166,8 @@ if __name__ == '__main__':
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
-    parser.add_argument('--use_memory', default=0, type=int,
-        help='use memory function during policy eval if set (>0)')
+    parser.add_argument('--use_memory', default=None, type=int,
+        help='use memory function during policy eval if set')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
     parser.add_argument('--heatmap', action='store_true',

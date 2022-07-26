@@ -27,10 +27,13 @@ def memory_cross_product(amdp, T_mem):
     # Rewards only depend on MDP (not memory function)
     R_x = R.repeat(n_states_m, axis=1).repeat(n_states_m, axis=2)
 
-    T_phi_mem = np.tensordot(phi, T_mem, axes=1)
+    # T_mem_phi is like T_pi
+    # It is SMxM
+    T_mem_phi = np.tensordot(phi, T_mem, axes=1)
+
     # T_x_big = np.multiply.outer(T, T_phi_mem).swapaxes(2, 3).swapaxes(3, 4).reshape(
     #     T.shape[0], n_states, n_states_x, n_states_x)
-    T_x_big = np.outer(T, T_phi_mem).reshape(T.shape[0], n_states, n_states, n_states, n_states_m,
+    T_x_big = np.outer(T, T_mem_phi).reshape(T.shape[0], n_states, n_states, n_states, n_states_m,
                                              n_states_m).swapaxes(2, 3).swapaxes(3, 4).reshape(
                                                  T.shape[0], n_states, n_states_x, n_states_x)
 

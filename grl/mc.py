@@ -64,21 +64,13 @@ def mc(mdp,
 
     q = [np.zeros(mdp.n_obs) for _ in range(mdp.n_actions)]
     for i in range(n_steps):
-        if p0 is None:
-            mc_returns = []
-            for s in range(mdp.n_states):
-                obs = mdp.observe(s)
-                for a in range(mdp.n_actions):
-                    q_target = rollout(mdp, s, a, pi_ground, max_rollout_steps)[0][-1]
-                    mc_returns.append((obs, a, q_target))
+        s = np.random.choice(mdp.n_states, p=p0)
+        # use epsilon-greedy action selection for first state
+        if np.random.uniform() > epsilon:
+            a = np.random.choice(mdp.n_actions, p=pi_ground[s])
         else:
-            s = np.random.choice(mdp.n_states, p=p0)
-            # use epsilon-greedy action selection for first state
-            if np.random.uniform() > epsilon:
-                a = np.random.choice(mdp.n_actions, p=pi_ground[s])
-            else:
-                a = np.random.choice(mdp.n_actions)
-            mc_returns = rollout(mdp, s, a, pi_ground, max_rollout_steps)
+            a = np.random.choice(mdp.n_actions)
+        mc_returns = rollout(mdp, s, a, pi_ground, max_rollout_steps)
 
         if i % (n_steps / 10) == 0:
             print(f'Sampling step: {i}/{n_steps}')
