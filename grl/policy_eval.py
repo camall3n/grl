@@ -10,14 +10,12 @@ from .mdp import MDP
 from .memory import memory_cross_product
 
 class PolicyEval:
-    def __init__(self, amdp, no_gamma, verbose=True):
+    def __init__(self, amdp, verbose=True):
         """
         :param amdp:     AMDP
-        :param no_gamma: no gamma in occupancy
         :param verbose:  log everything
         """
         self.amdp = amdp
-        self.no_gamma = no_gamma
         self.verbose = verbose
 
     def run(self, pi_abs):
@@ -73,8 +71,7 @@ class PolicyEval:
         # A*C_pi(s) = b
         # A = (I - \gamma (T^π)^T)
         # b = P_0
-        gamma = 1 if self.no_gamma else self.amdp.gamma
-        A = np.eye(self.amdp.n_states) - gamma * T_pi.transpose()
+        A = np.eye(self.amdp.n_states) - self.amdp.gamma * T_pi.transpose()
         b = self.amdp.p0
         return np.linalg.solve(A, b)
 
@@ -169,5 +166,5 @@ class PolicyEval:
 
     def memory_loss(self, T_mem, value_type, **kwargs):
         amdp = memory_cross_product(self.amdp, T_mem)
-        pe = PolicyEval(amdp, self.no_gamma, verbose=False)
+        pe = PolicyEval(amdp, verbose=False)
         return pe.mse_loss(kwargs['pi_abs'], value_type)

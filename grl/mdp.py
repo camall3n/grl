@@ -110,7 +110,7 @@ class MDP:
         r = self.R[a][s][sp]
         # Check if sp is terminal state
         pr_next_next_s = self.T[:, sp, :]
-        done = (pr_next_next_s == 0).all()
+        done = (pr_next_next_s[:, sp] == 1).all()
         return sp, r, done
 
     def observe(self, s):

@@ -12,7 +12,7 @@ def assert_pe_results(spec, answers, use_memory=False):
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):
-        pe = PolicyEval(amdp, no_gamma=True)
+        pe = PolicyEval(amdp)
         results = pe.run(pi)
 
         for k in answers.keys():
@@ -20,25 +20,51 @@ def assert_pe_results(spec, answers, use_memory=False):
                 assert (np.allclose(answers[k][i][j], res[k]))
 
 def test_example_3():
-    spec = load_spec('example_3')
+    spec = load_spec('example_3') # gamma=0.5
     answers = {
         'v': [[
-            np.array([3.8125, 4.5, 0.75, 0]), # mdp
-            np.array([3.8125, 3.5625, 0]), # amdp / mc*
-            np.array([3.8125, 3.5625, 0]), # td
+            np.array([2.03125, 4.5, 0.75, 0]), # mdp
+            np.array([2.03125, 3.5625, 0]), # amdp / mc*
+            np.array([2.03125, 3.5625, 0]), # td
         ]],
         'q': [[
             np.array([
-                [4.5, 5, 0, 0], # mdp
-                [1.75, 3, 3, 0]
+                [2.25, 5, 0, 0], # mdp
+                [1.375, 3, 3, 0]
             ]),
             np.array([
-                [4.5, 3.75, 0], # amdp
-                [1.75, 3, 0],
+                [2.25, 3.75, 0], # amdp
+                [1.375, 3, 0],
             ]),
             np.array([
-                [3.5625, 3.75, 0], # td
-                [4.5625, 3, 0],
+                [1.78125, 3.75, 0], # td
+                [2.78125, 3, 0],
+            ])
+        ]]
+    }
+
+    assert_pe_results(spec, answers)
+
+def test_example_7():
+    spec = load_spec('example_7') # gamma=0.5
+    answers = {
+        'v': [[
+            np.array([0.25, 0.5, 1., 0.]), # mdp
+            np.array([0.4, 0.5, 0.]), # amdp / mc*
+            np.array([0.25, 0.125, 0.]), # td
+        ]],
+        'q': [[
+            np.array([
+                [0.25, 0.5, 1., 0.], # mdp
+                [1.25, 0.5, 0., 0.]
+            ]),
+            np.array([
+                [0.4, 0.5, 0.], # amdp
+                [1., 0.5, 0.]
+            ]),
+            np.array([
+                [0.25, 0.125, 0.], # td
+                [0.85, 0.125, 0.],
             ])
         ]]
     }
@@ -87,8 +113,8 @@ def test_example_11():
     answers = {
         'v': [[
             np.array([1 / 7, 2 / 7, 4 / 7, 0]),
-            np.array([1 / 7, 3 / 7, 0]),
-            np.array([1 / 5, 2 / 5, 0]),
+            np.array([1 / 7, 0.38095238, 0]),
+            np.array([1 / 7, 2 / 7, 0]),
         ]]
     }
 
@@ -99,8 +125,8 @@ def test_example_13():
     answers = {
         'v': [[
             np.array([1 / 7, 2 / 7, 4 / 7, 0]),
-            np.array([3 / 7, 2 / 7, 0]),
-            np.array([2 / 5, 1 / 5, 0]),
+            np.array([0.23809524, 2 / 7, 0]),
+            np.array([1 / 7, .5 / 7, 0.]),
         ]]
     }
 

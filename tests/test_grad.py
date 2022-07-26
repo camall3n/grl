@@ -15,7 +15,7 @@ def test_example_7_p():
     ])
 
     pi = np.array([[1., 0], [1, 0], [1, 0]])
-    pi_grad = do_grad(spec, pi, 'p', no_gamma=True, lr=1)
+    pi_grad = do_grad(spec, pi, 'p', lr=1)
 
     assert np.allclose(pi_known[0], pi_grad[0], rtol=RTOL) # just assert the red obs policy
 
@@ -62,6 +62,6 @@ def test_example_7_m():
         [1, 0],
         [1, 0],
     ])
-    memory_grad = do_grad(spec, pi, 'm', no_gamma=True, lr=1)
+    memory_grad = do_grad(spec, pi, 'm', lr=1)
 
     assert np.allclose(memory_known, memory_grad, atol=1e-5)

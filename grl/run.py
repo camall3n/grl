@@ -16,7 +16,7 @@ from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_rollout_steps):
+def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_steps):
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
 
@@ -28,7 +28,7 @@ def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
-    pe = PolicyEval(amdp, no_gamma)
+    pe = PolicyEval(amdp)
     discrepancy_ids = []
 
     for i, pi in enumerate(policies):
@@ -60,7 +60,7 @@ def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type, no_gamma=no_gamma)
+                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type)
 
         if method == 's' or method == 'b':
             # Sampling
@@ -113,13 +113,13 @@ def run_algos(spec, method, no_gamma, n_random_policies, use_grad, n_steps, max_
     #               max_rollout_steps=max_rollout_steps)
     # logging.info(f'amdp: {v}')
 
-def heatmap(spec, discrep_type='l2', no_gamma=True, num_ticks=5):
+def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
-    policy_eval = PolicyEval(amdp, no_gamma, verbose=False)
+    policy_eval = PolicyEval(amdp, verbose=False)
 
     # Run for both v and q
     value_types = ['v', 'q']
@@ -157,8 +157,6 @@ def heatmap(spec, discrep_type='l2', no_gamma=True, num_ticks=5):
         plt.show()
 
 if __name__ == '__main__':
-    # Usage: python -m grl.run --spec example_3 --no_gamma --log
-
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
@@ -166,8 +164,6 @@ if __name__ == '__main__':
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
-    parser.add_argument('--no_gamma', action='store_true',
-        help='do not discount the occupancy expectation in policy eval')
     parser.add_argument('--n_random_policies', default=0, type=int,
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
     parser.add_argument('--use_memory', default=0, type=int,
@@ -176,7 +172,7 @@ if __name__ == '__main__':
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
-    parser.add_argument('--n_steps', default=20000, type=int,
+    parser.add_argument('--n_steps', default=500, type=int,
         help='number of rollouts to run')
     parser.add_argument('--max_rollout_steps', default=None, type=int,
         help='max steps for mc rollouts')
@@ -224,7 +220,7 @@ if __name__ == '__main__':
 
     # Run
     if args.heatmap:
-        heatmap(spec, no_gamma=args.no_gamma)
+        heatmap(spec)
     else:
-        run_algos(spec, args.method, args.no_gamma, args.n_random_policies, args.use_grad,
-                  args.n_steps, args.max_rollout_steps)
+        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_steps,
+                  args.max_rollout_steps)

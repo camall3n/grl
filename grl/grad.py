@@ -8,13 +8,12 @@ from .utils import pformat_vals
 import numpy as np
 from jax import grad
 
-def do_grad(spec, pi_abs, grad_type, no_gamma, value_type='v', discrep_type='l2', lr=1):
+def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
-    :param no_gamma:     no gamma in occupancy
     :param value_type:   'v' or 'q'
     :param discrep_type: 'l2' or 'max'
         - 'l2' uses MSE over all obs(/actions)
@@ -25,13 +24,13 @@ def do_grad(spec, pi_abs, grad_type, no_gamma, value_type='v', discrep_type='l2'
 
     mdp = MDP(spec['T'], spec['R'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
-    policy_eval = PolicyEval(amdp, no_gamma)
+    policy_eval = PolicyEval(amdp)
 
     if grad_type == 'p':
         params = pi_abs
         if 'T_mem' in spec.keys():
             amdp = memory_cross_product(amdp, spec['T_mem'])
-            policy_eval = PolicyEval(amdp, no_gamma)
+            policy_eval = PolicyEval(amdp)
 
         if discrep_type == 'l2':
             loss_fn = policy_eval.mse_loss
