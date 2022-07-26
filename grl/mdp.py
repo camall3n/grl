@@ -103,7 +103,7 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a):
+    def step(self, s, a, gamma):
         T = self.T[a]
         pr_next_s = T[s]
         sp = onp.random.choice(self.n_states, p=pr_next_s)
@@ -111,6 +111,11 @@ class MDP:
         # Check if sp is terminal state
         pr_next_next_s = self.T[:, sp, :]
         done = (pr_next_next_s[:, sp] == 1).all()
+        # Discounting
+        # End episode with probability 1-gamma
+        if onp.random.uniform() < (1 - gamma):
+            done = True
+
         return sp, r, done
 
     def observe(self, s):

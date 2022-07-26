@@ -9,6 +9,10 @@ def discount(rewards, gamma):
     returns = overdiscounted_returns / gamma_multipliers
     return returns
 
+def accumulate_rewards(rewards):
+    backwards_rewards = np.flip(np.asarray(rewards))
+    return np.flip(np.cumsum(backwards_rewards))
+
 def rollout(mdp, s, a, pi, max_steps=None):
     rewards = []
     oa_pairs = []
@@ -21,7 +25,7 @@ def rollout(mdp, s, a, pi, max_steps=None):
         raise RuntimeError('Cannot perform rollout with action {} from terminal state {}'.format(
             a_t, s_t))
     while not done:
-        next_s, r_t, done = mdp.step(s_t, a_t)
+        next_s, r_t, done = mdp.step(s_t, a_t, mdp.gamma)
         next_obs = mdp.observe(next_s)
         rewards.append(r_t)
         oa_pairs.append((o_t, a_t))
@@ -31,7 +35,8 @@ def rollout(mdp, s, a, pi, max_steps=None):
         t += 1
         if max_steps is not None and t >= max_steps:
             break
-    returns = discount(rewards, mdp.gamma)
+    # returns = discount(rewards, mdp.gamma)
+    returns = accumulate_rewards(rewards)
     mc_returns = [(o, a, g) for ((o, a), g) in zip(oa_pairs, returns)]
     return mc_returns
 
