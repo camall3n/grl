@@ -38,9 +38,9 @@ def memory_cross_product(amdp, T_mem):
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
     phi_x = np.kron(phi, np.eye(n_states_m))
 
-    mdp_x = MDP(T_x, R_x, amdp.gamma)
     # Assuming memory starts with all 0s
     p0_x = np.zeros(n_states_x)
     # p0_x[::n_states_m] = amdp.p0
     p0_x = p0_x.at[::n_states_m].set(amdp.p0)
-    return AbstractMDP(mdp_x, phi_x, p0=p0_x)
+    mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
+    return AbstractMDP(mdp_x, phi_x)

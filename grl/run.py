@@ -11,14 +11,15 @@ import seaborn as sns
 from .environment import *
 from .mdp import MDP, AbstractMDP
 from .mc import mc
+from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
 from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_steps):
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
 
     # Discrepancy results are currently determined using analytical values
 
@@ -66,59 +67,58 @@ def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_st
             # Sampling
             logging.info('\n\n--- Sampling ---')
             # MDP
-            v, q, _ = mc(mdp,
-                         pi_ground,
-                         p0=spec['p0'],
-                         alpha=0.01,
-                         epsilon=0,
-                         mc_states='all',
-                         n_steps=n_steps,
-                         max_rollout_steps=max_rollout_steps)
+            v, q = td_lambda(
+                mdp,
+                pi_ground,
+                lambd=1,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
             mdp_vals = {
                 'v': v,
                 'q': q,
             }
-            # MC
-            v, q, _ = mc(amdp,
-                         pi,
-                         p0=spec['p0'],
-                         alpha=0.01,
-                         epsilon=0,
-                         mc_states='all',
-                         n_steps=n_steps,
-                         max_rollout_steps=max_rollout_steps)
+
+            # TD1
+            v, q = td_lambda(
+                amdp,
+                pi,
+                lambd=1,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
             mc_vals = {
                 'v': v,
                 'q': q,
             }
 
-            logging.info("\n mc_states: all")
+            # TD0
+            v, q = td_lambda(
+                amdp,
+                pi,
+                lambd=0,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
+            td_vals = {
+                'v': v,
+                'q': q,
+            }
+
             logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
             logging.info(f'mc:\n {pformat_vals(mc_vals)}')
+            logging.info(f'td:\n {pformat_vals(td_vals)}')
 
     logging.info('\nTD-MC* Discrepancy ids:')
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
-    # MC1
-    # ADMP
-    # logging.info("\n- mc_states: first")
-    # v, q, pi = mc(amdp,
-    #               pi,
-    #               p0=spec['p0'],
-    #               alpha=0.01,
-    #               epsilon=0,
-    #               mc_states='first',
-    #               n_steps=n_steps,
-    #               max_rollout_steps=max_rollout_steps)
-    # logging.info(f'amdp: {v}')
-
 def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
     policy_eval = PolicyEval(amdp, verbose=False)
 
     # Run for both v and q
@@ -172,10 +172,8 @@ if __name__ == '__main__':
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
-    parser.add_argument('--n_steps', default=500, type=int,
+    parser.add_argument('--n_episodes', default=500, type=int,
         help='number of rollouts to run')
-    parser.add_argument('--max_rollout_steps', default=None, type=int,
-        help='max steps for mc rollouts')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
     parser.add_argument('--seed', default=None, type=int,
@@ -215,12 +213,10 @@ if __name__ == '__main__':
     if 'Pi_phi_x' in spec.keys():
         logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
 
-    logging.info(f'n_steps:\n {args.n_steps}')
-    logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
+    logging.info(f'n_episodes:\n {args.n_episodes}')
 
     # Run
     if args.heatmap:
         heatmap(spec)
     else:
-        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_steps,
-                  args.max_rollout_steps)
+        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)
