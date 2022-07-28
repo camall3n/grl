@@ -27,8 +27,19 @@ def td_lambda(
             ob = mdp.observe(s)
             next_ob = mdp.observe(next_s)
 
+            # Because mdp.step() terminates with probability (1-γ),
+            # we have already factored in the γ that we would normally
+            # use to decay the eligibility.
+            #
+            # The fact that we've arrived at this state and we want to
+            # compute the update here means we're in a trajectory where
+            # we didn't terminate w.p. (1-γ); rather, we continued with
+            # probability γ.
+            #
+            # Thus we simply decay eligibility by λ.
             z *= lambda_
-            z[a, ob] += 1
+            z[a, ob] += 1 # Accumulating traces
+            # z[a, ob] = 1 # Replacing traces
             delta = r + mdp.gamma * q[a, next_ob] - q[a, ob]
             q += alpha * delta * z
 
