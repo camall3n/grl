@@ -105,6 +105,11 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
             logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
             logging.info(f'mc:\n {pformat_vals(mc_vals)}')
             logging.info(f'td:\n {pformat_vals(td_vals)}')
+            discrep = {
+                'v': np.abs(td_vals['v'] - mc_vals['v']),
+                'q': np.abs(td_vals['q'] - mc_vals['q']),
+            }
+            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
     logging.info('\nTD-MC* Discrepancy ids:')
     logging.info(f'{discrepancy_ids}')
