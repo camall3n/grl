@@ -21,8 +21,6 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    # Discrepancy results are currently determined using analytical values
-
     policies = spec['Pi_phi']
     if 'T_mem' in spec.keys():
         amdp = memory_cross_product(amdp, spec['T_mem'])
@@ -169,7 +167,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_memory', default=None, type=int,
         help='use memory function during policy eval if set')
     parser.add_argument('--use_grad', default=None, type=str,
-        help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
+        help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
