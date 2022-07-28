@@ -40,7 +40,8 @@ def td_lambda(
             z *= lambda_
             z[a, ob] += 1 # Accumulating traces
             # z[a, ob] = 1 # Replacing traces
-            delta = r + mdp.gamma * q[a, next_ob] - q[a, ob]
+            q_target = r if done else r + q[a, next_ob]
+            delta = q_target - q[a, ob]
             q += alpha * delta * z
 
             s = next_s
