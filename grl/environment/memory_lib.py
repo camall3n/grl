@@ -4,8 +4,10 @@ import numpy as np
 
 memory_0 = np.array([
     [ # red
-        [1., 0], # s0, s1
-        [1, 0],
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
     ],
     [ # blue
         [1, 0],
