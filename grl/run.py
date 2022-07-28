@@ -16,6 +16,8 @@ from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
+np.set_printoptions(precision=4, suppress=True)
+
 def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
