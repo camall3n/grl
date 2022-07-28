@@ -31,7 +31,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
     discrepancy_ids = []
 
     for i, pi in enumerate(policies):
-        logging.info(f'\n\n\n======== id: {i} ========')
+        logging.info(f'\n\n\n======== policy id: {i} ========')
         logging.info(f'\npi:\n {pi}')
         pi_ground = amdp.get_ground_policy(pi)
         logging.info(f'\npi_ground:\n {pi_ground}')
