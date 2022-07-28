@@ -151,7 +151,7 @@ class PolicyEval:
 
     def mse_loss(self, pi, value_type, **kwargs):
         """
-        sum_o [V_td^pi(o) - V_mc^pi(o)]^2 
+        sum_o [V_td^pi(o) - V_mc^pi(o)]^2
         """
         _, mc_vals, td_vals = self.run(pi)
         diff = mc_vals[value_type] - td_vals[value_type]
