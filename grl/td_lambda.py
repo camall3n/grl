@@ -3,7 +3,7 @@ import numpy as np
 def td_lambda(
     mdp,
     pi,
-    lambd=1,
+    lambda_=1,
     alpha=1,
     n_episodes=1000,
 ):
@@ -27,7 +27,7 @@ def td_lambda(
             ob = mdp.observe(s)
             next_ob = mdp.observe(next_s)
 
-            z *= lambd
+            z *= lambda_
             z[a, ob] += 1
             delta = r + mdp.gamma * q[a, next_ob] - q[a, ob]
             q += alpha * delta * z

@@ -10,7 +10,6 @@ import seaborn as sns
 
 from .environment import *
 from .mdp import MDP, AbstractMDP
-from .mc import mc
 from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
 from .memory import memory_cross_product
@@ -68,7 +67,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
             v, q = td_lambda(
                 mdp,
                 pi_ground,
-                lambd=1,
+                lambda_=1,
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
@@ -81,7 +80,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
             v, q = td_lambda(
                 amdp,
                 pi,
-                lambd=1,
+                lambda_=1,
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
@@ -94,7 +93,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
             v, q = td_lambda(
                 amdp,
                 pi,
-                lambd=0,
+                lambda_=0,
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
