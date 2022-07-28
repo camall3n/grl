@@ -49,6 +49,23 @@ memory_4 = np.array([
     ],
 ])
 
+memory_12 = np.array([
+    # always flip the bit!
+    [ # red
+        #s0, s1
+        [0, 1.],
+        [1, 0],
+    ],
+    [ # blue
+        [0, 1],
+        [1, 0],
+    ],
+    [ # terminal
+        [0, 1],
+        [1, 0],
+    ],
+])
+
 memory_13 = np.array([
     [ # red
         [0., 1], # s0, s1
