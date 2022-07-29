@@ -66,7 +66,7 @@ memory_12 = np.array([
     ],
 ])
 
-memory_101 = np.array([
+memory_102 = np.array([
     # always flip the bit!
     [ # red
         #s0, s1
@@ -79,7 +79,7 @@ memory_101 = np.array([
     ],
 ])
 
-memory_102 = np.array([
+memory_103 = np.array([
     # -> 1, always
     [ # red
         #m0' m1'
