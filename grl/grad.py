@@ -65,7 +65,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         params /= denom
 
         if i % 10 == 0:
-            print('\n\n')
+            # print('\n\n')
             print('Gradient iteration', i)
             # print('params_grad\n', params_grad)
             # print()

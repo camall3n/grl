@@ -65,8 +65,8 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
                 w = ob_counts / ob_sums.repeat(n_mem_states)
 
                 logging.info('\n--- Cross product info')
-                logging.info(f'ob_counts:\n {ob_counts}')
-                logging.info(f'weights:\n {w}')
+                logging.info(f'ob-mem occupancy:\n {ob_counts}')
+                logging.info(f'ob-mem weights:\n {w}')
 
                 logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
                 n_og_obs = int(
