@@ -39,59 +39,60 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
 
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
-            mdp_vals, mc_vals, td_vals = pe.run(pi)
-            logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-            logging.info(f'mc*:\n {pformat_vals(mc_vals)}')
-            logging.info(f'td:\n {pformat_vals(td_vals)}')
+            mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
+            logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
+            logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
+            logging.info(f'td:\n {pformat_vals(td_vals_a)}')
             discrep = {
-                'v': np.abs(td_vals['v'] - mc_vals['v']),
-                'q': np.abs(td_vals['q'] - mc_vals['q']),
+                'v': np.abs(td_vals_a['v'] - mc_vals_a['v']),
+                'q': np.abs(td_vals_a['q'] - mc_vals_a['q']),
             }
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
             if 'T_mem' in spec.keys():
-                occupancy = pe._get_occupancy()
+                occupancy_x = pe._get_occupancy()
                 n_mem_states = spec['T_mem'].shape[-1]
 
                 # These operations are within the cross producted space
-                ob_counts = np.zeros(amdp.n_obs)
-                for s, s_occ in enumerate(occupancy):
-                    phi_s = amdp.phi[s]
-                    ob_counts += s_occ * phi_s
-
-                ob_sums = ob_counts.reshape(n_mem_states, n_mem_states).sum(1)
-                w = ob_counts / ob_sums.repeat(n_mem_states)
+                ob_counts_x = amdp.phi.T @ occupancy_x
+                ob_sums_x = ob_counts_x.reshape(n_mem_states, n_mem_states).sum(1)
+                w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
 
                 logging.info('\n--- Cross product info')
-                logging.info(f'ob-mem occupancy:\n {ob_counts}')
-                logging.info(f'ob-mem weights:\n {w}')
+                logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
+                logging.info(f'ob-mem weights:\n {w_x}')
 
                 logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
                 n_og_obs = int(
                     amdp.n_obs /
                     n_mem_states) # number of obs in the original (non cross product) amdp
-                n_actions = mc_vals['q'].shape[0]
-                mc_vals['v'] = (mc_vals['v'] * w).reshape(n_og_obs, n_mem_states).sum(1)
-                mc_vals['q'] = (mc_vals['q'] * w).reshape(n_actions, n_og_obs, n_mem_states).sum(2)
-                td_vals['v'] = (td_vals['v'] * w).reshape(n_og_obs, n_mem_states).sum(1)
-                td_vals['q'] = (td_vals['q'] * w).reshape(n_actions, n_og_obs, n_mem_states).sum(2)
+                n_actions = mc_vals_a['q'].shape[0]
+                mc_vals_x = {}
+                td_vals_x = {}
+
+                mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+                mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+                                                                n_mem_states).sum(2)
+                td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+                td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+                                                                n_mem_states).sum(2)
                 # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-                logging.info(f'mc*:\n {pformat_vals(mc_vals)}')
-                logging.info(f'td:\n {pformat_vals(td_vals)}')
+                logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
+                logging.info(f'td:\n {pformat_vals(td_vals_x)}')
                 discrep = {
-                    'v': np.abs(td_vals['v'] - mc_vals['v']),
-                    'q': np.abs(td_vals['q'] - mc_vals['q']),
+                    'v': np.abs(td_vals_x['v'] - mc_vals_x['v']),
+                    'q': np.abs(td_vals_x['q'] - mc_vals_x['q']),
                 }
                 logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             # Check if there are discrepancies in V or Q
             # V takes precedence
             value_type = None
-            if not np.allclose(mc_vals['v'], td_vals['v'], rtol=RTOL):
+            if not np.allclose(mc_vals_a['v'], td_vals_a['v'], rtol=RTOL):
                 value_type = 'v'
-            elif not np.allclose(mc_vals['q'], td_vals['q'], rtol=RTOL):
+            elif not np.allclose(mc_vals_a['q'], td_vals_a['q'], rtol=RTOL):
                 value_type = 'q'
 
             if value_type:
@@ -110,12 +111,12 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
-            mdp_vals = {
+            mdp_vals_s = {
                 'v': v,
                 'q': q,
             }
 
-            # TD1
+            # TD(1)
             v, q = td_lambda(
                 amdp,
                 pi,
@@ -123,12 +124,12 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
-            mc_vals = {
+            mc_vals_s = {
                 'v': v,
                 'q': q,
             }
 
-            # TD0
+            # TD(0)
             v, q = td_lambda(
                 amdp,
                 pi,
@@ -136,17 +137,17 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
                 alpha=0.01,
                 n_episodes=n_episodes,
             )
-            td_vals = {
+            td_vals_s = {
                 'v': v,
                 'q': q,
             }
 
-            logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
-            logging.info(f'mc:\n {pformat_vals(mc_vals)}')
-            logging.info(f'td:\n {pformat_vals(td_vals)}')
+            logging.info(f'mdp:\n {pformat_vals(mdp_vals_s)}')
+            logging.info(f'mc:\n {pformat_vals(mc_vals_s)}')
+            logging.info(f'td:\n {pformat_vals(td_vals_s)}')
             discrep = {
-                'v': np.abs(td_vals['v'] - mc_vals['v']),
-                'q': np.abs(td_vals['q'] - mc_vals['q']),
+                'v': np.abs(td_vals_s['v'] - mc_vals_s['v']),
+                'q': np.abs(td_vals_s['q'] - mc_vals_s['q']),
             }
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
