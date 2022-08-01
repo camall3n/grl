@@ -470,6 +470,75 @@ def example_20():
 
     return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
 
+def example_21():
+    T = np.array([
+        [
+            # "wait"
+            [0, 1, 0, 0.], #r1
+            [0, 0, 1, 0], #r2
+            [1, 0, 0, 0], #r3
+            [0, 0, 0, 1], #t
+        ],
+        [
+            # "go"
+            [0, 0, 0, 1], #r1
+            [0, 0, 0, 1], #r2
+            [0, 0, 0, 1], #r3
+            [0, 0, 0, 1], #t
+        ]
+    ])
+
+    R = np.array([
+        [
+            # "wait"
+            [0, 0, 0, 0.], #r1
+            [0, 0, 0, 0], #r2
+            [0, 0, 0, 0], #r3
+            [0, 0, 0, 0], #t
+        ],
+        [
+            # "go"
+            [0, 0, 0, -1], #r1
+            [0, 0, 0, -1], #r2
+            [0, 0, 0, 1], #r3
+            [0, 0, 0, 0], #t
+        ]
+    ])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        #r  b  t
+        [1, 0, 0.], #r1
+        [0, 1, 0], #b2
+        [0, 1, 0], #b3
+        [0, 0, 1], #t
+    ])
+
+    p = .5
+    Pi_phi = [
+        np.array([
+            # up, down
+            [p, 1 - p], #r
+            [p, 1 - p], #b
+            [p, 1 - p], #t
+        ])
+    ]
+
+    Pi_phi_x = [
+        np.array([
+            [p, 1 - p], #r0
+            [p, 1 - p], #r1
+            [p, 1 - p], #b0
+            [p, 1 - p], #b1
+            [p, 1 - p], #t0
+            [p, 1 - p], #t1
+        ]),
+    ]
+
+    return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
