@@ -57,7 +57,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
 
                 # These operations are within the cross producted space
                 ob_counts_x = amdp.phi.T @ occupancy_x
-                ob_sums_x = ob_counts_x.reshape(n_mem_states, n_mem_states).sum(1)
+                ob_sums_x = ob_counts_x.reshape(amdp.n_obs // n_mem_states, n_mem_states).sum(1)
                 w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
 
                 logging.info('\n--- Cross product info')
