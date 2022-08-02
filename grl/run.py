@@ -54,10 +54,11 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
             if 'T_mem' in spec.keys():
                 occupancy_x = pe._get_occupancy()
                 n_mem_states = spec['T_mem'].shape[-1]
+                n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
 
                 # These operations are within the cross producted space
                 ob_counts_x = amdp.phi.T @ occupancy_x
-                ob_sums_x = ob_counts_x.reshape(amdp.n_obs // n_mem_states, n_mem_states).sum(1)
+                ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
                 w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
 
                 logging.info('\n--- Cross product info')
@@ -65,9 +66,6 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
                 logging.info(f'ob-mem weights:\n {w_x}')
 
                 logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
-                n_og_obs = int(
-                    amdp.n_obs /
-                    n_mem_states) # number of obs in the original (non cross product) amdp
                 n_actions = mc_vals_a['q'].shape[0]
                 mc_vals_x = {}
                 td_vals_x = {}
