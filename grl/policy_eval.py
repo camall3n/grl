@@ -143,7 +143,7 @@ class PolicyEval:
             logging.info(f'T_bar:\n {T_obs_obs}')
             logging.info(f'R_bar:\n {R_obs_obs}')
 
-        return MDP(T_obs_obs, R_obs_obs, self.amdp.gamma)
+        return MDP(T_obs_obs, R_obs_obs, self.amdp.p0, self.amdp.gamma)
 
     ##########
     # Helpers for gradient/heatmap stuff
@@ -151,7 +151,7 @@ class PolicyEval:
 
     def mse_loss(self, pi, value_type, **kwargs):
         """
-        sum_o [V_td^pi(o) - V_mc^pi(o)]^2 
+        sum_o [V_td^pi(o) - V_mc^pi(o)]^2
         """
         _, mc_vals, td_vals = self.run(pi)
         diff = mc_vals[value_type] - td_vals[value_type]

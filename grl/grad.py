@@ -22,8 +22,8 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         - Currently has to be adjusted above directly
     """
 
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
     policy_eval = PolicyEval(amdp)
 
     if grad_type == 'p':
@@ -65,7 +65,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         params /= denom
 
         if i % 10 == 0:
-            print('\n\n')
+            # print('\n\n')
             print('Gradient iteration', i)
             # print('params_grad\n', params_grad)
             # print()

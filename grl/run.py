@@ -10,17 +10,17 @@ import seaborn as sns
 
 from .environment import *
 from .mdp import MDP, AbstractMDP
-from .mc import mc
+from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
 from .memory import memory_cross_product
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_steps):
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+np.set_printoptions(precision=4, suppress=True)
 
-    # Discrepancy results are currently determined using analytical values
+def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
 
     policies = spec['Pi_phi']
     if 'T_mem' in spec.keys():
@@ -32,29 +32,65 @@ def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_st
     discrepancy_ids = []
 
     for i, pi in enumerate(policies):
-        logging.info(f'\n\n\n======== id: {i} ========')
+        logging.info(f'\n\n\n======== policy id: {i} ========')
         logging.info(f'\npi:\n {pi}')
         pi_ground = amdp.get_ground_policy(pi)
         logging.info(f'\npi_ground:\n {pi_ground}')
 
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
-            mdp_vals, mc_vals, td_vals = pe.run(pi)
-            logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-            logging.info(f'mc*:\n {pformat_vals(mc_vals)}')
-            logging.info(f'td:\n {pformat_vals(td_vals)}')
+            mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
+            logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
+            logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
+            logging.info(f'td:\n {pformat_vals(td_vals_a)}')
             discrep = {
-                'v': np.abs(td_vals['v'] - mc_vals['v']),
-                'q': np.abs(td_vals['q'] - mc_vals['q']),
+                'v': np.abs(td_vals_a['v'] - mc_vals_a['v']),
+                'q': np.abs(td_vals_a['q'] - mc_vals_a['q']),
             }
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+
+            # If using memory, for mc and td, also aggregate obs-mem values into
+            # obs values according to visitation ratios
+            if 'T_mem' in spec.keys():
+                occupancy_x = pe._get_occupancy()
+                n_mem_states = spec['T_mem'].shape[-1]
+                n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
+
+                # These operations are within the cross producted space
+                ob_counts_x = amdp.phi.T @ occupancy_x
+                ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
+                w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
+
+                logging.info('\n--- Cross product info')
+                logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
+                logging.info(f'ob-mem weights:\n {w_x}')
+
+                logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
+                n_actions = mc_vals_a['q'].shape[0]
+                mc_vals_x = {}
+                td_vals_x = {}
+
+                mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+                mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+                                                                n_mem_states).sum(2)
+                td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+                td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+                                                                n_mem_states).sum(2)
+                # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
+                logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
+                logging.info(f'td:\n {pformat_vals(td_vals_x)}')
+                discrep = {
+                    'v': np.abs(td_vals_x['v'] - mc_vals_x['v']),
+                    'q': np.abs(td_vals_x['q'] - mc_vals_x['q']),
+                }
+                logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             # Check if there are discrepancies in V or Q
             # V takes precedence
             value_type = None
-            if not np.allclose(mc_vals['v'], td_vals['v'], rtol=RTOL):
+            if not np.allclose(mc_vals_a['v'], td_vals_a['v'], rtol=RTOL):
                 value_type = 'v'
-            elif not np.allclose(mc_vals['q'], td_vals['q'], rtol=RTOL):
+            elif not np.allclose(mc_vals_a['q'], td_vals_a['q'], rtol=RTOL):
                 value_type = 'q'
 
             if value_type:
@@ -66,59 +102,63 @@ def run_algos(spec, method, n_random_policies, use_grad, n_steps, max_rollout_st
             # Sampling
             logging.info('\n\n--- Sampling ---')
             # MDP
-            v, q, _ = mc(mdp,
-                         pi_ground,
-                         p0=spec['p0'],
-                         alpha=0.01,
-                         epsilon=0,
-                         mc_states='all',
-                         n_steps=n_steps,
-                         max_rollout_steps=max_rollout_steps)
-            mdp_vals = {
-                'v': v,
-                'q': q,
-            }
-            # MC
-            v, q, _ = mc(amdp,
-                         pi,
-                         p0=spec['p0'],
-                         alpha=0.01,
-                         epsilon=0,
-                         mc_states='all',
-                         n_steps=n_steps,
-                         max_rollout_steps=max_rollout_steps)
-            mc_vals = {
+            v, q = td_lambda(
+                mdp,
+                pi_ground,
+                lambda_=1,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
+            mdp_vals_s = {
                 'v': v,
                 'q': q,
             }
 
-            logging.info("\n mc_states: all")
-            logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
-            logging.info(f'mc:\n {pformat_vals(mc_vals)}')
+            # TD(1)
+            v, q = td_lambda(
+                amdp,
+                pi,
+                lambda_=1,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
+            mc_vals_s = {
+                'v': v,
+                'q': q,
+            }
+
+            # TD(0)
+            v, q = td_lambda(
+                amdp,
+                pi,
+                lambda_=0,
+                alpha=0.01,
+                n_episodes=n_episodes,
+            )
+            td_vals_s = {
+                'v': v,
+                'q': q,
+            }
+
+            logging.info(f'mdp:\n {pformat_vals(mdp_vals_s)}')
+            logging.info(f'mc:\n {pformat_vals(mc_vals_s)}')
+            logging.info(f'td:\n {pformat_vals(td_vals_s)}')
+            discrep = {
+                'v': np.abs(td_vals_s['v'] - mc_vals_s['v']),
+                'q': np.abs(td_vals_s['q'] - mc_vals_s['q']),
+            }
+            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
     logging.info('\nTD-MC* Discrepancy ids:')
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
-    # MC1
-    # ADMP
-    # logging.info("\n- mc_states: first")
-    # v, q, pi = mc(amdp,
-    #               pi,
-    #               p0=spec['p0'],
-    #               alpha=0.01,
-    #               epsilon=0,
-    #               mc_states='first',
-    #               n_steps=n_steps,
-    #               max_rollout_steps=max_rollout_steps)
-    # logging.info(f'amdp: {v}')
-
 def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
     policy_eval = PolicyEval(amdp, verbose=False)
 
     # Run for both v and q
@@ -169,13 +209,11 @@ if __name__ == '__main__':
     parser.add_argument('--use_memory', default=None, type=int,
         help='use memory function during policy eval if set')
     parser.add_argument('--use_grad', default=None, type=str,
-        help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient')
+        help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
-    parser.add_argument('--n_steps', default=500, type=int,
+    parser.add_argument('--n_episodes', default=500, type=int,
         help='number of rollouts to run')
-    parser.add_argument('--max_rollout_steps', default=None, type=int,
-        help='max steps for mc rollouts')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
     parser.add_argument('--seed', default=None, type=int,
@@ -215,12 +253,10 @@ if __name__ == '__main__':
     if 'Pi_phi_x' in spec.keys():
         logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
 
-    logging.info(f'n_steps:\n {args.n_steps}')
-    logging.info(f'max_rollout_steps:\n {args.max_rollout_steps}')
+    logging.info(f'n_episodes:\n {args.n_episodes}')
 
     # Run
     if args.heatmap:
         heatmap(spec)
     else:
-        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_steps,
-                  args.max_rollout_steps)
+        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)

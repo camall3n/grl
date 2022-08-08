@@ -5,12 +5,12 @@ pip install -r requirements.txt
 
 ## Usage
 
-Default behavior is to display the analytical MDP, MC*, and TD solutions:
+Default behavior is to display the analytical MDP, POMDP MC, and POMDP TD(0) solutions:
 ```bash
 python -m grl.run --spec example_7
 ```
 
-For this example, there is a discrepancy between MC* and TD. To run it with a previously defined memory function from the spec:
+For this example, there is a discrepancy between MC and TD(0). To run it with a previously defined memory function:
 ```bash
 python -m grl.run --spec example_7 --use_memory 5
 ```
@@ -19,13 +19,15 @@ If the memory function doesn't resolve it, try to find one that does:
 ```bash
 python -m grl.run --spec example_7 --use_memory 0 --use_grad m
 ```
+(note: to get good gradient estimates, it may be necessary to adjust initial memory transition functions
+so that they don't have 1s and 0s in their probabilities (e.g. adjust [1, 0] to [0.99, 0.01]))
 
 ```
 usage: run.py [-h] [--spec SPEC] [--method METHOD]
               [--n_random_policies N_RANDOM_POLICIES]
               [--use_memory USE_MEMORY] [--use_grad USE_GRAD] [--heatmap]
-              [--n_steps N_STEPS] [--max_rollout_steps MAX_ROLLOUT_STEPS]
-              [--log] [--seed SEED] [-f FOOL_IPYTHON]
+              [--n_episodes N_EPISODES] [--log] [--seed SEED]
+              [-f FOOL_IPYTHON]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -40,9 +42,8 @@ optional arguments:
                         discrepancies by following gradient
   --heatmap             generate a policy-discrepancy heatmap for the given
                         POMDP
-  --n_steps N_STEPS     number of rollouts to run
-  --max_rollout_steps MAX_ROLLOUT_STEPS
-                        max steps for mc rollouts
+  --n_episodes N_EPISODES
+                        number of rollouts to run
   --log                 save output to logs/
   --seed SEED           seed for random number generators
   -f FOOL_IPYTHON, --fool-ipython FOOL_IPYTHON

@@ -3,11 +3,11 @@ import numpy as np
 from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
 
 def assert_pe_results(spec, answers, use_memory=False):
-    mdp = MDP(spec['T'], spec['R'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'], p0=spec['p0'])
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
     policies = spec['Pi_phi']
 
-    if use_memory > 0:
+    if use_memory:
         amdp = memory_cross_product(amdp, spec['T_mem'])
         policies = spec['Pi_phi_x']
 

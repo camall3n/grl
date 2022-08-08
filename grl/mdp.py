@@ -63,7 +63,7 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 class MDP:
-    def __init__(self, T, R, gamma=0.9):
+    def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
@@ -72,6 +72,7 @@ class MDP:
         self.R = np.stack(R).copy().astype(np.float64)
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
+        self.p0 = p0
 
     def __repr__(self):
         return repr(self.T) + '\n' + repr(self.R)
@@ -183,12 +184,11 @@ class BlockMDP(MDP):
         self.obs_fn = obs_fn
 
 class AbstractMDP(MDP):
-    def __init__(self, base_mdp, phi, pi=None, p0=None, t=200):
-        super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
+    def __init__(self, base_mdp, phi, pi=None, t=200):
+        super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
-        self.p0 = p0
 
         # self.belief = self.B(pi, t=t)
         # self.T = [self.compute_Tz(self.belief,T_a)

@@ -4,8 +4,10 @@ import numpy as np
 
 memory_0 = np.array([
     [ # red
-        [1., 0], # s0, s1
-        [1, 0],
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
     ],
     [ # blue
         [1, 0],
@@ -44,6 +46,81 @@ memory_4 = np.array([
     [ # terminal
         [1, 0],
         [1, 0],
+    ],
+])
+
+memory_5 = np.array([
+    [ # red
+        #s0, s1
+        [1, 0.],
+        [1, 0],
+    ],
+    [ # blue
+        [0, 1],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [1, 0],
+    ],
+])
+
+memory_6 = np.array([
+    [ # red
+        #s0, s1
+        [1, 0.],
+        [0, 1],
+    ],
+    [ # blue
+        [0, 1],
+        [1, 0],
+    ],
+    [ # terminal
+        [1, 0],
+        [1, 0],
+    ],
+])
+
+memory_12 = np.array([
+    # always flip the bit!
+    [ # red
+        #s0, s1
+        [0, 1.],
+        [1, 0],
+    ],
+    [ # blue
+        [0, 1],
+        [1, 0],
+    ],
+    [ # terminal
+        [0, 1],
+        [1, 0],
+    ],
+])
+
+memory_102 = np.array([
+    # always flip the bit!
+    [ # red
+        #s0, s1
+        [0, 1.],
+        [1, 0],
+    ],
+    [ # terminal
+        [0, 1],
+        [1, 0],
+    ],
+])
+
+memory_103 = np.array([
+    # -> 1, always
+    [ # red
+        #m0' m1'
+        [0, 1.],
+        [0, 1],
+    ],
+    [ # terminal
+        [0, 1],
+        [0, 1],
     ],
 ])
 
