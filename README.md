@@ -5,12 +5,12 @@ pip install -r requirements.txt
 
 ## Usage
 
-Default behavior is to display the analytical MDP, MC*, and TD solutions:
+Default behavior is to display the analytical MDP, POMDP MC, and POMDP TD(0) solutions:
 ```bash
 python -m grl.run --spec example_7
 ```
 
-For this example, there is a discrepancy between MC* and TD. To run it with a previously defined memory function:
+For this example, there is a discrepancy between MC and TD(0). To run it with a previously defined memory function:
 ```bash
 python -m grl.run --spec example_7 --use_memory 5
 ```
