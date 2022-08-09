@@ -20,7 +20,7 @@ If the memory function doesn't resolve it, try to find one that does:
 python -m grl.run --spec example_7 --use_memory 0 --use_grad m
 ```
 (note: to get good gradient estimates, it may be necessary to adjust initial memory transition functions
-so that they don't have 1s and 0s in their probabilities (e.g. adjust [1, 0] to [0.99, 0.01]))
+so that they don't have deterministic transitions (e.g. adjust [1, 0] to [0.99, 0.01]))
 
 ```
 usage: run.py [-h] [--spec SPEC] [--method METHOD]
