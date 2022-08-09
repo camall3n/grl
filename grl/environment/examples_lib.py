@@ -539,6 +539,60 @@ def example_21():
 
     return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
 
+def example_22():
+    # r, b1, b2, t
+    p = .75
+    q = .75
+    T_up = np.array([
+        [0, p, 1 - p, 0.],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1],
+    ])
+    T_down = np.array([
+        [0, 1 - q, q, 0.],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1],
+    ])
+    T = np.array([T_up, T_down])
+
+    R_up = np.array([
+        [0, 0, 0, 0.],
+        [0, 0, 0, 1],
+        [0, 0, 0, -1],
+        [0, 0, 0, 0],
+    ])
+    R_down = np.array([
+        [0, 0, 0, 0.],
+        [0, 0, 0, -1],
+        [0, 0, 0, 1],
+        [0, 0, 0, 0],
+    ])
+    R = np.array([R_up, R_down])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        # r, b, t
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 1, 0],
+        [0, 0, 1]
+    ])
+
+    p = .25
+    Pi_phi = [
+        np.array([
+            [p, 1 - p], # up, down
+            [p, 1 - p],
+            [p, 1 - p],
+        ]),
+    ]
+
+    return to_dict(T, R, 0.999, p0, phi, Pi_phi)
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
