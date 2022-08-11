@@ -4,14 +4,14 @@ from .memory_lib import *
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
-        T:        transition tensor (terminal states have all outgoing 0s),
+        T:        transition tensor,
         R:        reward tensor,
         gamma:    discount factor,
         p0:       starting state probabilities,
         phi:      observation matrix (currently the same for all actions),
-        Pi_phi:   policies to evaluate
+        Pi_phi:   policies to evaluate in the observation space of the POMDP
         T_mem:    memory transition function
-        Pi_phi_x: policies to evaluate in the cross product of the underyling MDP and memory function
+        Pi_phi_x: policies to evaluate in the observation space of the cross product of the underyling MDP and memory function
     }
 
 Functions named 'example_*' come from examples in the GRL workbook.
