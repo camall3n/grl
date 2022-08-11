@@ -28,11 +28,12 @@ def memory_cross_product(amdp, T_mem):
     R_x = R.repeat(n_states_m, axis=1).repeat(n_states_m, axis=2)
 
     # T_mem_phi is like T_pi
-    # It is SMxM
-    T_mem_phi = np.tensordot(phi, T_mem, axes=1)
+    # It is SxAxMxM
+    T_mem_phi = np.tensordot(phi, T_mem.swapaxes(0, 1), axes=1)
 
-    # Outer product that compacts the 2 i
-    T_x = np.einsum('ijk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
+    # Outer product that compacts the two i dimensions and the two l dimensions
+    # (SxAxMxM, AxSxS -> AxSMxSM), where SM=x
+    T_x = np.einsum('iljk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
 
     # The new obs_x are the original obs times memory states
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}

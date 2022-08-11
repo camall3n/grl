@@ -78,7 +78,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
-    logging.info(f'Final gradient params:\n {params}')
+    logging.info(f'-Final gradient params:\n {params}')
     logging.info(f'in {i} gradient steps with lr={lr}')
 
     old_amdp = policy_eval.amdp
@@ -86,7 +86,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         policy_eval.amdp = memory_cross_product(amdp, params)
     policy_eval.verbose = True
     mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs)
-    logging.info(f'\nFinal vals using grad_type {grad_type} on value_type {value_type}')
+    logging.info(f'\n-Final vals using grad_type {grad_type} on value_type {value_type}')
     logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')

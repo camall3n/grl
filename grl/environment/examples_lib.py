@@ -110,17 +110,17 @@ def example_7():
             [1, 0], # up, down
             [1, 0],
             [1, 0],
-            # ]),
-            # np.array([
-            #     [0, 1],
-            #     [0, 1],
-            #     [0, 1],
-            # ]),
-            # np.array([
-            #     [4 / 7, 3 / 7], # known location of no discrepancy
-            #     [1, 0],
-            #     [1, 0],
-        ])
+        ]),
+        # np.array([
+        #     [0, 1],
+        #     [0, 1],
+        #     [0, 1],
+        # ]),
+        # np.array([
+        #     [4 / 7, 3 / 7], # known location of no discrepancy
+        #     [1, 0],
+        #     [1, 0],
+        # ])
     ]
 
     Pi_phi_x = [
