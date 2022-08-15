@@ -2,13 +2,16 @@ import argparse
 import logging
 import pathlib
 import time
+from os import listdir
+from os.path import isfile, join
 
 import numpy as np
 import jax
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .environment import *
+from .environment import load_spec
+from .environment.pomdp_file import POMDPFile
 from .mdp import MDP, AbstractMDP
 from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
@@ -18,7 +21,11 @@ from .utils import pformat_vals, RTOL
 
 np.set_printoptions(precision=4, suppress=True)
 
-def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
+def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
+    """
+    Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
+    See args in __main__ function for param details.
+    """
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
@@ -153,6 +160,77 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
+def run_generated(dir):
+    """
+    Runs algos on all pomdps defined in 'dir'.
+    """
+    files = [f for f in listdir(dir) if isfile(join(dir, f))]
+    files.reverse()
+    for i, f in enumerate(files):
+        spec = POMDPFile(f'{dir}/{f}').get_spec()
+        logging.info(f'\n\n==========================================================')
+        logging.info(f'GENERATED FILE {i}: {f}')
+        logging.info(f'==========================================================')
+        run_algos(spec)
+
+def generate_pomdps(params):
+    timestamp = str(time.time()).replace('.', '-')
+    path = 'grl/environment/pomdp_files/generated'
+    pathlib.Path(f'{path}/{timestamp}').mkdir(parents=True, exist_ok=True)
+
+    for i in range(params['n_pomdps']):
+        n_s = np.random.randint(params['min_n_s'], params['max_n_s'] + 1)
+        n_o = np.random.randint(params['min_n_o'], params['max_n_o'] + 1)
+        n_a = np.random.randint(params['min_n_a'], params['max_n_a'] + 1)
+        gamma = np.random.random()
+        amdp = AbstractMDP.generate(n_s, n_a, n_o, gamma=gamma)
+
+        content = f'# Generation timestamp: {timestamp}\n'
+        content += f'# with seed: {args.seed}\n'
+        content += f'# with params: {params}\n\n'
+
+        content += f'discount: {amdp.gamma}\n'
+        content += 'values: reward\n'
+        content += f'states: {amdp.n_states}\n'
+        content += f'actions: {amdp.n_actions}\n'
+        content += f'observations: {amdp.n_obs}\n'
+        content += f'start: {str(amdp.p0)[1:-1]}\n\n' # remove array brackets
+
+        # T
+        for a in range(amdp.n_actions):
+            content += f'T: {a}\n'
+            for row in amdp.T[a]:
+                content += f'{str(row)[1:-1]}\n' # remove array brackets
+
+            content += '\n'
+
+        # O
+        content += 'O: *\n' # phi currently same for all actions
+        for row in amdp.phi:
+            content += f'{str(row)[1:-1]}\n' # remove array brackets
+
+        content += '\n'
+
+        # R
+        for a in range(amdp.n_actions):
+            for m, row in enumerate(amdp.R[a]):
+                for n, val in enumerate(row):
+                    content += f'R: {a} : {m} : {n} : * {val}\n'
+
+            content += '\n'
+
+        # Pi_phi
+        policies = amdp.generate_random_policies(params['n_policies'])
+        for pi in policies:
+            content += f'Pi_phi:\n'
+            for row in pi:
+                content += f'{str(row)[1:-1]}\n' # remove array brackets
+
+            content += '\n'
+
+        with open(f'{path}/{timestamp}/{i}_{timestamp}.POMDP', 'w') as f:
+            f.write(content)
+
 def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
     (Currently have to adjust discrep_type and num_ticks above directly)
@@ -202,6 +280,8 @@ if __name__ == '__main__':
     # yapf:disable
     parser.add_argument('--spec', default='example_11', type=str,
         help='name of POMDP spec; evals Pi_phi policies by default')
+    parser.add_argument('--run_generated', type=str,
+        help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
@@ -214,6 +294,9 @@ if __name__ == '__main__':
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
         help='number of rollouts to run')
+    parser.add_argument('--generate_pomdps', default=None, nargs=8, type=int,
+        help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; \
+            generate pomdp specs and save to environment/pomdp_files/generated/'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  )
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
     parser.add_argument('--seed', default=None, type=int,
@@ -239,24 +322,40 @@ if __name__ == '__main__':
         np.random.seed(args.seed)
         jax.random.PRNGKey(args.seed)
 
-    # Get POMDP definition
-    spec = environment.load_spec(args.spec, args.use_memory)
-    logging.info(f'spec:\n {args.spec}\n')
-    logging.info(f'T:\n {spec["T"]}')
-    logging.info(f'R:\n {spec["R"]}')
-    logging.info(f'gamma: {spec["gamma"]}')
-    logging.info(f'p0:\n {spec["p0"]}')
-    logging.info(f'phi:\n {spec["phi"]}')
-    logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
-    if 'T_mem' in spec.keys():
-        logging.info(f'T_mem:\n {spec["T_mem"]}')
-    if 'Pi_phi_x' in spec.keys():
-        logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
-
-    logging.info(f'n_episodes:\n {args.n_episodes}')
-
     # Run
-    if args.heatmap:
-        heatmap(spec)
+    if args.generate_pomdps:
+        a = args.generate_pomdps
+        params = {
+            'n_pomdps': a[0],
+            'n_policies': a[1],
+            'min_n_s': a[2],
+            'max_n_s': a[3],
+            'min_n_a': a[4],
+            'max_n_a': a[5],
+            'min_n_o': a[6],
+            'max_n_o': a[7]
+        }
+        generate_pomdps(params)
+    elif args.run_generated:
+        run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')
     else:
-        run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)
+        # Get POMDP definition
+        spec = load_spec(args.spec, args.use_memory)
+        logging.info(f'spec:\n {args.spec}\n')
+        logging.info(f'T:\n {spec["T"]}')
+        logging.info(f'R:\n {spec["R"]}')
+        logging.info(f'gamma: {spec["gamma"]}')
+        logging.info(f'p0:\n {spec["p0"]}')
+        logging.info(f'phi:\n {spec["phi"]}')
+        logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
+        if 'T_mem' in spec.keys():
+            logging.info(f'T_mem:\n {spec["T_mem"]}')
+        if 'Pi_phi_x' in spec.keys():
+            logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
+
+        logging.info(f'n_episodes:\n {args.n_episodes}')
+
+        if args.heatmap:
+            heatmap(spec)
+        else:
+            run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)
