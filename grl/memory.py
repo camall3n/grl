@@ -1,6 +1,6 @@
 from .mdp import MDP, AbstractMDP
 
-# import numpy as np
+import numpy as onp
 import jax.numpy as np
 from jax.config import config
 
@@ -45,3 +45,42 @@ def memory_cross_product(amdp, T_mem):
     p0_x = p0_x.at[::n_states_m].set(amdp.p0)
     mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
     return AbstractMDP(mdp_x, phi_x)
+
+def generate_1bit_mem_fns(n_obs, n_actions):
+    """
+    Generates all possible deterministic 1 bit memory functions with given number of obs and actions.
+    There are M^(MZA) memory functions.
+    1 bit means M=2.
+
+    Example:
+    For 2 obs (r, b) and 2 actions (up, down), binary_mp=10011000 looks like:
+
+    m o_a    mp
+    -----------
+    0 r_up   1
+    0 r_down 0
+    0 b_up   0
+    0 b_down 1
+    1 r_up   1
+    1 r_down 0
+    1 b_up   0
+    1 b_down 0
+
+    """
+    # TODO: add tests
+    n_mem_states = 2
+    fns = []
+
+    MZA = n_mem_states * n_obs * n_actions
+    for i in range(n_mem_states**(MZA)):
+        binary_mp = format(i, 'b')
+        binary_mp = '0' * (MZA - len(binary_mp)) + binary_mp # prepend 0s
+        T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+        for m in range(n_mem_states):
+            for ob in range(n_obs):
+                for a in range(n_actions):
+                    T_mem[a, ob, m, int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])] = 1
+
+        fns.append(T_mem)
+
+    return fns

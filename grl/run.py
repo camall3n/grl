@@ -15,7 +15,7 @@ from .environment.pomdp_file import POMDPFile
 from .mdp import MDP, AbstractMDP
 from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
-from .memory import memory_cross_product
+from .memory import memory_cross_product, generate_1bit_mem_fns
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
@@ -36,11 +36,14 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
     pe = PolicyEval(amdp)
-    discrepancy_ids = []
+    discrepancies = [] # the discrepancy dict for each policy
+    discrepancy_ids = [] # Pi_phi indices (policies) where there was a discrepancy
 
     for i, pi in enumerate(policies):
         logging.info(f'\n\n\n======== policy id: {i} ========')
         logging.info(f'\npi:\n {pi}')
+        if 'T_mem' in spec.keys():
+            logging.info(f'\nT_mem:\n {spec["T_mem"]}')
         pi_ground = amdp.get_ground_policy(pi)
         logging.info(f'\npi_ground:\n {pi_ground}')
 
@@ -91,6 +94,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
                     'q': np.abs(td_vals_x['q'] - mc_vals_x['q']),
                 }
                 logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+
+            discrepancies.append(discrep)
 
             # Check if there are discrepancies in V or Q
             # V takes precedence
@@ -160,18 +165,62 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
+    return discrepancies
+
 def run_generated(dir):
     """
-    Runs algos on all pomdps defined in 'dir'.
+    Runs algos on all pomdps defined in 'dir' using all 1 bit memory functions.
+
+    The objective is to determine whether there are any specs for which no 1 bit memory function
+    decreases an existing discrepancy.
     """
     files = [f for f in listdir(dir) if isfile(join(dir, f))]
     files.reverse()
+
+    # There needs to be at least one memory function that decreases the discrepancy
+    # under each policy.
+    # So we will track for each file, for each policy, whether a memory function has been found.
+    all_found_mems = {}
+
     for i, f in enumerate(files):
         spec = POMDPFile(f'{dir}/{f}').get_spec()
         logging.info(f'\n\n==========================================================')
         logging.info(f'GENERATED FILE {i}: {f}')
         logging.info(f'==========================================================')
-        run_algos(spec)
+
+        # Discrepancies without memory.
+        # List with one discrepancy dict ('v' and 'q') per policy.
+        discrepancies_no_mem = run_algos(spec)
+
+        # Track for each policy whether a memory function has been found.
+        found_mems = np.full(len(spec['Pi_phi']), False)
+
+        for T_mem in generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1],
+                                           n_actions=spec['T'].shape[0]):
+
+            spec['T_mem'] = T_mem # add memory
+            spec['Pi_phi_x'] = [pi.repeat(2, axis=0)
+                                for pi in spec['Pi_phi']] # expand policies to obs-mem space
+            discrepancies_mem = run_algos(spec)
+
+            # Check if this memory made the discrepancy decrease for each policy.
+            # The mem and no_mem lists are in the same order of policies.
+            for j in range(len(discrepancies_mem)):
+                disc_no_mem = discrepancies_no_mem[j]
+                disc_mem = discrepancies_mem[j]
+
+                if (disc_mem['q'] <
+                        disc_no_mem['q']).any() and not (disc_mem['q'] > disc_no_mem['q']).any():
+                    found_mems[j] = True
+
+        all_found_mems[f] = found_mems
+
+    for f in all_found_mems.keys():
+        found_mems = all_found_mems[f]
+        if (found_mems == False).any():
+            logging.info(f'MEMS NOT FOUND in {f}. Policies: {found_mems}')
+        else:
+            logging.info(f'Mems found successfully for {f}')
 
 def generate_pomdps(params):
     timestamp = str(time.time()).replace('.', '-')
@@ -295,8 +344,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_episodes', default=500, type=int,
         help='number of rollouts to run')
     parser.add_argument('--generate_pomdps', default=None, nargs=8, type=int,
-        help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; \
-            generate pomdp specs and save to environment/pomdp_files/generated/'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  )
+        help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; generate pomdp specs and save to environment/pomdp_files/generated/')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
     parser.add_argument('--seed', default=None, type=int,
@@ -313,9 +361,12 @@ if __name__ == '__main__':
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
         mem_part = 'no_memory'
-        if args.use_memory > 0:
+        if args.use_memory:
             mem_part = f'memory_{args.use_memory}'
-        name = f'logs/{args.spec}-{mem_part}-{time.time()}.log'
+        if args.run_generated:
+            name = f'logs/{args.run_generated}.log'
+        else:
+            name = f'logs/{args.spec}-{mem_part}-{time.time()}.log'
         rootLogger.addHandler(logging.FileHandler(name))
 
     if args.seed:

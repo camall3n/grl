@@ -1,7 +1,10 @@
 import numpy as np
+"""
+1 bit memory functions with three obs: r, b, t
+and 2 actions: up, down
 
-### 1 bit memory functions with three obs: r, b, t
-### and 2 actions: up, down
+Dimensions: AxZxMxM
+"""
 
 mem_0 = np.array([
     [ # red
