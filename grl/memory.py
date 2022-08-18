@@ -73,7 +73,7 @@ def generate_1bit_mem_fns(n_obs, n_actions):
 
     MZA = n_mem_states * n_obs * n_actions
     for i in range(n_mem_states**(MZA)):
-        binary_mp = format(i, 'b').zfill(len(binary_mp))
+        binary_mp = format(i, 'b').zfill(MZA)
         T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
         for m in range(n_mem_states):
             for ob in range(n_obs):
