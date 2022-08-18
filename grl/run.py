@@ -389,7 +389,7 @@ if __name__ == '__main__':
             'max_n_o': a[7]
         }
         output_dir = generate_pomdps(params)
-        print(f'Saved generated pomdp files to: {output_dir})
+        print(f'Saved generated pomdp files to: {output_dir}')
     elif args.run_generated:
         run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')
     else:
