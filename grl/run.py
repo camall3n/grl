@@ -280,7 +280,7 @@ def generate_pomdps(params):
         with open(f'{path}/{i}_{timestamp}.POMDP', 'w') as f:
             f.write(content)
         
-    return path
+    return timestamp
 
 def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
@@ -388,8 +388,9 @@ if __name__ == '__main__':
             'min_n_o': a[6],
             'max_n_o': a[7]
         }
-        output_dir = generate_pomdps(params)
-        print(f'Saved generated pomdp files to: {output_dir}')
+        timestamp = generate_pomdps(params)
+        
+        print(f'Saved generated pomdp files with timestamp: {timestamp}')
     elif args.run_generated:
         run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')
     else:
