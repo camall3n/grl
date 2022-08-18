@@ -3,6 +3,7 @@ from .mdp import MDP, AbstractMDP
 import numpy as onp
 import jax.numpy as np
 from jax.config import config
+from tqdm import tqdm
 
 config.update("jax_enable_x64", True)
 config.update('jax_platform_name', 'cpu')
@@ -72,7 +73,7 @@ def generate_1bit_mem_fns(n_obs, n_actions):
     fns = []
 
     MZA = n_mem_states * n_obs * n_actions
-    for i in range(n_mem_states**(MZA)):
+    for i in tqdm(range(n_mem_states**(MZA))):
         binary_mp = format(i, 'b').zfill(MZA)
         T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
         for m in range(n_mem_states):

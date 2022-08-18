@@ -209,8 +209,8 @@ def run_generated(dir):
                 disc_no_mem = discrepancies_no_mem[j]
                 disc_mem = discrepancies_mem[j]
 
-                if (disc_mem['q'] <
-                        disc_no_mem['q']).any() and not (disc_mem['q'] > disc_no_mem['q']).any():
+                if ((disc_mem['q'] < disc_no_mem['q']).any()
+                        and not (disc_mem['q'] > disc_no_mem['q']).any()):
                     found_mems[j] = True
 
         all_found_mems[f] = found_mems
@@ -279,7 +279,7 @@ def generate_pomdps(params):
 
         with open(f'{path}/{i}_{timestamp}.POMDP', 'w') as f:
             f.write(content)
-        
+
     return timestamp
 
 def heatmap(spec, discrep_type='l2', num_ticks=5):
@@ -389,7 +389,7 @@ if __name__ == '__main__':
             'max_n_o': a[7]
         }
         timestamp = generate_pomdps(params)
-        
+
         print(f'Saved generated pomdp files with timestamp: {timestamp}')
     elif args.run_generated:
         run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')

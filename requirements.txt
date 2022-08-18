@@ -3,3 +3,4 @@ gmpy
 jax[cpu]
 seaborn
 matplotlib
+tqdm
