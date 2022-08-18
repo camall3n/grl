@@ -224,8 +224,8 @@ def run_generated(dir):
 
 def generate_pomdps(params):
     timestamp = str(time.time()).replace('.', '-')
-    path = 'grl/environment/pomdp_files/generated'
-    pathlib.Path(f'{path}/{timestamp}').mkdir(parents=True, exist_ok=True)
+    path = f'grl/environment/pomdp_files/generated/{timestamp}'
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     for i in range(params['n_pomdps']):
         n_s = np.random.randint(params['min_n_s'], params['max_n_s'] + 1)
@@ -277,8 +277,10 @@ def generate_pomdps(params):
 
             content += '\n'
 
-        with open(f'{path}/{timestamp}/{i}_{timestamp}.POMDP', 'w') as f:
+        with open(f'{path}/{i}_{timestamp}.POMDP', 'w') as f:
             f.write(content)
+        
+    return path
 
 def heatmap(spec, discrep_type='l2', num_ticks=5):
     """
@@ -386,7 +388,8 @@ if __name__ == '__main__':
             'min_n_o': a[6],
             'max_n_o': a[7]
         }
-        generate_pomdps(params)
+        output_dir = generate_pomdps(params)
+        print(f'Saved generated pomdp files to: {output_dir})
     elif args.run_generated:
         run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')
     else:
