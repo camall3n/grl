@@ -78,7 +78,8 @@ def generate_1bit_mem_fns(n_obs, n_actions):
         for m in range(n_mem_states):
             for ob in range(n_obs):
                 for a in range(n_actions):
-                    T_mem[a, ob, m, int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])] = 1
+                    mp = int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])
+                    T_mem[a, ob, m, mp] = 1
 
         fns.append(T_mem)
 
