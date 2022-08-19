@@ -5,11 +5,11 @@ from .examples_lib import to_dict
 class POMDPFile:
     """
     Adapted from https://github.com/mbforbes/py-pomdp/blob/master/pomdp.py
-    
+
     Library of .POMDP files: http://pomdp.org/examples/
     For more info on format: http://pomdp.org/code/pomdp-file-spec.html
     """
-    def __init__(self, file):
+    def __init__(self, filename):
         """
         Parses .pomdp file and loads info into this object's fields.
         Attributes:
@@ -23,7 +23,7 @@ class POMDPFile:
             R
             Pi_phi
         """
-        f = open(file, 'r')
+        f = open(filename, 'r')
         self.contents = [
             x.strip() for x in f.readlines() if (not (x.startswith("#") or x.isspace()))
         ]

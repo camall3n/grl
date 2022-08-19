@@ -74,14 +74,28 @@ def generate_1bit_mem_fns(n_obs, n_actions):
 
     MZA = n_mem_states * n_obs * n_actions
     for i in tqdm(range(n_mem_states**(MZA))):
-        binary_mp = format(i, 'b').zfill(MZA)
-        T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
-        for m in range(n_mem_states):
-            for ob in range(n_obs):
-                for a in range(n_actions):
-                    mp = int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])
-                    T_mem[a, ob, m, mp] = 1
-
+        T_mem = generate_mem_fn(i, n_mem_states, n_obs, n_actions)
         fns.append(T_mem)
 
     return fns
+
+def generate_mem_fn(mem_fn_id, n_mem_states, n_obs, n_actions):
+    """Generate the AxZxMxM memory function transition matrix for the given
+    mem_fn_id and sizes.
+
+    :param mem_fn_id: a decimal number whose binary representation is m'
+    """
+
+    MZA = n_mem_states * n_obs * n_actions
+    n_valid_mem_fns = n_mem_states**MZA
+    if mem_fn_id is not None and (mem_fn_id >= n_valid_mem_fns or mem_fn_id < 0):
+        raise ValueError(f'Unknown mem_fn_id: {mem_fn_id}')
+
+    binary_mp = format(mem_fn_id, 'b').zfill(MZA)
+    T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+    for m in range(n_mem_states):
+        for ob in range(n_obs):
+            for a in range(n_actions):
+                mp = int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])
+                T_mem[a, ob, m, mp] = 1
+    return T_mem

@@ -3,7 +3,7 @@ import logging
 import pathlib
 import time
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, basename, splitext
 
 import numpy as np
 import jax
@@ -15,7 +15,7 @@ from .environment.pomdp_file import POMDPFile
 from .mdp import MDP, AbstractMDP
 from .td_lambda import td_lambda
 from .policy_eval import PolicyEval
-from .memory import memory_cross_product, generate_1bit_mem_fns
+from .memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
@@ -167,60 +167,79 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
 
     return discrepancies
 
-def run_generated(dir):
-    """
-    Runs algos on all pomdps defined in 'dir' using all 1 bit memory functions.
-
-    The objective is to determine whether there are any specs for which no 1 bit memory function
-    decreases an existing discrepancy.
-    """
-    files = [f for f in listdir(dir) if isfile(join(dir, f))]
-    files.reverse()
-
+def run_generated(dir, pomdp_id=None, mem_fn_id=None):
     # There needs to be at least one memory function that decreases the discrepancy
     # under each policy.
     # So we will track for each file, for each policy, whether a memory function has been found.
-    all_found_mems = {}
 
-    for i, f in enumerate(files):
-        spec = POMDPFile(f'{dir}/{f}').get_spec()
-        logging.info(f'\n\n==========================================================')
-        logging.info(f'GENERATED FILE {i}: {f}')
-        logging.info(f'==========================================================')
+    if pomdp_id is None:
+        # Runs algos on all pomdps defined in 'dir' using all 1 bit memory functions.
 
-        # Discrepancies without memory.
-        # List with one discrepancy dict ('v' and 'q') per policy.
-        discrepancies_no_mem = run_algos(spec)
+        # The objective is to determine whether there are any specs for which no 1 bit memory function
+        # decreases an existing discrepancy.
+        files = [f for f in listdir(dir) if isfile(join(dir, f))]
 
-        # Track for each policy whether a memory function has been found.
-        found_mems = np.full(len(spec['Pi_phi']), False)
+        for f in reversed(files):
+            run_on_file(f'{dir}/{f}')
+    else:
+        run_on_file(f'{dir}/{pomdp_id}.POMDP', mem_fn_id)
 
+def run_on_file(filepath, mem_fn_id=None):
+    spec = POMDPFile(f'{filepath}').get_spec()
+    filename = basename(filepath)
+    mdp_name = splitext(filename)[0]
+
+    logging.info(f'\n\n==========================================================')
+    logging.info(f'GENERATED FILE: {mdp_name}')
+    logging.info(f'==========================================================')
+
+    # Discrepancies without memory.
+    # List with one discrepancy dict ('v' and 'q') per policy.
+    discrepancies_no_mem = run_algos(spec)
+
+    path = f'grl/results/1bit_mem_conjecture/{args.run_generated}'
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+    if mem_fn_id is None:
         for T_mem in generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1],
                                            n_actions=spec['T'].shape[0]):
 
-            spec['T_mem'] = T_mem # add memory
-            spec['Pi_phi_x'] = [pi.repeat(2, axis=0)
-                                for pi in spec['Pi_phi']] # expand policies to obs-mem space
-            discrepancies_mem = run_algos(spec)
+            record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
+                                            discrepancies_no_mem)
+    else:
+        T_mem = generate_mem_fn(mem_fn_id,
+                                n_mem_states=2,
+                                n_obs=spec['phi'].shape[-1],
+                                n_actions=spec['T'].shape[0])
+        record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
+                                        discrepancies_no_mem)
 
-            # Check if this memory made the discrepancy decrease for each policy.
-            # The mem and no_mem lists are in the same order of policies.
-            for j in range(len(discrepancies_mem)):
-                disc_no_mem = discrepancies_no_mem[j]
-                disc_mem = discrepancies_mem[j]
+def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, discrepancies_no_mem):
+    """Create a file if the memory function improves the discrepancy"""
+    spec['T_mem'] = T_mem # add memory
+    spec['Pi_phi_x'] = [pi.repeat(2, axis=0)
+                        for pi in spec['Pi_phi']] # expand policies to obs-mem space
+    discrepancies_mem = run_algos(spec)
 
-                if ((disc_mem['q'] < disc_no_mem['q']).any()
-                        and not (disc_mem['q'] > disc_no_mem['q']).any()):
-                    found_mems[j] = True
+    # Check if this memory made the discrepancy decrease for each policy.
+    # The mem and no_mem lists are in the same order of policies.
+    for j in range(len(discrepancies_mem)):
+        disc_no_mem = discrepancies_no_mem[j]
+        disc_mem = discrepancies_mem[j]
 
-        all_found_mems[f] = found_mems
+        def is_q_discrepancy_improvement(disc_mem, disc_no_mem) -> bool:
+            something_improved = (~np.isclose(disc_mem['q'], disc_no_mem['q'])
+                                  & (disc_mem['q'] < disc_no_mem['q'])).any()
+            something_got_worse = (~np.isclose(disc_mem['q'], disc_no_mem['q'])
+                                   & (disc_mem['q'] > disc_no_mem['q'])).any()
+            if (something_improved and not something_got_worse):
+                return True
+            return False
 
-    for f in all_found_mems.keys():
-        found_mems = all_found_mems[f]
-        if (found_mems == False).any():
-            logging.info(f'MEMS NOT FOUND in {f}. Policies: {found_mems}')
-        else:
-            logging.info(f'Mems found successfully for {f}')
+        if is_q_discrepancy_improvement(disc_mem, disc_no_mem):
+            # Create file if discrepancy was reduced
+            pathlib.Path(f'{path}/{mdp_name}_{j}_{mem_fn_id}.txt').touch(exist_ok=True)
+    return
 
 def generate_pomdps(params):
     timestamp = str(time.time()).replace('.', '-')
@@ -277,7 +296,7 @@ def generate_pomdps(params):
 
             content += '\n'
 
-        with open(f'{path}/{i}_{timestamp}.POMDP', 'w') as f:
+        with open(f'{path}/{i}.POMDP', 'w') as f:
             f.write(content)
 
     return timestamp
@@ -333,6 +352,8 @@ if __name__ == '__main__':
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--run_generated', type=str,
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
+    parser.add_argument('--pomdp_id', default=None, type=int)
+    parser.add_argument('--mem_fn_id', default=None, type=int)
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
@@ -392,7 +413,9 @@ if __name__ == '__main__':
 
         print(f'Saved generated pomdp files with timestamp: {timestamp}')
     elif args.run_generated:
-        run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}')
+        run_generated(f'grl/environment/pomdp_files/generated/{args.run_generated}',
+                      pomdp_id=args.pomdp_id,
+                      mem_fn_id=args.mem_fn_id)
     else:
         # Get POMDP definition
         spec = load_spec(args.spec, args.use_memory)
