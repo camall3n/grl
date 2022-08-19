@@ -380,6 +380,7 @@ if __name__ == '__main__':
     del args.fool_ipython
 
     logging.basicConfig(format='%(message)s', level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
     if args.log:
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
