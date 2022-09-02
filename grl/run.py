@@ -214,8 +214,10 @@ def run_on_file(filepath, mem_fn_id=None):
 
     if mem_fn_id is None:
         results = []
-        for mem_fn_id, T_mem in enumerate(tqdm(
-                generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1], n_actions=spec['T'].shape[0]))):
+        for mem_fn_id, T_mem in enumerate(
+                tqdm(
+                    generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1],
+                                          n_actions=spec['T'].shape[0]))):
 
             result = record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
                                                      discrepancies_no_mem)

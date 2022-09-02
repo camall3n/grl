@@ -27,7 +27,7 @@ from grl.run import run_generated
 #         if len(markov_chains[(pomdp_id, policy_id)]) == 0:
 #             negative_results.append((pomdp_id, policy_id))
 
-negative_results = [(6, 1), (9, 1)]#(4, 0)]#, (4, 1), 
+negative_results = [(6, 1), (9, 1)] #(4, 0)]#, (4, 1),
 
 if len(negative_results) > 0:
     print('No mem fns found with pareto-improvement for:')
