@@ -3,12 +3,13 @@ import logging
 import pathlib
 import time
 from os import listdir
-from os.path import isfile, join, basename, splitext
+import os.path
 
 import numpy as np
 import jax
 import matplotlib.pyplot as plt
 import seaborn as sns
+from tqdm import tqdm
 
 from .environment import load_spec
 from .environment.pomdp_file import POMDPFile
@@ -50,6 +51,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
+            occupancy = pe._get_occupancy()
+            pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
@@ -57,6 +60,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
                 'v': np.abs(td_vals_a['v'] - mc_vals_a['v']),
                 'q': np.abs(td_vals_a['q'] - mc_vals_a['q']),
             }
+            discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             # If using memory, for mc and td, also aggregate obs-mem values into
@@ -93,6 +98,11 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
                     'v': np.abs(td_vals_x['v'] - mc_vals_x['v']),
                     'q': np.abs(td_vals_x['q'] - mc_vals_x['q']),
                 }
+                occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
+                pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
+                pr_oa = (occ_obs * pi_obs.T)
+                discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+
                 logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             discrepancies.append(discrep)
@@ -177,17 +187,19 @@ def run_generated(dir, pomdp_id=None, mem_fn_id=None):
 
         # The objective is to determine whether there are any specs for which no 1 bit memory function
         # decreases an existing discrepancy.
-        files = [f for f in listdir(dir) if isfile(join(dir, f))]
-
+        files = [f for f in listdir(dir) if os.path.isfile(os.path.join(dir, f))]
+        results = []
         for f in reversed(files):
-            run_on_file(f'{dir}/{f}')
+            results.append(run_on_file(f'{dir}/{f}'))
     else:
-        run_on_file(f'{dir}/{pomdp_id}.POMDP', mem_fn_id)
+        results = run_on_file(f'{dir}/{pomdp_id}.POMDP', mem_fn_id)
+    return results
 
 def run_on_file(filepath, mem_fn_id=None):
     spec = POMDPFile(f'{filepath}').get_spec()
-    filename = basename(filepath)
-    mdp_name = splitext(filename)[0]
+    filename = os.path.basename(filepath)
+    mdp_name = os.path.splitext(filename)[0]
+    tag = os.path.split(os.path.dirname(filepath))[-1]
 
     logging.info(f'\n\n==========================================================')
     logging.info(f'GENERATED FILE: {mdp_name}')
@@ -197,22 +209,25 @@ def run_on_file(filepath, mem_fn_id=None):
     # List with one discrepancy dict ('v' and 'q') per policy.
     discrepancies_no_mem = run_algos(spec)
 
-    path = f'grl/results/1bit_mem_conjecture/{args.run_generated}'
+    path = f'grl/results/1bit_mem_conjecture_traj_weighted/{tag}'
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     if mem_fn_id is None:
-        for T_mem in generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1],
-                                           n_actions=spec['T'].shape[0]):
+        results = []
+        for mem_fn_id, T_mem in enumerate(tqdm(
+                generate_1bit_mem_fns(n_obs=spec['phi'].shape[-1], n_actions=spec['T'].shape[0]))):
 
-            record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
-                                            discrepancies_no_mem)
+            result = record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
+                                                     discrepancies_no_mem)
+            results.append(result)
     else:
         T_mem = generate_mem_fn(mem_fn_id,
                                 n_mem_states=2,
                                 n_obs=spec['phi'].shape[-1],
                                 n_actions=spec['T'].shape[0])
-        record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
-                                        discrepancies_no_mem)
+        results = record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem,
+                                                  discrepancies_no_mem)
+    return results
 
 def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, discrepancies_no_mem):
     """Create a file if the memory function improves the discrepancy"""
@@ -223,11 +238,13 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
 
     # Check if this memory made the discrepancy decrease for each policy.
     # The mem and no_mem lists are in the same order of policies.
-    for j in range(len(discrepancies_mem)):
-        disc_no_mem = discrepancies_no_mem[j]
-        disc_mem = discrepancies_mem[j]
+    n_policies = len(discrepancies_mem)
+    mem_fn_improved_discrep = [False] * n_policies
+    for policy_id in range(n_policies):
+        disc_no_mem = discrepancies_no_mem[policy_id]
+        disc_mem = discrepancies_mem[policy_id]
 
-        def is_q_discrepancy_improvement(disc_mem, disc_no_mem) -> bool:
+        def is_pareto_q_discrepancy_improvement(disc_mem, disc_no_mem) -> bool:
             something_improved = (~np.isclose(disc_mem['q'], disc_no_mem['q'])
                                   & (disc_mem['q'] < disc_no_mem['q'])).any()
             something_got_worse = (~np.isclose(disc_mem['q'], disc_no_mem['q'])
@@ -236,10 +253,19 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
                 return True
             return False
 
-        if is_q_discrepancy_improvement(disc_mem, disc_no_mem):
+        def is_traj_weighted_q_discrepancy_improvement(disc_mem, disc_no_mem) -> bool:
+            improvement = (~np.isclose(disc_mem['q_sum'], disc_no_mem['q_sum'])
+                           & (disc_mem['q_sum'] < disc_no_mem['q_sum']))
+            if improvement:
+                return True
+            return False
+
+        # if is_pareto_q_discrepancy_improvement(disc_mem, disc_no_mem):
+        if is_traj_weighted_q_discrepancy_improvement(disc_mem, disc_no_mem):
             # Create file if discrepancy was reduced
-            pathlib.Path(f'{path}/{mdp_name}_{j}_{mem_fn_id}.txt').touch(exist_ok=True)
-    return
+            pathlib.Path(f'{path}/{mdp_name}_{policy_id}_{mem_fn_id}.txt').touch(exist_ok=True)
+            mem_fn_improved_discrep[policy_id] = True
+    return mem_fn_improved_discrep
 
 def generate_pomdps(params):
     timestamp = str(time.time()).replace('.', '-')
