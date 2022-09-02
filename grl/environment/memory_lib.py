@@ -167,3 +167,33 @@ mem_14 = np.array([
     ],
 ])
 memory_14 = np.stack([mem_14, mem_14])
+
+mem_15_solid = np.array([
+    [ # red
+        [0., 1], # s0, s1
+        [1, 0],
+    ],
+    [ # blue
+        [1, 0],
+        [1, 0],
+    ],
+    [ # terminal
+        [1, 0],
+        [1, 0],
+    ],
+])
+mem_15_dashed = np.array([
+    [ # red
+        [1., 0], # s0, s1
+        [1, 0],
+    ],
+    [ # blue
+        [1, 0],
+        [1, 0],
+    ],
+    [ # terminal
+        [1, 0],
+        [1, 0],
+    ],
+])
+memory_15 = np.stack([mem_15_solid, mem_15_dashed])

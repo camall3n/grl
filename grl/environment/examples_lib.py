@@ -591,7 +591,19 @@ def example_22():
         ]),
     ]
 
-    return to_dict(T, R, 0.999, p0, phi, Pi_phi)
+    Pi_phi_x = [
+        np.array([
+            [p, 1 - p], #r0
+            [p, 1 - p], #r1
+            [p, 1 - p], #b0
+            [p, 1 - p], #b1
+            [p, 1 - p], #t0
+            [p, 1 - p], #t1
+        ]),
+    ]
+
+
+    return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
