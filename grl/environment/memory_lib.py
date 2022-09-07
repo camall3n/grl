@@ -90,6 +90,24 @@ mem_6 = np.array([
 ])
 memory_6 = np.stack([mem_6, mem_6])
 
+mem_7 = np.array([
+    # "Have I ever seen blue?"
+    [ # red
+        #s0, s1
+        [1, 0.],
+        [0, 1],
+    ],
+    [ # blue
+        [0, 1],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_7 = np.stack([mem_7, mem_7])
+
 mem_12 = np.array([
     # always flip the bit!
     [ # red

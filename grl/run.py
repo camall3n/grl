@@ -340,16 +340,11 @@ def heatmap(spec, discrep_type='l2', num_ticks=5):
     # Run for both v and q
     value_types = ['v', 'q']
     for value_type in value_types:
-        if value_type == 'v':
-            if discrep_type == 'l2':
-                loss_fn = policy_eval.mse_loss_v
-            elif discrep_type == 'max':
-                loss_fn = policy_eval.max_loss_v
-        elif value_type == 'q':
-            if discrep_type == 'l2':
-                loss_fn = policy_eval.mse_loss_q
-            elif discrep_type == 'max':
-                loss_fn = policy_eval.max_loss_q
+
+        if discrep_type == 'l2':
+            loss_fn = policy_eval.mse_loss
+        elif discrep_type == 'max':
+            loss_fn = policy_eval.max_loss
 
         discrepancies = []
         x = y = np.linspace(0, 1, num_ticks)
@@ -358,7 +353,7 @@ def heatmap(spec, discrep_type='l2', num_ticks=5):
             for j in range(num_ticks):
                 q = y[j]
                 pi = np.array([[p, 1 - p], [q, 1 - q], [0, 0]])
-                discrepancies.append(loss_fn(pi))
+                discrepancies.append(loss_fn(pi, value_type))
 
                 if (num_ticks * i + j + 1) % 10 == 0:
                     print(f'Calculating policy {num_ticks * i + j + 1}/{num_ticks * num_ticks}')
