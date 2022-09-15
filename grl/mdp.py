@@ -21,18 +21,18 @@ def random_sparse_mask(size, sparsity):
     p = (1 - sparsity) # probability of 1
     q = (n_cols * p - 1) / (n_cols - 1) # get remaining probability after mandatory 1s
     if 0 < q <= 1:
-        some_ones = np.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
-        mask = np.concatenate([np.ones((n_rows, 1)), some_ones], axis=1)
+        some_ones = onp.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
+        mask = onp.concatenate([onp.ones((n_rows, 1)), some_ones], axis=1)
     else:
-        mask = np.concatenate([np.ones((n_rows, 1)), np.zeros((n_rows, n_cols - 1))], axis=1)
+        mask = onp.concatenate([onp.ones((n_rows, 1)), onp.zeros((n_rows, n_cols - 1))], axis=1)
     for row in mask:
-        np.random.shuffle(row)
+        onp.random.shuffle(row)
     return mask
 
 def random_stochastic_matrix(size):
     alpha_size = size[-1]
     out_size = size[:-1] if len(size) > 1 else None
-    return onp.random.dirichlet(np.ones(alpha_size), out_size)
+    return onp.random.dirichlet(onp.ones(alpha_size), out_size)
 
 def random_reward_matrix(Rmin, Rmax, size):
     R = onp.random.uniform(Rmin, Rmax, size)
