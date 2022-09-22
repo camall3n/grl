@@ -2,9 +2,10 @@ import numpy as np
 
 from . import examples_lib
 from . import memory_lib
+from . import tmaze_lib
 from .pomdp_file import POMDPFile
 
-def load_spec(name, memory_id=None):
+def load_spec(name, memory_id: int = None, tmaze_corridor_length: int = 5):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -14,11 +15,15 @@ def load_spec(name, memory_id=None):
     # Try to load from examples_lib first
     # then from pomdp_files
     spec = None
-    try:
-        spec = getattr(examples_lib, name)()
+    if 'tmaze' in name:
+        spec = getattr(tmaze_lib, name)(tmaze_corridor_length)
+    else:
+        try:
+            spec = getattr(examples_lib, name)()
 
-    except AttributeError as _:
-        pass
+        except AttributeError as _:
+            pass
+
     if spec is None:
         try:
             spec = POMDPFile(name).get_spec()

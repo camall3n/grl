@@ -8,13 +8,13 @@ import jax
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .environment import *
-from .mdp import MDP, AbstractMDP
-from .td_lambda import td_lambda
-from .policy_eval import PolicyEval
-from .memory import memory_cross_product
-from .grad import do_grad
-from .utils import pformat_vals, RTOL
+from grl.environment import *
+from grl.mdp import MDP, AbstractMDP
+from grl.td_lambda import td_lambda
+from grl.policy_eval import PolicyEval
+from grl.memory import memory_cross_product
+from grl.grad import do_grad
+from grl.utils import pformat_vals, RTOL
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -216,6 +216,10 @@ if __name__ == '__main__':
         help='number of rollouts to run')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
+
+    parser.add_argument('--tmaze_corridor_length', default=5, type=int,
+                        help='[T-MAZE] length of t-maze corridor')
+
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
@@ -225,12 +229,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     del args.fool_ipython
 
-    logging.basicConfig(format='%(message)s', level=logging.INFO)
+    logging.basicConfig(format='%(message)s', level=logging.INFO, handlers=[logging.StreamHandler()])
+    logging.getLogger().setLevel(logging.INFO)
     if args.log:
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
         mem_part = 'no_memory'
-        if args.use_memory > 0:
+        if args.use_memory is not None and args.use_memory > 0:
             mem_part = f'memory_{args.use_memory}'
         name = f'logs/{args.spec}-{mem_part}-{time.time()}.log'
         rootLogger.addHandler(logging.FileHandler(name))
@@ -240,7 +245,7 @@ if __name__ == '__main__':
         jax.random.PRNGKey(args.seed)
 
     # Get POMDP definition
-    spec = environment.load_spec(args.spec, args.use_memory)
+    spec = environment.load_spec(args.spec, memory_id=args.use_memory, tmaze_corridor_length=args.tmaze_corridor_length)
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
     logging.info(f'R:\n {spec["R"]}')

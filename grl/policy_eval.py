@@ -1,6 +1,6 @@
 import logging
 
-import jax.numpy as np
+import numpy as np
 from jax.config import config
 
 config.update("jax_enable_x64", True)

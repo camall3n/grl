@@ -1,6 +1,6 @@
 import numpy as np
 
-from grl.grl import load_spec, do_grad, RTOL
+from grl import load_spec, do_grad, RTOL
 
 def test_example_7_p():
     """

@@ -1,7 +1,7 @@
 from .mdp import MDP, AbstractMDP
 
 # import numpy as np
-import jax.numpy as np
+import numpy as np
 from jax.config import config
 
 config.update("jax_enable_x64", True)

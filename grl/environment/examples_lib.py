@@ -593,6 +593,30 @@ def example_22():
 
     return to_dict(T, R, 0.999, p0, phi, Pi_phi)
 
+
+def simple_chain(n: int = 10):
+    T = np.zeros((n, n))
+    states = np.arange(n)
+    starts = states[:-1]
+    ends = states[1:]
+    T[starts, ends] = 1
+    T[n - 1, n - 1] = 1
+    T = np.expand_dims(T, 0)
+
+    R = np.zeros((n, n))
+    R[-2, -1] = 1
+    R = np.expand_dims(R, 0)
+
+    p0 = np.zeros(n)
+    p0[0] = 1
+
+    phi = np.eye(n)
+
+    Pi_phi = [np.ones((n, 1))]
+
+    return to_dict(T, R, 0.9, p0, phi, Pi_phi)
+
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,

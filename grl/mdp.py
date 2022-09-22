@@ -1,7 +1,6 @@
 import copy
-# import gmpy
-import numpy as onp
-import jax.numpy as np
+from gmpy2 import mpz
+import numpy as np
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -63,7 +62,7 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 class MDP:
-    def __init__(self, T, R, p0, gamma=0.9):
+    def __init__(self, T, R, p0, gamma: float = 0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
@@ -79,7 +78,7 @@ class MDP:
 
     def get_policy(self, i):
         assert i < self.n_actions**self.n_states
-        pi_string = gmpy.digits(i, self.n_actions).zfill(self.n_states)
+        pi_string = mpz(str(i)).digits(self.n_actions).zfill(self.n_states)
         pi = np.asarray(list(pi_string), dtype=int)
         return pi
 
@@ -106,14 +105,14 @@ class MDP:
 
     def step(self, s, a, gamma):
         pr_next_s = self.T[a, s, :]
-        sp = onp.random.choice(self.n_states, p=pr_next_s)
+        sp = np.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         # Check if sp is terminal state
         sp_is_absorbing = (self.T[:, sp, sp] == 1)
         done = sp_is_absorbing.all()
         # Discounting
         # End episode with probability 1-gamma
-        if onp.random.uniform() < (1 - gamma):
+        if np.random.uniform() < (1 - gamma):
             done = True
 
         return sp, r, done
@@ -203,7 +202,7 @@ class AbstractMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
-        return onp.random.choice(self.n_obs, p=self.phi[s])
+        return np.random.choice(self.n_obs, p=self.phi[s])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
@@ -243,7 +242,7 @@ class AbstractMDP(MDP):
     def generate_random_policies(self, n):
         policies = []
         for _ in range(n):
-            policies.append(onp.random.dirichlet(np.ones(self.n_actions), self.n_obs))
+            policies.append(np.random.dirichlet(np.ones(self.n_actions), self.n_obs))
 
         return policies
 
