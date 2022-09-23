@@ -4,7 +4,7 @@ from grl.mdp import MDP, AbstractMDP
 from grl.environment.tmaze_lib import tmaze
 
 
-if __name__ == "__main__":
+def test_tmaze():
     corridor_length = 0
     T, R, gamma, p0, phi = tmaze(corridor_length)
     mdp = MDP(T, R, p0, gamma=gamma)

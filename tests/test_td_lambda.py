@@ -5,7 +5,7 @@ from grl import environment
 from grl.td_lambda import td_lambda
 
 
-if __name__ == "__main__":
+def test_td_lambda():
     chain_length = 10
     spec = environment.load_spec('simple_chain', memory_id=None)
     n_episodes = 10000

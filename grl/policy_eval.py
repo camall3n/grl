@@ -92,7 +92,7 @@ class PolicyEval:
                 continue
             p_π_of_s_given_o = w / w.sum()
             weighted_q = (mdp_q_vals * p_π_of_s_given_o).sum(1)
-            amdp_q_vals = amdp_q_vals.at[:, ob].set(weighted_q)
+            amdp_q_vals[:, ob] = weighted_q
 
         # V vals
         amdp_v_vals = (amdp_q_vals * self.pi_abs.T).sum(0)
@@ -126,8 +126,7 @@ class PolicyEval:
                 # T
                 T_contributions = (self.amdp.T * p_π_of_s_given_o * p_π_of_op_given_sp)
                 # sum over s', then over s
-                # T_obs_obs[:,curr_ob,next_ob] = T_contributions.sum(2).sum(1)
-                T_obs_obs = T_obs_obs.at[:, curr_ob, next_ob].set(T_contributions.sum(2).sum(1))
+                T_obs_obs[:, curr_ob, next_ob] = T_contributions.sum(2).sum(1)
 
                 # R
                 R_contributions = self.amdp.R * T_contributions
@@ -136,8 +135,7 @@ class PolicyEval:
                                  denom) # Avoid divide by zero (there may be a better way)
                 R_contributions /= denom
 
-                # R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
-                R_obs_obs = R_obs_obs.at[:, curr_ob, next_ob].set(R_contributions.sum(2).sum(1))
+                R_obs_obs[:, curr_ob, next_ob] = R_contributions.sum(2).sum(1)
 
         if self.verbose:
             logging.info(f'T_bar:\n {T_obs_obs}')
