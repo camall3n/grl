@@ -229,7 +229,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     del args.fool_ipython
 
-    logging.basicConfig(format='%(message)s', level=logging.INFO, handlers=[logging.StreamHandler()])
+    logging.basicConfig(format='%(message)s', level=logging.INFO)
     logging.getLogger().setLevel(logging.INFO)
     if args.log:
         pathlib.Path('logs').mkdir(exist_ok=True)
