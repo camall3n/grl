@@ -38,9 +38,9 @@ def test_example_7_m():
             [1, 0],
         ],
     ])
-    spec['T_mem'] = memory_start
+    spec['T_mem'] = np.array([memory_start, memory_start])
 
-    memory_known = np.array([
+    memory_end = np.array([
         [ # red
             [1., 0], # s0, s1
             [1, 0],
@@ -54,6 +54,9 @@ def test_example_7_m():
             [1, 0],
         ],
     ])
+    # Policy is all up, so only up action memory is changed
+    memory_end = np.array([memory_end, memory_start])
+
     pi = np.array([
         [1., 0],
         [1, 0],
@@ -64,4 +67,4 @@ def test_example_7_m():
     ])
     memory_grad = do_grad(spec, pi, 'm', lr=1)
 
-    assert np.allclose(memory_known, memory_grad, atol=1e-5)
+    assert np.allclose(memory_end, memory_grad, atol=1e-5)
