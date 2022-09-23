@@ -593,7 +593,6 @@ def example_22():
 
     return to_dict(T, R, 0.999, p0, phi, Pi_phi)
 
-
 def simple_chain(n: int = 10):
     T = np.zeros((n, n))
     states = np.arange(n)
@@ -615,7 +614,6 @@ def simple_chain(n: int = 10):
     Pi_phi = [np.ones((n, 1))]
 
     return to_dict(T, R, 0.9, p0, phi, Pi_phi)
-
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {

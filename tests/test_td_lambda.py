@@ -1,7 +1,7 @@
 import numpy as np
 
-from grl.mdp import MDP
-from grl import environment
+
+from grl import MDP, environment
 from grl.td_lambda import td_lambda
 
 
@@ -10,6 +10,7 @@ def test_td_lambda():
     spec = environment.load_spec('simple_chain', memory_id=None)
     n_episodes = 10000
 
+    print(f"Testing TD(lambda) on Simple Chain over {n_episodes} episodes")
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     policies = spec['Pi_phi']
 
@@ -25,7 +26,5 @@ def test_td_lambda():
 
     print(f"Calculated values: {v[:-1]}\n"
           f"Ground-truth values: {ground_truth_vals}")
-
     assert np.all(np.isclose(v[:-1], ground_truth_vals, atol=1e-3))
-
 

@@ -1,6 +1,7 @@
 import copy
 from gmpy2 import mpz
-import numpy as np
+import numpy as onp
+import jax.numpy as np
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -8,7 +9,7 @@ def normalize(M, axis=-1):
         denoms = M.sum(axis=axis, keepdims=True)
     else:
         denoms = M.sum()
-    M = np.divide(M, denoms.astype(float), out=np.zeros_like(M), where=(denoms != 0))
+    M = onp.divide(M, denoms.astype(float), out=onp.zeros_like(M), where=(denoms != 0))
     return M
 
 def is_stochastic(M):
@@ -19,26 +20,27 @@ def random_sparse_mask(size, sparsity):
     p = (1 - sparsity) # probability of 1
     q = (n_cols * p - 1) / (n_cols - 1) # get remaining probability after mandatory 1s
     if 0 < q <= 1:
-        some_ones = np.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
-        mask = np.concatenate([np.ones((n_rows, 1)), some_ones], axis=1)
+        some_ones = onp.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
+        mask = onp.concatenate([onp.ones((n_rows, 1)), some_ones], axis=1)
     else:
-        mask = np.concatenate([np.ones((n_rows, 1)), np.zeros((n_rows, n_cols - 1))], axis=1)
+        mask = onp.concatenate([onp.ones((n_rows, 1)), onp.zeros((n_rows, n_cols - 1))], axis=1)
     for row in mask:
-        np.random.shuffle(row)
+        onp.random.shuffle(row)
     return mask
 
-def random_transition_matrix(size):
-    T = normalize(np.random.rand(*size))
-    return T
+def random_stochastic_matrix(size):
+    alpha_size = size[-1]
+    out_size = size[:-1] if len(size) > 1 else None
+    return onp.random.dirichlet(onp.ones(alpha_size), out_size)
 
 def random_reward_matrix(Rmin, Rmax, size):
-    R = np.random.uniform(Rmin, Rmax, size)
-    R = np.round(R, 2)
+    R = onp.random.uniform(Rmin, Rmax, size)
+    R = onp.round(R, 2)
     return R
 
 def random_observation_fn(n_states, n_obs_per_block):
     all_state_splits = [
-        random_transition_matrix(size=(1, n_obs_per_block)) for _ in range(n_states)
+        random_stochastic_matrix(size=(1, n_obs_per_block)) for _ in range(n_states)
     ]
     all_state_splits = np.stack(all_state_splits).squeeze()
     #e.g.[[p, 1-p],
@@ -62,7 +64,7 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 class MDP:
-    def __init__(self, T, R, p0, gamma: float = 0.9):
+    def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
@@ -78,9 +80,12 @@ class MDP:
 
     def get_policy(self, i):
         assert i < self.n_actions**self.n_states
-        pi_string = mpz(str(i)).digits(self.n_actions).zfill(self.n_states)
-        pi = np.asarray(list(pi_string), dtype=int)
-        return pi
+        if not (2 <= self.n_actions <= 62):
+            raise ValueError(f'gmpy2.mpz.digits only supports integer bases in the'
+                             'range [2, 62], but n_actions = {self.n_actions}')
+        policy_str = mpz(str(i)).digits(mpz(str(self.n_actions))).zfill(self.n_states)
+        policy = np.array([int(x) for x in reversed(policy_str)])
+        return policy
 
     def all_policies(self):
         policies = []
@@ -105,14 +110,14 @@ class MDP:
 
     def step(self, s, a, gamma):
         pr_next_s = self.T[a, s, :]
-        sp = np.random.choice(self.n_states, p=pr_next_s)
+        sp = onp.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         # Check if sp is terminal state
         sp_is_absorbing = (self.T[:, sp, sp] == 1)
         done = sp_is_absorbing.all()
         # Discounting
         # End episode with probability 1-gamma
-        if np.random.uniform() < (1 - gamma):
+        if onp.random.uniform() < (1 - gamma):
             done = True
 
         return sp, r, done
@@ -146,7 +151,7 @@ class MDP:
         T = [] # List of s -> s transition matrices, one for each action
         R = [] # List of s -> s reward matrices, one for each action
         for a in range(n_actions):
-            T_a = random_transition_matrix(size=(n_states, n_states))
+            T_a = random_stochastic_matrix(size=(n_states, n_states))
             R_a = random_reward_matrix(Rmin, Rmax, (n_states, n_states))
             if sparsity > 0:
                 mask = random_sparse_mask((n_states, n_states), sparsity)
@@ -154,7 +159,8 @@ class MDP:
                 R_a = R_a * mask
             T.append(T_a)
             R.append(R_a)
-        mdp = cls(T, R, gamma)
+        p0 = random_stochastic_matrix(size=[n_states])
+        mdp = cls(T, R, p0, gamma)
         return mdp
 
 class BlockMDP(MDP):
@@ -202,7 +208,7 @@ class AbstractMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
-        return np.random.choice(self.n_obs, p=self.phi[s])
+        return onp.random.choice(self.n_obs, p=self.phi[s])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
@@ -242,9 +248,15 @@ class AbstractMDP(MDP):
     def generate_random_policies(self, n):
         policies = []
         for _ in range(n):
-            policies.append(np.random.dirichlet(np.ones(self.n_actions), self.n_obs))
+            policies.append(random_stochastic_matrix((self.n_obs, self.n_actions)))
 
         return policies
+
+    @classmethod
+    def generate(cls, n_states, n_actions, n_obs, sparsity=0, gamma=0.9, Rmin=-1, Rmax=1):
+        mdp = MDP.generate(n_states, n_actions, sparsity, gamma, Rmin, Rmax)
+        phi = random_stochastic_matrix(size=(n_states, n_obs))
+        return cls(mdp, phi)
 
 class UniformAbstractMDP(AbstractMDP):
     def __init__(self, base_mdp, phi, pi=None, p0=None):
