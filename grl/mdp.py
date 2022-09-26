@@ -83,12 +83,7 @@ class MDP:
         if not (2 <= self.n_actions <= 62):
             raise ValueError(f'gmpy2.mpz.digits only supports integer bases in the'
                              'range [2, 62], but n_actions = {self.n_actions}')
-<<<<<<< HEAD
         policy_str = mpz(str(i)).digits(mpz(str(self.n_actions))).zfill(self.n_states)
-=======
-        x = mpz(str(i))
-        policy_str = x.digits(mpz(str(self.n_actions))).zfill(self.n_states)
->>>>>>> cam/main
         policy = np.array([int(x) for x in reversed(policy_str)])
         return policy
 
