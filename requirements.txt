@@ -4,3 +4,4 @@ jax[cpu]
 seaborn
 matplotlib
 -e .
+tqdm

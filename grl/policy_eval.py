@@ -83,8 +83,8 @@ class PolicyEval:
 
         # Q vals
         for ob in range(self.amdp.n_obs):
-            p_π_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
-            w = occupancy * p_π_of_o_given_s
+            p_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
+            w = occupancy * p_of_o_given_s
             # Skip this ob (leave vals at 0) if w is full of 0s
             # as this means it will never be occupied
             # and normalizing comes up as nans
@@ -109,9 +109,9 @@ class PolicyEval:
             # phi is |S|x|O|
             ###### curr_a = self.pi[curr_ob]
             # compute p_π(o|s) for all s
-            p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
+            p_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
-            w = occupancy * p_π_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
+            w = occupancy * p_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
             # Skip this ob (leave vals at 0) if w is full of 0s
             # as this means it will never be occupied
             # and normalizing comes up as nans

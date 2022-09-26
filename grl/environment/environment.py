@@ -26,7 +26,7 @@ def load_spec(name, memory_id: int = None, tmaze_corridor_length: int = 5):
 
     if spec is None:
         try:
-            spec = POMDPFile(name).get_spec()
+            spec = POMDPFile(f'grl/environment/pomdp_files/{name}.POMDP').get_spec()
         except FileNotFoundError as _:
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None

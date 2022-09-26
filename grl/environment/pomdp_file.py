@@ -5,9 +5,8 @@ from .examples_lib import to_dict
 class POMDPFile:
     """
     Adapted from https://github.com/mbforbes/py-pomdp/blob/master/pomdp.py
-    
+
     Library of .POMDP files: http://pomdp.org/examples/
-    
     For more info on format: http://pomdp.org/code/pomdp-file-spec.html
     """
     def __init__(self, filename):
@@ -24,7 +23,7 @@ class POMDPFile:
             R
             Pi_phi
         """
-        f = open(f'grl/environment/pomdp_files/{filename}.POMDP', 'r')
+        f = open(filename, 'r')
         self.contents = [
             x.strip() for x in f.readlines() if (not (x.startswith("#") or x.isspace()))
         ]
@@ -311,7 +310,7 @@ class POMDPFile:
                 else float(self.contents[i+1])
             self.__reward_ss(action, start_state_raw, next_state_raw, obs_raw, prob)
             return i + 1 if len(pieces) == 5 else i + 2
-        elif len(pieces == 3):
+        elif len(pieces) == 3:
             # case 2: R: <action> : <start-state> : <next-state>
             # %f %f ... %f
             start_state = self.states.index(pieces[1])
@@ -323,7 +322,7 @@ class POMDPFile:
                 prob = float(probs[j])
                 self.R[action, start_state, next_state, j] = prob
             return i + 2
-        elif len(pieces == 2):
+        elif len(pieces) == 2:
             # case 3: R: <action> : <start-state>
             # %f %f ... %f
             # %f %f ... %f
