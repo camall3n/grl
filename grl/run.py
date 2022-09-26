@@ -394,9 +394,6 @@ if __name__ == '__main__':
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
 
-    parser.add_argument('--tmaze_corridor_length', default=5, type=int,
-                        help='[T-MAZE] length of t-maze corridor')
-
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
