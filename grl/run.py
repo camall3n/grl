@@ -23,7 +23,7 @@ def run_algos(spec, method, n_random_policies, use_grad, n_episodes):
     amdp = AbstractMDP(mdp, spec['phi'])
 
     policies = spec['Pi_phi']
-    if 'T_mem' in spec.keys():
+    if 'T_mem' in spec.keys() and spec['T_mem'] is not None:
         amdp = memory_cross_product(amdp, spec['T_mem'])
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
@@ -245,7 +245,9 @@ if __name__ == '__main__':
         jax.random.PRNGKey(args.seed)
 
     # Get POMDP definition
-    spec = environment.load_spec(args.spec, memory_id=args.use_memory, tmaze_corridor_length=args.tmaze_corridor_length)
+    spec = environment.load_spec(args.spec,
+                                 memory_id=args.use_memory,
+                                 tmaze_corridor_length=args.tmaze_corridor_length)
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
     logging.info(f'R:\n {spec["R"]}')

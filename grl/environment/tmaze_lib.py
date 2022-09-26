@@ -5,10 +5,10 @@ def tmaze(n: int, discount: float = 0.9):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
     """
-    n_states = 2 * n  # corridors
-    n_states += 2  # start states
-    n_states += 2  # T junctions
-    n_states += 1  # terminal state
+    n_states = 2 * n # corridors
+    n_states += 2 # start states
+    n_states += 2 # T junctions
+    n_states += 1 # terminal state
 
     T_up = np.eye(n_states, n_states)
     T_down = T_up.copy()
@@ -24,7 +24,7 @@ def tmaze(n: int, discount: float = 0.9):
 
     # At the leftmost and rightmost states we transition to ourselves
     T_left[[0, 1], [0, 1]] = 1
-    T_right[[-1 - 1, -2 - 1], [-1 -1, -2 - 1]] = 1
+    T_right[[-1 - 1, -2 - 1], [-1 - 1, -2 - 1]] = 1
 
     # transition to -2 (left) or +2 (right) index
     all_nonterminal_idxes = np.arange(n_states - 1)
@@ -63,39 +63,18 @@ def tmaze(n: int, discount: float = 0.9):
     phi[0, 0] = 1
     phi[1, 1] = 1
 
-    phi[2:2 + n, 2] = 1
-    if n > 0:
-        phi[2 + n, 2] = 1
+    phi[2:-3, 2] = 1
 
     phi[-3:, 3] = 1
 
     return T, R, discount, p0, phi
 
-
 def tmaze_up(n: int, discount: float = 0.9):
     # n_obs x n_actions
-    Pi_phi = [
-        np.array([
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [1, 0, 0, 0]
-        ])
-    ]
+    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [1, 0, 0, 0]])]
     return to_dict(*tmaze(n, discount=discount), Pi_phi)
 
 def tmaze_two_thirds_up(n: int, discount: float = 0.9):
     # n_obs x n_actions
-    Pi_phi = [
-        np.array([
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [2/3, 0, 1/3, 0]
-        ])
-    ]
+    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [2 / 3, 0, 1 / 3, 0]])]
     return to_dict(*tmaze(n, discount=discount), Pi_phi)
-
-
-
-

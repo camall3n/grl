@@ -3,9 +3,8 @@ import numpy as np
 from grl.mdp import MDP, AbstractMDP
 from grl.environment.tmaze_lib import tmaze
 
-
 def test_tmaze():
-    corridor_length = 0
+    corridor_length = 5
     T, R, gamma, p0, phi = tmaze(corridor_length)
     mdp = MDP(T, R, p0, gamma=gamma)
     pomdp = AbstractMDP(mdp, phi)
@@ -24,7 +23,8 @@ def test_tmaze():
         elif s == 1:
             assert ob == 1
 
-    assert np.all(np.isclose(start_counts / n_samples, np.zeros_like(start_counts) + 0.5, atol=1e-1))
+    assert np.all(
+        np.isclose(start_counts / n_samples, np.zeros_like(start_counts) + 0.5, atol=1e-1))
 
     # Now we test bumping
     bump_ns_states = np.arange(0, mdp.n_states - 3).astype(int)
@@ -85,9 +85,9 @@ def test_tmaze():
     all_2_obs_states = np.arange(2, mdp.n_states - 2 - 1)
     all_3_obs_states = np.arange(mdp.n_states - 2 - 1, mdp.n_states)
 
-    for i, list_s in enumerate([all_0_obs_states, all_1_obs_states, all_2_obs_states, all_3_obs_states]):
+    for i, list_s in enumerate(
+        [all_0_obs_states, all_1_obs_states, all_2_obs_states, all_3_obs_states]):
         for s in list_s:
             assert pomdp.observe(s) == i
 
     print("All tests passed for T-maze")
-

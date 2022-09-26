@@ -1,6 +1,9 @@
 import logging
 
 import numpy as np
+import jax.numpy as jnp
+from jax import jit
+from functools import partial
 from jax.config import config
 
 config.update("jax_enable_x64", True)
@@ -39,65 +42,101 @@ class PolicyEval:
         return mdp_vals, mc_vals, td_vals
 
     def _solve_mdp(self, mdp, pi):
+        return self._functional_solve_mdp(pi, mdp.T, mdp.R, mdp.gamma, mdp.n_states)
+
+    @partial(jit, static_argnums=[0, -2, -1])
+    def _functional_solve_mdp(self, pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma: float,
+                              n_states: int):
         """
         Solves for V using linear equations.
         For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
         """
         Pi_pi = pi.transpose()[..., None]
-        T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
-        R_pi = (Pi_pi * mdp.T * mdp.R).sum(axis=0).sum(axis=-1) # R^π(s)
+        T_pi = (Pi_pi * T).sum(axis=0) # T^π(s'|s)
+        R_pi = (Pi_pi * T * R).sum(axis=0).sum(axis=-1) # R^π(s)
 
         # A*V_pi(s) = b
         # A = (I - \gamma (T^π))
         # b = R^π
-        A = (np.eye(mdp.n_states) - mdp.gamma * T_pi)
+        A = (jnp.eye(n_states) - gamma * T_pi)
         b = R_pi
-        v_vals = np.linalg.solve(A, b)
+        v_vals = jnp.linalg.solve(A, b)
 
-        R_sa = (mdp.T * mdp.R).sum(axis=-1) # R(s,a)
-        q_vals = (R_sa + (mdp.gamma * mdp.T @ v_vals))
+        R_sa = (T * R).sum(axis=-1) # R(s,a)
+        q_vals = (R_sa + (gamma * T @ v_vals))
 
         return {'v': v_vals, 'q': q_vals}
 
     def _get_occupancy(self):
+        return self._functional_get_occupancy(self.pi_ground, self.amdp.T, self.amdp.p0,
+                                              self.amdp.gamma, self.amdp.n_states)
+
+    @partial(jit, static_argnums=[0, -2, -1])
+    def _functional_get_occupancy(self, pi_ground: jnp.ndarray, T: jnp.ndarray, p0: jnp.ndarray,
+                                  gamma: float, n_states: int):
         """
         Finds the visitation count, C_pi(s), of each state.
         For all s, C_pi(s) = p0(s) + sum_s^ sum_a[C_pi(s^) * gamma * T(s|a,s^) * pi(a|s^)],
           where s^ is the prev state
         """
-        Pi_pi = self.pi_ground.transpose()[..., None]
-        T_pi = (Pi_pi * self.amdp.T).sum(axis=0) # T^π(s'|s)
+        Pi_pi = pi_ground.transpose()[..., None]
+        T_pi = (Pi_pi * T).sum(axis=0) # T^π(s'|s)
 
         # A*C_pi(s) = b
         # A = (I - \gamma (T^π)^T)
         # b = P_0
-        A = np.eye(self.amdp.n_states) - self.amdp.gamma * T_pi.transpose()
-        b = self.amdp.p0
-        return np.linalg.solve(A, b)
+        A = np.eye(n_states) - gamma * T_pi.transpose()
+        b = p0
+        return jnp.linalg.solve(A, b)
 
     def _solve_amdp(self, mdp_q_vals, occupancy):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        amdp_q_vals = np.zeros((self.amdp.n_actions, self.amdp.n_obs))
+        amdp_q_vals = jnp.zeros((self.amdp.n_actions, self.amdp.n_obs))
 
         # Q vals
         for ob in range(self.amdp.n_obs):
-            p_π_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
-            w = occupancy * p_π_of_o_given_s
+            p_of_o_given_s = self.amdp.phi[:, ob].copy().astype('float')
+            w = occupancy * p_of_o_given_s
             # Skip this ob (leave vals at 0) if w is full of 0s
             # as this means it will never be occupied
             # and normalizing comes up as nans
             if np.all(w == 0):
                 continue
-            p_π_of_s_given_o = w / w.sum()
-            weighted_q = (mdp_q_vals * p_π_of_s_given_o).sum(1)
-            amdp_q_vals[:, ob] = weighted_q
+            p_pi_of_s_given_o = w / w.sum()
+            weighted_q = (mdp_q_vals * p_pi_of_s_given_o).sum(1)
+            amdp_q_vals = amdp_q_vals.at[:, ob].set(weighted_q)
 
         # V vals
         amdp_v_vals = (amdp_q_vals * self.pi_abs.T).sum(0)
 
         return {'v': amdp_v_vals, 'q': amdp_q_vals}
+
+    # def _solve_amdp(self, mdp_q_vals, occupancy):
+    #     """
+    #     Weights the value contribution of each state to each observation for the amdp
+    #     """
+    #     return self._functional_solve_amdp(self.amdp.n_obs, self.amdp.phi, self.pi_abs,
+    #                            mdp_q_vals, occupancy)
+    #
+    # @partial(jit, static_argnums=[0, 1])
+    # def _functional_solve_amdp(self, n_obs: int,
+    #                            phi: jnp.ndarray, pi_abs: jnp.ndarray,
+    #                            mdp_q_vals: jnp.ndarray, occupancy: jnp.ndarray):
+    #     repeat_occupancy = jnp.repeat(occupancy[..., None], n_obs, -1)
+    #
+    #     # Q vals
+    #     p_π_of_o_given_s = phi.astype('float')
+    #     w = repeat_occupancy * p_π_of_o_given_s
+    #
+    #     p_π_of_s_given_o = w / (w.sum() + 1e-10)
+    #     amdp_q_vals = (mdp_q_vals @ p_π_of_s_given_o).sum(1)
+    #
+    #     # V vals
+    #     amdp_v_vals = (amdp_q_vals * pi_abs.T).sum(0)
+    #
+    #     return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
     def _create_td_model(self, occupancy):
         """

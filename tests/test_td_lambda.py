@@ -1,9 +1,7 @@
 import numpy as np
 
-
 from grl import MDP, environment
 from grl.td_lambda import td_lambda
-
 
 def test_td_lambda():
     chain_length = 10
@@ -14,7 +12,7 @@ def test_td_lambda():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     policies = spec['Pi_phi']
 
-    ground_truth_vals = spec['gamma'] ** np.arange(chain_length - 2, -1, -1)
+    ground_truth_vals = spec['gamma']**np.arange(chain_length - 2, -1, -1)
 
     v, q = td_lambda(
         mdp,
@@ -27,4 +25,3 @@ def test_td_lambda():
     print(f"Calculated values: {v[:-1]}\n"
           f"Ground-truth values: {ground_truth_vals}")
     assert np.all(np.isclose(v[:-1], ground_truth_vals, atol=1e-3))
-
