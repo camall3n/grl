@@ -42,7 +42,6 @@ def memory_cross_product(amdp, T_mem):
 
     # Assuming memory starts with all 0s
     p0_x = np.zeros(n_states_x)
-    # p0_x[::n_states_m] = amdp.p0
     p0_x = p0_x.at[::n_states_m].set(amdp.p0)
     mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
     return AbstractMDP(mdp_x, phi_x)

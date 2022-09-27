@@ -1,6 +1,6 @@
 import numpy as np
 
-from grl.grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
+from grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
 
 def assert_pe_results(spec, answers, use_memory=False):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])

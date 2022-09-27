@@ -393,6 +393,7 @@ if __name__ == '__main__':
         help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; generate pomdp specs and save to environment/pomdp_files/generated/')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
+
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
@@ -408,7 +409,7 @@ if __name__ == '__main__':
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
         mem_part = 'no_memory'
-        if args.use_memory:
+        if args.use_memory is not None and args.use_memory > 0:
             mem_part = f'memory_{args.use_memory}'
         if args.run_generated:
             name = f'logs/{args.run_generated}.log'

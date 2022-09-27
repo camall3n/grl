@@ -4,7 +4,7 @@ from . import examples_lib
 from . import memory_lib
 from .pomdp_file import POMDPFile
 
-def load_spec(name, memory_id=None):
+def load_spec(name, memory_id: int = None):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -19,6 +19,7 @@ def load_spec(name, memory_id=None):
 
     except AttributeError as _:
         pass
+
     if spec is None:
         try:
             spec = POMDPFile(f'grl/environment/pomdp_files/{name}.POMDP').get_spec()

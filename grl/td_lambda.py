@@ -15,15 +15,18 @@ def td_lambda(
     if pi_ground.shape[0] != mdp.n_states:
         raise ValueError("pi must be a valid policy for the ground mdp")
 
+    print(f"Running TD(λ) with λ = {lambda_}")
+
     q = np.zeros((mdp.n_actions, mdp.n_obs))
 
     for i in range(n_episodes):
         z = np.zeros((mdp.n_actions, mdp.n_obs)) # eligibility traces
         s = np.random.choice(mdp.n_states, p=mdp.p0)
+        a = np.random.choice(mdp.n_actions, p=pi_ground[s])
         done = False
         while not done:
-            a = np.random.choice(mdp.n_actions, p=pi_ground[s])
             next_s, r, done = mdp.step(s, a, mdp.gamma)
+            next_a = np.random.choice(mdp.n_actions, p=pi_ground[next_s])
             ob = mdp.observe(s)
             next_ob = mdp.observe(next_s)
 
@@ -40,10 +43,11 @@ def td_lambda(
             z *= lambda_
             z[a, ob] += 1 # Accumulating traces
             # z[a, ob] = 1 # Replacing traces
-            delta = r + mdp.gamma * q[a, next_ob] - q[a, ob]
+            delta = r + mdp.gamma * q[next_a, next_ob] - q[a, ob]
             q += alpha * delta * z
 
             s = next_s
+            a = next_a
 
         if i % (n_episodes / 10) == 0:
             print(f'Sampling episode: {i}/{n_episodes}')

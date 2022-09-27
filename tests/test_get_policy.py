@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from grl.grl.mdp import MDP
+from grl.mdp import MDP
 
 @pytest.fixture()
 def mdp():

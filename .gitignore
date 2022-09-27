@@ -16,4 +16,5 @@ archive/
 logs/
 .DS_Store
 *.bin
+*.egg-info/
 generated/
