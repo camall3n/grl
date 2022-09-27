@@ -4,14 +4,14 @@ from .memory_lib import *
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
-        T:        transition tensor (terminal states have all outgoing 0s),
+        T:        transition tensor,
         R:        reward tensor,
         gamma:    discount factor,
         p0:       starting state probabilities,
         phi:      observation matrix (currently the same for all actions),
-        Pi_phi:   policies to evaluate
+        Pi_phi:   policies to evaluate in the observation space of the POMDP
         T_mem:    memory transition function
-        Pi_phi_x: policies to evaluate in the cross product of the underyling MDP and memory function
+        Pi_phi_x: policies to evaluate in the observation space of the cross product of the underyling MDP and memory function
     }
 
 Functions named 'example_*' come from examples in the GRL workbook.
@@ -110,17 +110,17 @@ def example_7():
             [1, 0], # up, down
             [1, 0],
             [1, 0],
-            # ]),
-            # np.array([
-            #     [0, 1],
-            #     [0, 1],
-            #     [0, 1],
-            # ]),
-            # np.array([
-            #     [4 / 7, 3 / 7], # known location of no discrepancy
-            #     [1, 0],
-            #     [1, 0],
-        ])
+        ]),
+        # np.array([
+        #     [0, 1],
+        #     [0, 1],
+        #     [0, 1],
+        # ]),
+        # np.array([
+        #     [4 / 7, 3 / 7], # known location of no discrepancy
+        #     [1, 0],
+        #     [1, 0],
+        # ])
     ]
 
     Pi_phi_x = [
@@ -591,7 +591,18 @@ def example_22():
         ]),
     ]
 
-    return to_dict(T, R, 0.999, p0, phi, Pi_phi)
+    Pi_phi_x = [
+        np.array([
+            [p, 1 - p], #r0
+            [p, 1 - p], #r1
+            [p, 1 - p], #b0
+            [p, 1 - p], #b1
+            [p, 1 - p], #t0
+            [p, 1 - p], #t1
+        ]),
+    ]
+
+    return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
 
 def simple_chain(n: int = 10):
     T = np.zeros((n, n))

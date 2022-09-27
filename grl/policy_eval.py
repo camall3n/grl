@@ -148,9 +148,9 @@ class PolicyEval:
             # phi is |S|x|O|
             ###### curr_a = self.pi[curr_ob]
             # compute p_π(o|s) for all s
-            p_π_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
+            p_of_o_given_s = self.amdp.phi[:, curr_ob].copy().astype('float')
             # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
-            w = occupancy * p_π_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
+            w = occupancy * p_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
             # Skip this ob (leave vals at 0) if w is full of 0s
             # as this means it will never be occupied
             # and normalizing comes up as nans
@@ -165,7 +165,8 @@ class PolicyEval:
                 # T
                 T_contributions = (self.amdp.T * p_π_of_s_given_o * p_π_of_op_given_sp)
                 # sum over s', then over s
-                T_obs_obs[:, curr_ob, next_ob] = T_contributions.sum(2).sum(1)
+                # T_obs_obs[:,curr_ob,next_ob] = T_contributions.sum(2).sum(1)
+                T_obs_obs = T_obs_obs.at[:, curr_ob, next_ob].set(T_contributions.sum(2).sum(1))
 
                 # R
                 R_contributions = self.amdp.R * T_contributions
@@ -174,7 +175,8 @@ class PolicyEval:
                                  denom) # Avoid divide by zero (there may be a better way)
                 R_contributions /= denom
 
-                R_obs_obs[:, curr_ob, next_ob] = R_contributions.sum(2).sum(1)
+                # R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
+                R_obs_obs = R_obs_obs.at[:, curr_ob, next_ob].set(R_contributions.sum(2).sum(1))
 
         if self.verbose:
             logging.info(f'T_bar:\n {T_obs_obs}')
