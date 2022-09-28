@@ -7,6 +7,7 @@ import os.path
 
 import numpy as np
 import jax
+from jax.config import config
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
@@ -20,7 +21,6 @@ from .memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from .grad import do_grad
 from .utils import pformat_vals, RTOL
 
-np.set_printoptions(precision=4, suppress=True)
 
 def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
     """
@@ -402,6 +402,11 @@ if __name__ == '__main__':
     global args
     args = parser.parse_args()
     del args.fool_ipython
+
+    # configs
+    np.set_printoptions(precision=4, suppress=True)
+    config.update("jax_enable_x64", True)
+    config.update('jax_platform_name', 'cpu')
 
     logging.basicConfig(format='%(message)s', level=logging.INFO)
     logging.getLogger().setLevel(logging.INFO)

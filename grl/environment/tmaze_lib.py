@@ -1,5 +1,5 @@
 import numpy as np
-from .examples_lib import to_dict
+
 
 def tmaze(n: int, discount: float = 0.9):
     """
@@ -69,12 +69,4 @@ def tmaze(n: int, discount: float = 0.9):
 
     return T, R, discount, p0, phi
 
-def tmaze_up(n: int, discount: float = 0.9):
-    # n_obs x n_actions
-    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [1, 0, 0, 0]])]
-    return to_dict(*tmaze(n, discount=discount), Pi_phi)
 
-def tmaze_two_thirds_up(n: int, discount: float = 0.9):
-    # n_obs x n_actions
-    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [2 / 3, 0, 1 / 3, 0]])]
-    return to_dict(*tmaze(n, discount=discount), Pi_phi)

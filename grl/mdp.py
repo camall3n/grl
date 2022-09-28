@@ -69,8 +69,8 @@ class MDP:
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        self.T = np.stack(T).copy().astype(jnp.float64)
-        self.R = np.stack(R).copy().astype(jnp.float64)
+        self.T = jnp.stack(T).copy().astype(jnp.float64)
+        self.R = jnp.stack(R).copy().astype(jnp.float64)
         self.R_min = jnp.min(self.R)
         self.R_max = jnp.max(self.R)
         self.p0 = p0
