@@ -18,7 +18,6 @@ class PolicyEval:
         """
         self.amdp = amdp
         self.verbose = verbose
-        self.obs_idx_product = np.array(list(prod for prod in product(np.arange(self.amdp.n_obs), np.arange(self.amdp.n_obs))))
 
     def run(self, pi_abs):
         """
@@ -102,20 +101,21 @@ class PolicyEval:
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        return self._functional_solve_amdp(mdp_q_vals, p_pi_of_s_given_o)
+        return self._functional_solve_amdp(mdp_q_vals, p_pi_of_s_given_o, self.pi_abs)
 
     @partial(jit, static_argnums=0)
-    def _functional_solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray):
+    def _functional_solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray, pi_abs: jnp.ndarray):
 
         # Q vals
         amdp_q_vals = mdp_q_vals @ p_pi_of_s_given_o
 
         # V vals
-        amdp_v_vals = (amdp_q_vals * self.pi_abs.T).sum(0)
+        amdp_v_vals = (amdp_q_vals * pi_abs.T).sum(0)
 
         return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
     def _create_td_model(self, p_pi_of_s_given_o: jnp.ndarray):
+        self.obs_idx_product = np.array(list(prod for prod in product(np.arange(self.amdp.n_obs), np.arange(self.amdp.n_obs))))
         T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o)
         return MDP(T_obs_obs, R_obs_obs, self.amdp.p0, self.amdp.gamma)
 

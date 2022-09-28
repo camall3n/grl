@@ -46,15 +46,16 @@ def functional_memory_cross_product(n_states_m: int, n_states: int, T: jnp.ndarr
     R_x = R.repeat(n_states_m, axis=1).repeat(n_states_m, axis=2)
 
     # T_mem_phi is like T_pi
-    # It is SMxM
-    T_mem_phi = jnp.tensordot(phi, T_mem, axes=1)
+    # It is SxAxMxM
+    T_mem_phi = jnp.tensordot(phi, T_mem.swapaxes(0, 1), axes=1)
 
-    # Outer product that compacts the 2 i
-    T_x = jnp.einsum('ijk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
+    # Outer product that compacts the two i dimensions and the two l dimensions
+    # (SxAxMxM, AxSxS -> AxSMxSM), where SM=x
+    T_x = jnp.einsum('iljk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
 
     # The new obs_x are the original obs times memory states
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
-    phi_x = jnp.kron(phi, jnp.eye(n_states_m))
+    phi_x = jnp.kron(phi, np.eye(n_states_m))
 
     # Assuming memory starts with all 0s
     p0_x = jnp.zeros(n_states_x)
