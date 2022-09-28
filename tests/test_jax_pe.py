@@ -82,24 +82,23 @@ def indv_spec_jaxify_pe_funcs(spec):
 
     pe = PolicyEval(amdp)
 
-    pe.pi_abs = pi
-    pe.pi_ground = amdp.get_ground_policy(pi)
+    pi_ground = amdp.get_ground_policy(pi)
 
     # MC*
     # mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
-    mdp_vals = pe._solve_mdp(pe.amdp, pe.pi_ground)
-    occupancy = pe._get_occupancy(pe.pi_ground)
+    mdp_vals = pe._solve_mdp(pe.amdp, pi_ground)
+    occupancy = pe.get_occupancy(pi)
     p_pi_of_s_given_o = pe._get_p_s_given_o(amdp.n_obs, amdp.phi, occupancy)
 
-    func_mc_vals = pe._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o)
+    func_mc_vals = pe._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o, pi)
 
-    mc_vals = solve_amdp(amdp, mdp_vals['q'], pe.pi_abs, occupancy)
+    mc_vals = solve_amdp(amdp, mdp_vals['q'], pi, occupancy)
 
     assert np.all(np.isclose(mc_vals['v'], func_mc_vals['v'])) and np.all(np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
     func_td_mdp = pe._create_td_model(p_pi_of_s_given_o)
-    td_vals = pe._solve_mdp(func_td_mdp, pe.pi_abs)
+    # td_vals = pe._solve_mdp(func_td_mdp, pi)
 
     td_mdp = create_td_model(amdp, occupancy)
 

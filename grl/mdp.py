@@ -63,16 +63,17 @@ def random_observation_fn(n_states, n_obs_per_block):
 def one_hot(x, n):
     return jnp.eye(n)[x]
 
+
 class MDP:
     def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        self.T = jnp.stack(T).copy().astype(jnp.float64)
-        self.R = jnp.stack(R).copy().astype(jnp.float64)
-        self.R_min = jnp.min(self.R)
-        self.R_max = jnp.max(self.R)
+        self.T = np.stack(T).copy().astype(np.float64)
+        self.R = np.stack(R).copy().astype(np.float64)
+        self.R_min = np.min(self.R)
+        self.R_max = np.max(self.R)
         self.p0 = p0
 
     def __repr__(self):
@@ -162,6 +163,7 @@ class MDP:
         p0 = random_stochastic_matrix(size=[n_states])
         mdp = cls(T, R, p0, gamma)
         return mdp
+
 
 class BlockMDP(MDP):
     def __init__(self, base_mdp, n_obs_per_block=2, obs_fn=None):

@@ -3,7 +3,6 @@ import logging
 import numpy as np
 import jax.numpy as jnp
 from jax import jit
-from itertools import product
 from functools import partial
 
 from .mdp import MDP
@@ -23,26 +22,35 @@ class PolicyEval:
         """
         :param pi_abs: policy to evaluate, defined over abstract state space
         """
-        self.pi_abs = pi_abs
-        self.pi_ground = self.amdp.get_ground_policy(pi_abs)
+        return self._functional_run(pi_abs, self.amdp.phi, self.amdp.T, self.amdp.R, self.amdp.p0,
+                                    self.amdp.gamma, self.amdp.n_states, self.amdp.n_obs)
+
+    @partial(jit, static_argnames=['self', 'gamma', 'n_states', 'n_obs'])
+    def _functional_run(self, pi_abs: jnp.ndarray, phi: jnp.ndarray,
+                        T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+                        gamma: float, n_states: int, n_obs: int):
+        pi_ground = phi @ pi_abs
 
         # MC*
-        mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
-        occupancy = self._get_occupancy(self.pi_ground)
+        state_v, state_q = self._functional_solve_mdp(pi_ground, T, R, gamma, n_states)
+        state_vals = {'v': state_v, 'q': state_q}
 
-        p_pi_of_s_given_o = self._get_p_s_given_o(self.amdp.n_obs, self.amdp.phi, occupancy)
-        mc_vals = self._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o)
+        occupancy = self._functional_get_occupancy(pi_ground, T, p0, n_states, gamma)
 
-        if self.verbose:
-            logging.info(f'occupancy:\n {occupancy}')
+        p_pi_of_s_given_o = self._get_p_s_given_o(n_obs, phi, occupancy)
+        mc_vals = self._functional_solve_amdp(state_q, p_pi_of_s_given_o, pi_abs)
 
         # TD
-        td_vals = self._solve_mdp(self._create_td_model(p_pi_of_s_given_o), self.pi_abs)
+        T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o, phi, T, R, n_obs)
+        td_v_vals, td_q_vals = self._functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma, T_obs_obs.shape[-1])
+        td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
-        return mdp_vals, mc_vals, td_vals
+        return state_vals, mc_vals, td_vals
 
     def _solve_mdp(self, mdp, pi):
-        return self._functional_solve_mdp(pi, mdp.T, mdp.R, mdp.gamma, mdp.n_states)
+        v, q = self._functional_solve_mdp(pi, mdp.T, mdp.R, mdp.gamma, mdp.n_states)
+
+        return {'v': v, 'q': q}
 
     @staticmethod
     @partial(jit, static_argnums=[0])
@@ -78,30 +86,36 @@ class PolicyEval:
         R_sa = (T * R).sum(axis=-1) # R(s,a)
         q_vals = (R_sa + (gamma * T @ v_vals))
 
-        return {'v': v_vals, 'q': q_vals}
+        return v_vals, q_vals
 
-    @partial(jit, static_argnums=0)
-    def _get_occupancy(self, pi_ground: jnp.ndarray):
+    def get_occupancy(self, pi: jnp.ndarray):
         """
         Finds the visitation count, C_pi(s), of each state.
         For all s, C_pi(s) = p0(s) + sum_s^ sum_a[C_pi(s^) * gamma * T(s|a,s^) * pi(a|s^)],
           where s^ is the prev state
         """
+        pi_ground = self.amdp.phi @ pi
+        return self._functional_get_occupancy(pi_ground, self.amdp.T, self.amdp.p0, self.amdp.n_states, self.amdp.gamma)
+
+    @staticmethod
+    @partial(jit, static_argnames=['n_states', 'gamma'])
+    def _functional_get_occupancy(pi_ground: jnp.ndarray, T: jnp.ndarray, p0: jnp.ndarray,
+                                  n_states: int, gamma: float):
         Pi_pi = pi_ground.transpose()[..., None]
-        T_pi = (Pi_pi * self.amdp.T).sum(axis=0) # T^π(s'|s)
+        T_pi = (Pi_pi * T).sum(axis=0) # T^π(s'|s)
 
         # A*C_pi(s) = b
         # A = (I - \gamma (T^π)^T)
         # b = P_0
-        A = jnp.eye(self.amdp.n_states) - self.amdp.gamma * T_pi.transpose()
-        b = self.amdp.p0
+        A = jnp.eye(n_states) - gamma * T_pi.transpose()
+        b = p0
         return jnp.linalg.solve(A, b)
 
-    def _solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray):
+    def _solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray, pi: jnp.ndarray):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
-        return self._functional_solve_amdp(mdp_q_vals, p_pi_of_s_given_o, self.pi_abs)
+        return self._functional_solve_amdp(mdp_q_vals, p_pi_of_s_given_o, pi)
 
     @partial(jit, static_argnums=0)
     def _functional_solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray, pi_abs: jnp.ndarray):
@@ -115,29 +129,43 @@ class PolicyEval:
         return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
     def _create_td_model(self, p_pi_of_s_given_o: jnp.ndarray):
-        self.obs_idx_product = np.array(list(prod for prod in product(np.arange(self.amdp.n_obs), np.arange(self.amdp.n_obs))))
-        T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o)
+        T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o, self.amdp.phi,
+                                                                self.amdp.T, self.amdp.R, self.amdp.n_obs)
         return MDP(T_obs_obs, R_obs_obs, self.amdp.p0, self.amdp.gamma)
 
-    @partial(jit, static_argnums=0)
-    def _functional_create_td_model(self, p_pi_of_s_given_o: jnp.ndarray):
-        # this gives us batch x states x 1 and batch x states
-        curr_s_given_o = p_pi_of_s_given_o[:, self.obs_idx_product[:, 0]].T[..., None]
-        next_o_given_s = jnp.expand_dims(self.amdp.phi[:, self.obs_idx_product[:, 1]].T, 1)
+    @staticmethod
+    @partial(jit, static_argnames=['n_obs'])
+    def _functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                                    n_obs: int):
+        # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
+        # we flip here so that we have curr_obs, next_obs (order matters).
+        obs_idx_product = jnp.flip(jnp.dstack(jnp.meshgrid(jnp.arange(n_obs), jnp.arange(n_obs))).reshape(-1, 2), -1)
+
+        # this gives us (n_obs * n_obs) x states x 1 and (n_obs * n_obs) x 1 x states
+        curr_s_given_o = p_pi_of_s_given_o[:, obs_idx_product[:, 0]].T[..., None]
+        next_o_given_s = jnp.expand_dims(phi[:, obs_idx_product[:, 1]].T, 1)
 
         # outer product here
         o_to_next_o = jnp.expand_dims(curr_s_given_o * next_o_given_s, 1)
 
-        T_contributions = self.amdp.T * o_to_next_o
-        T_obs_obs_flat = T_contributions.sum(-1).sum(-1).T
-        T_obs_obs = T_obs_obs_flat.reshape(self.amdp.T.shape[0], self.amdp.n_obs, self.amdp.n_obs)
+        # This is p(o, s, a, s', o')
+        # the probability that o goes to o', via each path (s, a) -> s'.
+        # Shape is (n_obs * n_obs) x |A| x |S| x |S|
+        T_contributions = T * o_to_next_o
 
+        # |A| x (n_obs * n_obs)
+        T_obs_obs_flat = T_contributions.sum(-1).sum(-1).T
+
+        # |A| x n_obs x n_obs
+        T_obs_obs = T_obs_obs_flat.reshape(T.shape[0], n_obs, n_obs)
+
+        # You want everything to sum to one
         denom = T_obs_obs_flat.T[..., None, None]
         denom_no_zero = denom + (denom == 0).astype(denom.dtype)
 
-        R_contributions = (self.amdp.R * T_contributions) / denom_no_zero
+        R_contributions = (R * T_contributions) / denom_no_zero
         R_obs_obs_flat = R_contributions.sum(-1).sum(-1).T
-        R_obs_obs = R_obs_obs_flat.reshape(self.amdp.R.shape[0], self.amdp.n_obs, self.amdp.n_obs)
+        R_obs_obs = R_obs_obs_flat.reshape(R.shape[0], n_obs, n_obs)
 
         return T_obs_obs, R_obs_obs
 

@@ -632,7 +632,7 @@ def tmaze_5_two_thirds_up():
     # n_obs x n_actions
     n = 5
     discount = 0.9
-    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [2 / 3, 0, 1 / 3, 0]])]
+    Pi_phi = [np.array([[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [2 / 3, 0, 1 / 3, 0], [1, 0, 0, 0]])]
     return to_dict(*tmaze(n, discount=discount), Pi_phi)
 
 

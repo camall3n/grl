@@ -83,7 +83,7 @@ def test_tmaze():
     all_0_obs_states = np.array([0])
     all_1_obs_states = np.array([1])
     all_2_obs_states = np.arange(2, mdp.n_states - 2 - 1)
-    all_3_obs_states = np.arange(mdp.n_states - 2 - 1, mdp.n_states)
+    all_3_obs_states = np.arange(mdp.n_states - 2 - 1, mdp.n_states - 1)
 
     for i, list_s in enumerate(
         [all_0_obs_states, all_1_obs_states, all_2_obs_states, all_3_obs_states]):

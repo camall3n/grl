@@ -12,14 +12,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 
-from .environment import load_spec
-from .environment.pomdp_file import POMDPFile
-from .mdp import MDP, AbstractMDP
-from .td_lambda import td_lambda
-from .policy_eval import PolicyEval
-from .memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
-from .grad import do_grad
-from .utils import pformat_vals, RTOL
+from grl.environment import load_spec
+from grl.environment.pomdp_file import POMDPFile
+from grl.mdp import MDP, AbstractMDP
+from grl.td_lambda import td_lambda
+from grl.policy_eval import PolicyEval
+from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
+from grl.grad import do_grad
+from grl.utils import pformat_vals, RTOL
 
 
 def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
@@ -51,7 +51,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
-            occupancy = pe._get_occupancy()
+            occupancy = pe.get_occupancy(pi)
             pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
@@ -67,7 +67,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
             if 'T_mem' in spec.keys():
-                occupancy_x = pe._get_occupancy()
+                occupancy_x = pe.get_occupancy(pi)
                 n_mem_states = spec['T_mem'].shape[-1]
                 n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
 

@@ -58,14 +58,17 @@ def tmaze(n: int, discount: float = 0.9):
 
     # Observation function. We have 4 possible obs - start_up, start_down, corridor and junction.
     # terminal obs doesn't matter.
-    phi = np.zeros((n_states, 4))
+    phi = np.zeros((n_states, 4 + 1))
 
     phi[0, 0] = 1
     phi[1, 1] = 1
 
     phi[2:-3, 2] = 1
 
-    phi[-3:, 3] = 1
+    phi[-3:-1, 3] = 1
+
+    # we have a special termination observations
+    phi[-1, 4] = 1
 
     return T, R, discount, p0, phi
 
