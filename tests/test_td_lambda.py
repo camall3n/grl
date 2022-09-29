@@ -4,9 +4,7 @@ from grl import MDP, AbstractMDP, PolicyEval, environment
 from grl.td_lambda import td_lambda
 
 
-# def test_td_lambda():
-def t_td_lambda():
-
+def test_td_lambda():
     chain_length = 10
     spec = environment.load_spec('simple_chain', memory_id=None)
     n_episodes = 2000
@@ -39,8 +37,3 @@ def t_td_lambda():
     assert np.all(np.isclose(mdp_vals['v'][:-1], ground_truth_vals)) and np.all(np.isclose(mdp_vals['q'][0][:-1], ground_truth_vals))
     assert np.all(np.isclose(mc_vals['v'][:-1], ground_truth_vals)) and np.all(np.isclose(mc_vals['q'][0][:-1], ground_truth_vals))
     assert np.all(np.isclose(td_vals['v'][:-1], ground_truth_vals)) and np.all(np.isclose(td_vals['q'][0][:-1], ground_truth_vals))
-
-
-if __name__ == "__main__":
-    t_td_lambda()
-
