@@ -63,7 +63,6 @@ def random_observation_fn(n_states, n_obs_per_block):
 def one_hot(x, n):
     return jnp.eye(n)[x]
 
-
 class MDP:
     def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
@@ -163,7 +162,6 @@ class MDP:
         p0 = random_stochastic_matrix(size=[n_states])
         mdp = cls(T, R, p0, gamma)
         return mdp
-
 
 class BlockMDP(MDP):
     def __init__(self, base_mdp, n_obs_per_block=2, obs_fn=None):

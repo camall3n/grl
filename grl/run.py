@@ -21,7 +21,6 @@ from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem
 from grl.grad import do_grad
 from grl.utils import pformat_vals, RTOL
 
-
 def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.

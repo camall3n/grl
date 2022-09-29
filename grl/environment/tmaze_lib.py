@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def tmaze(n: int, discount: float = 0.9):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
@@ -71,5 +70,3 @@ def tmaze(n: int, discount: float = 0.9):
     phi[-1, 4] = 1
 
     return T, R, discount, p0, phi
-
-

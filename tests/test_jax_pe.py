@@ -4,7 +4,6 @@ from itertools import product
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
 
-
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
     """
@@ -30,7 +29,6 @@ def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
 
     return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
-
 def create_td_model(amdp, occupancy):
     """
     Generates effective TD(0) model
@@ -43,7 +41,7 @@ def create_td_model(amdp, occupancy):
         # compute p_π(o|s) for all s
         p_of_o_given_s = amdp.phi[:, curr_ob].copy().astype('float')
         # want p_π(s|o) ∝ p_π(o|s)p(s) = p_π_of_o_given_s * occupancy
-        w = occupancy * p_of_o_given_s  # Count of being in each state * prob of it emitting curr_ob
+        w = occupancy * p_of_o_given_s # Count of being in each state * prob of it emitting curr_ob
         # Skip this ob (leave vals at 0) if w is full of 0s
         # as this means it will never be occupied
         # and normalizing comes up as nans
@@ -65,14 +63,13 @@ def create_td_model(amdp, occupancy):
             R_contributions = amdp.R * T_contributions
             denom = T_obs_obs[:, curr_ob, next_ob][:, None, None]
             denom = np.where(denom == 0, 1,
-                             denom)  # Avoid divide by zero (there may be a better way)
+                             denom) # Avoid divide by zero (there may be a better way)
             R_contributions /= denom
 
             # R_obs_obs[:,curr_ob,next_ob] = R_contributions.sum(2).sum(1)
             R_obs_obs = R_obs_obs.at[:, curr_ob, next_ob].set(R_contributions.sum(2).sum(1))
 
     return MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
-
 
 def indv_spec_jaxify_pe_funcs(spec):
     pi = spec['Pi_phi'][0]
@@ -94,7 +91,8 @@ def indv_spec_jaxify_pe_funcs(spec):
 
     mc_vals = solve_amdp(amdp, mdp_vals['q'], pi, occupancy)
 
-    assert np.all(np.isclose(mc_vals['v'], func_mc_vals['v'])) and np.all(np.isclose(mc_vals['q'], func_mc_vals['q']))
+    assert np.all(np.isclose(mc_vals['v'], func_mc_vals['v'])) and np.all(
+        np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
     func_td_mdp = pe._create_td_model(p_pi_of_s_given_o)
@@ -105,10 +103,8 @@ def indv_spec_jaxify_pe_funcs(spec):
     assert np.all(np.isclose(func_td_mdp.T, td_mdp.T))
     assert np.all(np.isclose(func_td_mdp.R, td_mdp.R))
 
-
 def test_jaxify_pe_funcs():
     spec_strings = ['example_3', 'tmaze_5_two_thirds_up']
     for spec_str in spec_strings:
-        spec = environment.load_spec(spec_str,
-                                     memory_id=None)
+        spec = environment.load_spec(spec_str, memory_id=None)
         indv_spec_jaxify_pe_funcs(spec)

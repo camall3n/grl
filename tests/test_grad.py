@@ -4,7 +4,6 @@ from grl import load_spec, do_grad, RTOL
 
 # def test_example_7_p():
 def example_7_p():
-
     """
     Tests that do_grad reaches the known no-discrepancy policy for example 7
     """
@@ -23,7 +22,6 @@ def example_7_p():
 
 # def test_example_7_m():
 def example_7_m():
-
     """
     Tests that do_grad reaches a known no-discrepancy memory for example 7
     """

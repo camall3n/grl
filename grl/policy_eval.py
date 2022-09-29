@@ -8,7 +8,6 @@ from functools import partial
 from .mdp import MDP
 from .memory import memory_cross_product
 
-
 class PolicyEval:
     def __init__(self, amdp, verbose=True):
         """
@@ -26,9 +25,8 @@ class PolicyEval:
                                     self.amdp.gamma, self.amdp.n_states, self.amdp.n_obs)
 
     @partial(jit, static_argnames=['self', 'gamma', 'n_states', 'n_obs'])
-    def _functional_run(self, pi_abs: jnp.ndarray, phi: jnp.ndarray,
-                        T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
-                        gamma: float, n_states: int, n_obs: int):
+    def _functional_run(self, pi_abs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
+                        R: jnp.ndarray, p0: jnp.ndarray, gamma: float, n_states: int, n_obs: int):
         pi_ground = phi @ pi_abs
 
         # MC*
@@ -41,8 +39,10 @@ class PolicyEval:
         mc_vals = self._functional_solve_amdp(state_q, p_pi_of_s_given_o, pi_abs)
 
         # TD
-        T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o, phi, T, R, n_obs)
-        td_v_vals, td_q_vals = self._functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma, T_obs_obs.shape[-1])
+        T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o, phi, T, R,
+                                                                n_obs)
+        td_v_vals, td_q_vals = self._functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma,
+                                                          T_obs_obs.shape[-1])
         td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
         return state_vals, mc_vals, td_vals
@@ -95,7 +95,8 @@ class PolicyEval:
           where s^ is the prev state
         """
         pi_ground = self.amdp.phi @ pi
-        return self._functional_get_occupancy(pi_ground, self.amdp.T, self.amdp.p0, self.amdp.n_states, self.amdp.gamma)
+        return self._functional_get_occupancy(pi_ground, self.amdp.T, self.amdp.p0,
+                                              self.amdp.n_states, self.amdp.gamma)
 
     @staticmethod
     @partial(jit, static_argnames=['n_states', 'gamma'])
@@ -111,14 +112,16 @@ class PolicyEval:
         b = p0
         return jnp.linalg.solve(A, b)
 
-    def _solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray, pi: jnp.ndarray):
+    def _solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
+                    pi: jnp.ndarray):
         """
         Weights the value contribution of each state to each observation for the amdp
         """
         return self._functional_solve_amdp(mdp_q_vals, p_pi_of_s_given_o, pi)
 
     @partial(jit, static_argnums=0)
-    def _functional_solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray, pi_abs: jnp.ndarray):
+    def _functional_solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
+                               pi_abs: jnp.ndarray):
 
         # Q vals
         amdp_q_vals = mdp_q_vals @ p_pi_of_s_given_o
@@ -130,16 +133,18 @@ class PolicyEval:
 
     def _create_td_model(self, p_pi_of_s_given_o: jnp.ndarray):
         T_obs_obs, R_obs_obs = self._functional_create_td_model(p_pi_of_s_given_o, self.amdp.phi,
-                                                                self.amdp.T, self.amdp.R, self.amdp.n_obs)
+                                                                self.amdp.T, self.amdp.R,
+                                                                self.amdp.n_obs)
         return MDP(T_obs_obs, R_obs_obs, self.amdp.p0, self.amdp.gamma)
 
     @staticmethod
     @partial(jit, static_argnames=['n_obs'])
-    def _functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
-                                    n_obs: int):
+    def _functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray,
+                                    T: jnp.ndarray, R: jnp.ndarray, n_obs: int):
         # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
         # we flip here so that we have curr_obs, next_obs (order matters).
-        obs_idx_product = jnp.flip(jnp.dstack(jnp.meshgrid(jnp.arange(n_obs), jnp.arange(n_obs))).reshape(-1, 2), -1)
+        obs_idx_product = jnp.flip(
+            jnp.dstack(jnp.meshgrid(jnp.arange(n_obs), jnp.arange(n_obs))).reshape(-1, 2), -1)
 
         # this gives us (n_obs * n_obs) x states x 1 and (n_obs * n_obs) x 1 x states
         curr_s_given_o = p_pi_of_s_given_o[:, obs_idx_product[:, 0]].T[..., None]

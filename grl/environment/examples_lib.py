@@ -627,14 +627,14 @@ def simple_chain(n: int = 10):
 
     return to_dict(T, R, 0.9, p0, phi, Pi_phi)
 
-
 def tmaze_5_two_thirds_up():
     # n_obs x n_actions
     n = 5
     discount = 0.9
-    Pi_phi = [np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])]
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
     return to_dict(*tmaze(n, discount=discount), Pi_phi)
-
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
