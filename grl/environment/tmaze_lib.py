@@ -49,11 +49,11 @@ def tmaze(n: int, discount: float = 0.9):
     R_up = R_left.copy()
     R_down = R_up.copy()
 
-    # If reward is north
+    # If rewarding state is north
     R_up[-2 - 1, -1] = 4
     R_down[-2 - 1, -1] = -0.1
 
-    # If reward is south
+    # If rewarding state is south
     R_up[-1 - 1, -1] = -0.1
     R_down[-1 - 1, -1] = 4
 
@@ -63,8 +63,8 @@ def tmaze(n: int, discount: float = 0.9):
     p0 = np.zeros(n_states)
     p0[:2] = 0.5
 
-    # Observation function. We have 4 possible obs - start_up, start_down, corridor and junction.
-    # terminal obs doesn't matter.
+    # Observation function with have 5 possible obs:
+    # start_up, start_down, corridor, junction, and terminal
     phi = np.zeros((n_states, 4 + 1))
 
     phi[0, 0] = 1
