@@ -31,7 +31,7 @@ def tmaze(n: int, discount: float = 0.9):
     T_left[all_nonterminal_idxes[2:], all_nonterminal_idxes[:-2]] = 1
     T_right[all_nonterminal_idxes[:-2], all_nonterminal_idxes[2:]] = 1
 
-    T = np.array([T_up, T_right, T_down, T_left])
+    T = np.array([T_up, T_down, T_right, T_left])
 
     # Specify last state as terminal
     T[:, -1, -1] = 1
@@ -50,7 +50,7 @@ def tmaze(n: int, discount: float = 0.9):
     R_up[-1 - 1, -1] = -0.1
     R_down[-1 - 1, -1] = 4
 
-    R = np.array([R_up, R_right, R_down, R_left])
+    R = np.array([R_up, R_down, R_right, R_left])
 
     # Initialize uniformly at random between north start and south start
     p0 = np.zeros(n_states)

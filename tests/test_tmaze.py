@@ -34,13 +34,13 @@ def test_tmaze():
         assert next_s == s and r == 0 and not done
 
         # test down
-        next_s, r, done = pomdp.step(s, 2, 1)
+        next_s, r, done = pomdp.step(s, 1, 1)
         assert next_s == s and r == 0 and not done
 
     bump_east_states = np.array([mdp.n_states - 2 - 1, mdp.n_states - 1 - 1])
     bump_west_states = np.array([0, 1])
     for s in bump_east_states:
-        next_s, r, done = pomdp.step(s, 1, 1)
+        next_s, r, done = pomdp.step(s, 2, 1)
         assert next_s == s and r == 0 and not done
 
     for s in bump_west_states:
@@ -49,7 +49,7 @@ def test_tmaze():
 
     go_right_states = np.arange(0, mdp.n_states - 3)
     for s in go_right_states:
-        next_s, r, done = pomdp.step(s, 1, 1)
+        next_s, r, done = pomdp.step(s, 2, 1)
         assert next_s == s + 2 and r == 0 and not done
 
     go_left_states = np.arange(2, mdp.n_states - 1)
@@ -70,14 +70,14 @@ def test_tmaze():
     next_s, r, done = pomdp.step(top_junction, 0, 0)
     assert done and next_s == mdp.n_states - 1 and r == 4
 
-    next_s, r, done = pomdp.step(top_junction, 2, 0)
+    next_s, r, done = pomdp.step(top_junction, 1, 0)
     assert done and next_s == mdp.n_states - 1 and r == -0.1
 
     # Bottom rewards
     next_s, r, done = pomdp.step(bottom_junction, 0, 0)
     assert done and next_s == mdp.n_states - 1 and r == -0.1
 
-    next_s, r, done = pomdp.step(bottom_junction, 2, 0)
+    next_s, r, done = pomdp.step(bottom_junction, 1, 0)
     assert done and next_s == mdp.n_states - 1 and r == 4
 
     all_0_obs_states = np.array([0])
