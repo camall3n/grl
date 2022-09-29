@@ -10,7 +10,6 @@ from tqdm import tqdm
 config.update("jax_enable_x64", True)
 config.update('jax_platform_name', 'cpu')
 
-
 def memory_cross_product(amdp, T_mem):
     """
     Returns AMDP resulting from cross product of the underlying MDP with given memory function
@@ -29,7 +28,6 @@ def memory_cross_product(amdp, T_mem):
 
     mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
     return AbstractMDP(mdp_x, phi_x)
-
 
 @partial(jit, static_argnums=[0, 1])
 def functional_memory_cross_product(n_states_m: int, n_states: int, T: jnp.ndarray,
@@ -63,7 +61,6 @@ def functional_memory_cross_product(n_states_m: int, n_states: int, T: jnp.ndarr
 
     return T_x, R_x, p0_x, phi_x
 
-
 def generate_1bit_mem_fns(n_obs, n_actions):
     """
     Generates all possible deterministic 1 bit memory functions with given number of obs and actions.
@@ -95,7 +92,6 @@ def generate_1bit_mem_fns(n_obs, n_actions):
         fns.append(T_mem)
 
     return fns
-
 
 def generate_mem_fn(mem_fn_id, n_mem_states, n_obs, n_actions):
     """Generate the AxZxMxM memory function transition matrix for the given
