@@ -3,11 +3,19 @@ import numpy as np
 def tmaze(n: int, discount: float = 0.9):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
+
+                            +---+
+          X                 | G |     S: Start
+        +---+---+---+   +---+---+     X: Goal Indicator
+        | S |   |   |...|   | J |     J: Junction
+        +---+---+---+   +---+---+     G: Terminal (Goal)
+          0   1   2       n | T |     T: Terminal (Non-Goal)
+                            +---+
     """
-    n_states = 2 * n # corridors
-    n_states += 2 # start states
-    n_states += 2 # T junctions
-    n_states += 1 # terminal state
+    n_states = 2 * n # Corridor
+    n_states += 2 # Start
+    n_states += 2 # Junction
+    n_states += 1 # Terminal state (includes both goal/non-goal)
 
     T_up = np.eye(n_states, n_states)
     T_down = T_up.copy()
