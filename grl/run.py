@@ -21,7 +21,7 @@ from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem
 from grl.grad import do_grad
 from grl.utils import pformat_vals, RTOL
 
-def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
+def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500, lr=1):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -117,7 +117,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type)
+                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type, lr=lr)
 
         if method == 's' or method == 'b':
             # Sampling
@@ -384,6 +384,7 @@ if __name__ == '__main__':
         help='use memory function during policy eval if set')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
+    parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
@@ -465,4 +466,4 @@ if __name__ == '__main__':
         if args.heatmap:
             heatmap(spec)
         else:
-            run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)
+            run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes, lr=args.lr)

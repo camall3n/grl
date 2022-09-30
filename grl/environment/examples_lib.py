@@ -634,7 +634,62 @@ def tmaze_5_two_thirds_up():
     Pi_phi = [
         np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
     ]
-    return to_dict(*tmaze(n, discount=discount), Pi_phi)
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+
+def tmaze_5_two_thirds_up_fully_observable():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+    phi_fully_observable = np.eye(T.shape[-1])
+
+    pi = np.zeros((T.shape[-1], 4))
+    pi[:, 2] = 1
+    pi[-2, :] = 0
+    pi[-2, 0] = 2/3
+    pi[-2, 1] = 1/3
+
+    Pi_phi = [
+        pi
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(T, R, discount, p0, phi_fully_observable, Pi_phi, Pi_phi_x)
+
+def tmaze_5_two_thirds_up_almost_fully_observable():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+    phi_almost_fully_observable = np.zeros((T.shape[-1], 6 + 1))
+    phi_almost_fully_observable[0, 0] = 1
+    phi_almost_fully_observable[1, 1] = 1
+    phi_almost_fully_observable[np.arange(1, n + 1) * 2, 2] = 1
+    phi_almost_fully_observable[np.arange(1, n + 1) * 2 + 1, 3] = 1
+    phi_almost_fully_observable[-3, 4] = 1
+    phi_almost_fully_observable[-2, 5] = 1
+    phi_almost_fully_observable[-1, -1] = 1
+
+    pi = np.zeros((phi_almost_fully_observable.shape[-1], 4))
+    pi[:, 2] = 1
+    pi[-2, :] = 0
+    pi[-2, 0] = 2/3
+    pi[-2, 1] = 1/3
+    pi[-3, :] = 0
+    pi[-3, 0] = 2/3
+    pi[-3, 1] = 1/3
+
+    Pi_phi = [
+        pi
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(T, R, discount, p0, phi_almost_fully_observable, Pi_phi, Pi_phi_x)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {

@@ -232,9 +232,42 @@ mem_16 = np.array([
         [1, 0],
         [0, 1],
     ],
+    [ # junction
+        [1, 0],
+        [0, 1],
+    ],
     [ # terminal
         [1, 0],
         [0, 1],
     ],
 ])
 memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
+
+# No memory for t-maze
+p = 0.4
+q = 0.6
+mem_17 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [p, 1 - p], # m0
+        [q, 1 - q], # m1
+    ],
+    [ # we see the goal as DOWN
+        [p, 1 - p],
+        [q, 1 - q],
+    ],
+    [ # corridor
+        [p, 1 - p],
+        [q, 1 - q],
+    ],
+    [ # junction
+        [p, 1 - p],
+        [q, 1 - q],
+    ],
+    [ # terminal
+        [p, 1 - p],
+        [q, 1 - q],
+    ],
+])
+memory_17 = np.array([mem_17, mem_17, mem_17, mem_17]) # up, down, right, left

@@ -2,20 +2,35 @@ import logging
 
 import numpy as np
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, value_and_grad
+from typing import Callable
 from functools import partial
 
 from .mdp import MDP
-from .memory import memory_cross_product
+from .memory import functional_memory_cross_product, memory_cross_product
+
+def normalize_rows(mat: jnp.ndarray):
+    # Normalize (assuming params are probability distribution)
+    mat = mat.clip(0, 1)
+    denom = mat.sum(axis=-1, keepdims=True)
+    denom_no_zero = denom + (denom == 0).astype(denom.dtype)
+    mat /= denom_no_zero
+    return mat
 
 class PolicyEval:
-    def __init__(self, amdp, verbose=True):
+    def __init__(self, amdp, verbose=True, discrep_type: str = 'l2'):
         """
         :param amdp:     AMDP
         :param verbose:  log everything
         """
         self.amdp = amdp
         self.verbose = verbose
+        self.discrep_type = discrep_type
+        self.functional_loss_fn = self.functional_mse_loss
+        self.loss_fn = self.mse_loss
+        if self.discrep_type == 'max':
+            self.functional_loss_fn = self.functional_max_loss
+            self.loss_fn = max_loss
 
     def run(self, pi_abs):
         """
@@ -186,6 +201,14 @@ class PolicyEval:
         diff = mc_vals[value_type] - td_vals[value_type]
         return (diff**2).mean()
 
+    @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
+    def functional_mse_loss(self, pi: jnp.ndarray, value_type: str,
+                            phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                            p0: jnp.ndarray, gamma: float):
+        _, mc_vals, td_vals = self._functional_run(pi, phi, T, R, p0, gamma, T.shape[-1], phi.shape[-1])
+        diff = mc_vals[value_type] - td_vals[value_type]
+        return (diff**2).mean()
+
     def max_loss(self, pi, value_type, **kwargs):
         """
         max_o abs[V_td^pi(o) - V_mc^pi(o)]
@@ -193,7 +216,52 @@ class PolicyEval:
         _, mc_vals, td_vals = self.run(pi)
         return np.abs(mc_vals[value_type] - td_vals[value_type]).max()
 
+    @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
+    def functional_max_loss(self, pi: jnp.ndarray, value_type: str,
+                            phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                            p0: jnp.ndarray, gamma: float):
+        _, mc_vals, td_vals = self._functional_run(pi, phi, T, R, p0, gamma, T.shape[-1], phi.shape[-1])
+        return jnp.abs(mc_vals[value_type] - td_vals[value_type]).max()
+
     def memory_loss(self, T_mem, value_type, **kwargs):
         amdp = memory_cross_product(self.amdp, T_mem)
         pe = PolicyEval(amdp, verbose=False)
         return pe.mse_loss(kwargs['pi_abs'], value_type)
+
+    def policy_update(self, params: jnp.ndarray, value_type: str, lr: float, *args, **kwargs):
+        return self.functional_policy_update(params, value_type, self.amdp.gamma, lr, self.amdp.T, self.amdp.R,
+                                      self.amdp.phi, self.amdp.p0)
+
+    @partial(jit, static_argnames=['self', 'gamma', 'value_type', 'lr'])
+    def functional_policy_update(self, params: jnp.ndarray, value_type: str, gamma: float, lr: float,
+                                 T: jnp.ndarray, R: jnp.ndarray,
+                                 phi: jnp.ndarray, p0: jnp.ndarray):
+        loss, params_grad = value_and_grad(self.functional_loss_fn, argnums=0)(params, value_type, phi, T,
+                                                                                   R, p0, gamma)
+        params -= lr * params_grad
+
+        # Normalize (assuming params are probability distribution)
+        params = normalize_rows(params)
+        return loss, params
+
+    def memory_update(self, T_mem: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
+        return self.functional_memory_update(T_mem, value_type, self.amdp.gamma, lr, pi, self.amdp.T, self.amdp.R,
+                                      self.amdp.phi, self.amdp.p0)
+
+    @partial(jit, static_argnames=['self', 'gamma', 'value_type', 'lr'])
+    def functional_memory_update(self, params: jnp.ndarray, value_type: str, gamma: float, lr: float,
+                          pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                          phi: jnp.ndarray, p0: jnp.ndarray):
+        loss, params_grad = value_and_grad(self.functional_memory_loss, argnums=0)(params, gamma, value_type, pi, T, R, phi, p0)
+        params -= lr * params_grad
+
+        # Normalize (assuming params are probability distribution)
+        params = normalize_rows(params)
+        return loss, params
+
+    @partial(jit, static_argnames=['self', 'gamma', 'value_type'])
+    def functional_memory_loss(self, T_mem: jnp.ndarray, gamma: float, value_type: str,
+                               pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                               phi: jnp.ndarray, p0: jnp.ndarray):
+        T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
+        return self.functional_loss_fn(pi, value_type, phi_x, T_x, R_x, p0_x, gamma)

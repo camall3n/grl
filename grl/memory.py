@@ -4,7 +4,6 @@ import numpy as np
 from jax import jit
 import jax.numpy as jnp
 from jax.config import config
-from functools import partial
 from tqdm import tqdm
 
 config.update("jax_enable_x64", True)
@@ -17,28 +16,17 @@ def memory_cross_product(amdp, T_mem):
     :param amdp:  AMDP
     :param T_mem: memory transition function
     """
-    T = amdp.T
-    R = amdp.R
-    phi = amdp.phi
-    n_states = T.shape[-1]
-    n_states_m = T_mem.shape[-1]
-
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(n_states_m, n_states, T, T_mem, phi, R,
-                                                            amdp.p0)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(amdp.T, T_mem, amdp.phi, amdp.R, amdp.p0)
 
     mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
     return AbstractMDP(mdp_x, phi_x)
 
-@partial(jit, static_argnums=[0, 1])
-def functional_memory_cross_product(n_states_m: int, n_states: int, T: jnp.ndarray,
-                                    T_mem: jnp.ndarray, phi: jnp.ndarray, R: jnp.ndarray,
+@jit
+def functional_memory_cross_product(T: jnp.ndarray, T_mem: jnp.ndarray, phi: jnp.ndarray, R: jnp.ndarray,
                                     p0: jnp.ndarray):
+    n_states_m = T_mem.shape[-1]
+    n_states = T.shape[-1]
     n_states_x = n_states_m * n_states
-    # T_x = jnp.zeros((T.shape[0], n_states_x, n_states_x))
-    #
-    #
-    # R_x = jnp.zeros((R.shape[0], n_states_x, n_states_x))
-    # phi_x = jnp.zeros((n_states_x, phi.shape[-1] * n_states_m))
 
     # Rewards only depend on MDP (not memory function)
     R_x = R.repeat(n_states_m, axis=1).repeat(n_states_m, axis=2)
