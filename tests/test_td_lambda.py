@@ -1,7 +1,7 @@
 import numpy as np
 
 from grl import MDP, AbstractMDP, PolicyEval, environment
-from grl.agents.td_lambda import td_lambda
+from grl.agents.td_lambda import run_td_lambda_on_mdp
 
 def test_td_lambda():
     chain_length = 10
@@ -14,7 +14,7 @@ def test_td_lambda():
 
     ground_truth_vals = spec['gamma']**np.arange(chain_length - 2, -1, -1)
 
-    v, q = td_lambda(
+    v, q = run_td_lambda_on_mdp(
         mdp,
         policies[0],
         lambda_=1,

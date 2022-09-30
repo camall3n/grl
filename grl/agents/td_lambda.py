@@ -1,6 +1,6 @@
 import numpy as np
 
-def td_lambda(
+def run_td_lambda_on_mdp(
     mdp,
     pi,
     lambda_=1,

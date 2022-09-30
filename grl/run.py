@@ -15,7 +15,7 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
 from grl.mdp import MDP, AbstractMDP
-from grl.agents.td_lambda import td_lambda
+from grl.agents.td_lambda import run_td_lambda_on_mdp
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
@@ -123,7 +123,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             # Sampling
             logging.info('\n\n--- Sampling ---')
             # MDP
-            v, q = td_lambda(
+            v, q = run_td_lambda_on_mdp(
                 mdp,
                 pi_ground,
                 lambda_=1,
@@ -136,7 +136,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             }
 
             # TD(1)
-            v, q = td_lambda(
+            v, q = run_td_lambda_on_mdp(
                 amdp,
                 pi,
                 lambda_=1,
@@ -149,7 +149,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             }
 
             # TD(0)
-            v, q = td_lambda(
+            v, q = run_td_lambda_on_mdp(
                 amdp,
                 pi,
                 lambda_=0,
