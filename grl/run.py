@@ -15,7 +15,7 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
 from grl.mdp import MDP, AbstractMDP
-from grl.td_lambda import td_lambda
+from grl.agents.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad

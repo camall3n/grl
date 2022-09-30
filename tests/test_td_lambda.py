@@ -1,7 +1,7 @@
 import numpy as np
 
 from grl import MDP, AbstractMDP, PolicyEval, environment
-from grl.td_lambda import td_lambda
+from grl.agents.td_lambda import td_lambda
 
 def test_td_lambda():
     chain_length = 10
