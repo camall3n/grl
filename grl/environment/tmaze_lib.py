@@ -1,5 +1,11 @@
 import numpy as np
 
+START_UP = 0
+START_DOWN = 1
+JUNCTION_UP = -3
+JUNCTION_DOWN = -2
+TERMINAL = -1
+
 def tmaze(n: int, discount: float = 0.9):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
@@ -19,19 +25,21 @@ def tmaze(n: int, discount: float = 0.9):
 
     T_up = np.eye(n_states, n_states)
     T_down = T_up.copy()
-    T_up[[-1, -2, -3], [-1, -2, -3]] = 0
-    T_down[[-1, -2, -3], [-1, -2, -3]] = 0
+    T_up[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP],
+         [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
+    T_down[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP],
+           [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
 
     # If we go up or down at the junctions, we terminate
-    T_up[[-1 - 1, -2 - 1], [-1, -1]] = 1
-    T_down[[-1 - 1, -2 - 1], [-1, -1]] = 1
+    T_up[[JUNCTION_DOWN, JUNCTION_UP], [TERMINAL, TERMINAL]] = 1
+    T_down[[JUNCTION_DOWN, JUNCTION_UP], [TERMINAL, TERMINAL]] = 1
 
     T_left = np.zeros((n_states, n_states))
     T_right = T_left.copy()
 
     # At the leftmost and rightmost states we transition to ourselves
-    T_left[[0, 1], [0, 1]] = 1
-    T_right[[-1 - 1, -2 - 1], [-1 - 1, -2 - 1]] = 1
+    T_left[[START_UP, START_DOWN], [START_UP, START_DOWN]] = 1
+    T_right[[JUNCTION_DOWN, JUNCTION_UP], [JUNCTION_DOWN, JUNCTION_UP]] = 1
 
     # transition to -2 (left) or +2 (right) index
     all_nonterminal_idxes = np.arange(n_states - 1)
@@ -41,7 +49,7 @@ def tmaze(n: int, discount: float = 0.9):
     T = np.array([T_up, T_down, T_right, T_left])
 
     # Specify last state as terminal
-    T[:, -1, -1] = 1
+    T[:, TERMINAL, TERMINAL] = 1
 
     R_left = np.zeros((n_states, n_states))
     R_right = R_left.copy()
@@ -50,12 +58,12 @@ def tmaze(n: int, discount: float = 0.9):
     R_down = R_up.copy()
 
     # If rewarding state is north
-    R_up[-2 - 1, -1] = 4
-    R_down[-2 - 1, -1] = -0.1
+    R_up[JUNCTION_UP, TERMINAL] = 4
+    R_down[JUNCTION_UP, TERMINAL] = -0.1
 
     # If rewarding state is south
-    R_up[-1 - 1, -1] = -0.1
-    R_down[-1 - 1, -1] = 4
+    R_up[JUNCTION_DOWN, TERMINAL] = -0.1
+    R_down[JUNCTION_DOWN, TERMINAL] = 4
 
     R = np.array([R_up, R_down, R_right, R_left])
 
@@ -67,11 +75,15 @@ def tmaze(n: int, discount: float = 0.9):
     # start_up, start_down, corridor, junction, and terminal
     phi = np.zeros((n_states, 4 + 1))
 
+    # The two start states have observations of their own
+    # (up or down)
     phi[0, 0] = 1
     phi[1, 1] = 1
 
+    # All corridor states share the same observation (idx 2)
     phi[2:-3, 2] = 1
 
+    # All junction states share the same observation (idx 3)
     phi[-3:-1, 3] = 1
 
     # we have a special termination observations
