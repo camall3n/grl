@@ -16,14 +16,15 @@ def memory_cross_product(amdp, T_mem):
     :param amdp:  AMDP
     :param T_mem: memory transition function
     """
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(amdp.T, T_mem, amdp.phi, amdp.R, amdp.p0)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(amdp.T, T_mem, amdp.phi, amdp.R,
+                                                            amdp.p0)
 
     mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
     return AbstractMDP(mdp_x, phi_x)
 
 @jit
-def functional_memory_cross_product(T: jnp.ndarray, T_mem: jnp.ndarray, phi: jnp.ndarray, R: jnp.ndarray,
-                                    p0: jnp.ndarray):
+def functional_memory_cross_product(T: jnp.ndarray, T_mem: jnp.ndarray, phi: jnp.ndarray,
+                                    R: jnp.ndarray, p0: jnp.ndarray):
     n_states_m = T_mem.shape[-1]
     n_states = T.shape[-1]
     n_states_x = n_states_m * n_states

@@ -25,10 +25,8 @@ def tmaze(n: int, discount: float = 0.9):
 
     T_up = np.eye(n_states, n_states)
     T_down = T_up.copy()
-    T_up[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP],
-         [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
-    T_down[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP],
-           [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
+    T_up[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP], [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
+    T_down[[TERMINAL, JUNCTION_DOWN, JUNCTION_UP], [TERMINAL, JUNCTION_DOWN, JUNCTION_UP]] = 0
 
     # If we go up or down at the junctions, we terminate
     T_up[[JUNCTION_DOWN, JUNCTION_UP], [TERMINAL, TERMINAL]] = 1

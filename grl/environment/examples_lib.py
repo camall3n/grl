@@ -649,12 +649,10 @@ def tmaze_5_two_thirds_up_fully_observable():
     pi = np.zeros((T.shape[-1], 4))
     pi[:, 2] = 1
     pi[-2, :] = 0
-    pi[-2, 0] = 2/3
-    pi[-2, 1] = 1/3
+    pi[-2, 0] = 2 / 3
+    pi[-2, 1] = 1 / 3
 
-    Pi_phi = [
-        pi
-    ]
+    Pi_phi = [pi]
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
@@ -677,15 +675,13 @@ def tmaze_5_two_thirds_up_almost_fully_observable():
     pi = np.zeros((phi_almost_fully_observable.shape[-1], 4))
     pi[:, 2] = 1
     pi[-2, :] = 0
-    pi[-2, 0] = 2/3
-    pi[-2, 1] = 1/3
+    pi[-2, 0] = 2 / 3
+    pi[-2, 1] = 1 / 3
     pi[-3, :] = 0
-    pi[-3, 0] = 2/3
-    pi[-3, 1] = 1/3
+    pi[-3, 0] = 2 / 3
+    pi[-3, 1] = 1 / 3
 
-    Pi_phi = [
-        pi
-    ]
+    Pi_phi = [pi]
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]

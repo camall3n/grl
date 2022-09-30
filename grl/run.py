@@ -466,4 +466,9 @@ if __name__ == '__main__':
         if args.heatmap:
             heatmap(spec)
         else:
-            run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes, lr=args.lr)
+            run_algos(spec,
+                      args.method,
+                      args.n_random_policies,
+                      args.use_grad,
+                      args.n_episodes,
+                      lr=args.lr)
