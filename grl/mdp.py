@@ -113,7 +113,9 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a, gamma):
+    def step(self, s, a, gamma=None):
+        if gamma == None:
+            gamma = self.gamma
         pr_next_s = self.T[a, s, :]
         sp = np.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
