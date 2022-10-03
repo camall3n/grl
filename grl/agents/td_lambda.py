@@ -36,8 +36,12 @@ class TDLambdaQFunction:
         #
         # Thus we simply decay eligibility by λ.
         self.eligibility *= self.lambda_
-        self.eligibility[action, obs] += 1 # Accumulating traces
-        # self.eligibility[a, ob] = 1 # Replacing traces
+        if self.trace_type == 'accumulating':
+            self.eligibility[action, obs] += 1
+        elif self.trace_type == 'replacing':
+            self.eligibility[action, obs] = 1
+        else:
+            raise RuntimeError(f'Unknown trace_type: {self.trace_type}')
         delta = reward + self.gamma * self.q[next_action, next_obs] - self.q[action, obs]
         self.q += self.learning_rate * delta * self.eligibility
 
