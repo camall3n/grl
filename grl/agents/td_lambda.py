@@ -8,6 +8,16 @@ class TDLambdaQFunction:
                  gamma: float = 0.99,
                  learning_rate: float = 1,
                  trace_type: str = 'accumulating') -> None:
+        """
+        Online implementation of TD(λ)
+
+        :param n_observations:  number of observations
+        :param n_actions:       number of actions
+        :param lambda_:         lambda value (λ), in range [0, 1] (0 = "TD", 1 = "MC")
+        :param gamma:           discount factor, in range [0, 1)
+        :param learning_rate:   learning rate / step size parameter, in range [0, 1]
+        :param trace_type:      'accumulating' or 'replacing'
+        """
         self.n_observations = n_observations
         self.n_actions = n_actions
         self.lambda_ = lambda_
