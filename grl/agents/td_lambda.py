@@ -78,14 +78,13 @@ def run_td_lambda_on_mdp(
     tdlq = TDLambdaQFunction(mdp.n_obs, mdp.n_actions, lambda_, mdp.gamma, alpha)
 
     for i in range(n_episodes):
-        z = np.zeros((mdp.n_actions, mdp.n_obs)) # eligibility traces
         s = np.random.choice(mdp.n_states, p=mdp.p0)
         a = np.random.choice(mdp.n_actions, p=pi_ground[s])
         done = False
         while not done:
+            ob = mdp.observe(s)
             next_s, r, done = mdp.step(s, a, mdp.gamma)
             next_a = np.random.choice(mdp.n_actions, p=pi_ground[next_s])
-            ob = mdp.observe(s)
             next_ob = mdp.observe(next_s)
 
             tdlq.update(ob, a, r, done, next_ob, next_a)
