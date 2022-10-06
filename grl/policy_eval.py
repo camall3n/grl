@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import jax.numpy as jnp
-from jax import jit, value_and_grad
+from jax import jit, value_and_grad, nn
 from typing import Callable
 from functools import partial
 
@@ -11,10 +11,12 @@ from .memory import functional_memory_cross_product, memory_cross_product
 
 def normalize_rows(mat: jnp.ndarray):
     # Normalize (assuming params are probability distribution)
-    mat = mat.clip(0, 1)
-    denom = mat.sum(axis=-1, keepdims=True)
-    denom_no_zero = denom + (denom == 0).astype(denom.dtype)
-    mat /= denom_no_zero
+    # mat = mat.clip(0, 1)
+    # denom = mat.sum(axis=-1, keepdims=True)
+    # denom_no_zero = denom + (denom == 0).astype(denom.dtype)
+    # mat /= denom_no_zero
+
+    mat = nn.softmax(mat, axis=-1)
     return mat
 
 class PolicyEval:
@@ -30,7 +32,7 @@ class PolicyEval:
         self.loss_fn = self.mse_loss
         if self.discrep_type == 'max':
             self.functional_loss_fn = self.functional_max_loss
-            self.loss_fn = max_loss
+            self.loss_fn = self.max_loss
 
     def run(self, pi_abs):
         """
@@ -223,8 +225,8 @@ class PolicyEval:
                                                    phi.shape[-1])
         return jnp.abs(mc_vals[value_type] - td_vals[value_type]).max()
 
-    def memory_loss(self, T_mem, value_type, **kwargs):
-        amdp = memory_cross_product(self.amdp, T_mem)
+    def memory_loss(self, mem_params, value_type, **kwargs):
+        amdp = memory_cross_product(self.amdp, mem_params)
         pe = PolicyEval(amdp, verbose=False)
         return pe.mse_loss(kwargs['pi_abs'], value_type)
 
@@ -257,12 +259,13 @@ class PolicyEval:
         params -= lr * params_grad
 
         # Normalize (assuming params are probability distribution)
-        params = normalize_rows(params)
+        # params = normalize_rows(params)
         return loss, params
 
     @partial(jit, static_argnames=['self', 'gamma', 'value_type'])
-    def functional_memory_loss(self, T_mem: jnp.ndarray, gamma: float, value_type: str,
+    def functional_memory_loss(self, mem_params: jnp.ndarray, gamma: float, value_type: str,
                                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                                p0: jnp.ndarray):
+        T_mem = nn.softmax(mem_params, axis=-1)
         T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
         return self.functional_loss_fn(pi, value_type, phi_x, T_x, R_x, p0_x, gamma)

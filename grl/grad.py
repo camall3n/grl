@@ -1,4 +1,5 @@
 import logging
+from jax.nn import softmax
 
 from .mdp import MDP, AbstractMDP
 from .policy_eval import PolicyEval
@@ -60,11 +61,12 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         i += 1
 
         old_params = params
-        loss, params = update(params, value_type, lr, pi_abs)
+        loss, new_params = update(params, value_type, lr, pi_abs)
+        params = new_params
 
-        if i % 10 == 0:
+        if i % 100 == 0:
             # print('\n\n')
-            print('Gradient iteration', i)
+            print(f'Gradient iteration {i}, loss: {loss.item():.4f}')
             # print('params_grad\n', params_grad)
             # print()
             # print('params\n', params)
@@ -76,7 +78,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
-    logging.info(f'-Final gradient params:\n {params}')
+    logging.info(f'-Final gradient params:\n {softmax(params, axis=-1)}')
     logging.info(f'in {i} gradient steps with lr={lr}')
 
     old_amdp = policy_eval.amdp
