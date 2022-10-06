@@ -271,3 +271,6 @@ mem_17 = np.array([
     ],
 ])
 memory_17 = np.array([mem_17, mem_17, mem_17, mem_17]) # up, down, right, left
+
+mem_18 = np.random.normal(size=(5, 2, 2)) * np.sqrt(2)
+memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left

@@ -1,7 +1,7 @@
 import numpy as np
 
 from .memory_lib import *
-from .tmaze_lib import tmaze
+from .tmaze_lib import tmaze, slippery_tmaze
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -686,6 +686,18 @@ def tmaze_5_two_thirds_up_almost_fully_observable():
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(T, R, discount, p0, phi_almost_fully_observable, Pi_phi, Pi_phi_x)
+
+def slippery_tmaze_5_two_thirds_up():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {

@@ -88,3 +88,10 @@ def tmaze(n: int, discount: float = 0.9):
     phi[-1, 4] = 1
 
     return T, R, discount, p0, phi
+
+def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+    slip_T = np.eye(T.shape[-1] - 3) * slip_prob
+    # we add slipperiness to only the start and corridor
+    T[2, :-3, :-3] += (slip_T - (T[2, :-3, :-3] == 1) * slip_prob)
+    return T, R, discount, p0, phi
