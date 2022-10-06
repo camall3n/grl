@@ -11,12 +11,12 @@ from .memory import functional_memory_cross_product, memory_cross_product
 
 def normalize_rows(mat: jnp.ndarray):
     # Normalize (assuming params are probability distribution)
-    # mat = mat.clip(0, 1)
-    # denom = mat.sum(axis=-1, keepdims=True)
-    # denom_no_zero = denom + (denom == 0).astype(denom.dtype)
-    # mat /= denom_no_zero
+    mat = mat.clip(0, 1)
+    denom = mat.sum(axis=-1, keepdims=True)
+    denom_no_zero = denom + (denom == 0).astype(denom.dtype)
+    mat /= denom_no_zero
 
-    mat = nn.softmax(mat, axis=-1)
+    # mat = nn.softmax(mat, axis=-1)
     return mat
 
 class PolicyEval:
@@ -246,8 +246,8 @@ class PolicyEval:
         params = normalize_rows(params)
         return loss, params
 
-    def memory_update(self, T_mem: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
-        return self.functional_memory_update(T_mem, value_type, self.amdp.gamma, lr, pi,
+    def memory_update(self, mem_params: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
+        return self.functional_memory_update(mem_params, value_type, self.amdp.gamma, lr, pi,
                                              self.amdp.T, self.amdp.R, self.amdp.phi, self.amdp.p0)
 
     @partial(jit, static_argnames=['self', 'gamma', 'value_type', 'lr'])
@@ -258,8 +258,6 @@ class PolicyEval:
                                            argnums=0)(params, gamma, value_type, pi, T, R, phi, p0)
         params -= lr * params_grad
 
-        # Normalize (assuming params are probability distribution)
-        # params = normalize_rows(params)
         return loss, params
 
     @partial(jit, static_argnames=['self', 'gamma', 'value_type'])

@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import examples_lib
-from . import memory_lib
+from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
 
 def load_spec(name, memory_id: int = None):
@@ -27,13 +27,6 @@ def load_spec(name, memory_id: int = None):
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None
 
-    if memory_id is not None:
-        mem_name = f'memory_{memory_id}'
-        try:
-            spec['T_mem'] = getattr(memory_lib, mem_name)
-        except AttributeError as _:
-            raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
-
     # Check sizes and types
     if len(spec.keys()) < 6:
         raise ValueError("POMDP specification must contain at least: T, R, gamma, p0, phi, Pi_phi")
@@ -45,6 +38,10 @@ def load_spec(name, memory_id: int = None):
     spec['Pi_phi'] = np.array(spec['Pi_phi']).astype('float')
     if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
         raise ValueError("T, R, and Pi_phi must contain the same number of actions")
+
+    if memory_id is not None:
+        # TODO: generalize n_mem_states
+        spec['mem_params'] = get_memory(memory_id, spec['phi'].shape[-1], spec['Pi_phi'].shape[-1], n_mem_states=2)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so

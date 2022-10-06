@@ -30,8 +30,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     amdp = AbstractMDP(mdp, spec['phi'])
 
     policies = spec['Pi_phi']
-    if 'T_mem' in spec.keys() and spec['T_mem'] is not None:
-        amdp = memory_cross_product(amdp, spec['T_mem'])
+    if 'mem_params' in spec.keys() and spec['mem_params'] is not None:
+        amdp = memory_cross_product(amdp, spec['mem_params'])
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
@@ -42,8 +42,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     for i, pi in enumerate(policies):
         logging.info(f'\n\n\n======== policy id: {i} ========')
         logging.info(f'\npi:\n {pi}')
-        if 'T_mem' in spec.keys():
-            logging.info(f'\nT_mem:\n {spec["T_mem"]}')
+        if 'mem_params' in spec.keys():
+            logging.info(f'\nmem_params:\n {spec["mem_params"]}')
         pi_ground = amdp.get_ground_policy(pi)
         logging.info(f'\npi_ground:\n {pi_ground}')
 
@@ -65,9 +65,9 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
 
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
-            if 'T_mem' in spec.keys():
+            if 'mem_params' in spec.keys():
                 occupancy_x = pe.get_occupancy(pi)
-                n_mem_states = spec['T_mem'].shape[-1]
+                n_mem_states = spec['mem_params'].shape[-1]
                 n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
 
                 # These operations are within the cross producted space
@@ -456,8 +456,8 @@ if __name__ == '__main__':
         logging.info(f'p0:\n {spec["p0"]}')
         logging.info(f'phi:\n {spec["phi"]}')
         logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
-        if 'T_mem' in spec.keys():
-            logging.info(f'T_mem:\n {spec["T_mem"]}')
+        if 'mem_params' in spec.keys():
+            logging.info(f'mem_params:\n {spec["mem_params"]}')
         if 'Pi_phi_x' in spec.keys():
             logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
 

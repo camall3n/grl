@@ -1,4 +1,5 @@
 import numpy as np
+from jax.nn import softmax
 
 from grl import load_spec, do_grad, RTOL
 
@@ -30,7 +31,8 @@ def test_example_7_m():
             [1, 0],
         ],
         [ # blue
-            [0.99, 0.01],
+            # [0.99, 0.01],
+            [1, 0],
             [1, 0],
         ],
         [ # terminal
@@ -38,7 +40,11 @@ def test_example_7_m():
             [1, 0],
         ],
     ])
-    spec['T_mem'] = np.array([memory_start, memory_start])
+    memory_start[memory_start == 1] -= 1e-5
+    memory_start[memory_start == 0] += 1e-5
+    memory_start[1, 0, 0] -= 1e-2
+    memory_start[1, 0, 1] += 1e-2
+    spec['mem_params'] = np.log(np.array([memory_start, memory_start]))
 
     memory_end = np.array([
         [ # red
@@ -67,4 +73,7 @@ def test_example_7_m():
     ])
     memory_grad = do_grad(spec, pi, 'm', lr=1)
 
-    assert np.allclose(memory_end, memory_grad, atol=1e-5)
+    assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
+
+if __name__ == "__main__":
+    test_example_7_m()

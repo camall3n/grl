@@ -28,8 +28,8 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
 
     if grad_type == 'p':
         params = pi_abs
-        if 'T_mem' in spec.keys():
-            amdp = memory_cross_product(amdp, spec['T_mem'])
+        if 'mem_params' in spec.keys():
+            amdp = memory_cross_product(amdp, spec['mem_params'])
             policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
 
         update = policy_eval.policy_update
@@ -41,10 +41,10 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
             raise NotImplementedError
 
     elif grad_type == 'm':
-        if 'T_mem' not in spec.keys():
+        if 'mem_params' not in spec.keys():
             raise ValueError(
                 'Must include memory with "--use_memory <id>" to do gradient with memory')
-        params = spec['T_mem']
+        params = spec['mem_params']
         update = policy_eval.memory_update
         loss_fn = policy_eval.memory_loss
     else:
