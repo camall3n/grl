@@ -41,7 +41,10 @@ def load_spec(name, memory_id: int = None):
 
     if memory_id is not None:
         # TODO: generalize n_mem_states
-        spec['mem_params'] = get_memory(memory_id, spec['phi'].shape[-1], spec['Pi_phi'].shape[-1], n_mem_states=2)
+        spec['mem_params'] = get_memory(memory_id,
+                                        spec['phi'].shape[-1],
+                                        spec['Pi_phi'].shape[-1],
+                                        n_mem_states=2)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
