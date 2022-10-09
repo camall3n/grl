@@ -74,6 +74,3 @@ def test_example_7_m():
     memory_grad = do_grad(spec, pi, 'm', lr=1)
 
     assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
-
-if __name__ == "__main__":
-    test_example_7_m()

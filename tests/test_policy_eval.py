@@ -191,6 +191,3 @@ def test_example_14():
     }
 
     assert_pe_results(spec, answers)
-
-if __name__ == "__main__":
-    test_example_7_memory()
