@@ -17,7 +17,7 @@ def assert_pe_results(spec, answers, use_memory=False):
 
         for k in answers.keys():
             for j, res in enumerate(results):
-                assert (np.allclose(answers[k][i][j], res[k]))
+                assert (np.allclose(answers[k][i][j], res[k], atol=1e-4))
 
 def test_example_3():
     spec = load_spec('example_3') # gamma=0.5
@@ -73,7 +73,6 @@ def test_example_7():
 
 def test_example_7_memory():
     spec = load_spec('example_7', memory_id=4)
-    spec['mem_params'] = np.log(spec['mem_params'])
     spec['Pi_phi_x'] = [
         np.array([
             [0., 1], # Optimal policy with memory
@@ -192,3 +191,6 @@ def test_example_14():
     }
 
     assert_pe_results(spec, answers)
+
+if __name__ == "__main__":
+    test_example_7_memory()

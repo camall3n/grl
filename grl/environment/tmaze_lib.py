@@ -6,7 +6,7 @@ JUNCTION_UP = -3
 JUNCTION_DOWN = -2
 TERMINAL = -1
 
-def tmaze(n: int, discount: float = 0.9):
+def tmaze(n: int, discount: float = 0.9, good_term_reward: float = 4.0, bad_term_reward: float = -0.1):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
 
@@ -56,12 +56,12 @@ def tmaze(n: int, discount: float = 0.9):
     R_down = R_up.copy()
 
     # If rewarding state is north
-    R_up[JUNCTION_UP, TERMINAL] = 4
-    R_down[JUNCTION_UP, TERMINAL] = -0.1
+    R_up[JUNCTION_UP, TERMINAL] = good_term_reward
+    R_down[JUNCTION_UP, TERMINAL] = bad_term_reward
 
     # If rewarding state is south
-    R_up[JUNCTION_DOWN, TERMINAL] = -0.1
-    R_down[JUNCTION_DOWN, TERMINAL] = 4
+    R_up[JUNCTION_DOWN, TERMINAL] = bad_term_reward
+    R_down[JUNCTION_DOWN, TERMINAL] = good_term_reward
 
     R = np.array([R_up, R_down, R_right, R_left])
 
@@ -91,7 +91,13 @@ def tmaze(n: int, discount: float = 0.9):
 
 def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
     T, R, discount, p0, phi = tmaze(n, discount=discount)
+
+    # First, create a matrix representing transition dynamics w/ a slip prob of slip_prob
+    # This is an identity matrix with slip_prob at diagonal
+    # The -3 in indexing is to leave out the non-slippery junction and terminal states
     slip_T = np.eye(T.shape[-1] - 3) * slip_prob
-    # we add slipperiness to only the start and corridor
-    T[2, :-3, :-3] += (slip_T - (T[2, :-3, :-3] == 1) * slip_prob)
+
+    # We add slipperiness to transition dynamics for the start and corridor states
+    # Remember to offset the non-slip probabilities down by -slip_prob
+    T[:, :-3, :-3] += (slip_T - (T[:, :-3, :-3] == 1) * slip_prob)
     return T, R, discount, p0, phi

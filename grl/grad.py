@@ -71,7 +71,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
             # print()
             # print('params\n', params)
 
-        if np.allclose(old_params, params):
+        if np.allclose(old_params, params, atol=1e-10):
             done_count += 1
         else:
             done_count = 0

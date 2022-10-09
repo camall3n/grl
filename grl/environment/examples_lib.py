@@ -660,6 +660,11 @@ def tmaze_5_two_thirds_up_fully_observable():
     return to_dict(T, R, discount, p0, phi_fully_observable, Pi_phi, Pi_phi_x)
 
 def tmaze_5_two_thirds_up_almost_fully_observable():
+    """
+    Almost fully observable t-maze.
+    Goal "orientation" is always observable, so only aliased states
+    are the corridor states.
+    """
     # n_obs x n_actions
     n = 5
     discount = 0.9
@@ -701,12 +706,13 @@ def slippery_tmaze_5_two_thirds_up():
     return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
 
 def slippery_tmaze_5_random():
-    # n_obs x n_actions
+    """
+    Slippery t-maze, with a randomly sampled policy
+    """
     n = 5
     discount = 0.9
     Pi_phi = [
         random_stochastic_matrix((5, 4))
-        # np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
     ]
 
     # memory policy is observations * memory bits (2) x n_actions

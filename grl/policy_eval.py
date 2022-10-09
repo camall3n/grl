@@ -3,7 +3,6 @@ import logging
 import numpy as np
 import jax.numpy as jnp
 from jax import jit, value_and_grad, nn
-from typing import Callable
 from functools import partial
 
 from .mdp import MDP

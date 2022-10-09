@@ -259,7 +259,7 @@ mem_16 = np.array([
 ])
 memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
 
-# No memory for t-maze
+# Memory for t-maze, where we can set the initial transition probabilities.
 p = 0.4
 q = 0.6
 mem_17 = np.array([

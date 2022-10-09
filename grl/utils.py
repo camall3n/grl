@@ -1,6 +1,8 @@
-from pprint import pformat
-
 import numpy as np
+import jax.numpy as jnp
+
+from jax.nn import softmax
+from pprint import pformat
 
 RTOL = 1e-3
 
