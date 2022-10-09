@@ -6,7 +6,10 @@ JUNCTION_UP = -3
 JUNCTION_DOWN = -2
 TERMINAL = -1
 
-def tmaze(n: int, discount: float = 0.9, good_term_reward: float = 4.0, bad_term_reward: float = -0.1):
+def tmaze(n: int,
+          discount: float = 0.9,
+          good_term_reward: float = 4.0,
+          bad_term_reward: float = -0.1):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
 

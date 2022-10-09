@@ -711,9 +711,7 @@ def slippery_tmaze_5_random():
     """
     n = 5
     discount = 0.9
-    Pi_phi = [
-        random_stochastic_matrix((5, 4))
-    ]
+    Pi_phi = [random_stochastic_matrix((5, 4))]
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
