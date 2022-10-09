@@ -17,7 +17,7 @@ def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2
         if mem_name in current_module:
             T_mem = current_module[mem_name]
             # smooth out for softmax
-            mem_params = np.log(T_mem + 1e-5)
+            mem_params = np.log(T_mem + 1e-20)
         else:
             raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
     return mem_params

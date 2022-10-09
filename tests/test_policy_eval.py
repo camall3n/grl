@@ -17,7 +17,7 @@ def assert_pe_results(spec, answers, use_memory=False):
 
         for k in answers.keys():
             for j, res in enumerate(results):
-                assert (np.allclose(answers[k][i][j], res[k], atol=1e-4))
+                assert (np.allclose(answers[k][i][j], res[k]))
 
 def test_example_3():
     spec = load_spec('example_3') # gamma=0.5
