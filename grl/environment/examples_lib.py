@@ -639,6 +639,18 @@ def tmaze_5_two_thirds_up():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
+def tmaze_2_two_thirds_up():
+    # n_obs x n_actions
+    n = 2
+    discount = 0.99999999999
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+
 def tmaze_5_two_thirds_up_fully_observable():
     # n_obs x n_actions
     n = 5
