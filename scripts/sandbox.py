@@ -1,79 +1,181 @@
+import copy
 import numpy as np
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
 
+from jax import nn
+
 from grl.agents.td_lambda import TDLambdaQFunction
+
 #%% Define base decision process
-corridor_length = 5
-spec = environment.load_spec('tmaze_5_two_thirds_up', memory_id=None)
+spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 amdp = AbstractMDP(mdp, spec['phi'])
 pi_base = spec['Pi_phi'][0] # abstract policy over base (non-memory) actions
-n_episodes = 1000
+n_episodes = 10000
 
 #%% Run TD-lambda until convergence
-q_td = TDLambdaQFunction(amdp.n_obs,
-                         amdp.n_actions,
+q_td = TDLambdaQFunction(n_observations=amdp.n_obs,
+                         n_actions=amdp.n_actions,
                          lambda_=0,
                          gamma=amdp.gamma,
-                         learning_rate=0.1)
-q_mc = TDLambdaQFunction(amdp.n_obs,
-                         amdp.n_actions,
+                         learning_rate=0.001)
+q_mc = TDLambdaQFunction(n_observations=amdp.n_obs,
+                         n_actions=amdp.n_actions,
                          lambda_=0.99,
                          gamma=amdp.gamma,
-                         learning_rate=0.1)
+                         learning_rate=0.001)
 
 for i in range(n_episodes):
     s = np.random.choice(mdp.n_states, p=mdp.p0)
-    ob = mdp.observe(s)
+    ob = amdp.observe(s)
     a = np.random.choice(mdp.n_actions, p=pi_base[ob])
-    done = False
-    while not done:
-        next_s, r, done = mdp.step(s, a, mdp.gamma)
-        next_ob = mdp.observe(next_s)
+    s, ob, a
+    terminal = False
+    while not terminal:
+        s, ob, a
+        next_s, r, terminal = mdp.step(s, a, mdp.gamma)
+        r, terminal
+        next_ob = amdp.observe(next_s)
         next_a = np.random.choice(mdp.n_actions, p=pi_base[next_ob])
+        next_s, next_ob, next_a
 
-        q_td.update(ob, a, r, done, next_ob, next_a)
-        q_mc.update(ob, a, r, done, next_ob, next_a)
+        q_td.update(ob, a, r, terminal, next_ob, next_a)
+        q_mc.update(ob, a, r, terminal, next_ob, next_a)
 
         s = next_s
         ob = next_ob
         a = next_a
 
+# TODO: archive non-augmented q functions to use as baselines?
+q_mc_orig = copy.deepcopy(q_mc)
+q_td_orig = copy.deepcopy(q_td)
+
 #%% Define memory decision process (binary memory function)
-n_mem_obs = amdp.n_obs * amdp.n_actions * 2
 n_mem_states = 2
-n_mem_actions = 2 # {hold, toggle}
+n_mem_obs = amdp.n_obs * amdp.n_actions * n_mem_states
 initial_mem = 0
+# p_hold = 0.6
+# p_toggle = 1 - p_hold
+# pi_mem_template = np.expand_dims(np.array([
+#     [p_hold, p_toggle],
+#     [p_toggle, p_hold],
+# ]), axis=(0, 1))
+# mem_params = pi_mem_template * np.ones(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states)
+# Optimal memory for t-maze
+mem_16 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
+    ],
+    [ # we see the goal as DOWN
+        [0, 1],
+        [0, 1],
+    ],
+    [ # corridor
+        [1, 0],
+        [0, 1],
+    ],
+    [ # junction
+        [1, 0],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
+mem_params = np.log(memory_16+1e-5)
+# mem_params = 0.01 * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
+lr = 10.0
 
-def get_ob_mem(ob_base, a_base, s_mem):
-    ob_mem = (a_base * amdp.n_obs + ob_base) * n_mem_states + s_mem
-    if ob_mem >= n_mem_obs:
-        raise RuntimeError(f'Bad state detected for memory decision process.\n'
-                           f'  ob_base: {ob_base}\n'
-                           f'  a_base:  {a_base}\n'
-                           f'  s_mem:   {s_mem}\n'
-                           f'  ob_mem:  {ob_mem}  (should be < {n_mem_obs})')
-    return ob_mem
+def pi_mem(a_base, ob_base, s_mem):
+    logits = mem_params[a_base, ob_base, s_mem]
+    # return logits
+    return nn.softmax(logits, axis=-1)
 
+def step_mem(s_mem, a_mem):
+    # next_s_mem = ~s_mem if (a_mem == 1) else s_mem
+    # next_s_mem = (1 - a_mem) * s_mem + a_mem * (1 - s_mem)  # hold/toggle interpretation
+    next_s_mem = a_mem # set/reset interpretation
+    return next_s_mem
+
+def augment_obs(ob_base, s_mem, n_mem_states):
+    # augment last dim with mem states
+    ob_augmented = n_mem_states * ob_base + s_mem
+    return ob_augmented
+
+#%%
+q_mc = copy.deepcopy(q_mc_orig)
+q_td = copy.deepcopy(q_td_orig)
+q_td.augment_with_memory(n_mem_states)
+q_mc.augment_with_memory(n_mem_states)
+
+#%%
 for i in range(n_episodes):
-    s_mem = initial_mem
     s_base = np.random.choice(amdp.n_states, p=mdp.p0)
-    ob_base = mdp.observe(s_base)
+    ob_base = amdp.observe(s_base)
     a_base = np.random.choice(amdp.n_actions, p=pi_base[ob_base])
 
-    ob_mem = get_ob_mem(ob_base, a_base, s_mem)
+    s_mem = initial_mem
+    a_mem = np.random.choice(n_mem_states, p=pi_mem(a_base, ob_base, s_mem))
+
+    ob_aug = augment_obs(ob_base, s_mem, n_mem_states)
 
     terminal = False
     while not terminal:
         next_s_base, r_base, terminal = amdp.step(s_base, a_base)
-        next_ob_base = amdp.observe(next_s)
-        next_a_base = np.random.choice(mdp.n_actions, p=pi_base[next_ob])
+        next_ob_base = amdp.observe(next_s_base)
+        next_a_base = np.random.choice(mdp.n_actions, p=pi_base[next_ob_base])
 
-        q_td.update(ob_base, a_base, r_base, terminal, next_ob_base, next_a_base)
-        q_mc.update(ob_base, a_base, r_base, terminal, next_ob_base, next_a_base)
+        next_s_mem = step_mem(s_mem, a_mem)
+        next_a_mem = np.random.choice(n_mem_states,
+                                      p=pi_mem(next_a_base, next_ob_base, next_s_mem))
 
-        s_base = next_s_base
-        ob_base = next_ob_base
-        a_base = next_a_base
+        next_ob_aug = augment_obs(next_ob_base, next_s_mem, n_mem_states)
+
+        # update Q functions
+        q_td.update(ob_aug, a_base, r_base, terminal, next_ob_aug, next_a_base)
+        q_mc.update(ob_aug, a_base, r_base, terminal, next_ob_aug, next_a_base)
+
+        # TODO: use all-actions method over next_s_mem?
+
+        # compute sampled (squared) lambda discrepancy
+        # (R + \gamma G_{t+1}) - (R + \gamma Q_TD([ob+m]', a'))
+        # (Q_MC([ob+m]', a') - Q_TD([ob+m]', a'))
+        discr = (q_mc.q[next_a_base, next_ob_aug] - q_td.q[next_a_base, next_ob_aug])**2
+
+        # update policy using memory gradient
+        #   minimize E[ J_M log π(m'|o,a,m)]
+        # TODO: Fix this... it's wrong!
+        # mem_params[a_base, ob_base, s_mem, next_s_mem] -= lr * discr * mem_params[a_base, ob_base, s_mem, next_s_mem]
+        # mem_params[a_base, ob_base, s_mem, 1-next_s_mem] -= lr * discr * mem_params[a_base, ob_base, s_mem, 1-next_s_mem]
+
+        # increment timestep
+        s_base, ob_base, a_base = next_s_base, next_ob_base, next_a_base
+        s_mem, a_mem = next_s_mem, next_a_mem
+        ob_aug = next_ob_aug
+
+#%%
+q_mc_orig.q
+
+q_td_orig.q
+
+q_mc_orig.q - q_td_orig.q
+
+q_mc.q.round(3)
+q_td.q.round(3)
+
+(q_mc.q - q_td.q)
+
+pi_base
+
+nn.softmax(mem_params, axis=-1).round(2)[2, 0]
+nn.softmax(mem_params, axis=-1).round(2)[2, 1]
+nn.softmax(mem_params, axis=-1).round(2)[2, 2]
+nn.softmax(mem_params, axis=-1).round(2)[0, 3]
+nn.softmax(mem_params, axis=-1).round(2)[1, 3]
