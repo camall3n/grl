@@ -56,12 +56,12 @@ def tmaze(n: int, discount: float = 0.9):
     R_down = R_up.copy()
 
     # If rewarding state is north
-    R_up[JUNCTION_UP, TERMINAL] = 4
-    R_down[JUNCTION_UP, TERMINAL] = -0.1
+    R_up[JUNCTION_UP, TERMINAL] = 1
+    R_down[JUNCTION_UP, TERMINAL] = 0
 
     # If rewarding state is south
-    R_up[JUNCTION_DOWN, TERMINAL] = -0.1
-    R_down[JUNCTION_DOWN, TERMINAL] = 4
+    R_up[JUNCTION_DOWN, TERMINAL] = 0
+    R_down[JUNCTION_DOWN, TERMINAL] = 1
 
     R = np.array([R_up, R_down, R_right, R_left])
 
