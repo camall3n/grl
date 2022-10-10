@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 class TDLambdaQFunction:
@@ -57,6 +59,19 @@ class TDLambdaQFunction:
 
         if terminal:
             self._reset_eligibility()
+
+    def augment_with_memory(self, n_mem_states: int):
+        """
+        Expand q (A x O) => A x OM to include memory states
+        """
+        # augment last dim with input mem states
+        self.n_observations *= n_mem_states
+        q_mem_states = np.expand_dims(self.q, -1).repeat(n_mem_states, -1)
+        self.q = q_mem_states.reshape(self.n_actions, self.n_observations)
+
+        if np.any(self.eligibility > 0):
+            warnings.warn('Resetting non-zero eligibility during memory augmentation')
+        self._reset_eligibility()
 
 def run_td_lambda_on_mdp(
     mdp,
