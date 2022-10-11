@@ -114,6 +114,9 @@ def augment_obs(ob_base, s_mem, n_mem_states):
     return ob_augmented
 
 #%%
+pg_mode = 'selected_action'
+# pg_mode = 'all_actions'
+
 q_mc = copy.deepcopy(q_mc_orig)
 q_td = copy.deepcopy(q_td_orig)
 q_td.augment_with_memory(n_mem_states)
@@ -150,17 +153,28 @@ for i in tqdm(range(n_episodes)):
         q_td.update(ob_aug, a_base, r_base, terminal, next_ob_aug, next_a_base)
         q_mc.update(ob_aug, a_base, r_base, terminal, next_ob_aug, next_a_base)
 
-        # TODO: use all-actions method over next_s_mem?
+        if pg_mode == 'selected_action':
+            # compute sampled (squared) lambda discrepancy
+            # (R + \gamma G_{t+1}) - (R + \gamma Q_TD([ob+m]', a'))
+            # (Q_MC([ob+m]', a') - Q_TD([ob+m]', a'))
+            step_discr = (q_mc.q[next_a_base, next_ob_aug] - q_td.q[next_a_base, next_ob_aug])**2
 
-        # compute sampled (squared) lambda discrepancy
-        # (R + \gamma G_{t+1}) - (R + \gamma Q_TD([ob+m]', a'))
-        # (Q_MC([ob+m]', a') - Q_TD([ob+m]', a'))
-        step_discr = (q_mc.q[next_a_base, next_ob_aug] - q_td.q[next_a_base, next_ob_aug])**2
+            # update policy using memory gradient
+            #   minimize E[ discr \grad log π(m'|o,a,m)]
+            param_updates[a_base, ob_base, s_mem, next_s_mem] -= step_discr
+            param_updates[a_base, ob_base, s_mem, 1 - next_s_mem] += step_discr
 
-        # update policy using memory gradient
-        #   minimize E[ discr \grad log π(m'|o,a,m)]
-        # param_updates[a_base, ob_base, s_mem, next_s_mem] -= step_discr
-        # param_updates[a_base, ob_base, s_mem, 1 - next_s_mem] += step_discr
+        elif pg_mode ==  'all_actions':
+            all_s_mem_actions = [0, 1]
+            for each_s_mem in all_s_mem_actions:
+                each_ob_aug = augment_obs(next_ob_base, each_s_mem, n_mem_states)
+                each_discr = (q_mc.q[next_a_base, each_ob_aug] - q_td.q[next_a_base, each_ob_aug])**2
+                pr_each_s_mem = pi_mem(a_base, ob_base, s_mem)[each_s_mem]
+
+                # update policy using memory gradient
+                #   minimize E[ discr \grad log π(m'|o,a,m)]
+                param_updates[a_base, ob_base, s_mem, each_s_mem] -= each_discr * pr_each_s_mem
+                param_updates[a_base, ob_base, s_mem, 1 - each_s_mem] += each_discr * pr_each_s_mem
 
         # increment timestep
         timestep += 1
@@ -168,7 +182,7 @@ for i in tqdm(range(n_episodes)):
         s_mem, a_mem = next_s_mem, next_a_mem
         ob_aug = next_ob_aug
 
-    # mem_params += lr * param_updates
+    mem_params += lr * param_updates
 #%%
 q_mc_orig.q
 
