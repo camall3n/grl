@@ -1,9 +1,10 @@
 import argparse
 import logging
 import pathlib
-import time
 from os import listdir
 import os.path
+from pathlib import Path
+from time import time, ctime
 
 import numpy as np
 import jax
@@ -19,9 +20,31 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
-from grl.utils import pformat_vals, RTOL
+from grl.utils import pformat_vals, RTOL, golrot_init
+from grl.analytical_agent import AnalyticalAgent
+from grl.mi import run_memory_iteration
+from definitions import ROOT_DIR
 
-def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500, lr=1):
+def run_mi_algos(spec: dict, pi_lr: float = 1., mi_lr: float = 1., rand_key: jax.random.PRNGKey = None):
+    """
+    Runs interspersing memory iteration and policy improvement.
+    """
+    assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
+    mem_params = spec['mem_params']
+
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
+
+    # we first do our first PG convergence step
+    pi_params = golrot_init(spec['Pi_phi'][0].shape)
+
+    agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key)
+
+    logs, agent = run_memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr)
+    return logs, agent
+
+def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
+                 use_grad: bool = False, n_episodes: int = 500, lr: float = 1.):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -206,7 +229,7 @@ def run_on_file(filepath, mem_fn_id=None):
 
     # Discrepancies without memory.
     # List with one discrepancy dict ('v' and 'q') per policy.
-    discrepancies_no_mem = run_algos(spec)
+    discrepancies_no_mem = run_pe_algos(spec)
 
     path = f'grl/results/1bit_mem_conjecture_traj_weighted/{tag}'
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -235,7 +258,7 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
     spec['T_mem'] = T_mem # add memory
     spec['Pi_phi_x'] = [pi.repeat(2, axis=0)
                         for pi in spec['Pi_phi']] # expand policies to obs-mem space
-    discrepancies_mem = run_algos(spec)
+    discrepancies_mem = run_pe_algos(spec)
 
     # Check if this memory made the discrepancy decrease for each policy.
     # The mem and no_mem lists are in the same order of policies.
@@ -269,7 +292,7 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
     return mem_fn_improved_discrep
 
 def generate_pomdps(params):
-    timestamp = str(time.time()).replace('.', '-')
+    timestamp = str(time()).replace('.', '-')
     path = f'grl/environment/pomdp_files/generated/{timestamp}'
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -374,6 +397,8 @@ if __name__ == '__main__':
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--run_generated', type=str,
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
+    parser.add_argument('--algo', type=str, default='pe',
+        help='algorithm to run. "mi" - memory and policy improvement, "pe" - policy evaluation')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
     parser.add_argument('--method', default='a', type=str,
@@ -419,12 +444,13 @@ if __name__ == '__main__':
         if args.run_generated:
             name = f'logs/{args.run_generated}.log'
         else:
-            name = f'logs/{args.spec}-{mem_part}-{time.time()}.log'
+            name = f'logs/{args.spec}-{mem_part}-{time()}.log'
         rootLogger.addHandler(logging.FileHandler(name))
 
+    rand_key = None
     if args.seed:
         np.random.seed(args.seed)
-        jax.random.PRNGKey(args.seed)
+        rand_key = jax.random.PRNGKey(args.seed)
 
     # Run
     if args.generate_pomdps:
@@ -466,9 +492,21 @@ if __name__ == '__main__':
         if args.heatmap:
             heatmap(spec)
         else:
-            run_algos(spec,
-                      args.method,
-                      args.n_random_policies,
-                      args.use_grad,
-                      args.n_episodes,
-                      lr=args.lr)
+            if args.algo == 'pe':
+                run_pe_algos(spec,
+                             args.method,
+                             args.n_random_policies,
+                             args.use_grad,
+                             args.n_episodes,
+                             lr=args.lr)
+            elif args.algo == 'mi':
+                assert args.method == 'a'
+                logs, agent = run_mi_algos(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key)
+
+                results_dir = Path(ROOT_DIR, 'results')
+                results_path = results_dir / f"{args.spec}_{ctime(time())}.npy"
+                np.save(results_path, {'logs': logs, 'agent': agent})
+            else:
+                raise NotImplementedError
+
+

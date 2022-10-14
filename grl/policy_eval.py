@@ -156,8 +156,7 @@ class PolicyEval:
           where s^ is the prev state
         """
         pi_ground = self.amdp.phi @ pi
-        return functional_get_occupancy(pi_ground, self.amdp.T, self.amdp.p0,
-                                        self.amdp.n_states, self.amdp.gamma)
+        return functional_get_occupancy(pi_ground, self.amdp.T, self.amdp.p0, self.amdp.gamma)
 
     def _solve_amdp(self, mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
                     pi: jnp.ndarray):

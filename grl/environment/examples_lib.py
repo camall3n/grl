@@ -717,6 +717,19 @@ def slippery_tmaze_5_random():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
 
+def tmaze_5_obs_optimal():
+    """
+    T-Maze, with the optimal policy given observations.
+    """
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0.15, 0, 0.85], [0, 0, 1, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0.13, 0.87, 0]])
+    ]
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
