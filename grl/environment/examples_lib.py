@@ -724,7 +724,7 @@ def tmaze_5_obs_optimal():
     n = 5
     discount = 0.9
     Pi_phi = [
-        np.array([[0, 0.15, 0, 0.85], [0, 0, 1, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0.13, 0.87, 0]])
+        np.array([[0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 1, 0], [1, 0, 0, 0], [0, 0.13, 0.87, 0]])
     ]
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]

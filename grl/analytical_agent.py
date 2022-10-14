@@ -33,6 +33,7 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float,
     T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi, T, R)
     td_v_vals, _ = functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma)
     p_init_obs = p0 @ phi
+    # TODO: check q-values
     return jnp.dot(p_init_obs, td_v_vals)
 
 class AnalyticalAgent:
