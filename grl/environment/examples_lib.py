@@ -605,6 +605,82 @@ def example_22():
 
     return to_dict(T, R, 0.999, p0, phi, Pi_phi, Pi_phi_x)
 
+def example_24():
+    T_up = np.array([
+        # r, b1, y, b2, t
+        [0, 1, 0, 0, 0.],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+    ])
+    T_down = np.array([
+        # r, b1, y, b2, t
+        [0, 0, 0, 0, 1.],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+    ])
+    T = np.array([T_up, T_down])
+
+    R_up = np.array([
+        # r, b1, y, b2, t
+        [0, 0, 0, 0, 0.],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0],
+    ])
+    R_down = np.array([
+        # r, b1, y, b2, t
+        [0, 0, 0, 0, .1],
+        [0, 0, 0.5, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ])
+    R = np.array([R_up, R_down])
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        #r, b, y, t
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
+    ])
+
+    p = 1.
+    q = 0.
+    Pi_phi = [
+        np.array([
+            # up, down
+            [p, 1 - p], # red
+            [q, 1 - q], # blue
+            [0.5, 0.5], # yellow (doesn't matter)
+            [0.5, 0.5], # terminal (doesn't matter)
+        ]),
+    ]
+
+    Pi_phi_x = [
+        np.array([
+            [p, 1 - p], # red (m=0)
+            [p, 1 - p], # red (m=1)
+            [q, 1 - q], # blue (...)
+            [q, 1 - q], # blue
+            [0.5, 0.5], # yellow
+            [0.5, 0.5], # yellow
+            [0.5, 0.5], # terminal
+            [0.5, 0.5], # terminal
+        ]),
+    ]
+
+    return to_dict(T, R, 0.5, p0, phi, Pi_phi, Pi_phi_x)
+
 def simple_chain(n: int = 10):
     T = np.zeros((n, n))
     states = np.arange(n)

@@ -51,6 +51,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
             occupancy = pe.get_occupancy(pi)
+            logging.info(f'occupancy:\n {occupancy}')
+            logging.info(f'p(s|o):\n {pe._get_p_s_given_o(amdp.n_obs, amdp.phi, occupancy)}')
             pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
