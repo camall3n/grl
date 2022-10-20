@@ -8,19 +8,21 @@ from grl.memory import memory_cross_product
 
 def run_memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
                          pi_lr: float = 0.5, mi_lr: float = 0.1,
-                         pi_per_step: int = 25000, mi_per_step: int = 25000,
-                         mpi_iterations: int = 20,
+                         pi_per_step: int = 10000, mi_per_step: int = 25000,
+                         mpi_iterations: int = 2,
                          log_every: int = 1000):
-    log = {'v0': [], 'mem_loss': []}
+    log = {'policy_improvement_outputs': [], 'mem_loss': []}
 
     # initial policy improvement
     print("Initial policy improvement step")
-    initial_v0s = run_pi(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
-    log['v0'].append(initial_v0s)
+    initial_outputs = run_pi(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
+    log['policy_improvement_outputs'].append(initial_outputs)
 
     # we have to set our policy over our memory MDP now
-    agent.repeat_pi_over_mem()
-    print(f"Starting Policy: \n{softmax(agent.pi_params, axis=-1)}")
+    # we do so with a random policy given new memory bit
+    agent.new_pi_over_mem()
+    print(f"Starting policy: \n{agent.policy}")
+    print(f"Starting memory: \n{agent.memory}")
 
     for mem_it in range(1, mpi_iterations + 1):
         print(f"Start MPI iteration {mem_it}")
@@ -39,12 +41,12 @@ def run_memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
             agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
 
         # Now we improve our policy again
-        v0 = run_pi(agent, amdp_mem, lr=pi_lr, iterations=pi_per_step * 2, log_every=log_every)
-        log['v0'].append(v0)
+        policy_output = run_pi(agent, amdp_mem, lr=pi_lr, iterations=pi_per_step * 2, log_every=log_every)
+        log['policy_improvement_outputs'].append(policy_output)
 
         # Plotting for policy improvement
         print(f"Learnt policy for iteration {mem_it}: \n"
-              f"{softmax(agent.pi_params, axis=-1)}")
+              f"{agent.policy}")
 
     return log, agent
 
@@ -54,13 +56,17 @@ def run_pi(agent: AnalyticalAgent, amdp: AbstractMDP,
     """
     Policy improvement over multiple steps
     """
-    v_0s = []
+    outputs = []
     for it in trange(iterations):
-        v_0 = agent.policy_improvement(amdp, lr)
+        output = agent.policy_improvement(amdp, lr)
         if it % log_every == 0:
-            print(f"initial state value for iteration {it}: {v_0:.4f}")
-            v_0s.append(v_0.item())
-    return np.array(v_0s)
+            if agent.policy_optim_alg == 'pg':
+                print(f"initial state value for iteration {it}: {output.item():.4f}")
+                outputs.append(output.item())
+            elif agent.policy_optim_alg == 'pi':
+                outputs.append(output)
+    print(f"learnt policy: {agent.policy}")
+    return np.array(outputs)
 
 def run_mi(agent: AnalyticalAgent, amdp: AbstractMDP,
            lr: float = 1., iterations: int = 10000,

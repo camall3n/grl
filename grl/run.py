@@ -25,7 +25,8 @@ from grl.analytical_agent import AnalyticalAgent
 from grl.mi import run_memory_iteration
 from definitions import ROOT_DIR
 
-def run_mi_algos(spec: dict, pi_lr: float = 1., mi_lr: float = 1., rand_key: jax.random.PRNGKey = None):
+def run_mi_algos(spec: dict, pi_lr: float = 1., mi_lr: float = 1., policy_optim_alg: str = 'pi',
+                 rand_key: jax.random.PRNGKey = None):
     """
     Runs interspersing memory iteration and policy improvement.
     """
@@ -35,10 +36,11 @@ def run_mi_algos(spec: dict, pi_lr: float = 1., mi_lr: float = 1., rand_key: jax
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    # we first do our first PG convergence step
+    # initialize policy params
     pi_params = golrot_init(spec['Pi_phi'][0].shape)
 
-    agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key)
+    agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
+                            policy_optim_alg=policy_optim_alg)
 
     logs, agent = run_memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr)
     return logs, agent
@@ -399,6 +401,8 @@ if __name__ == '__main__':
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
     parser.add_argument('--algo', type=str, default='pe',
         help='algorithm to run. "mi" - memory and policy improvement, "pe" - policy evaluation')
+    parser.add_argument('--policy_optim_alg', type=str, default='pi',
+                        help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
     parser.add_argument('--method', default='a', type=str,
@@ -501,7 +505,8 @@ if __name__ == '__main__':
                              lr=args.lr)
             elif args.algo == 'mi':
                 assert args.method == 'a'
-                logs, agent = run_mi_algos(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key)
+                logs, agent = run_mi_algos(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
+                                           policy_optim_alg=args.policy_optim_alg)
 
                 results_dir = Path(ROOT_DIR, 'results')
                 results_path = results_dir / f"{args.spec}_{ctime(time())}.npy"

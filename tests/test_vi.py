@@ -2,7 +2,7 @@
 import numpy as np
 
 from grl import MDP, AbstractMDP, PolicyEval, environment
-from grl.vi import value_iteration
+from grl.vi import po_policy_iteration, value_iteration
 
 def test_vi():
     chain_length = 10
@@ -31,14 +31,16 @@ def test_vi_tmaze():
           f"Ground-truth values: {ground_truth_vals}")
     assert np.all(np.isclose(v[:-1], ground_truth_vals, atol=1e-2))
 
-if __name__ == "__main__":
-    test_vi_tmaze()
-
-    # We see what policy we get when we learn with obs only.
-    # Oh no - this doesn't actually work!
-    # no guarantees for memoryless policy
+def test_po_pi_tmaze():
     spec = environment.load_spec('tmaze_5_two_thirds_up')
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    print(f"Testing value iteration on T-Maze.")
 
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    pe = PolicyEval(amdp)
+    phi_pi = po_policy_iteration(amdp.T, amdp.R, amdp.phi, amdp.gamma, amdp.p0)
+
+    print(f"Policy Iteration pi: {phi_pi}\n")
+
+if __name__ == "__main__":
+    # test_vi_tmaze()
+    test_po_pi_tmaze()
