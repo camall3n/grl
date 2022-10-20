@@ -4,6 +4,37 @@ import numpy as np
 from grl.mdp import MDP, AbstractMDP
 from grl.environment import tmaze_lib
 
+def test_slippery_tmaze():
+    corridor_length = 5
+    slip_prob = 0.1
+    T, R, gamma, p0, phi = tmaze_lib.slippery_tmaze(corridor_length, slip_prob=slip_prob)
+    mdp = MDP(T, R, p0, gamma=gamma)
+    slip_tmaze = AbstractMDP(mdp, phi)
+
+    # make sure we have proper prob. dists.
+    assert np.allclose(T.sum(axis=-1), 1)
+
+    # Now we test slip probabilities
+    samples = 10000
+    go_right_states = np.arange(0, slip_tmaze.n_states - 3)
+    go_left_states = np.arange(2, slip_tmaze.n_states - 1)
+
+    success_right_counts, success_left_counts = np.zeros_like(go_right_states), np.zeros_like(
+        go_left_states)
+    for i in range(samples):
+        for s in go_right_states:
+            next_s, r, done = slip_tmaze.step(s, 2, 1)
+            success_right_counts[s] += next_s == s + 2
+
+        for s in go_left_states:
+            next_s, r, done = slip_tmaze.step(s, 3, 1)
+            success_left_counts[s - 2] += next_s == s - 2
+    success_right_ratios = success_right_counts / samples
+    success_left_ratios = success_left_counts / samples
+
+    assert np.allclose(success_right_ratios, 1 - slip_prob, atol=1e-2)
+    assert np.allclose(success_left_ratios, 1 - slip_prob, atol=1e-2)
+
 @pytest.fixture()
 def tmaze():
     corridor_length = 5
