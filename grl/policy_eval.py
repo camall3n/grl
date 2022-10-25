@@ -100,23 +100,23 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray,
     return T_obs_obs, R_obs_obs
 
 @partial(jit, static_argnames=['gamma'])
-def analytical_pe(pi_abs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
+def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
                   R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
     # observation policy, but expanded over states
-    pi_ground = phi @ pi_abs
+    pi_state = phi @ pi_obs
 
     # MC*
-    state_v, state_q = functional_solve_mdp(pi_ground, T, R, gamma)
+    state_v, state_q = functional_solve_mdp(pi_state, T, R, gamma)
     state_vals = {'v': state_v, 'q': state_q}
 
-    occupancy = functional_get_occupancy(pi_ground, T, p0, gamma)
+    occupancy = functional_get_occupancy(pi_state, T, p0, gamma)
 
     p_pi_of_s_given_o = get_p_s_given_o(phi, occupancy)
-    mc_vals = functional_solve_amdp(state_q, p_pi_of_s_given_o, pi_abs)
+    mc_vals = functional_solve_amdp(state_q, p_pi_of_s_given_o, pi_obs)
 
     # TD
     T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi, T, R)
-    td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma)
+    td_v_vals, td_q_vals = functional_solve_mdp(pi_obs, T_obs_obs, R_obs_obs, gamma)
     td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
     return state_vals, mc_vals, td_vals
@@ -142,7 +142,6 @@ class PolicyEval:
         """
         return analytical_pe(pi_abs, self.amdp.phi, self.amdp.T, self.amdp.R, self.amdp.p0,
                              self.amdp.gamma)
-
 
     def _solve_mdp(self, mdp, pi):
         v, q = functional_solve_mdp(pi, mdp.T, mdp.R, mdp.gamma)

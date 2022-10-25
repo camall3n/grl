@@ -3,8 +3,7 @@ import logging
 import pathlib
 from os import listdir
 import os.path
-from pathlib import Path
-from time import time, ctime
+from time import time
 
 import numpy as np
 import jax
@@ -20,30 +19,8 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
-from grl.utils import pformat_vals, RTOL, golrot_init
-from grl.analytical_agent import AnalyticalAgent
+from grl.utils import pformat_vals, RTOL, mi_results_path
 from grl.mi import run_memory_iteration
-from definitions import ROOT_DIR
-
-def run_mi_algos(spec: dict, pi_lr: float = 1., mi_lr: float = 1., policy_optim_alg: str = 'pi',
-                 rand_key: jax.random.PRNGKey = None):
-    """
-    Runs interspersing memory iteration and policy improvement.
-    """
-    assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
-    mem_params = spec['mem_params']
-
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
-
-    # initialize policy params
-    pi_params = golrot_init(spec['Pi_phi'][0].shape)
-
-    agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
-                            policy_optim_alg=policy_optim_alg)
-
-    logs, agent = run_memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr)
-    return logs, agent
 
 def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
                  use_grad: bool = False, n_episodes: int = 500, lr: float = 1.):
@@ -81,8 +58,8 @@ def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
             discrep = {
-                'v': np.abs(td_vals_a['v'] - mc_vals_a['v']),
-                'q': np.abs(td_vals_a['q'] - mc_vals_a['q']),
+                'v': (td_vals_a['v'] - mc_vals_a['v'])**2,
+                'q': (td_vals_a['q'] - mc_vals_a['q'])**2,
             }
             discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
 
@@ -401,8 +378,11 @@ if __name__ == '__main__':
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
     parser.add_argument('--algo', type=str, default='pe',
         help='algorithm to run. "mi" - memory and policy improvement, "pe" - policy evaluation')
+    parser.add_argument('--mi_iterations', type=int, default=1,
+                        help='if we do memory iteration, how many iterations of memory iterations do we do?')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
-                        help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient')
+                        help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
+                             '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
     parser.add_argument('--method', default='a', type=str,
@@ -452,9 +432,12 @@ if __name__ == '__main__':
         rootLogger.addHandler(logging.FileHandler(name))
 
     rand_key = None
-    if args.seed:
+    if args.seed is not None:
         np.random.seed(args.seed)
         rand_key = jax.random.PRNGKey(args.seed)
+    else:
+        rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
+
 
     # Run
     if args.generate_pomdps:
@@ -505,12 +488,11 @@ if __name__ == '__main__':
                              lr=args.lr)
             elif args.algo == 'mi':
                 assert args.method == 'a'
-                logs, agent = run_mi_algos(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
-                                           policy_optim_alg=args.policy_optim_alg)
+                logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
+                                                   mi_iterations=args.mi_iterations,
+                                                   policy_optim_alg=args.policy_optim_alg)
 
-                results_dir = Path(ROOT_DIR, 'results')
-                results_path = results_dir / f"{args.spec}_{ctime(time())}.npy"
-                np.save(results_path, {'logs': logs, 'agent': agent})
+                np.save(mi_results_path(args), {'logs': logs, 'agent': agent, 'args': args.__dict__})
             else:
                 raise NotImplementedError
 

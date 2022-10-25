@@ -18,3 +18,4 @@ logs/
 *.bin
 *.egg-info/
 generated/
+scripts/runs/

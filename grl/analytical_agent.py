@@ -34,8 +34,15 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float,
     T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi, T, R)
     td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma)
     p_init_obs = p0 @ phi
-    # TODO: check q-values
-    return jnp.dot(p_init_obs, td_v_vals), td_q_vals
+    return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
+
+def pi_discrep_loss(pi_params: jnp.ndarray, gamma: float, value_type: str,
+                   T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                   p0: jnp.ndarray):
+    pi = softmax(pi_params, axis=-1)
+    _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
+    diff = mc_vals[value_type] - td_vals[value_type]
+    return (diff ** 2).mean(), (mc_vals, td_vals)
 
 class AnalyticalAgent:
     """
@@ -60,6 +67,8 @@ class AnalyticalAgent:
             self.pi_params = softmax(self.pi_params, axis=-1)
             self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
             self.epsilon = epsilon
+        elif self.policy_optim_alg == 'dm':
+            self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
         self.mem_params = mem_params
         self.discrep_type = discrep_type
@@ -71,7 +80,7 @@ class AnalyticalAgent:
     @property
     def policy(self) -> jnp.ndarray:
         # return the learnt policy
-        if self.policy_optim_alg == 'pg':
+        if self.policy_optim_alg == 'pg' or self.policy_optim_alg == 'dm':
             return softmax(self.pi_params, axis=-1)
         else:
             return self.pi_params.copy()
@@ -104,21 +113,39 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self', 'gamma', 'lr'])
     def functional_pg_update(self, params: jnp.ndarray, gamma: float, lr: float,
-                                 T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                                 p0: jnp.ndarray):
-        v_0, params_grad = value_and_grad(self.pg_objective_func, argnums=0)(params, gamma, T, phi, p0, R)
+                             T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                             p0: jnp.ndarray):
+        outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, gamma, T, phi, p0, R)
+        v_0, (td_v_vals, td_q_vals) = outs
         params += lr * params_grad
-        return v_0, params
+        return v_0, td_v_vals, td_q_vals, params
+
+    @partial(jit, static_argnames=['self', 'value_type', 'gamma', 'lr'])
+    def functional_dm_update(self, params: jnp.ndarray, gamma: float,
+                             value_type: str, lr: float,
+                             T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                             p0: jnp.ndarray):
+        outs, params_grad = value_and_grad(self.policy_discrep_objective_func, has_aux=True)(params, gamma, value_type,
+                                                                                             T, R, phi, p0)
+        loss, (mc_vals, td_vals) = outs
+        params += lr * params_grad
+        return loss, mc_vals, td_vals, params
 
     def policy_improvement(self, amdp: AbstractMDP, lr: float = None):
         if self.policy_optim_alg == 'pg':
-            v_0, new_pi_params = self.functional_pg_update(self.pi_params, amdp.gamma, lr,
+            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = self.functional_pg_update(self.pi_params, amdp.gamma, lr,
                                                            amdp.T, amdp.R, amdp.phi, amdp.p0)
-            output = v_0
+            output = {'v_0': v_0, 'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'pi':
-            new_pi_params, td_v_vals, td_q_vals = self.policy_iteration_update(self.pi_params, amdp.T, amdp.R, amdp.phi,
+            new_pi_params, prev_td_v_vals, prev_td_q_vals = self.policy_iteration_update(self.pi_params, amdp.T, amdp.R, amdp.phi,
                                                                                amdp.p0, amdp.gamma, eps=self.epsilon)
-            output = td_q_vals
+            output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
+        elif self.policy_optim_alg == 'dm':
+            loss, mc_vals, td_vals, new_pi_params = self.functional_dm_update(self.pi_params, amdp.gamma,
+                                                                                            self.discrep_type, lr,
+                                                                                            amdp.T, amdp.R,
+                                                                                            amdp.phi, amdp.p0)
+            output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError
         self.pi_params = new_pi_params
@@ -151,6 +178,8 @@ class AnalyticalAgent:
             del state['pg_objective_func']
         elif state['policy_optim_alg'] == 'pi':
             del state['policy_iteration_update']
+        elif state['policy_optim_alg'] == 'dm':
+            del state['policy_discrep_objective_func']
         del state['memory_objective_func']
         return state
 
@@ -162,6 +191,8 @@ class AnalyticalAgent:
             self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
         elif self.policy_optim_alg == 'pi':
             self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+        elif self.policy_optim_alg == 'dm':
+            self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
         self.memory_objective_func = jit(memory_loss, static_argnames=['gamma', 'value_type'])
 
