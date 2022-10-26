@@ -1,6 +1,6 @@
 import numpy as np
 
-from grl import MDP, environment
+from grl import MDP, AbstractMDP, PolicyEval, environment
 from grl.td_lambda import td_lambda
 
 def test_td_lambda():
@@ -25,3 +25,17 @@ def test_td_lambda():
     print(f"Calculated values: {v[:-1]}\n"
           f"Ground-truth values: {ground_truth_vals}")
     assert np.all(np.isclose(v[:-1], ground_truth_vals, atol=1e-2))
+
+    print(f"Testing analytical solutions on Simple Chain")
+    amdp = AbstractMDP(mdp, spec['phi'])
+    pe = PolicyEval(amdp)
+    pi = spec['Pi_phi'][0]
+
+    mdp_vals, mc_vals, td_vals = pe.run(pi)
+
+    assert np.all(np.isclose(mdp_vals['v'][:-1], ground_truth_vals)) and np.all(
+        np.isclose(mdp_vals['q'][0][:-1], ground_truth_vals))
+    assert np.all(np.isclose(mc_vals['v'][:-1], ground_truth_vals)) and np.all(
+        np.isclose(mc_vals['q'][0][:-1], ground_truth_vals))
+    assert np.all(np.isclose(td_vals['v'][:-1], ground_truth_vals)) and np.all(
+        np.isclose(td_vals['q'][0][:-1], ground_truth_vals))

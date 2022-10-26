@@ -1,4 +1,5 @@
 import logging
+from jax.nn import softmax
 
 from .mdp import MDP, AbstractMDP
 from .policy_eval import PolicyEval
@@ -6,7 +7,6 @@ from .memory import memory_cross_product
 from .utils import pformat_vals
 
 import numpy as np
-from jax import grad
 
 def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     """
@@ -24,61 +24,61 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    policy_eval = PolicyEval(amdp)
+    policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
 
     if grad_type == 'p':
         params = pi_abs
-        if 'T_mem' in spec.keys():
-            amdp = memory_cross_product(amdp, spec['T_mem'])
-            policy_eval = PolicyEval(amdp)
+        if 'mem_params' in spec.keys():
+            amdp = memory_cross_product(amdp, spec['mem_params'])
+            policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
 
+        update = policy_eval.policy_update
         if discrep_type == 'l2':
             loss_fn = policy_eval.mse_loss
         elif discrep_type == 'max':
             loss_fn = policy_eval.max_loss
+        else:
+            raise NotImplementedError
 
     elif grad_type == 'm':
-        if 'T_mem' not in spec.keys():
+        if 'mem_params' not in spec.keys():
             raise ValueError(
                 'Must include memory with "--use_memory <id>" to do gradient with memory')
-        params = spec['T_mem']
+        params = spec['mem_params']
+        update = policy_eval.memory_update
         loss_fn = policy_eval.memory_loss
+    else:
+        raise NotImplementedError
 
     policy_eval.verbose = False
     logging.info(f'\nStarting discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
 
     i = 0
     done_count = 0
-    old_params = params
+    # old_params = params
 
     while done_count < 5:
         i += 1
 
-        params_grad = grad(loss_fn, argnums=0)(params, value_type, pi_abs=pi_abs)
         old_params = params
-        params -= lr * params_grad
+        loss, new_params = update(params, value_type, lr, pi_abs)
+        params = new_params
 
-        # Normalize (assuming params are probability distribution)
-        params = params.clip(0, 1)
-        denom = params.sum(axis=-1, keepdims=True)
-        denom = np.where(denom == 0, 1, denom) # Avoid divide by zero (there may be a better way)
-        params /= denom
-
-        if i % 10 == 0:
+        if i % 100 == 0:
             # print('\n\n')
-            print('Gradient iteration', i)
+            print(f'Gradient iteration {i}, loss: {loss.item():.4f}')
             # print('params_grad\n', params_grad)
             # print()
             # print('params\n', params)
 
-        if np.allclose(old_params, params):
+        if np.allclose(old_params, params, atol=1e-10):
             done_count += 1
         else:
             done_count = 0
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
-    logging.info(f'-Final gradient params:\n {params}')
+    logging.info(f'-Final gradient params:\n {softmax(params, axis=-1)}')
     logging.info(f'in {i} gradient steps with lr={lr}')
 
     old_amdp = policy_eval.amdp
@@ -91,6 +91,6 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')
     policy_eval.amdp = old_amdp
-    logging.info(f'discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
+    # logging.info(f'discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
 
     return params

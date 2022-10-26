@@ -1,7 +1,7 @@
 import copy
 from gmpy2 import mpz
-import numpy as onp
-import jax.numpy as np
+import numpy as np
+import jax.numpy as jnp
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -9,50 +9,50 @@ def normalize(M, axis=-1):
         denoms = M.sum(axis=axis, keepdims=True)
     else:
         denoms = M.sum()
-    M = onp.divide(M, denoms.astype(float), out=onp.zeros_like(M), where=(denoms != 0))
+    M = np.divide(M, denoms.astype(float), out=np.zeros_like(M), where=(denoms != 0))
     return M
 
 def is_stochastic(M):
-    return np.allclose(M, normalize(M))
+    return jnp.allclose(M, normalize(M))
 
 def random_sparse_mask(size, sparsity):
     n_rows, n_cols = size
     p = (1 - sparsity) # probability of 1
     q = (n_cols * p - 1) / (n_cols - 1) # get remaining probability after mandatory 1s
     if 0 < q <= 1:
-        some_ones = onp.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
-        mask = onp.concatenate([onp.ones((n_rows, 1)), some_ones], axis=1)
+        some_ones = np.random.choice([0, 1], size=(n_rows, n_cols - 1), p=[1 - q, q])
+        mask = np.concatenate([np.ones((n_rows, 1)), some_ones], axis=1)
     else:
-        mask = onp.concatenate([onp.ones((n_rows, 1)), onp.zeros((n_rows, n_cols - 1))], axis=1)
+        mask = np.concatenate([np.ones((n_rows, 1)), np.zeros((n_rows, n_cols - 1))], axis=1)
     for row in mask:
-        onp.random.shuffle(row)
+        np.random.shuffle(row)
     return mask
 
 def random_stochastic_matrix(size):
     alpha_size = size[-1]
     out_size = size[:-1] if len(size) > 1 else None
-    return onp.random.dirichlet(onp.ones(alpha_size), out_size)
+    return np.random.dirichlet(np.ones(alpha_size), out_size)
 
 def random_reward_matrix(Rmin, Rmax, size):
-    R = onp.random.uniform(Rmin, Rmax, size)
-    R = onp.round(R, 2)
+    R = np.random.uniform(Rmin, Rmax, size)
+    R = np.round(R, 2)
     return R
 
 def random_observation_fn(n_states, n_obs_per_block):
     all_state_splits = [
         random_stochastic_matrix(size=(1, n_obs_per_block)) for _ in range(n_states)
     ]
-    all_state_splits = np.stack(all_state_splits).squeeze()
+    all_state_splits = jnp.stack(all_state_splits).squeeze()
     #e.g.[[p, 1-p],
     #     [q, 1-q],
     #     ...]
 
-    obs_fn_mask = np.kron(np.eye(n_states), np.ones((1, n_obs_per_block)))
+    obs_fn_mask = jnp.kron(jnp.eye(n_states), jnp.ones((1, n_obs_per_block)))
     #e.g.[[1, 1, 0, 0, 0, 0, ...],
     #     [0, 0, 1, 1, 0, 0, ...],
     #     ...]
 
-    tiled_split_probs = np.kron(np.ones((1, n_states)), all_state_splits)
+    tiled_split_probs = jnp.kron(jnp.ones((1, n_states)), all_state_splits)
     #e.g.[[p, 1-p, p, 1-p, p, 1-p, ...],
     #     [q, 1-q, q, 1-q, q, 1-q, ...],
     #     ...]
@@ -61,7 +61,7 @@ def random_observation_fn(n_states, n_obs_per_block):
     return observation_fn
 
 def one_hot(x, n):
-    return np.eye(n)[x]
+    return jnp.eye(n)[x]
 
 class MDP:
     def __init__(self, T, R, p0, gamma=0.9):
@@ -69,8 +69,13 @@ class MDP:
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        self.T = np.stack(T).copy().astype(np.float64)
-        self.R = np.stack(R).copy().astype(np.float64)
+        if isinstance(T, np.ndarray):
+            self.T = np.stack(T).copy().astype(np.float64)
+            self.R = np.stack(R).copy().astype(np.float64)
+        else:
+            self.T = jnp.stack(T).copy().astype(jnp.float64)
+            self.R = jnp.stack(R).copy().astype(jnp.float64)
+
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
         self.p0 = p0
@@ -110,14 +115,14 @@ class MDP:
 
     def step(self, s, a, gamma):
         pr_next_s = self.T[a, s, :]
-        sp = onp.random.choice(self.n_states, p=pr_next_s)
+        sp = np.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         # Check if sp is terminal state
         sp_is_absorbing = (self.T[:, sp, sp] == 1)
         done = sp_is_absorbing.all()
         # Discounting
         # End episode with probability 1-gamma
-        if onp.random.uniform() < (1 - gamma):
+        if np.random.uniform() < (1 - gamma):
             done = True
 
         return sp, r, done
@@ -184,8 +189,8 @@ class BlockMDP(MDP):
             Rx_a = obs_mask.transpose() @ Ra @ obs_mask
             self.T.append(Tx_a)
             self.R.append(Rx_a)
-        self.T = np.stack(self.T)
-        self.R = np.stack(self.R)
+        self.T = jnp.stack(self.T)
+        self.R = jnp.stack(self.R)
         self.obs_fn = obs_fn
 
 class AbstractMDP(MDP):
@@ -200,15 +205,15 @@ class AbstractMDP(MDP):
         #             for T_a in base_mdp.T]
         # self.R = [self.compute_Rz(self.belief,Rx_a,Tx_a,Tz_a)
         #             for (Rx_a, Tx_a, Tz_a) in zip(base_mdp.R, base_mdp.T, self.T)]
-        # self.T = np.stack(self.T)
-        # self.R = np.stack(self.R)
+        # self.T = jnp.stack(self.T)
+        # self.R = jnp.stack(self.R)
 
     def __repr__(self):
         base_str = super().__repr__()
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
-        return onp.random.choice(self.n_obs, p=self.phi[s])
+        return np.random.choice(self.n_obs, p=self.phi[s])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
@@ -218,8 +223,8 @@ class AbstractMDP(MDP):
     #     return belief @ Tx @ self.phi
     #
     # def compute_Rz(self, belief, Rx, Tx, Tz):
-    #     return np.divide( (belief@(Rx*Tx)@self.phi), Tz,
-    #                      out=np.zeros_like(Tz), where=(Tz!=0) )
+    #     return jnp.divide( (belief@(Rx*Tx)@self.phi), Tz,
+    #                      out=jnp.zeros_like(Tz), where=(Tz!=0) )
 
     def is_abstract_policy(self, pi):
         agg_states = (self.phi.sum(axis=0) > 1)
@@ -267,7 +272,7 @@ class UniformAbstractMDP(AbstractMDP):
         return normalize(p * self.phi.transpose())
 
     def _replace_stationary_distribution(self, pi=None, p0=None, max_steps=200):
-        return np.ones(self.base_mdp.n_states) / self.base_mdp.n_states
+        return jnp.ones(self.base_mdp.n_states) / self.base_mdp.n_states
 
 def test():
     # Generate a random base MDP

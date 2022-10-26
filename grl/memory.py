@@ -1,50 +1,55 @@
 from .mdp import MDP, AbstractMDP
 
-import numpy as onp
-import jax.numpy as np
+import numpy as np
+from jax import jit, nn
+import jax.numpy as jnp
 from jax.config import config
 from tqdm import tqdm
 
 config.update("jax_enable_x64", True)
 config.update('jax_platform_name', 'cpu')
 
-def memory_cross_product(amdp, T_mem):
+def memory_cross_product(amdp, mem_params: jnp.ndarray):
     """
     Returns AMDP resulting from cross product of the underlying MDP with given memory function
 
     :param amdp:  AMDP
-    :param T_mem: memory transition function
+    :param mem_params: memory transition function parameters
     """
-    T = amdp.T
-    R = amdp.R
-    phi = amdp.phi
-    n_states = T.shape[-1]
+    T_mem = nn.softmax(mem_params, axis=-1)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(amdp.T, T_mem, amdp.phi, amdp.R,
+                                                            amdp.p0)
+
+    mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
+    return AbstractMDP(mdp_x, phi_x)
+
+@jit
+def functional_memory_cross_product(T: jnp.ndarray, T_mem: jnp.ndarray, phi: jnp.ndarray,
+                                    R: jnp.ndarray, p0: jnp.ndarray):
     n_states_m = T_mem.shape[-1]
-    n_states_x = n_states * n_states_m # cross (x) product MDP
-    T_x = np.zeros((T.shape[0], n_states_x, n_states_x))
-    R_x = np.zeros((R.shape[0], n_states_x, n_states_x))
-    phi_x = np.zeros((n_states_x, phi.shape[-1] * n_states_m))
+    n_states = T.shape[-1]
+    n_states_x = n_states_m * n_states
 
     # Rewards only depend on MDP (not memory function)
     R_x = R.repeat(n_states_m, axis=1).repeat(n_states_m, axis=2)
 
     # T_mem_phi is like T_pi
     # It is SxAxMxM
-    T_mem_phi = np.tensordot(phi, T_mem.swapaxes(0, 1), axes=1)
+    T_mem_phi = jnp.tensordot(phi, T_mem.swapaxes(0, 1), axes=1)
 
     # Outer product that compacts the two i dimensions and the two l dimensions
     # (SxAxMxM, AxSxS -> AxSMxSM), where SM=x
-    T_x = np.einsum('iljk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
+    T_x = jnp.einsum('iljk,lim->lijmk', T_mem_phi, T).reshape(T.shape[0], n_states_x, n_states_x)
 
     # The new obs_x are the original obs times memory states
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
-    phi_x = np.kron(phi, np.eye(n_states_m))
+    phi_x = jnp.kron(phi, np.eye(n_states_m))
 
     # Assuming memory starts with all 0s
-    p0_x = np.zeros(n_states_x)
-    p0_x = p0_x.at[::n_states_m].set(amdp.p0)
-    mdp_x = MDP(T_x, R_x, p0_x, amdp.gamma)
-    return AbstractMDP(mdp_x, phi_x)
+    p0_x = jnp.zeros(n_states_x)
+    p0_x = p0_x.at[::n_states_m].set(p0)
+
+    return T_x, R_x, p0_x, phi_x
 
 def generate_1bit_mem_fns(n_obs, n_actions):
     """
@@ -91,7 +96,7 @@ def generate_mem_fn(mem_fn_id, n_mem_states, n_obs, n_actions):
         raise ValueError(f'Unknown mem_fn_id: {mem_fn_id}')
 
     binary_mp = format(mem_fn_id, 'b').zfill(MZA)
-    T_mem = onp.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+    T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
     for m in range(n_mem_states):
         for ob in range(n_obs):
             for a in range(n_actions):

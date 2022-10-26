@@ -1,6 +1,8 @@
 import numpy as np
 
 from .memory_lib import *
+from .tmaze_lib import tmaze, slippery_tmaze
+from grl.mdp import random_stochastic_matrix
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -10,7 +12,7 @@ Library of POMDP specifications. Each function returns a dict of the form:
         p0:       starting state probabilities,
         phi:      observation matrix (currently the same for all actions),
         Pi_phi:   policies to evaluate in the observation space of the POMDP
-        T_mem:    memory transition function
+        mem_params:    memory parameters. We get our memory function by calling softmax(mem_params, axis=-1)
         Pi_phi_x: policies to evaluate in the observation space of the cross product of the underyling MDP and memory function
     }
 
@@ -625,6 +627,95 @@ def simple_chain(n: int = 10):
     Pi_phi = [np.ones((n, 1))]
 
     return to_dict(T, R, 0.9, p0, phi, Pi_phi)
+
+def tmaze_5_two_thirds_up():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+
+def tmaze_5_two_thirds_up_fully_observable():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+    phi_fully_observable = np.eye(T.shape[-1])
+
+    pi = np.zeros((T.shape[-1], 4))
+    pi[:, 2] = 1
+    pi[-2, :] = 0
+    pi[-2, 0] = 2 / 3
+    pi[-2, 1] = 1 / 3
+
+    Pi_phi = [pi]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(T, R, discount, p0, phi_fully_observable, Pi_phi, Pi_phi_x)
+
+def tmaze_5_two_thirds_up_almost_fully_observable():
+    """
+    Almost fully observable t-maze.
+    Goal "orientation" is always observable, so only aliased states
+    are the corridor states.
+    """
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+    phi_almost_fully_observable = np.zeros((T.shape[-1], 6 + 1))
+    phi_almost_fully_observable[0, 0] = 1
+    phi_almost_fully_observable[1, 1] = 1
+    phi_almost_fully_observable[np.arange(1, n + 1) * 2, 2] = 1
+    phi_almost_fully_observable[np.arange(1, n + 1) * 2 + 1, 3] = 1
+    phi_almost_fully_observable[-3, 4] = 1
+    phi_almost_fully_observable[-2, 5] = 1
+    phi_almost_fully_observable[-1, -1] = 1
+
+    pi = np.zeros((phi_almost_fully_observable.shape[-1], 4))
+    pi[:, 2] = 1
+    pi[-2, :] = 0
+    pi[-2, 0] = 2 / 3
+    pi[-2, 1] = 1 / 3
+    pi[-3, :] = 0
+    pi[-3, 0] = 2 / 3
+    pi[-3, 1] = 1 / 3
+
+    Pi_phi = [pi]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(T, R, discount, p0, phi_almost_fully_observable, Pi_phi, Pi_phi_x)
+
+def slippery_tmaze_5_two_thirds_up():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
+
+def slippery_tmaze_5_random():
+    """
+    Slippery t-maze, with a randomly sampled policy
+    """
+    n = 5
+    discount = 0.9
+    Pi_phi = [random_stochastic_matrix((5, 4))]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {

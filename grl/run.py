@@ -7,22 +7,21 @@ import os.path
 
 import numpy as np
 import jax
+from jax.config import config
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 
-from .environment import load_spec
-from .environment.pomdp_file import POMDPFile
-from .mdp import MDP, AbstractMDP
-from .td_lambda import td_lambda
-from .policy_eval import PolicyEval
-from .memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
-from .grad import do_grad
-from .utils import pformat_vals, RTOL
+from grl.environment import load_spec
+from grl.environment.pomdp_file import POMDPFile
+from grl.mdp import MDP, AbstractMDP
+from grl.td_lambda import td_lambda
+from grl.policy_eval import PolicyEval
+from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
+from grl.grad import do_grad
+from grl.utils import pformat_vals, RTOL
 
-np.set_printoptions(precision=4, suppress=True)
-
-def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500):
+def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500, lr=1):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -31,8 +30,8 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     amdp = AbstractMDP(mdp, spec['phi'])
 
     policies = spec['Pi_phi']
-    if 'T_mem' in spec.keys():
-        amdp = memory_cross_product(amdp, spec['T_mem'])
+    if 'mem_params' in spec.keys() and spec['mem_params'] is not None:
+        amdp = memory_cross_product(amdp, spec['mem_params'])
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
@@ -43,15 +42,15 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     for i, pi in enumerate(policies):
         logging.info(f'\n\n\n======== policy id: {i} ========')
         logging.info(f'\npi:\n {pi}')
-        if 'T_mem' in spec.keys():
-            logging.info(f'\nT_mem:\n {spec["T_mem"]}')
+        if 'mem_params' in spec.keys():
+            logging.info(f'\nmem_params:\n {spec["mem_params"]}')
         pi_ground = amdp.get_ground_policy(pi)
         logging.info(f'\npi_ground:\n {pi_ground}')
 
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
-            occupancy = pe._get_occupancy()
+            occupancy = pe.get_occupancy(pi)
             pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
@@ -66,9 +65,9 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
 
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
-            if 'T_mem' in spec.keys():
-                occupancy_x = pe._get_occupancy()
-                n_mem_states = spec['T_mem'].shape[-1]
+            if 'mem_params' in spec.keys():
+                occupancy_x = pe.get_occupancy(pi)
+                n_mem_states = spec['mem_params'].shape[-1]
                 n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
 
                 # These operations are within the cross producted space
@@ -118,7 +117,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type)
+                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type, lr=lr)
 
         if method == 's' or method == 'b':
             # Sampling
@@ -385,6 +384,7 @@ if __name__ == '__main__':
         help='use memory function during policy eval if set')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
+    parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
@@ -402,6 +402,11 @@ if __name__ == '__main__':
     global args
     args = parser.parse_args()
     del args.fool_ipython
+
+    # configs
+    np.set_printoptions(precision=4, suppress=True)
+    config.update("jax_enable_x64", True)
+    config.update('jax_platform_name', 'cpu')
 
     logging.basicConfig(format='%(message)s', level=logging.INFO)
     logging.getLogger().setLevel(logging.INFO)
@@ -451,8 +456,8 @@ if __name__ == '__main__':
         logging.info(f'p0:\n {spec["p0"]}')
         logging.info(f'phi:\n {spec["phi"]}')
         logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
-        if 'T_mem' in spec.keys():
-            logging.info(f'T_mem:\n {spec["T_mem"]}')
+        if 'mem_params' in spec.keys():
+            logging.info(f'mem_params:\n {spec["mem_params"]}')
         if 'Pi_phi_x' in spec.keys():
             logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
 
@@ -461,4 +466,9 @@ if __name__ == '__main__':
         if args.heatmap:
             heatmap(spec)
         else:
-            run_algos(spec, args.method, args.n_random_policies, args.use_grad, args.n_episodes)
+            run_algos(spec,
+                      args.method,
+                      args.n_random_policies,
+                      args.use_grad,
+                      args.n_episodes,
+                      lr=args.lr)
