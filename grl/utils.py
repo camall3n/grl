@@ -30,8 +30,8 @@ def results_path(args: Namespace):
     results_path = results_dir / f"{args.spec}_{args.algo}_s{args.seed}_{ctime(time())}.npy"
     return results_path
 
-def golrot_init(shape: Sequence[int]) -> jnp.ndarray:
-    return np.random.normal(size=shape) * np.sqrt(2)
+def golrot_init(shape: Sequence[int], scale: float = 0.5) -> jnp.ndarray:
+    return np.random.normal(size=shape) * scale
 
 def load_info(results_path: Path):
     return np.load(results_path, allow_pickle=True).item()

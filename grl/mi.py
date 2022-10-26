@@ -19,6 +19,10 @@ def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
     discrep = {
         'v': (mc_vals['v'] - td_vals['v'])**2,
         'q': (mc_vals['q'] - td_vals['q'])**2,
+        'mc_vals_q': mc_vals['q'],
+        'td_vals_q': td_vals['q'],
+        'mc_vals_v': mc_vals['v'],
+        'td_vals_v': td_vals['v']
     }
     discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
     return discrep
@@ -36,7 +40,7 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     amdp = AbstractMDP(mdp, spec['phi'])
 
     # initialize policy params
-    pi_params = golrot_init(spec['Pi_phi'][0].shape)
+    pi_params = golrot_init(spec['Pi_phi'][0].shape, scale=0.2)
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
@@ -44,8 +48,8 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
 
     info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations)
 
+    info['initial_policy'] = initial_policy
     # we get lambda discrepancies here
-
     # initial policy lambda-discrepancy
     info['initial_discrep'] = lambda_discrep_measures(amdp, initial_policy)
     info['initial_improvement_discrep'] = lambda_discrep_measures(amdp, info['initial_improvement_policy'])
