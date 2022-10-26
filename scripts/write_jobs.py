@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # Make our directories if it doesn't exist
     runs_dir.mkdir(parents=True, exist_ok=True)
 
-    main_fname = 'grl.run'
+    main_fname = '-m grl.run'
     if 'entry' in hparams:
         main_fname = hparams['entry']
 
