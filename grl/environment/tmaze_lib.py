@@ -96,12 +96,13 @@ def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
     T, R, discount, p0, phi = tmaze(n, discount=discount)
 
     # First, create a matrix representing transition dynamics w/ a slip prob of slip_prob
-    # This is an identity matrix with slip_prob at diagonal
+    # This is an identity matrix with slip_prob at diagonal b/c slip = no-op
     slip_T = np.eye(T.shape[-1]) * slip_prob
 
     # We add these slip probabilities to ALL actions for all states.
     # So all actions have a probability slip_prob of resulting in a no-op.
     # Now we need to remove slip_prob probability mass from the rest of the transitions.
+    # Transitions sum to 1, so we multiply by (1 - slip_prob) so they sum to the latter.
     T *= (1 - slip_prob)
 
     # Add our slip probabilities to all actions and all states
