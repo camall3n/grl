@@ -14,7 +14,9 @@ def import_module_to_hparam(hparam_path: Path) -> dict:
     return hparams
 
 
-def generate_runs(run_dicts: List[dict], runs_dir: Path, runs_fname: str = 'runs.txt',
+def generate_runs(run_dicts: List[dict], runs_dir: Path,
+                  experiment_name: str = None,
+                  runs_fname: str = 'runs.txt',
                   main_fname: str = 'main.py') -> None:
     """
     :param run_dicts: A list of dictionaries, each specifying a job to run.
@@ -56,6 +58,9 @@ def generate_runs(run_dicts: List[dict], runs_dir: Path, runs_fname: str = 'runs
                 else:
                     run_string += f" --{k} {v}"
 
+            if experiment_name is not None:
+                run_string += f" --experiment_name {experiment_name}"
+
             run_string += "\n"
             f.write(run_string)
             num_runs += 1
@@ -89,6 +94,7 @@ if __name__ == "__main__":
     if 'pairs' in hparams:
         pairs = hparams['pairs']
 
-    generate_runs(hparams['args'], runs_dir, runs_fname=hparams['file_name'], main_fname=main_fname)
+    generate_runs(hparams['args'], runs_dir, runs_fname=hparams['file_name'], main_fname=main_fname,
+                  experiment_name=args.hparam)
 
     print(f"Runs wrote to {runs_dir / hparams['file_name']}")

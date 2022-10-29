@@ -7,7 +7,7 @@ from typing import Sequence
 from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
 from grl.policy_eval import functional_memory_cross_product, analytical_pe
 from grl.mdp import AbstractMDP
-from grl.utils import golrot_init
+from grl.utils import glorot_init
 from grl.vi import policy_iteration_step
 
 def memory_loss(mem_params: jnp.ndarray, gamma: float, value_type: str,
@@ -94,7 +94,7 @@ class AnalyticalAgent:
 
         if pi_shape is None:
             pi_shape = self.pi_params.shape
-        self.pi_params = golrot_init(pi_shape)
+        self.pi_params = glorot_init(pi_shape)
 
     def new_pi_over_mem(self):
         if self.pi_params.shape[0] != self.og_n_obs:
@@ -106,7 +106,7 @@ class AnalyticalAgent:
         self.pi_params = self.pi_params.repeat(add_n_mem_states, axis=0)
 
         # randomly init policy for new memory state
-        new_mem_params = golrot_init(old_pi_params_shape)
+        new_mem_params = glorot_init(old_pi_params_shape)
         if self.policy_optim_alg == 'pi':
             new_mem_params = softmax(new_mem_params, axis=-1)
         self.pi_params = self.pi_params.at[1::2].set(new_mem_params)

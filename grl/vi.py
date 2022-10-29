@@ -4,7 +4,7 @@ from jax import jit, nn
 from typing import Tuple
 from functools import partial
 
-from grl.utils import golrot_init
+from grl.utils import glorot_init
 from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
 
 @partial(jit, static_argnames=['gamma'])
@@ -105,7 +105,7 @@ def po_policy_iteration(T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
     jitted_policy_iteration_step = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
 
     # first initialize our random policy |O| x |A|
-    pi_phi = nn.softmax(golrot_init((phi.shape[-1], T.shape[0])), axis=-1)
+    pi_phi = nn.softmax(glorot_init((phi.shape[-1], T.shape[0])), axis=-1)
 
     # Now we
     iterations = 0

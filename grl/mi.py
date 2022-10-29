@@ -8,7 +8,7 @@ from grl.analytical_agent import AnalyticalAgent
 from grl.policy_eval import PolicyEval
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
-from grl.utils import golrot_init
+from grl.utils import glorot_init
 from grl.vi import td_pe
 
 def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
@@ -40,7 +40,7 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     amdp = AbstractMDP(mdp, spec['phi'])
 
     # initialize policy params
-    pi_params = golrot_init(spec['Pi_phi'][0].shape, scale=0.2)
+    pi_params = glorot_init(spec['Pi_phi'][0].shape, scale=0.2)
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
