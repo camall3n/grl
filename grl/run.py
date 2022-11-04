@@ -372,6 +372,17 @@ def heatmap(spec, discrep_type='l2', num_ticks=5):
         ax.set_title(f'{args.spec}, {value_type}_values, {discrep_type}_loss')
         plt.show()
 
+def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
+    # hyperparams for tmaze_hperparams
+    parser.add_argument('--tmaze_corridor_length', default=None, type=int,
+        help='Length of corridor for tmaze_hyperparams')
+    parser.add_argument('--tmaze_discount', default=None, type=float,
+        help='Discount rate for tmaze_hyperparams')
+    parser.add_argument('--tmaze_junction_up_pi', default=None, type=float,
+        help='probability of traversing up at junction for tmaze_hyperparams')
+    return parser
+
+
 if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
@@ -412,6 +423,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
+    parser = add_tmaze_hyperparams(parser)
     # yapf:enable
 
     global args
@@ -467,7 +479,10 @@ if __name__ == '__main__':
                       mem_fn_id=args.mem_fn_id)
     else:
         # Get POMDP definition
-        spec = load_spec(args.spec, args.use_memory)
+        spec = load_spec(args.spec, memory_id=args.use_memory,
+                         corridor_length=args.tmaze_corridor_length,
+                         discount=args.tmaze_discount,
+                         junction_up_pi=args.tmaze_junction_up_pi)
         logging.info(f'spec:\n {args.spec}\n')
         logging.info(f'T:\n {spec["T"]}')
         logging.info(f'R:\n {spec["R"]}')

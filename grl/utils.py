@@ -22,6 +22,7 @@ def pformat_vals(vals):
 
 def mi_results_path(args: Namespace):
     results_dir = Path(ROOT_DIR, 'results')
+    results_dir.mkdir(exist_ok=True)
     if args.experiment_name is not None:
         results_dir /= args.experiment_name
     results_dir.mkdir(exist_ok=True)
@@ -30,6 +31,7 @@ def mi_results_path(args: Namespace):
 
 def pe_results_path(args: Namespace):
     results_dir = Path(ROOT_DIR, 'results')
+    results_dir.mkdir(exist_ok=True)
     if args.experiment_name is not None:
         results_dir /= args.experiment_name
     results_dir.mkdir(exist_ok=True)

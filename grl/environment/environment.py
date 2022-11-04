@@ -4,7 +4,7 @@ from . import examples_lib
 from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
 
-def load_spec(name, memory_id: int = None):
+def load_spec(name, *args, memory_id: int = None, **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -15,14 +15,14 @@ def load_spec(name, memory_id: int = None):
     # then from pomdp_files
     spec = None
     try:
-        spec = getattr(examples_lib, name)()
+        spec = getattr(examples_lib, name)(*args, **kwargs)
 
     except AttributeError as _:
         pass
 
     if spec is None:
         try:
-            spec = POMDPFile(f'grl/environment/pomdp_files/{name}.POMDP').get_spec()
+            spec = POMDPFile(f'grl/environment/pomdp_files/{name}.POMDP').get_spec(*args, **kwargs)
         except FileNotFoundError as _:
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None

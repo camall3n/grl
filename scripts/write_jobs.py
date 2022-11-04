@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 import importlib.util
 from typing import List
 from pathlib import Path
@@ -39,7 +40,7 @@ def generate_runs(run_dicts: List[dict], runs_dir: Path,
 
         for k, v in run_dict.items():
             keys.append(k)
-            if not isinstance(v, list):
+            if not (isinstance(v, list) or isinstance(v, np.ndarray)):
                 v = [v]
             values.append(v)
 
