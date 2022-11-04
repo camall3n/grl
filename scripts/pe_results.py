@@ -10,12 +10,12 @@ from definitions import ROOT_DIR
 
 
 # %%
-# results_dir = Path(ROOT_DIR, 'results', 'tmaze_two_thirds_up_mem_grad')
-results_dir = Path(ROOT_DIR, 'results', 'slippery_tmaze_two_thirds_up_mem_grad')
+results_dir = Path(ROOT_DIR, 'results', 'tmaze_junction_pi_up_1')
+# results_dir = Path(ROOT_DIR, 'results', 'slippery_tmaze_two_thirds_up_mem_grad')
 
 split_by = ['spec', 'algo']
 Args = namedtuple('args', split_by)
-
+results_dir
 # %%
 
 

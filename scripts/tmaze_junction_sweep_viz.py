@@ -1,6 +1,7 @@
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from jax.nn import softmax
 from pathlib import Path
 from collections import namedtuple
@@ -15,7 +16,7 @@ from definitions import ROOT_DIR
 # %%
 results_dir = Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi')
 
-split_by = ['spec', 'algo', 'tmaze_corridor_length']
+split_by = ['spec', 'algo', 'tmaze_corridor_length', 'tmaze_junction_up_pi']
 Args = namedtuple('args', split_by)
 
 # %%
@@ -57,7 +58,7 @@ def test_mem_matrix(mem_params: jnp.ndarray):
     return diff_start_bits_set, is_flipped, is_set
 
 # %%
-all_flat_results = {}
+all_results = {}
 
 for results_path in results_dir.iterdir():
     if results_path.suffix != '.npy':
@@ -84,30 +85,19 @@ for results_path in results_dir.iterdir():
 
     hparams = Args(*tuple(args[s] for s in split_by))
 
-    if hparams not in all_flat_results:
-        all_flat_results[hparams] = []
-
-    all_flat_results[hparams].append(single_res)
-
-    # for k, v in single_res.items():
-    #     if k not in all_results[hparams]:
-    #         all_results[hparams][k] = []
-    #     all_results[hparams][k].append(v)
-    # all_results[hparams]['args'] = args
-
-all_results = {}
-for hparams, all_reses in all_flat_results.items():
     if hparams not in all_results:
         all_results[hparams] = {}
 
-    for single_res in sorted(all_reses, key=lambda x: x['tmaze_junction_up_pi']):
-        for k, v in single_res.items():
-            if k not in all_results[hparams]:
-                all_results[hparams][k] = []
-            all_results[hparams][k].append(v)
+    for k, v in single_res.items():
+        if k not in all_results[hparams]:
+            all_results[hparams][k] = []
+        all_results[hparams][k].append(v)
+    all_results[hparams]['args'] = args
 
-    for k, v in all_results[hparams].items():
-        all_results[hparams][k] = np.stack(v)
+for hparams, res_dict in all_results.items():
+    for k, v in res_dict.items():
+        if k != 'args':
+            all_results[hparams][k] = np.stack(v)
 # %%
 
 def get_bool_ranges(bools: np.ndarray, x: np.ndarray):
@@ -135,27 +125,53 @@ def get_bool_ranges(bools: np.ndarray, x: np.ndarray):
     return true_ranges, false_ranges
 
 # %%
+pi_map = {}
+all_sorted_pis = []
+for i, pi in enumerate(sorted(hparam.tmaze_junction_up_pi for hparam in all_results.keys())):
+    pi_map[pi] = i
+    all_sorted_pis.append(pi)
+
+num_pis = len(all_sorted_pis)
+all_to_plot = {
+    'discrep_means': np.zeros(num_pis),
+    'discrep_std_errs': np.zeros(num_pis),
+    'is_optimal_means': np.zeros(num_pis)
+}
+for hparam, res in all_results.items():
+    all_to_plot['discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).mean(axis=0)
+    all_to_plot['discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0)
+    all_to_plot['is_optimal_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['is_optimal'].mean(axis=0)
+
+all_to_plot
+# %%
 fig, ax = plt.figure(), plt.axes()
 
-y_high = 0.05
+y_high = 0.065
 y_low = 0
+x_high = 1
+x_low = 0
 
-mean_discreps = all_results[hparams]['final_v_discrep'].mean(axis=-1)
-is_optimals = all_results[hparams]['is_optimal']
-x = all_results[hparams]['tmaze_junction_up_pi']
-ax.plot(x, mean_discreps)
+mean_discreps = all_to_plot['discrep_means']
+std_err_discreps = all_to_plot['discrep_std_errs']
+mean_is_optimal = all_to_plot['is_optimal_means']
+x = all_sorted_pis
+ax.imshow(mean_is_optimal[None, :], extent=(x_low, x_high, y_low, y_high), cmap='RdYlGn', aspect='auto', alpha=0.5)
+ax.plot(x, mean_discreps, color='blue')
+ax.fill_between(x, mean_discreps - std_err_discreps, mean_discreps + std_err_discreps, color='blue', alpha=0.2)
 
-true_ranges, false_ranges = get_bool_ranges(is_optimals, x)
-for true_begin, true_end in true_ranges:
-    ax.axvspan(true_begin, true_end, alpha=0.2, color='green')
+# true_ranges, false_ranges = get_bool_ranges(is_optimals, x)
+# for true_begin, true_end in true_ranges:
+#     ax.axvspan(true_begin, true_end, alpha=0.2, color='green')
+#
+# for false_begin, false_end in false_ranges:
+#     ax.axvspan(false_begin, false_end, alpha=0.2, color='red')
 
-for false_begin, false_end in false_ranges:
-    ax.axvspan(false_begin, false_end, alpha=0.2, color='red')
 
 ax.set_xlabel('π(up | junction)')
 ax.set_ylabel('Avg. λ-discreps across obs+')
 ax.set_ylim([y_low, y_high])
-ax.set_xlim([0, 1])
+ax.set_xlim([x_low, x_high])
+plt.tight_layout()
 # %%
 true_ranges, false_ranges
 

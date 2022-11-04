@@ -15,6 +15,7 @@ def load_spec(name, *args, memory_id: int = None, **kwargs):
     # then from pomdp_files
     spec = None
     try:
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
         spec = getattr(examples_lib, name)(*args, **kwargs)
 
     except AttributeError as _:
