@@ -53,6 +53,7 @@ class AnalyticalAgent:
                  pi_params: jnp.ndarray, mem_params: jnp.ndarray = None,
                  discrep_type: str = 'q', rand_key: random.PRNGKey = random.PRNGKey(2022),
                  pi_softmax_temp: float = 1, policy_optim_alg: str = 'pi',
+                 new_mem_pi: str = 'copy',
                  epsilon: float = 0.1):
         """
         :param policy_optim_alg: What type of policy optimization do we do? (pi | pg)
@@ -71,6 +72,7 @@ class AnalyticalAgent:
             self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
         self.mem_params = mem_params
+        self.new_mem_pi = new_mem_pi
         self.discrep_type = discrep_type
         self.memory_objective_func = jit(memory_loss, static_argnames=['gamma', 'value_type'])
         self.pi_softmax_temp = pi_softmax_temp
@@ -105,11 +107,12 @@ class AnalyticalAgent:
 
         self.pi_params = self.pi_params.repeat(add_n_mem_states, axis=0)
 
-        # randomly init policy for new memory state
-        new_mem_params = glorot_init(old_pi_params_shape)
-        if self.policy_optim_alg == 'pi':
-            new_mem_params = softmax(new_mem_params, axis=-1)
-        self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
+        if self.new_mem_pi == 'random':
+            # randomly init policy for new memory state
+            new_mem_params = glorot_init(old_pi_params_shape)
+            if self.policy_optim_alg == 'pi':
+                new_mem_params = softmax(new_mem_params, axis=-1)
+            self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
     @partial(jit, static_argnames=['self', 'gamma', 'lr'])
     def functional_pg_update(self, params: jnp.ndarray, gamma: float, lr: float,
