@@ -143,7 +143,7 @@ all_to_plot = {
 }
 for hparam, res in all_results.items():
     all_to_plot['discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).mean(axis=0)
-    all_to_plot['discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0)
+    all_to_plot['discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(res['final_v_discrep'].shape[0])
     all_to_plot['starting_up_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].mean(axis=0)
     all_to_plot['starting_up_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].std(axis=0)
     all_to_plot['is_optimal_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['is_optimal'].mean(axis=0)
