@@ -65,7 +65,6 @@ class AnalyticalAgent:
         if self.policy_optim_alg == 'pg':
             self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
         elif self.policy_optim_alg == 'pi':
-            self.pi_params = softmax(self.pi_params, axis=-1)
             self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
             self.epsilon = epsilon
         elif self.policy_optim_alg == 'dm':
@@ -82,10 +81,7 @@ class AnalyticalAgent:
     @property
     def policy(self) -> jnp.ndarray:
         # return the learnt policy
-        if self.policy_optim_alg == 'pg' or self.policy_optim_alg == 'dm':
-            return softmax(self.pi_params, axis=-1)
-        else:
-            return self.pi_params.copy()
+        return softmax(self.pi_params, axis=-1)
 
     @property
     def memory(self) -> jnp.ndarray:
@@ -110,8 +106,6 @@ class AnalyticalAgent:
         if self.new_mem_pi == 'random':
             # randomly init policy for new memory state
             new_mem_params = glorot_init(old_pi_params_shape)
-            if self.policy_optim_alg == 'pi':
-                new_mem_params = softmax(new_mem_params, axis=-1)
             self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
     @partial(jit, static_argnames=['self', 'gamma', 'lr'])

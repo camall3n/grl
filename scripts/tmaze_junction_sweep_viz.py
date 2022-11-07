@@ -180,9 +180,4 @@ ax.set_ylim([y_low, y_high])
 ax.set_xlim([x_low, x_high])
 plt.tight_layout()
 # %%
-true_ranges, false_ranges
-
-# %%
-all_results[hparams]['is_optimal']
-idx = -1
-softmax(all_results[hparams]['final_params'][idx], axis=-1), all_results[hparams]['tmaze_junction_up_pi'][idx]
+# TODO: plot initial mem lambda discreps

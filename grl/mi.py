@@ -67,7 +67,7 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
 
 def memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
                          pi_lr: float = 1., mi_lr: float = 1,
-                         pi_per_step: int = 50000, mi_per_step: int = 100000,
+                         pi_per_step: int = 50000, mi_per_step: int = 50000,
                          mi_iterations: int = 1,
                          log_every: int = 1000):
     info = {'policy_improvement_outputs': [], 'mem_loss': []}
@@ -96,7 +96,7 @@ def memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
 
         # Plotting for memory iteration
         print(f"Learnt memory for iteration {mem_it}: \n"
-              f"{softmax(agent.mem_params, axis=-1)}")
+              f"{agent.memory}")
 
         # Make a NEW memory AMDP
         amdp_mem = memory_cross_product(init_amdp, agent.mem_params)

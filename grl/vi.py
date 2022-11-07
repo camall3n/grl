@@ -79,15 +79,19 @@ def get_eps_greedy_pi(q_vals: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
     new_phi_pi = new_phi_pi.at[jnp.arange(new_phi_pi.shape[0]), max_a].add(1 - eps)
     return new_phi_pi
 
-def policy_iteration_step(pi_phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+def policy_iteration_step(pi_params: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                           p0: jnp.ndarray, gamma: float, eps: float = 0.1):
+    pi_phi = nn.softmax(pi_params, axis=-1)
     # now we calculate our TD model and values
     td_v_vals, td_q_vals = td_pe(pi_phi, T, R, phi, p0, gamma)
 
     # greedification step
     new_pi_phi = get_eps_greedy_pi(td_q_vals, eps)
 
-    return new_pi_phi, td_v_vals, td_q_vals
+    # now we need to reparameterize our policy to softmaxable pi_params
+    new_pi_params = jnp.log(new_pi_phi + 1e-20)
+
+    return new_pi_params, td_v_vals, td_q_vals
 
 
 def po_policy_iteration(T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
