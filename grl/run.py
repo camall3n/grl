@@ -19,7 +19,7 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
-from grl.utils import pformat_vals, RTOL, mi_results_path, pe_results_path
+from grl.utils import pformat_vals, RTOL, mi_results_path, pe_results_path, numpyify_and_save
 from grl.mi import run_memory_iteration
 
 def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
@@ -521,5 +521,5 @@ if __name__ == '__main__':
                 raise NotImplementedError
 
             print(f"Saving results to {results_path}")
-            np.save(results_path, info)
+            numpyify_and_save(results_path, info)
 

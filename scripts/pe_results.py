@@ -10,12 +10,17 @@ from definitions import ROOT_DIR
 
 
 # %%
-results_dir = Path(ROOT_DIR, 'results', 'tmaze_junction_pi_up_1')
+results_dir = Path(ROOT_DIR, 'results')
 # results_dir = Path(ROOT_DIR, 'results', 'slippery_tmaze_two_thirds_up_mem_grad')
 
 split_by = ['spec', 'algo']
 Args = namedtuple('args', split_by)
 results_dir
+
+# %%
+results_path = results_dir / 'tmaze_eps_hyperparams_pe_method(a)_grad(m)_s(2022)_Mon Nov  7 14:47:10 2022.npy'
+info = load_info(results_path)
+info
 # %%
 
 

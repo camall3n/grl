@@ -66,11 +66,10 @@ def test_example_7_m():
 
     agent = AnalyticalAgent(pi_params, mem_params=spec['mem_params'], rand_key=rand_key,
                             policy_optim_alg='pi', epsilon=0)
-    agent.new_pi_over_mem()
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    # mem_loss = mem_improvement(agent, amdp, lr=1)
+    mem_loss = mem_improvement(agent, amdp, lr=1)
 
     memory_grad, _ = do_grad(spec, pi, 'm', lr=1)
 
