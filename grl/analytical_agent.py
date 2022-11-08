@@ -5,19 +5,10 @@ from functools import partial
 from typing import Sequence
 
 from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
-from grl.policy_eval import functional_memory_cross_product, analytical_pe
+from grl.policy_eval import functional_memory_cross_product, analytical_pe, memory_loss
 from grl.mdp import AbstractMDP
 from grl.utils import glorot_init
 from grl.vi import policy_iteration_step
-
-def memory_loss(mem_params: jnp.ndarray, gamma: float, value_type: str,
-                           pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                           p0: jnp.ndarray):
-    T_mem = softmax(mem_params, axis=-1)
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-    _, mc_vals, td_vals = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
-    diff = mc_vals[value_type] - td_vals[value_type]
-    return (diff ** 2).mean()
 
 def pg_objective_func(pi_params: jnp.ndarray, gamma: float,
                       T: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray,
@@ -51,7 +42,7 @@ class AnalyticalAgent:
     """
     def __init__(self,
                  pi_params: jnp.ndarray, mem_params: jnp.ndarray = None,
-                 discrep_type: str = 'q', rand_key: random.PRNGKey = random.PRNGKey(2022),
+                 discrep_type: str = 'v', rand_key: random.PRNGKey = random.PRNGKey(2022),
                  pi_softmax_temp: float = 1, policy_optim_alg: str = 'pi',
                  new_mem_pi: str = 'copy',
                  epsilon: float = 0.1):

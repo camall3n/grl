@@ -59,8 +59,7 @@ def test_example_7_m():
     ])
 
     # we initialize our agent here
-    pi[pi == 1] -= 1e-20
-    pi[pi == 0] += 1e-20
+    pi += 1e-20
     pi_params = np.log(pi)
     rand_key = random.PRNGKey(2022)
 
@@ -70,8 +69,10 @@ def test_example_7_m():
     amdp = AbstractMDP(mdp, spec['phi'])
 
     mem_loss = mem_improvement(agent, amdp, lr=1, iterations=int(1e5))
+    memory_grad, _ = do_grad(spec, pi, 'm', lr=1)
 
-    assert np.allclose(memory_end, agent.memory, atol=1e-1)
+    assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
+    assert np.allclose(memory_end, agent.memory, atol=1e-2)
 
 if __name__ == "__main__":
     test_example_7_m()

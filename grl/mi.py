@@ -101,9 +101,8 @@ def memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
         # Make a NEW memory AMDP
         amdp_mem = memory_cross_product(init_amdp, agent.mem_params)
 
-        # Now we need to reset policy params, with the appropriate new shape
-        if agent.pi_params.shape != (amdp_mem.n_obs, amdp_mem.n_actions):
-            agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
+        # reset our policy parameters
+        agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
 
         # Now we improve our policy again
         policy_output = pi_improvement(agent, amdp_mem, lr=pi_lr, iterations=pi_per_step, log_every=log_every)

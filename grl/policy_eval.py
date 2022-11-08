@@ -52,6 +52,15 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
 
     return v_vals, q_vals
 
+def memory_loss(mem_params: jnp.ndarray, gamma: float, value_type: str,
+                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                p0: jnp.ndarray):
+    T_mem = nn.softmax(mem_params, axis=-1)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
+    _, mc_vals, td_vals = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
+    diff = mc_vals[value_type] - td_vals[value_type]
+    return (diff ** 2).mean()
+
 @jit
 def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
                           pi_abs: jnp.ndarray):
@@ -228,16 +237,9 @@ class PolicyEval:
     def functional_memory_update(self, params: jnp.ndarray, value_type: str, gamma: float,
                                  lr: float, pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
                                  phi: jnp.ndarray, p0: jnp.ndarray):
-        loss, params_grad = value_and_grad(self.functional_memory_loss,
+        loss, params_grad = value_and_grad(memory_loss,
                                            argnums=0)(params, gamma, value_type, pi, T, R, phi, p0)
         params -= lr * params_grad
 
         return loss, params
 
-    @partial(jit, static_argnames=['self', 'gamma', 'value_type'])
-    def functional_memory_loss(self, mem_params: jnp.ndarray, gamma: float, value_type: str,
-                               pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                               p0: jnp.ndarray):
-        T_mem = nn.softmax(mem_params, axis=-1)
-        T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-        return self.functional_loss_fn(pi, value_type, phi_x, T_x, R_x, p0_x, gamma)

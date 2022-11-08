@@ -1,8 +1,10 @@
 import numpy as np
+from pathlib import Path
 
 from . import examples_lib
 from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
+from definitions import ROOT_DIR
 
 def load_spec(name, *args, memory_id: int = None, **kwargs):
     """
@@ -23,7 +25,8 @@ def load_spec(name, *args, memory_id: int = None, **kwargs):
 
     if spec is None:
         try:
-            spec = POMDPFile(f'grl/environment/pomdp_files/{name}.POMDP').get_spec(*args, **kwargs)
+            file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'{name}.POMDP')
+            spec = POMDPFile(file_path).get_spec(*args, **kwargs)
         except FileNotFoundError as _:
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None
