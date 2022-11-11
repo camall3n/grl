@@ -53,13 +53,12 @@ class AnalyticalAgent:
         self.pi_params = pi_params
         self.og_n_obs = self.pi_params.shape[0]
 
-        if self.policy_optim_alg == 'pg':
-            self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
-        elif self.policy_optim_alg == 'pi':
-            self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
-            self.epsilon = epsilon
-        elif self.policy_optim_alg == 'dm':
-            self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
+        self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
+
+        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+        self.epsilon = epsilon
+
+        self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
         self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi
@@ -130,9 +129,9 @@ class AnalyticalAgent:
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'dm':
             loss, mc_vals, td_vals, new_pi_params = self.functional_dm_update(self.pi_params, amdp.gamma,
-                                                                                            self.discrep_type, lr,
-                                                                                            amdp.T, amdp.R,
-                                                                                            amdp.phi, amdp.p0)
+                                                                              self.discrep_type, lr,
+                                                                              amdp.T, amdp.R,
+                                                                              amdp.phi, amdp.p0)
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError
@@ -162,12 +161,9 @@ class AnalyticalAgent:
         state = self.__dict__.copy()
 
         # delete unpickleable jitted functions
-        if state['policy_optim_alg'] == 'pg':
-            del state['pg_objective_func']
-        elif state['policy_optim_alg'] == 'pi':
-            del state['policy_iteration_update']
-        elif state['policy_optim_alg'] == 'dm':
-            del state['policy_discrep_objective_func']
+        del state['pg_objective_func']
+        del state['policy_iteration_update']
+        del state['policy_discrep_objective_func']
         del state['memory_objective_func']
         return state
 
@@ -175,12 +171,9 @@ class AnalyticalAgent:
         self.__dict__.update(state)
 
         # restore jitted functions
-        if self.policy_optim_alg == 'pg':
-            self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
-        elif self.policy_optim_alg == 'pi':
-            self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
-        elif self.policy_optim_alg == 'dm':
-            self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
+        self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
+        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+        self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
         self.memory_objective_func = jit(memory_loss, static_argnames=['gamma', 'value_type'])
 

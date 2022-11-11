@@ -68,14 +68,19 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
 def memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
                          pi_lr: float = 1., mi_lr: float = 1,
                          pi_per_step: int = 50000, mi_per_step: int = 50000,
-                         mi_iterations: int = 1,
-                         log_every: int = 1000):
+                         mi_iterations: int = 1, init_pi_improvement: bool = True,
+                         log_every: int = 1000,
+                     ):
     info = {'policy_improvement_outputs': [], 'mem_loss': []}
+    td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp.T, init_amdp.R, init_amdp.phi, init_amdp.p0, init_amdp.gamma)
+    info['initial_values'] = {'v': td_v_vals, 'q': td_q_vals}
 
-    # initial policy improvement
-    print("Initial policy improvement step")
-    initial_outputs = pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
-    info['policy_improvement_outputs'].append(initial_outputs)
+    if init_pi_improvement:
+        # initial policy improvement
+        print("Initial policy improvement step")
+        initial_outputs = pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
+        info['policy_improvement_outputs'].append(initial_outputs)
+
     info['initial_improvement_policy'] = agent.policy.copy()
     info['initial_mem_params'] = agent.mem_params
     print(f"Starting (unexpanded) policy: \n{agent.policy}")
@@ -113,6 +118,23 @@ def memory_iteration(agent: AnalyticalAgent, init_amdp: AbstractMDP,
               f"{agent.policy}")
 
     final_amdp = init_amdp if amdp_mem is None else amdp_mem
+
+    # if we maximize lambda discrepancy, we need to do a final policy improvement step, with policy iteration.
+    if agent.policy_optim_alg == 'dm':
+        info['final_dm_pi_params'] = agent.pi_params.copy()
+        agent.reset_pi_params()
+
+        # Change modes, run policy iteration
+        agent.policy_optim_alg = 'pi'
+        print("Final policy improvement, after λ-discrep. max.")
+        pi_improvement(agent, final_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
+
+        # Plotting for final policy iteration
+        print(f"Learnt policy for final policy iteration: \n"
+              f"{agent.policy}")
+
+        # change our mode back
+        agent.policy_optim_alg = 'dm'
 
     # here we calculate our value function for our final policy and final memory
     eval_policy = info['initial_improvement_policy'] if amdp_mem is None else agent.policy
