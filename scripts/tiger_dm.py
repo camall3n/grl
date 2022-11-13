@@ -14,11 +14,20 @@ from definitions import ROOT_DIR
 
 
 # %%
-results_dir = Path(ROOT_DIR, 'results', 'slippery_tmaze_mi_pi')
+results_dir = Path(ROOT_DIR, 'results')
 
 split_by = ['spec', 'algo']
 Args = namedtuple('args', split_by)
 
+# %%
+
+results_path = results_dir / 'tiger_mi_pi(dm)_miit(1)_s(2023)_Fri Nov 11 16:53:08 2022.npy'
+info = load_info(results_path)
+args = info['args']
+mem_params = info['agent'].mem_params
+pi_params = info['agent'].pi_params
+epsilon = info['agent'].epsilon
+info['logs']['initial_improvement_discrep'], info['logs']['initial_improvement_policy']
 # %%
 
 
