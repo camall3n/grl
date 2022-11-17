@@ -21,7 +21,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         - (see policy_eval.py)
         - Currently has to be adjusted above directly
     """
-
+    info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
@@ -51,10 +51,14 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
         raise NotImplementedError
 
     policy_eval.verbose = False
-    logging.info(f'\nStarting discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
+    initial_discrep = loss_fn(params, value_type, pi_abs=pi_abs)
+    info['initial_discrep'] = initial_discrep
+    info['initial_params'] = params.copy()
+    logging.info(f'\nInitial discrep:\n {initial_discrep}')
 
     i = 0
     done_count = 0
+    logged_losses = []
     # old_params = params
 
     while done_count < 5:
@@ -66,6 +70,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
 
         if i % 100 == 0:
             # print('\n\n')
+            logged_losses.append(loss.item())
             print(f'Gradient iteration {i}, loss: {loss.item():.4f}')
             # print('params_grad\n', params_grad)
             # print()
@@ -80,6 +85,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
     logging.info(f'-Final gradient params:\n {softmax(params, axis=-1)}')
     logging.info(f'in {i} gradient steps with lr={lr}')
+    info['final_params'] = params.copy()
 
     old_amdp = policy_eval.amdp
     if grad_type == 'm':
@@ -91,6 +97,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')
     policy_eval.amdp = old_amdp
+    info['final_vals'] = {'mdp': mdp_vals, 'mc': amdp_vals, 'td': td_vals}
     # logging.info(f'discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
 
-    return params
+    return params, info

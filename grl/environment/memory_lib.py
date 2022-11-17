@@ -1,5 +1,7 @@
 import sys
 import numpy as np
+
+from grl.utils import glorot_init
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down
@@ -11,8 +13,7 @@ def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2
     current_module = globals()
     mem_name = f'memory_{memory_id}'
     if memory_id == 0:
-        mem_params = np.random.normal(size=(n_actions, n_obs, n_mem_states,
-                                            n_mem_states)) * np.sqrt(2)
+        mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
     else:
         if mem_name in current_module:
             T_mem = current_module[mem_name]

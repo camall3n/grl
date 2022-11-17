@@ -1,9 +1,9 @@
 import argparse
 import logging
 import pathlib
-import time
 from os import listdir
 import os.path
+from time import time
 
 import numpy as np
 import jax
@@ -19,13 +19,17 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
-from grl.utils import pformat_vals, RTOL
+from grl.utils import pformat_vals, RTOL, results_path, numpyify_and_save
+from grl.mi import run_memory_iteration
+from grl.vi import value_iteration
 
-def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=500, lr=1):
+def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
+                 use_grad: bool = False, n_episodes: int = 500, lr: float = 1.):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
     """
+    info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
@@ -56,10 +60,11 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
             discrep = {
-                'v': np.abs(td_vals_a['v'] - mc_vals_a['v']),
-                'q': np.abs(td_vals_a['q'] - mc_vals_a['q']),
+                'v': (td_vals_a['v'] - mc_vals_a['v'])**2,
+                'q': (td_vals_a['q'] - mc_vals_a['q'])**2,
             }
             discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+            info['initial_discrep'] = discrep
 
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
@@ -117,9 +122,11 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    do_grad(spec, pi, grad_type=use_grad, value_type=value_type, lr=lr)
+                    learnt_params, grad_info = do_grad(spec, pi, grad_type=use_grad, value_type=value_type, lr=lr)
+                    info['grad_info'] = grad_info
 
         if method == 's' or method == 'b':
+            # TODO: collect sample-based run info into the info dict
             # Sampling
             logging.info('\n\n--- Sampling ---')
             # MDP
@@ -174,7 +181,7 @@ def run_algos(spec, method='a', n_random_policies=0, use_grad=False, n_episodes=
     logging.info(f'{discrepancy_ids}')
     logging.info(f'({len(discrepancy_ids)}/{len(policies)})')
 
-    return discrepancies
+    return discrepancies, info
 
 def run_generated(dir, pomdp_id=None, mem_fn_id=None):
     # There needs to be at least one memory function that decreases the discrepancy
@@ -206,7 +213,7 @@ def run_on_file(filepath, mem_fn_id=None):
 
     # Discrepancies without memory.
     # List with one discrepancy dict ('v' and 'q') per policy.
-    discrepancies_no_mem = run_algos(spec)
+    discrepancies_no_mem, _ = run_pe_algos(spec)
 
     path = f'grl/results/1bit_mem_conjecture_traj_weighted/{tag}'
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -235,7 +242,7 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
     spec['T_mem'] = T_mem # add memory
     spec['Pi_phi_x'] = [pi.repeat(2, axis=0)
                         for pi in spec['Pi_phi']] # expand policies to obs-mem space
-    discrepancies_mem = run_algos(spec)
+    discrepancies_mem, _ = run_pe_algos(spec)
 
     # Check if this memory made the discrepancy decrease for each policy.
     # The mem and no_mem lists are in the same order of policies.
@@ -269,7 +276,7 @@ def record_discrepancy_improvements(path, mdp_name, spec, mem_fn_id, T_mem, disc
     return mem_fn_improved_discrep
 
 def generate_pomdps(params):
-    timestamp = str(time.time()).replace('.', '-')
+    timestamp = str(time()).replace('.', '-')
     path = f'grl/environment/pomdp_files/generated/{timestamp}'
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -366,6 +373,17 @@ def heatmap(spec, discrep_type='l2', num_ticks=5):
         ax.set_title(f'{args.spec}, {value_type}_values, {discrep_type}_loss')
         plt.show()
 
+def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
+    # hyperparams for tmaze_hperparams
+    parser.add_argument('--tmaze_corridor_length', default=None, type=int,
+        help='Length of corridor for tmaze_hyperparams')
+    parser.add_argument('--tmaze_discount', default=None, type=float,
+        help='Discount rate for tmaze_hyperparams')
+    parser.add_argument('--tmaze_junction_up_pi', default=None, type=float,
+        help='probability of traversing up at junction for tmaze_hyperparams')
+    return parser
+
+
 if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
@@ -374,6 +392,16 @@ if __name__ == '__main__':
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--run_generated', type=str,
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
+    parser.add_argument('--algo', type=str, default='pe',
+        help='algorithm to run. '
+             '"mi" - memory and policy improvement, '
+             '"pe" - policy evaluation, '
+             '"vi" - value iteration on ground-truth MDP')
+    parser.add_argument('--mi_iterations', type=int, default=1,
+                        help='if we do memory iteration, how many iterations of memory iterations do we do?')
+    parser.add_argument('--policy_optim_alg', type=str, default='pi',
+                        help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
+                             '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
     parser.add_argument('--method', default='a', type=str,
@@ -393,10 +421,13 @@ if __name__ == '__main__':
         help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; generate pomdp specs and save to environment/pomdp_files/generated/')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
+    parser.add_argument('--experiment_name', default=None, type=str,
+        help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
 
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
+    parser = add_tmaze_hyperparams(parser)
     # yapf:enable
 
     global args
@@ -419,12 +450,16 @@ if __name__ == '__main__':
         if args.run_generated:
             name = f'logs/{args.run_generated}.log'
         else:
-            name = f'logs/{args.spec}-{mem_part}-{time.time()}.log'
+            name = f'logs/{args.spec}-{mem_part}-{time()}.log'
         rootLogger.addHandler(logging.FileHandler(name))
 
-    if args.seed:
+    rand_key = None
+    if args.seed is not None:
         np.random.seed(args.seed)
-        jax.random.PRNGKey(args.seed)
+        rand_key = jax.random.PRNGKey(args.seed)
+    else:
+        rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
+
 
     # Run
     if args.generate_pomdps:
@@ -448,27 +483,54 @@ if __name__ == '__main__':
                       mem_fn_id=args.mem_fn_id)
     else:
         # Get POMDP definition
-        spec = load_spec(args.spec, args.use_memory)
+        spec = load_spec(args.spec, memory_id=args.use_memory,
+                         corridor_length=args.tmaze_corridor_length,
+                         discount=args.tmaze_discount,
+                         junction_up_pi=args.tmaze_junction_up_pi)
         logging.info(f'spec:\n {args.spec}\n')
         logging.info(f'T:\n {spec["T"]}')
         logging.info(f'R:\n {spec["R"]}')
         logging.info(f'gamma: {spec["gamma"]}')
         logging.info(f'p0:\n {spec["p0"]}')
         logging.info(f'phi:\n {spec["phi"]}')
-        logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
         if 'mem_params' in spec.keys():
             logging.info(f'mem_params:\n {spec["mem_params"]}')
         if 'Pi_phi_x' in spec.keys():
             logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
+        if 'Pi_phi' in spec and spec['Pi_phi'] is not None:
+            logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
 
         logging.info(f'n_episodes:\n {args.n_episodes}')
 
         if args.heatmap:
             heatmap(spec)
         else:
-            run_algos(spec,
-                      args.method,
-                      args.n_random_policies,
-                      args.use_grad,
-                      args.n_episodes,
-                      lr=args.lr)
+            if args.algo == 'pe':
+
+                _, info = run_pe_algos(spec,
+                             args.method,
+                             args.n_random_policies,
+                             args.use_grad,
+                             args.n_episodes,
+                             lr=args.lr)
+                info['args'] = args.__dict__
+            elif args.algo == 'mi':
+                assert args.method == 'a'
+                logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
+                                                   mi_iterations=args.mi_iterations,
+                                                   policy_optim_alg=args.policy_optim_alg)
+
+                info = {'logs': logs, 'agent': agent, 'args': args.__dict__}
+            elif args.algo == 'vi':
+                optimal_vs = value_iteration(spec['T'], spec['R'], spec['gamma'])
+                print("Optimal state values from value iteration:")
+                print(optimal_vs)
+                info = {'optimal_vs': optimal_vs, 'p0': spec['p0'].copy(), 'args': args.__dict__}
+
+            else:
+                raise NotImplementedError
+
+            results_path = results_path(args)
+            print(f"Saving results to {results_path}")
+            numpyify_and_save(results_path, info)
+

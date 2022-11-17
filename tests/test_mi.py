@@ -1,24 +1,10 @@
 import numpy as np
+from jax import random
 from jax.nn import softmax
 
-from grl import load_spec, do_grad, RTOL
-
-def test_example_7_p():
-    """
-    Tests that do_grad reaches the known no-discrepancy policy for example 7
-    """
-    spec = load_spec('example_7')
-
-    pi_known = np.array([
-        [4 / 7, 3 / 7], # known location of no discrepancy
-        [1, 0],
-        [1, 0],
-    ])
-
-    pi = np.array([[1., 0], [1, 0], [1, 0]])
-    pi_grad, _ = do_grad(spec, pi, 'p', lr=1e-2)
-
-    assert np.allclose(pi_known[0], pi_grad[0], rtol=RTOL) # just assert the red obs policy
+from grl import load_spec, do_grad, RTOL, MDP, AbstractMDP
+from grl.analytical_agent import AnalyticalAgent
+from grl.mi import mem_improvement
 
 def test_example_7_m():
     """
@@ -71,6 +57,22 @@ def test_example_7_m():
         [1, 0],
         [1, 0],
     ])
+
+    # we initialize our agent here
+    pi += 1e-20
+    pi_params = np.log(pi)
+    rand_key = random.PRNGKey(2022)
+
+    agent = AnalyticalAgent(pi_params, mem_params=spec['mem_params'], rand_key=rand_key,
+                            policy_optim_alg='pi', epsilon=0)
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
+
+    mem_loss = mem_improvement(agent, amdp, lr=1, iterations=int(1e5))
     memory_grad, _ = do_grad(spec, pi, 'm', lr=1)
 
     assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
+    assert np.allclose(memory_end, agent.memory, atol=1e-2)
+
+if __name__ == "__main__":
+    test_example_7_m()
