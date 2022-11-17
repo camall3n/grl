@@ -16,7 +16,7 @@ T: paint : NFL-NBL-NPA : NFL-NBL-NPA
 T: paint : NFL-NBL-NPA : NFL-NBL-PA 
 0.9
 
-T: paint :NFL-NBL-PA : NFL-NBL-PA
+T: paint : NFL-NBL-PA : NFL-NBL-PA
 1.0
 
 T: paint : FL-NBL-PA : FL-NBL-PA 
@@ -25,7 +25,7 @@ T: paint : FL-NBL-PA : FL-NBL-PA
 T: paint : FL-BL-NPA : FL-NBL-PA
 0.9
 
-T: paint :FL-BL-NPA : FL-BL-NPA
+T: paint : FL-BL-NPA : FL-BL-NPA
 0.1
 
 T: inspect

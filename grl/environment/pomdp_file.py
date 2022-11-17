@@ -1,4 +1,5 @@
 import numpy as np
+from typing import List, Union
 
 from .examples_lib import to_dict
 
@@ -24,9 +25,16 @@ class POMDPFile:
             Pi_phi
         """
         f = open(filename, 'r')
-        self.contents = [
-            x.strip() for x in f.readlines() if (not (x.startswith("#") or x.isspace()))
-        ]
+        self.contents = []
+        for x in f.readlines():
+            if (not (x.startswith("#") or x.isspace())):
+                # remove comments after lines too
+                try:
+                    hashtag_idx = x.index('#')
+                    x = x[:hashtag_idx]
+                except ValueError:
+                    pass
+                self.contents.append(x.strip())
 
         self.T = None
         self.Z = None
@@ -77,6 +85,13 @@ class POMDPFile:
 
         # cleanup
         f.close()
+
+    @staticmethod
+    def get_indices(l: list, el: str) -> Union[List[int], int]:
+        if el == '*':
+            return list(range(len(l)))
+        else:
+            return l.index(el)
 
     def __get_discount(self, i):
         line = self.contents[i]
@@ -132,20 +147,20 @@ class POMDPFile:
     def __get_transition(self, i):
         line = self.contents[i]
         pieces = [x for x in line.split() if (x.find(':') == -1)]
-        action = self.actions.index(pieces[0])
+        action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 4:
             # case 1: T: <action> : <start-state> : <next-state> %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states,pieces[1])
+            next_state = self.get_indices(self.states,pieces[2])
             prob = float(pieces[3])
             self.T[action, start_state, next_state] = prob
             return i + 1
         elif len(pieces) == 3:
             # case 2: T: <action> : <start-state> : <next-state>
             # %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states,pieces[1])
+            next_state = self.get_indices(self.states,pieces[2])
             next_line = self.contents[i + 1]
             prob = float(next_line)
             self.T[action, start_state, next_state] = prob
@@ -156,7 +171,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 start_state = slice(None)
             else:
-                start_state = self.states.index(pieces[1])
+                start_state = self.get_indices(self.states,pieces[1])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.states)
@@ -206,14 +221,14 @@ class POMDPFile:
             # Case when action does not affect observation
             action = slice(None)
         else:
-            action = self.actions.index(pieces[0])
+            action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 4:
             # case 1: O: <action> : <next-state> : <obs> %f
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states,pieces[1])
             if '*' in pieces[2]:
                 obs = slice(None)
             else:
@@ -227,7 +242,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states,pieces[1])
             if '*' in pieces[2]:
                 obs = slice(None)
             else:
@@ -242,7 +257,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states,pieces[1])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
@@ -296,7 +311,7 @@ class POMDPFile:
         if pieces[0] == "*":
             action = slice(None)
         else:
-            action = self.actions.index(pieces[0])
+            action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 5 or len(pieces) == 4:
             # case 1:
@@ -313,8 +328,8 @@ class POMDPFile:
         elif len(pieces) == 3:
             # case 2: R: <action> : <start-state> : <next-state>
             # %f %f ... %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states,pieces[1])
+            next_state = self.get_indices(self.states,pieces[2])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
@@ -328,7 +343,7 @@ class POMDPFile:
             # %f %f ... %f
             # ...
             # %f %f ... %f
-            start_state = self.states.index(pieces[1])
+            start_state = self.get_indices(self.states,pieces[1])
             next_line = self.contents[i + 1]
             for j in range(len(self.states)):
                 probs = next_line.split()
@@ -351,7 +366,7 @@ class POMDPFile:
             for i in range(len(self.states)):
                 self.__reward_ns(a, i, next_state_raw, obs_raw, prob)
         else:
-            start_state = self.states.index(start_state_raw)
+            start_state = self.get_indices(self.states,start_state_raw)
             self.__reward_ns(a, start_state, next_state_raw, obs_raw, prob)
 
     def __reward_ns(self, a, start_state, next_state_raw, obs_raw, prob):
@@ -364,7 +379,7 @@ class POMDPFile:
         if next_state_raw == '*':
             self.R[a, start_state, :] = prob
         else:
-            next_state = self.states.index(next_state_raw)
+            next_state = self.get_indices(self.states,next_state_raw)
             self.R[a, start_state, next_state] = prob
 
     def __get_pi_phi(self, i):
