@@ -22,7 +22,10 @@ def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
         'mc_vals_q': mc_vals['q'],
         'td_vals_q': td_vals['q'],
         'mc_vals_v': mc_vals['v'],
-        'td_vals_v': td_vals['v']
+        'td_vals_v': td_vals['v'],
+        'state_vals_v': state_vals['v'],
+        'state_vals_q': state_vals['q'],
+        'p0': amdp.p0.copy()
     }
     discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
     return discrep
@@ -40,7 +43,11 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     amdp = AbstractMDP(mdp, spec['phi'])
 
     # initialize policy params
-    pi_params = glorot_init(spec['Pi_phi'][0].shape, scale=0.2)
+    if 'Pi_phi' not in spec or spec['Pi_phi'] is None:
+        pi_phi_shape = (spec['phi'].shape[-1], spec['T'].shape[0])
+    else:
+        pi_phi_shape = spec['Pi_phi'][0].shape
+    pi_params = glorot_init(pi_phi_shape, scale=0.2)
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
@@ -51,17 +58,17 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here
     # initial policy lambda-discrepancy
-    info['initial_discrep'] = lambda_discrep_measures(amdp, initial_policy)
-    info['initial_improvement_discrep'] = lambda_discrep_measures(amdp, info['initial_improvement_policy'])
+    info['initial_policy_stats'] = lambda_discrep_measures(amdp, initial_policy)
+    info['initial_improvement_stats'] = lambda_discrep_measures(amdp, info['initial_improvement_policy'])
 
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
         init_mem_amdp = memory_cross_product(amdp, info['initial_mem_params'])
-        info['initial_mem_discrep'] = lambda_discrep_measures(init_mem_amdp, info['initial_expanded_improvement_policy'])
+        info['initial_mem_stats'] = lambda_discrep_measures(init_mem_amdp, info['initial_expanded_improvement_policy'])
 
     # Final memory w/ final policy discrep
     final_mem_amdp = memory_cross_product(amdp, agent.mem_params)
-    info['final_mem_discrep'] = lambda_discrep_measures(final_mem_amdp, agent.policy)
+    info['final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, agent.policy)
 
     return info, agent
 

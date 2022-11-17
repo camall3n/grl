@@ -19,8 +19,9 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.grad import do_grad
-from grl.utils import pformat_vals, RTOL, mi_results_path, pe_results_path, numpyify_and_save
+from grl.utils import pformat_vals, RTOL, results_path, numpyify_and_save
 from grl.mi import run_memory_iteration
+from grl.vi import value_iteration
 
 def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
                  use_grad: bool = False, n_episodes: int = 500, lr: float = 1.):
@@ -392,7 +393,10 @@ if __name__ == '__main__':
     parser.add_argument('--run_generated', type=str,
         help='name of directory with generated pomdp files located in environment/pomdp_files/generated')
     parser.add_argument('--algo', type=str, default='pe',
-        help='algorithm to run. "mi" - memory and policy improvement, "pe" - policy evaluation')
+        help='algorithm to run. '
+             '"mi" - memory and policy improvement, '
+             '"pe" - policy evaluation, '
+             '"vi" - value iteration on ground-truth MDP')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='if we do memory iteration, how many iterations of memory iterations do we do?')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
@@ -489,11 +493,12 @@ if __name__ == '__main__':
         logging.info(f'gamma: {spec["gamma"]}')
         logging.info(f'p0:\n {spec["p0"]}')
         logging.info(f'phi:\n {spec["phi"]}')
-        logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
         if 'mem_params' in spec.keys():
             logging.info(f'mem_params:\n {spec["mem_params"]}')
         if 'Pi_phi_x' in spec.keys():
             logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
+        if 'Pi_phi' in spec and spec['Pi_phi'] is not None:
+            logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
 
         logging.info(f'n_episodes:\n {args.n_episodes}')
 
@@ -501,6 +506,7 @@ if __name__ == '__main__':
             heatmap(spec)
         else:
             if args.algo == 'pe':
+
                 _, info = run_pe_algos(spec,
                              args.method,
                              args.n_random_policies,
@@ -508,18 +514,23 @@ if __name__ == '__main__':
                              args.n_episodes,
                              lr=args.lr)
                 info['args'] = args.__dict__
-                results_path = pe_results_path(args)
             elif args.algo == 'mi':
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
                                                    mi_iterations=args.mi_iterations,
                                                    policy_optim_alg=args.policy_optim_alg)
 
-                results_path = mi_results_path(args)
                 info = {'logs': logs, 'agent': agent, 'args': args.__dict__}
+            elif args.algo == 'vi':
+                optimal_vs = value_iteration(spec['T'], spec['R'], spec['gamma'])
+                print("Optimal state values from value iteration:")
+                print(optimal_vs)
+                info = {'optimal_vs': optimal_vs, 'p0': spec['p0'].copy(), 'args': args.__dict__}
+
             else:
                 raise NotImplementedError
 
+            results_path = results_path(args)
             print(f"Saving results to {results_path}")
             numpyify_and_save(results_path, info)
 

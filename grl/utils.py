@@ -20,27 +20,20 @@ def pformat_vals(vals):
 
     return pformat(vals)
 
-def mi_results_path(args: Namespace):
-    results_dir = Path(ROOT_DIR, 'results')
-    results_dir.mkdir(exist_ok=True)
-    if args.experiment_name is not None:
-        results_dir /= args.experiment_name
-    results_dir.mkdir(exist_ok=True)
-    results_path = results_dir / f"{args.spec}_{args.algo}_pi({args.policy_optim_alg})_miit({args.mi_iterations})_s({args.seed})_{ctime(time())}.npy"
-    return results_path
-
-def pe_results_path(args: Namespace):
-    results_dir = Path(ROOT_DIR, 'results')
-    results_dir.mkdir(exist_ok=True)
-    if args.experiment_name is not None:
-        results_dir /= args.experiment_name
-    results_dir.mkdir(exist_ok=True)
-    results_path = results_dir / f"{args.spec}_{args.algo}_method({args.method})_grad({args.use_grad})_s({args.seed})_{ctime(time())}.npy"
-    return results_path
-
 def results_path(args: Namespace):
     results_dir = Path(ROOT_DIR, 'results')
-    results_path = results_dir / f"{args.spec}_{args.algo}_s{args.seed}_{ctime(time())}.npy"
+    results_dir.mkdir(exist_ok=True)
+    if args.experiment_name is not None:
+        results_dir /= args.experiment_name
+    results_dir.mkdir(exist_ok=True)
+    if args.algo == 'mi':
+        results_path = results_dir / f"{args.spec}_{args.algo}_pi({args.policy_optim_alg})_miit({args.mi_iterations})_s({args.seed})_{ctime(time())}.npy"
+    elif args.algo == 'pe':
+        results_path = results_dir / f"{args.spec}_{args.algo}_method({args.method})_grad({args.use_grad})_s({args.seed})_{ctime(time())}.npy"
+    elif args.algo == 'vi':
+        results_path = results_dir / f"{args.spec}_{args.algo}_s({args.seed})_{ctime(time())}.npy"
+    else:
+        raise NotImplementedError
     return results_path
 
 def glorot_init(shape: Sequence[int], scale: float = 0.5) -> jnp.ndarray:

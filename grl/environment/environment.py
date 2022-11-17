@@ -39,15 +39,16 @@ def load_spec(name, *args, memory_id: int = None, **kwargs):
     if len(spec['R'].shape) != 3:
         raise ValueError("R tensor must be 3d")
 
-    spec['Pi_phi'] = np.array(spec['Pi_phi']).astype('float')
-    if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
-        raise ValueError("T, R, and Pi_phi must contain the same number of actions")
+    if spec['Pi_phi'] is not None:
+        spec['Pi_phi'] = np.array(spec['Pi_phi']).astype('float')
+        if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
+            raise ValueError("T, R, and Pi_phi must contain the same number of actions")
 
     if memory_id is not None:
         # TODO: generalize n_mem_states
         spec['mem_params'] = get_memory(memory_id,
                                         spec['phi'].shape[-1],
-                                        spec['Pi_phi'].shape[-1],
+                                        spec['T'].shape[0],
                                         n_mem_states=2)
 
     # Make sure probs sum to 1

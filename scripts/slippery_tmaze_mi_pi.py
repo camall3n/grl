@@ -98,7 +98,6 @@ all_results = {}
 for results_path in results_dir.iterdir():
     if results_path.suffix != '.npy':
         continue
-    results_path = list(results_dir.iterdir())[0]
     info = load_info(results_path)
     args = info['args']
     mem_params = info['agent'].mem_params
@@ -137,71 +136,3 @@ for hparams, res_dict in all_results.items():
             all_results[hparams][k] = np.stack(v)
 # %%
 all_results[hparams]['is_optimal']
-
-# %%
-pi_map = {}
-all_sorted_pis = []
-for i, pi in enumerate(sorted(hparam.tmaze_junction_up_pi for hparam in all_results.keys())):
-    pi_map[pi] = i
-    all_sorted_pis.append(pi)
-
-num_pis = len(all_sorted_pis)
-all_to_plot = {
-    'final_discrep_means': np.zeros(num_pis),
-    'final_discrep_std_errs': np.zeros(num_pis),
-    'initial_discrep_means': np.zeros(num_pis),
-    'initial_discrep_std_errs': np.zeros(num_pis),
-    'is_optimal_means': np.zeros(num_pis),
-    'starting_up_discrep_means': np.zeros((num_pis, 2)),
-    'starting_down_discrep_means': np.zeros((num_pis, 2)),
-    'starting_up_discrep_std_errs': np.zeros((num_pis, 2)),
-    'starting_down_discrep_std_errs': np.zeros((num_pis, 2))
-}
-for hparam, res in all_results.items():
-    all_to_plot['final_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).mean(axis=0)
-    all_to_plot['final_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(res['final_v_discrep'].shape[0])
-    all_to_plot['initial_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).mean(axis=0)
-    all_to_plot['initial_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(res['initial_v_discrep'].shape[0])
-    all_to_plot['starting_up_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].mean(axis=0)
-    all_to_plot['starting_up_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].std(axis=0)
-    all_to_plot['is_optimal_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['is_optimal'].mean(axis=0)
-res['final_v_discrep'].shape
-
-# %%
-# Plots for avg across all values.
-fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-
-y_high = 0.25
-y_low = 0
-x_high = 1
-x_low = 0
-
-final_discrep_means = all_to_plot['final_discrep_means']
-final_discrep_std_errs = all_to_plot['final_discrep_std_errs']
-initial_discrep_means = all_to_plot['initial_discrep_means']
-initial_discrep_std_errs = all_to_plot['initial_discrep_std_errs']
-mean_is_optimal = all_to_plot['is_optimal_means']
-x = all_sorted_pis
-
-axes[0].plot(x, initial_discrep_means, color='blue')
-axes[0].fill_between(x, initial_discrep_means - initial_discrep_std_errs, initial_discrep_means + initial_discrep_std_errs, color='blue', alpha=0.2)
-axes[0].set_title('Initial λ-discreps')
-# axes[0].set_xlabel('π(up | junction)')
-axes[0].set_ylabel('Avg. λ-discreps across obs+')
-axes[0].set_ylim([y_low, y_high])
-axes[0].set_xlim([x_low, x_high])
-
-axes[1].imshow(mean_is_optimal[None, :], vmin=0, vmax=1, extent=(x_low, x_high, y_low, y_high), cmap='RdYlGn', aspect='auto', alpha=0.5)
-axes[1].plot(x, final_discrep_means, color='blue')
-axes[1].fill_between(x, final_discrep_means - final_discrep_std_errs, final_discrep_means + final_discrep_std_errs, color='blue', alpha=0.2)
-axes[1].set_title('Final λ-discreps')
-
-# axes[1].set_xlabel('π(up | junction)')
-# axes[1].set_ylabel('Avg. λ-discreps across obs+')
-axes[1].set_ylim([y_low, y_high])
-axes[1].set_xlim([x_low, x_high])
-fig.text(0.52, 0.0, 'π(up | junction)', ha='center', va='center')
-
-
-plt.tight_layout()
-# %%
