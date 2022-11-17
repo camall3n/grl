@@ -410,6 +410,8 @@ if __name__ == '__main__':
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
     parser.add_argument('--use_memory', default=None, type=int,
         help='use memory function during policy eval if set')
+    parser.add_argument('--n_mem_states', default=2, type=int,
+                        help='for memory_id = 0, how many memory states do we have?')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--lr', default=1, type=float)
@@ -484,6 +486,7 @@ if __name__ == '__main__':
     else:
         # Get POMDP definition
         spec = load_spec(args.spec, memory_id=args.use_memory,
+                         n_mem_states=args.n_mem_states,
                          corridor_length=args.tmaze_corridor_length,
                          discount=args.tmaze_discount,
                          junction_up_pi=args.tmaze_junction_up_pi)

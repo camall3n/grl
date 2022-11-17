@@ -6,7 +6,8 @@ from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
 from definitions import ROOT_DIR
 
-def load_spec(name, *args, memory_id: int = None, **kwargs):
+def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
+              **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -45,11 +46,10 @@ def load_spec(name, *args, memory_id: int = None, **kwargs):
             raise ValueError("T, R, and Pi_phi must contain the same number of actions")
 
     if memory_id is not None:
-        # TODO: generalize n_mem_states
         spec['mem_params'] = get_memory(memory_id,
                                         spec['phi'].shape[-1],
                                         spec['T'].shape[0],
-                                        n_mem_states=2)
+                                        n_mem_states=n_mem_states)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
