@@ -88,10 +88,16 @@ for hparams, res in all_results.items():
 
 
 # %%
+spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
+                   'tiger', 'paint.95', 'cheese.95',
+                   'network', 'shuttle.95', '4x3.95']
+
 all_table_results = {}
 all_plot_results = {'x': [], 'xlabels': []}
 
-for i, (hparam, res) in enumerate(all_results.items()):
+for i, spec in enumerate(spec_plot_order):
+    hparam = next(k for k in all_results.keys() if k.spec == spec)
+    res = all_results[hparam]
     all_table_results[hparam] = {}
     all_plot_results['x'].append(i)
     all_plot_results['xlabels'].append(hparam.spec)
@@ -128,6 +134,8 @@ def maybe_spec_map(id: str):
     spec_map = {
         '4x3.95': '4x3',
         'cheese.95': 'cheese',
+        'paint.95': 'paint',
+        'shuttle.95': 'shuttle',
         'example_7': 'ex. 7',
         'slippery_tmaze_5_two_thirds_up': 'tmaze',
     }
@@ -137,7 +145,7 @@ def maybe_spec_map(id: str):
 
 group_width = 1
 bar_width = group_width / (len(ordered_plot) + 2)
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(12, 6))
 
 x = np.array(all_plot_results['x'])
 xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]

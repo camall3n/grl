@@ -407,7 +407,7 @@ class POMDPFile:
 
     def get_spec(self):
         # Assuming phi is not dependent on action
-        return to_dict(self.T, self.R, self.discount, self.start, self.Z[0], self.Pi_phi)
+        return to_dict(self.T, self.R, self.discount, self.start, self.Z, self.Pi_phi)
 
     def print_summary(self):
         print("discount:", self.discount)
