@@ -50,7 +50,7 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     pi_params = glorot_init(pi_phi_shape, scale=0.2)
     initial_policy = softmax(pi_params, axis=-1)
 
-    agent = AnalyticalAgent(pi_params, mem_params=mem_params, rand_key=rand_key,
+    agent = AnalyticalAgent(pi_params, rand_key, mem_params=mem_params,
                             policy_optim_alg=policy_optim_alg)
 
     info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations)

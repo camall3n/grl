@@ -426,6 +426,8 @@ if __name__ == '__main__':
     parser.add_argument('--experiment_name', default=None, type=str,
         help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
 
+    parser.add_argument('--platform', default='cpu', type=str,
+                        help='What platform do we run things on? (cpu | gpu)')
     parser.add_argument('--seed', default=None, type=int,
         help='seed for random number generators')
     parser.add_argument('-f', '--fool-ipython') # hack to allow running in ipython notebooks
@@ -438,8 +440,8 @@ if __name__ == '__main__':
 
     # configs
     np.set_printoptions(precision=4, suppress=True)
+    config.update('jax_platform_name', args.platform)
     config.update("jax_enable_x64", True)
-    config.update('jax_platform_name', 'cpu')
 
     logging.basicConfig(format='%(message)s', level=logging.INFO)
     logging.getLogger().setLevel(logging.INFO)

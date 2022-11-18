@@ -1,4 +1,5 @@
 import numpy as np
+import jax
 from jax.nn import softmax
 from tqdm import trange
 
@@ -14,9 +15,10 @@ def test_pg_fully_observable_tmaze():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
+    rand_key = jax.random.PRNGKey(2020)
     pi_params = np.random.normal(size=(spec['Pi_phi'][0].shape)) * np.sqrt(2)
 
-    agent = AnalyticalAgent(pi_params)
+    agent = AnalyticalAgent(pi_params, rand_key)
 
     for it in trange(iterations):
         v_0 = agent.policy_improvement(amdp, lr)
@@ -43,9 +45,10 @@ def test_pg_tmaze():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
+    rand_key = jax.random.PRNGKey(2020)
     pi_params = np.random.normal(size=(spec['Pi_phi'][0].shape)) * np.sqrt(2)
 
-    agent = AnalyticalAgent(pi_params)
+    agent = AnalyticalAgent(pi_params, rand_key)
 
     for it in trange(iterations):
         v_0 = agent.policy_improvement(amdp, lr)

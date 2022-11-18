@@ -63,7 +63,7 @@ def test_example_7_m():
     pi_params = np.log(pi)
     rand_key = random.PRNGKey(2022)
 
-    agent = AnalyticalAgent(pi_params, mem_params=spec['mem_params'], rand_key=rand_key,
+    agent = AnalyticalAgent(pi_params, rand_key, mem_params=spec['mem_params'],
                             policy_optim_alg='pi', epsilon=0)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])

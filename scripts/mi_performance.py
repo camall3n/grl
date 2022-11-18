@@ -124,19 +124,23 @@ ordered_plot.append(('final_mem', all_plot_results['final_mem']))
 ordered_plot
 
 # %%
-spec_map = {
-    '4x3.95': '4x3',
-    'cheese.95': 'cheese',
-    'example_7': 'ex. 7',
-    'slippery_tmaze_5_two_thirds_up': 'tmaze',
-    'tiger': 'tiger'
-}
+def maybe_spec_map(id: str):
+    spec_map = {
+        '4x3.95': '4x3',
+        'cheese.95': 'cheese',
+        'example_7': 'ex. 7',
+        'slippery_tmaze_5_two_thirds_up': 'tmaze',
+    }
+    if id not in spec_map:
+        return id
+    return spec_map[id]
+
 group_width = 1
 bar_width = group_width / (len(ordered_plot) + 2)
 fig, ax = plt.subplots()
 
 x = np.array(all_plot_results['x'])
-xlabels = [spec_map[l] for l in all_plot_results['xlabels']]
+xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]
 
 for i, (label, plot_dict) in enumerate(ordered_plot):
     ax.bar(x + (i + 1) * bar_width, plot_dict['mean'], bar_width,
@@ -144,5 +148,5 @@ for i, (label, plot_dict) in enumerate(ordered_plot):
 ax.set_ylabel('Performance\n (w.r.t. optimal MDP policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.7, 1.03), framealpha=0.95)
+ax.legend(bbox_to_anchor=(0.7, 0.7), framealpha=0.95)
 ax.set_title("Performance of ε-greedy (0.1) policies in POMDPs")

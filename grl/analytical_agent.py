@@ -1,3 +1,4 @@
+import numpy as np
 import jax.numpy as jnp
 from jax import jit, value_and_grad, random
 from jax.nn import softmax
@@ -41,8 +42,8 @@ class AnalyticalAgent:
     analytic policy gradient.
     """
     def __init__(self,
-                 pi_params: jnp.ndarray, mem_params: jnp.ndarray = None,
-                 discrep_type: str = 'v', rand_key: random.PRNGKey = random.PRNGKey(2022),
+                 pi_params: jnp.ndarray, rand_key: random.PRNGKey,
+                 mem_params: jnp.ndarray = None, discrep_type: str = 'v',
                  pi_softmax_temp: float = 1, policy_optim_alg: str = 'pi',
                  new_mem_pi: str = 'copy',
                  epsilon: float = 0.1):
@@ -165,6 +166,10 @@ class AnalyticalAgent:
         del state['policy_iteration_update']
         del state['policy_discrep_objective_func']
         del state['memory_objective_func']
+        state['pi_params'] = np.array(state['pi_params'])
+
+        if state['mem_params'] is not None:
+            state['mem_params'] = np.array(state['mem_params'])
         return state
 
     def __setstate__(self, state: dict):
