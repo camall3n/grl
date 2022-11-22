@@ -1,5 +1,5 @@
 hparams = {
-    'file_name': 'runs_pomdps_mi_pi.txt',
+    'file_name': 'runs_pomdps_mi_dm.txt',
     'args': [
         {
             'algo': 'mi',
@@ -10,13 +10,13 @@ hparams = {
                 # 'bridge-repair', 'paint.95'
                 # 'hallway'
             ],
-            'policy_optim_alg': 'pi',
+            'policy_optim_alg': 'dm',
             'method': 'a',
             'lr': 1,
             'use_memory': 0,
             'use_grad': 'm',
             'mi_iterations': 2,
-            'seed': [2020 + i for i in range(30)]
+            'seed': [2020 + i for i in range(10)]
         }
     ]
 }

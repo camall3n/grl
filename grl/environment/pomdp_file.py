@@ -405,6 +405,33 @@ class POMDPFile:
 
         return i + 1
 
+    def convert_obs_actions(self):
+        """
+        If we're here, we want to convert our POMDP phi-action tensor
+        into a phi tensor (so they're all the same).
+
+        To do so, we add an extra "initialization" observation
+        We also need to expand our state space to include the last action.
+
+        ONE BIG ASSUMPTION: In the POMDPs with phi(s, a), the action
+        is applied to the state BEFORE an observation comes out.
+        """
+        # first we construct our new transition function.
+        # we go from |A| x |S| x |S| -> |A| x |S||A| x |S||A|
+        # states are ordered as s0a0, s0a1, s0a2, ..., s1a0, s1a1, ..., etc.
+        og_num_a = self.T.shape[0]
+        og_num_s = self.T.shape[1]
+        new_T = np.zeros((og_num_a, og_num_s * og_num_a, og_num_s * og_num_a))
+        for i in range(og_num_a):
+            for j in range(og_num_a):
+                new_T[i, j * np.arange(og_num_a), np.arange(og_num_a) * og_num_s + i] = self.T[i]
+            print(new_T)
+
+
+
+
+        raise NotImplementedError("Phi function is action-dependent")
+
     def get_spec(self):
         phi = self.Z[0]
         if len(self.Z) > 1:
@@ -417,9 +444,9 @@ class POMDPFile:
                     break
 
             if not all_same:
-                raise NotImplementedError("Phi function is action-dependent")
+                self.convert_obs_actions()
+                phi = self.Z[0]
 
-        # Assuming phi is not dependent on action
         return to_dict(self.T, self.R, self.discount, self.start, phi, self.Pi_phi)
 
     def print_summary(self):

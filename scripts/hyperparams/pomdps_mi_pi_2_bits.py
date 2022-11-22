@@ -4,10 +4,10 @@ hparams = {
         {
             'algo': 'mi',
             'spec': [
-                'slippery_tmaze_5_two_thirds_up', 'example_7', 'tiger',
+                'slippery_tmaze_5_two_thirds_up', 'example_7', 'tiger-alt',
                 '4x3.95', 'cheese.95',
-                'network', 'paint.95', 'shuttle.95',
-                # 'bridge-repair'
+                'network', 'shuttle.95',
+                # 'bridge-repair', 'paint.95'
                 # 'hallway'
             ],
             'policy_optim_alg': 'pi',

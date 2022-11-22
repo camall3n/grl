@@ -4,10 +4,11 @@ hparams = {
         {
             'algo': 'vi',
             'spec': [
-                'slippery_tmaze_5_two_thirds_up', 'example_7', 'tiger',
+                'slippery_tmaze_5_two_thirds_up', 'example_7', 'tiger-alt',
                 '4x3.95', 'cheese.95',
-                'hallway', 'network',
-                'paint.95', 'shuttle.95'
+                'network', 'shuttle.95',
+                # 'bridge-repair', 'paint.95'
+                # 'hallway'
             ],
             'method': 'a',
             'lr': 1,

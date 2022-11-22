@@ -15,6 +15,7 @@ from definitions import ROOT_DIR
 
 # %%
 results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
+# results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
 
 split_by = ['spec', 'algo']
@@ -88,8 +89,11 @@ for hparams, res in all_results.items():
 
 
 # %%
+# spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
+#                    'tiger', 'paint.95', 'cheese.95',
+#                    'network', 'shuttle.95', '4x3.95']
 spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
-                   'tiger', 'paint.95', 'cheese.95',
+                   'tiger-alt', 'cheese.95',
                    'network', 'shuttle.95', '4x3.95']
 
 all_table_results = {}
@@ -138,6 +142,7 @@ def maybe_spec_map(id: str):
         'shuttle.95': 'shuttle',
         'example_7': 'ex. 7',
         'slippery_tmaze_5_two_thirds_up': 'tmaze',
+        'tiger-alt': 'tiger'
     }
     if id not in spec_map:
         return id
