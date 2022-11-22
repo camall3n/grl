@@ -406,8 +406,21 @@ class POMDPFile:
         return i + 1
 
     def get_spec(self):
+        phi = self.Z[0]
+        if len(self.Z) > 1:
+            # first we test if all phi matrices are the same for all actions
+            prev_z = self.Z[0]
+            all_same = True
+            for z in self.Z[1:]:
+                all_same &= np.allclose(prev_z, z)
+                if not all_same:
+                    break
+
+            if not all_same:
+                raise NotImplementedError("Phi function is action-dependent")
+
         # Assuming phi is not dependent on action
-        return to_dict(self.T, self.R, self.discount, self.start, self.Z[0], self.Pi_phi)
+        return to_dict(self.T, self.R, self.discount, self.start, phi, self.Pi_phi)
 
     def print_summary(self):
         print("discount:", self.discount)
