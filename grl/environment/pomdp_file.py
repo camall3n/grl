@@ -462,11 +462,13 @@ class POMDPFile:
         extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
         new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
 
-        if self.Pi_phi:
-            raise NotImplementedError
+        # We need to add a policy for our starting observation
+        new_pi_phi = []
+        uniform_dist = np.ones((1, n_actions)) / n_actions
+        for pi in self.Pi_phi:
+            new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
 
-        return to_dict(new_T, new_R, self.discount, new_start, new_Z, self.Pi_phi)
-
+        return to_dict(new_T, new_R, self.discount, new_start, new_Z, new_pi_phi)
 
     def get_spec(self):
         phi = self.Z[0]
