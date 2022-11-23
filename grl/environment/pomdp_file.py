@@ -417,20 +417,56 @@ class POMDPFile:
         is applied to the state BEFORE an observation comes out.
         """
         # first we construct our new transition function.
-        # we go from |A| x |S| x |S| -> |A| x |S||A| x |S||A|
+        # we go from |A| x |S| x |S| -> |A| x (|S| + 1)|A| x (|S| + 1)|A|
         # states are ordered as s0a0, s0a1, s0a2, ..., s1a0, s1a1, ..., etc.
-        og_num_a = self.T.shape[0]
-        og_num_s = self.T.shape[1]
-        new_T = np.zeros((og_num_a, og_num_s * og_num_a, og_num_s * og_num_a))
-        for i in range(og_num_a):
-            for j in range(og_num_a):
-                new_T[i, j * np.arange(og_num_a), np.arange(og_num_a) * og_num_s + i] = self.T[i]
-            print(new_T)
+        n_actions = self.T.shape[0]
+        og_n_states = self.T.shape[1]
 
+        # T_extra_start is |A| x (|S| + 1) x (|S| + 1)
+        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)
+        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)
+        R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
 
+        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))
+        no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
+        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)
+        R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
 
+        extra_n_states = og_n_states + 1
 
-        raise NotImplementedError("Phi function is action-dependent")
+        new_start = np.zeros(extra_n_states)
+        new_start[-1] = 1
+
+        # Now we expand our T and R to add previous actions
+        # We start with the transition function
+        new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
+        T_repeat_start_state = T_extra_start.repeat(n_actions, axis=1)
+        for i in range(new_T.shape[0]):
+            for j in range(new_T.shape[1]):
+                new_T[i, j, np.arange(extra_n_states) * n_actions + i] = T_repeat_start_state[i, j]
+
+        # Now our reward function - it should just be our current reward
+        # function but repeated over actions.
+        new_R = R_extra_start.repeat(n_actions, axis=1).repeat(n_actions, axis=2)
+
+        # Now the phi function. We have to add an observation for the new start state
+        # as well as add a new row for the new start state
+
+        # new obs
+        cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
+        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)
+        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
+
+        # New start state can only emit this new start obs.
+        new_start_phi[:, 0, -1] = 1
+        extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
+        new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
+
+        if self.Pi_phi:
+            raise NotImplementedError
+
+        return to_dict(new_T, new_R, self.discount, new_start, new_Z, self.Pi_phi)
+
 
     def get_spec(self):
         phi = self.Z[0]
@@ -444,8 +480,7 @@ class POMDPFile:
                     break
 
             if not all_same:
-                self.convert_obs_actions()
-                phi = self.Z[0]
+                return self.convert_obs_actions()
 
         return to_dict(self.T, self.R, self.discount, self.start, phi, self.Pi_phi)
 
