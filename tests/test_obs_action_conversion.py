@@ -8,8 +8,8 @@ def check_state(oa_state_vals: dict, c_state_vals: dict):
     n_actions = c_q.shape[0]
 
     def check_indv_vals(oa_vals: np.ndarray, c_vals: np.ndarray):
-        left_c_val = c_vals[0]
-        right_c_val = c_vals[1]
+        left_c_val = c_vals[1]
+        right_c_val = c_vals[2]
         assert np.allclose(left_c_val, oa_vals[:n_actions])
         assert np.allclose(right_c_val, oa_vals[n_actions:2 * n_actions])
 
