@@ -434,9 +434,6 @@ class POMDPFile:
 
         extra_n_states = og_n_states + 1
 
-        new_start = np.zeros(extra_n_states)
-        new_start[-1] = 1
-
         # Now we expand our T and R to add previous actions
         # We start with the transition function
         new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
@@ -467,6 +464,12 @@ class POMDPFile:
         uniform_dist = np.ones((1, n_actions)) / n_actions
         for pi in self.Pi_phi:
             new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
+
+        # We have a new start state - update start state dist.
+        # Expand start states over actions as well.
+        new_start = np.zeros(new_T.shape[-1])
+        # set the (last state, action) pairs as equal starting probabilities.
+        new_start[-n_actions:] = (1 / n_actions)
 
         return to_dict(new_T, new_R, self.discount, new_start, new_Z, new_pi_phi)
 
