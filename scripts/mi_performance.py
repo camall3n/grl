@@ -18,7 +18,7 @@ results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
 
-split_by = ['spec', 'algo']
+split_by = ['spec', 'algo', 'n_mem_states']
 Args = namedtuple('args', split_by)
 
 # %%
@@ -31,6 +31,8 @@ for results_path in results_dir.iterdir():
     info = load_info(results_path)
 
     args = info['args']
+    if 'n_mem_states' not in args:
+        args['n_mem_states'] = 2
     agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
     init_improvement_info = info['logs']['initial_improvement_stats']
@@ -93,25 +95,24 @@ for hparams, res in all_results.items():
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
 spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
-                   'tiger-alt', 'cheese.95',
+                   'tiger-alt', 'paint.95', 'cheese.95',
                    'network', 'shuttle.95', '4x3.95']
 
 all_table_results = {}
 all_plot_results = {'x': [], 'xlabels': []}
 
 for i, spec in enumerate(spec_plot_order):
-    hparam = next(k for k in all_results.keys() if k.spec == spec)
-    res = all_results[hparam]
-    all_table_results[hparam] = {}
-    all_plot_results['x'].append(i)
-    all_plot_results['xlabels'].append(hparam.spec)
+    hparams = sorted([k for k in all_results.keys() if k.spec == spec], key=lambda hp: hp.n_mem_states)
 
-    for k, v in res.items():
-        if 'perf' in k:
+    first_res = all_results[hparams[0]]
+    all_plot_results['x'].append(i)
+    all_plot_results['xlabels'].append(spec)
+
+    # we first add initial and first improvement stats
+    for k, v in first_res.items():
+        if 'perf' in k and k != 'final_mem_perf':
             mean = v.mean(axis=0)
             std_err = v.std(axis=0) / np.sqrt(v.shape[0])
-            all_table_results[hparam][f'{k}_mean'] = mean
-            all_table_results[hparam][f'{k}_std_err'] = std_err
 
             stripped_str = k.replace('_perf', '')
             if stripped_str not in all_plot_results:
@@ -119,13 +120,27 @@ for i, spec in enumerate(spec_plot_order):
             all_plot_results[stripped_str]['mean'].append(mean)
             all_plot_results[stripped_str]['std_err'].append(std_err)
 
-        else:
-            all_table_results[k] = v
+    # now we add final memory perf, for each n_mem_states
+    for hparam in hparams:
+        res = all_results[hparam]
+        for k, v in res.items():
+            if k == 'final_mem_perf':
+                mean = v.mean(axis=0)
+                std_err = v.std(axis=0) / np.sqrt(v.shape[0])
+                stripped_str = k.replace('_perf', '')
+                mem_label = f"mem, |ms| = {hparam.n_mem_states}"
+                if mem_label not in all_plot_results:
+                    all_plot_results[mem_label] = {'mean': [], 'std_err': []}
+                all_plot_results[mem_label]['mean'].append(mean)
+                all_plot_results[mem_label]['std_err'].append(std_err)
+
 
 ordered_plot = []
 ordered_plot.append(('init_policy', all_plot_results['init_policy']))
 ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
-ordered_plot.append(('final_mem', all_plot_results['final_mem']))
+for k in sorted(all_plot_results.keys()):
+    if 'mem' in k:
+        ordered_plot.append((k, all_plot_results[k]))
 # ordered_plot.append(('state_optimal', all_plot_results['vi']))
 
 

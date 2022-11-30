@@ -9,10 +9,12 @@
 # Weirdness of the way I specify the model means I need to
 # cross-product of both action sets.
 
-discount: 1.0
+discount: 0.99
 values: cost
 
 states: less-5 between-5-15 between-15-25 more-25 failed
+
+start: 0.80 0.13 0.02 0.00 0.05
 
 # actions:
 

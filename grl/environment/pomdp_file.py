@@ -442,6 +442,11 @@ class POMDPFile:
             for j in range(new_T.shape[1]):
                 new_T[i, j, np.arange(extra_n_states) * n_actions + i] = T_repeat_start_state[i, j]
 
+        # # make sure terminal states are self-transitions
+        # for i in range(n_actions):
+        #     new_T[:, -n_actions - i - 1] = 0
+        #     new_T[:, -n_actions - i - 1, -n_actions - i - 1] = 1
+
         # Now our reward function - it should just be our current reward
         # function but repeated over actions.
         new_R = R_extra_start.repeat(n_actions, axis=1).repeat(n_actions, axis=2)
@@ -460,10 +465,12 @@ class POMDPFile:
         new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
 
         # We need to add a policy for our starting observation
-        new_pi_phi = []
-        uniform_dist = np.ones((1, n_actions)) / n_actions
-        for pi in self.Pi_phi:
-            new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
+        new_pi_phi = None
+        if self.Pi_phi is not None:
+            new_pi_phi = []
+            uniform_dist = np.ones((1, n_actions)) / n_actions
+            for pi in self.Pi_phi:
+                new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
 
         # We have a new start state - update start state dist.
         # Expand start states over actions as well.

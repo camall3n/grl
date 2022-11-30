@@ -60,3 +60,9 @@ def numpyify_and_save(path: Path, info: dict):
 
 def load_info(results_path: Path):
     return np.load(results_path, allow_pickle=True).item()
+
+def normalize(arr: np.ndarray, axis=-1):
+    with np.errstate(invalid='ignore'):
+        normalized_arr = arr / np.expand_dims(arr.sum(axis), axis)
+    normalized_arr = np.nan_to_num(normalized_arr)
+    return normalized_arr
