@@ -191,6 +191,7 @@ xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]
 for i, (label, plot_dict) in enumerate(ordered_plot):
     ax.bar(x + (i + 1) * bar_width, plot_dict['mean'], bar_width,
            yerr=plot_dict['std_err'], label=label)
+ax.set_ylim([0, 1])
 ax.set_ylabel(f'Performance\n (w.r.t. optimal {compare_to} policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
