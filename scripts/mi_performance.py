@@ -17,9 +17,20 @@ from definitions import ROOT_DIR
 results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
+pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
 split_by = ['spec', 'algo', 'n_mem_states']
 Args = namedtuple('args', split_by)
+# this option allows us to compare to either the optimal belief state soln
+# or optimal state soln. ('belief' | 'state')
+compare_to = 'belief'
+
+# spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
+#                    'tiger', 'paint.95', 'cheese.95',
+#                    'network', 'shuttle.95', '4x3.95']
+spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
+                   'tiger-alt', 'paint.95', 'cheese.95',
+                   'network', 'shuttle.95', '4x3.95']
 
 # %%
 
@@ -69,11 +80,24 @@ for hparams, res_dict in all_results.items():
 
 # %%
 # Get vi performance
-for hparams, res_dict in all_results.items():
-    for vi_path in vi_results_dir.iterdir():
-        if hparams.spec in vi_path.name:
-            vi_info = load_info(vi_path)
-            all_results[hparams]['vi_perf'] = np.array([(vi_info['optimal_vs'] * vi_info['p0']).sum()])
+if compare_to == 'belief':
+    for fname in pomdp_files_dir.iterdir():
+        if 'pomdp-solver-results' in fname.stem:
+            for hparams in all_results.keys():
+                if fname.stem == f"{hparams.spec}-pomdp-solver-results":
+                    belief_info = load_info(fname)
+                    coeffs = belief_info['coeffs']
+                    max_start_vals = coeffs[belief_info['max_start_idx']]
+                    all_results[hparams]['compare_perf'] = np.array([np.dot(max_start_vals, belief_info['p0'])])
+
+elif compare_to == 'state':
+    for hparams, res_dict in all_results.items():
+        for vi_path in vi_results_dir.iterdir():
+            if hparams.spec in vi_path.name:
+                vi_info = load_info(vi_path)
+                all_results[hparams]['compare_perf'] = np.array([(vi_info['optimal_vs'] * vi_info['p0']).sum()])
+else:
+    raise NotImplementedError
 
 # %%
 # all_normalized_perf_results = {}
@@ -91,12 +115,6 @@ for hparams, res in all_results.items():
 
 
 # %%
-# spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
-#                    'tiger', 'paint.95', 'cheese.95',
-#                    'network', 'shuttle.95', '4x3.95']
-spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
-                   'tiger-alt', 'paint.95', 'cheese.95',
-                   'network', 'shuttle.95', '4x3.95']
 
 all_table_results = {}
 all_plot_results = {'x': [], 'xlabels': []}
@@ -173,7 +191,7 @@ xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]
 for i, (label, plot_dict) in enumerate(ordered_plot):
     ax.bar(x + (i + 1) * bar_width, plot_dict['mean'], bar_width,
            yerr=plot_dict['std_err'], label=label)
-ax.set_ylabel('Performance\n (w.r.t. optimal MDP policy)')
+ax.set_ylabel(f'Performance\n (w.r.t. optimal {compare_to} policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 ax.legend(bbox_to_anchor=(0.7, 0.7), framealpha=0.95)
