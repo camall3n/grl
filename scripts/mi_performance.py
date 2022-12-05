@@ -84,11 +84,16 @@ if compare_to == 'belief':
     for fname in pomdp_files_dir.iterdir():
         if 'pomdp-solver-results' in fname.stem:
             for hparams in all_results.keys():
-                if fname.stem == f"{hparams.spec}-pomdp-solver-results":
+                if (fname.stem == f"{hparams.spec}-pomdp-solver-results"):
                     belief_info = load_info(fname)
                     coeffs = belief_info['coeffs']
                     max_start_vals = coeffs[belief_info['max_start_idx']]
                     all_results[hparams]['compare_perf'] = np.array([np.dot(max_start_vals, belief_info['p0'])])
+                    print(f"loaded results for {hparams.spec} from {fname}")
+                elif ('tmaze' in hparams.spec and 'tmaze' in fname.stem) or ('tiger' in fname.stem and 'tiger' in hparam.spec):
+                    vi_path = Path(ROOT_DIR, 'results', 'pomdps_vi', 'slippery_tmaze_5_two_thirds_up_vi_s(2022)_Tue Nov 22 11:35:49 2022.npy')
+                    vi_info = load_info(vi_path)
+                    all_results[hparams]['compare_perf'] = np.array([(vi_info['optimal_vs'] * vi_info['p0']).sum()])
 
 elif compare_to == 'state':
     for hparams, res_dict in all_results.items():
@@ -102,18 +107,14 @@ else:
 # %%
 # all_normalized_perf_results = {}
 for hparams, res in all_results.items():
-    max_v, min_v = -float('inf'), float('inf')
-    for k, v in res.items():
-        if '_perf' in k:
-            max_v = max(v.max(), max_v)
-            min_v = min(v.min(), min_v)
-
+    max_key = 'compare_perf'
+    if max_key not in res:
+        max_key = 'final_mem_perf'
+    max_v = res[max_key]
+    min_v = res['init_policy_perf']
     for k, v in res.items():
         if '_perf' in k:
             all_results[hparams][k] = (v - min_v) / (max_v - min_v)
-
-
-
 # %%
 
 all_table_results = {}
@@ -154,7 +155,7 @@ for i, spec in enumerate(spec_plot_order):
 
 
 ordered_plot = []
-ordered_plot.append(('init_policy', all_plot_results['init_policy']))
+# ordered_plot.append(('init_policy', all_plot_results['init_policy']))
 ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
 for k in sorted(all_plot_results.keys()):
     if 'mem' in k:

@@ -15,11 +15,10 @@ def convert_arr_to_lines(arr: np.ndarray) -> Union[str, list]:
 
 if __name__ == '__main__':
     # spec_name = 'tmaze_hyperparams'
-    spec_name = 'example_7'
-    # spec = load_spec(spec_name, corridor_length=5, discount=0.9)
+    spec_name = 'slippery_tmaze_5_random'
     spec = load_spec(spec_name)
     pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
-    pomdp_path = pomdp_files_dir / 'example_7.POMDP'
+    pomdp_path = pomdp_files_dir / 'slippery-tmaze.POMDP'
 
     lines = [f"# Converted POMDP file for {spec_name}"]
     lines.append('')
