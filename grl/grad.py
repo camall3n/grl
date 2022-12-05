@@ -8,7 +8,7 @@ from .utils import pformat_vals
 
 import numpy as np
 
-def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
+def do_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
@@ -24,6 +24,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
+    # TODO: refactor this to be more functional
     policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
 
     if grad_type == 'p':

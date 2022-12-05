@@ -52,14 +52,40 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
 
     return v_vals, q_vals
 
-def memory_loss(mem_params: jnp.ndarray, gamma: float, value_type: str,
-                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                p0: jnp.ndarray):
+def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float,
+             pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+             p0: jnp.ndarray):
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
     _, mc_vals, td_vals = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
     diff = mc_vals[value_type] - td_vals[value_type]
+    return diff, mc_vals, td_vals
+
+def mem_v_sq_loss(mem_params: jnp.ndarray, gamma: float,
+                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                p0: jnp.ndarray):
+    diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
     return (diff ** 2).mean()
+
+def mem_q_sq_loss(mem_params: jnp.ndarray, gamma: float,
+                  pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                  p0: jnp.ndarray):
+    diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
+    diff = diff * pi.T
+    return (diff ** 2).mean()
+
+def mem_v_abs_loss(mem_params: jnp.ndarray, gamma: float,
+                     pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                     p0: jnp.ndarray):
+    diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
+    return jnp.abs(diff).mean()
+
+def mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float,
+                     pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                     p0: jnp.ndarray):
+    diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
+    diff = diff * pi.T
+    return jnp.abs(diff).mean()
 
 @jit
 def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
@@ -131,17 +157,17 @@ def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
     return state_vals, mc_vals, td_vals
 
 class PolicyEval:
-    def __init__(self, amdp, verbose=True, discrep_type: str = 'l2'):
+    def __init__(self, amdp, verbose=True, error_type: str = 'l2'):
         """
         :param amdp:     AMDP
         :param verbose:  log everything
         """
         self.amdp = amdp
         self.verbose = verbose
-        self.discrep_type = discrep_type
+        self.error_type = error_type
         self.functional_loss_fn = self.functional_mse_loss
         self.loss_fn = self.mse_loss
-        if self.discrep_type == 'max':
+        if self.error_type == 'max':
             self.functional_loss_fn = self.functional_max_loss
             self.loss_fn = self.max_loss
 
@@ -237,7 +263,7 @@ class PolicyEval:
     def functional_memory_update(self, params: jnp.ndarray, value_type: str, gamma: float,
                                  lr: float, pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
                                  phi: jnp.ndarray, p0: jnp.ndarray):
-        loss, params_grad = value_and_grad(memory_loss,
+        loss, params_grad = value_and_grad(self.fn_mem_loss,
                                            argnums=0)(params, gamma, value_type, pi, T, R, phi, p0)
         params -= lr * params_grad
 

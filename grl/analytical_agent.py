@@ -6,7 +6,7 @@ from functools import partial
 from typing import Sequence
 
 from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
-from grl.policy_eval import functional_memory_cross_product, analytical_pe, memory_loss
+from grl.policy_eval import analytical_pe, mem_v_sq_loss, mem_q_sq_loss, mem_v_abs_loss, mem_q_abs_loss
 from grl.mdp import AbstractMDP
 from grl.utils import glorot_init
 from grl.vi import policy_iteration_step
@@ -28,13 +28,39 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float,
     p_init_obs = p0 @ phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
-def pi_discrep_loss(pi_params: jnp.ndarray, gamma: float, value_type: str,
-                   T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                   p0: jnp.ndarray):
+def calc_diff(value_type: str, pi_params: jnp.ndarray, gamma: float,
+               T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+               p0: jnp.ndarray):
     pi = softmax(pi_params, axis=-1)
     _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
     diff = mc_vals[value_type] - td_vals[value_type]
+    return diff, mc_vals, td_vals, pi
+
+def pi_discrep_v_sq_loss(pi_params: jnp.ndarray, gamma: float,
+                   T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                   p0: jnp.ndarray):
+    diff, mc_vals, td_vals, _ = calc_diff('v', pi_params, gamma, T, R, phi, p0)
     return (diff ** 2).mean(), (mc_vals, td_vals)
+
+def pi_discrep_q_sq_loss(pi_params: jnp.ndarray, gamma: float,
+                      T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                      p0: jnp.ndarray):
+    diff, mc_vals, td_vals, pi = calc_diff('q', pi_params, gamma, T, R, phi, p0)
+    diff = diff * pi.T
+    return (diff ** 2).mean(), (mc_vals, td_vals)
+
+def pi_discrep_v_abs_loss(pi_params: jnp.ndarray, gamma: float,
+                         T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                         p0: jnp.ndarray):
+    diff, mc_vals, td_vals, _ = calc_diff('v', pi_params, gamma, T, R, phi, p0)
+    return jnp.abs(diff).mean(), (mc_vals, td_vals)
+
+def pi_discrep_q_abs_loss(pi_params: jnp.ndarray, gamma: float,
+                         T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                         p0: jnp.ndarray):
+    diff, mc_vals, td_vals, pi = calc_diff('q', pi_params, gamma, T, R, phi, p0)
+    diff = diff * pi.T
+    return jnp.abs(diff).mean(), (mc_vals, td_vals)
 
 class AnalyticalAgent:
     """
@@ -43,9 +69,9 @@ class AnalyticalAgent:
     """
     def __init__(self,
                  pi_params: jnp.ndarray, rand_key: random.PRNGKey,
-                 mem_params: jnp.ndarray = None, discrep_type: str = 'v',
-                 pi_softmax_temp: float = 1, policy_optim_alg: str = 'pi',
-                 new_mem_pi: str = 'copy',
+                 mem_params: jnp.ndarray = None, val_type: str = 'v',
+                 error_type: str = 'sq', pi_softmax_temp: float = 1,
+                 policy_optim_alg: str = 'pi', new_mem_pi: str = 'copy',
                  epsilon: float = 0.1):
         """
         :param policy_optim_alg: What type of policy optimization do we do? (pi | pg)
@@ -59,12 +85,27 @@ class AnalyticalAgent:
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
         self.epsilon = epsilon
 
-        self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
+        self.val_type = val_type
+        self.error_type = error_type
+
+        if self.val_type == 'v':
+            if self.error_type == 'sq':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_sq_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_v_sq_loss, static_argnames=['gamma'])
+            elif self.error_type == 'abs':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_abs_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_v_sq_loss, static_argnames=['gamma'])
+        elif self.val_type == 'q':
+            if self.error_type == 'sq':
+                self.policy_discrep_objective_func = jit(pi_discrep_q_sq_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_q_sq_loss, static_argnames=['gamma'])
+            elif self.error_type == 'abs':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_abs_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_q_sq_loss, static_argnames=['gamma'])
 
         self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi
-        self.discrep_type = discrep_type
-        self.memory_objective_func = jit(memory_loss, static_argnames=['gamma', 'value_type'])
+
         self.pi_softmax_temp = pi_softmax_temp
 
         self.rand_key = rand_key
@@ -130,8 +171,7 @@ class AnalyticalAgent:
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'dm':
             loss, mc_vals, td_vals, new_pi_params = self.functional_dm_update(self.pi_params, amdp.gamma,
-                                                                              self.discrep_type, lr,
-                                                                              amdp.T, amdp.R,
+                                                                              lr, amdp.T, amdp.R,
                                                                               amdp.phi, amdp.p0)
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
@@ -152,7 +192,7 @@ class AnalyticalAgent:
 
     def memory_improvement(self, amdp: AbstractMDP, lr: float):
         assert self.mem_params is not None, 'I have no memory params'
-        loss, new_mem_params = self.functional_memory_update(self.mem_params, self.discrep_type,
+        loss, new_mem_params = self.functional_memory_update(self.mem_params,
                                                              amdp.gamma, lr, self.pi_params,
                                                              amdp.T, amdp.R, amdp.phi, amdp.p0)
         self.mem_params = new_mem_params
@@ -178,7 +218,19 @@ class AnalyticalAgent:
         # restore jitted functions
         self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
-        self.policy_discrep_objective_func = jit(pi_discrep_loss, static_argnames=['gamma', 'value_type'])
 
-        self.memory_objective_func = jit(memory_loss, static_argnames=['gamma', 'value_type'])
+        if self.val_type == 'v':
+            if self.error_type == 'sq':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_sq_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_v_sq_loss, static_argnames=['gamma'])
+            elif self.error_type == 'abs':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_abs_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_v_sq_loss, static_argnames=['gamma'])
+        elif self.val_type == 'q':
+            if self.error_type == 'sq':
+                self.policy_discrep_objective_func = jit(pi_discrep_q_sq_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_q_sq_loss, static_argnames=['gamma'])
+            elif self.error_type == 'abs':
+                self.policy_discrep_objective_func = jit(pi_discrep_v_abs_loss, static_argnames=['gamma'])
+                self.memory_objective_func = jit(mem_q_sq_loss, static_argnames=['gamma'])
 
