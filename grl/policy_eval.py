@@ -308,15 +308,16 @@ class PolicyEval:
         return loss, params
 
     def memory_update(self, mem_params: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
-        return self.functional_memory_update(mem_params, value_type, self.amdp.gamma, lr, pi,
+        assert value_type == self.value_type
+        return self.functional_memory_update(mem_params, self.amdp.gamma, lr, pi,
                                              self.amdp.T, self.amdp.R, self.amdp.phi, self.amdp.p0)
 
-    @partial(jit, static_argnames=['self', 'gamma', 'value_type', 'lr'])
-    def functional_memory_update(self, params: jnp.ndarray, value_type: str, gamma: float,
+    @partial(jit, static_argnames=['self', 'gamma', 'lr'])
+    def functional_memory_update(self, params: jnp.ndarray, gamma: float,
                                  lr: float, pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
                                  phi: jnp.ndarray, p0: jnp.ndarray):
         loss, params_grad = value_and_grad(self.fn_mem_loss,
-                                           argnums=0)(params, gamma, value_type, pi, T, R, phi, p0)
+                                           argnums=0)(params, gamma, pi, T, R, phi, p0)
         params -= lr * params_grad
 
         return loss, params

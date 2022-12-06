@@ -16,7 +16,8 @@ def test_example_7_p():
     ])
 
     pi = np.array([[1., 0], [1, 0], [1, 0]])
-    pi_grad, _ = pe_grad(spec, pi, 'p', lr=1e-2)
+    pi_params, _ = pe_grad(spec, pi, 'p', lr=1e-2)
+    pi_grad = softmax(pi_params, axis=-1)
 
     assert np.allclose(pi_known[0], pi_grad[0], rtol=RTOL) # just assert the red obs policy
 

@@ -1,8 +1,8 @@
 import numpy as np
 import jax.numpy as jnp
-from itertools import product
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
+from grl.policy_eval import get_p_s_given_o
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
@@ -87,7 +87,7 @@ def indv_spec_jaxify_pe_funcs(spec):
     # mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
     mdp_vals = pe._solve_mdp(pe.amdp, pi_ground)
     occupancy = pe.get_occupancy(pi)
-    p_pi_of_s_given_o = pe._get_p_s_given_o(amdp.n_obs, amdp.phi, occupancy)
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
 
     func_mc_vals = pe._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o, pi)
 
