@@ -28,9 +28,13 @@ compare_to = 'belief'
 # spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
-spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
+spec_plot_order = ['example_7', 'tmaze_5_two_thirds_up',
                    'tiger-alt', 'paint.95', 'cheese.95',
                    'network', 'shuttle.95', '4x3.95']
+
+spec_to_belief_state = {
+    'tmaze_5_two_thirds_up': 'tmaze'
+}
 
 # %%
 
@@ -84,16 +88,12 @@ if compare_to == 'belief':
     for fname in pomdp_files_dir.iterdir():
         if 'pomdp-solver-results' in fname.stem:
             for hparams in all_results.keys():
-                if (fname.stem == f"{hparams.spec}-pomdp-solver-results"):
+                if (fname.stem == f"{spec_to_belief_state.get(hparams.spec, hparams.spec)}-pomdp-solver-results"):
                     belief_info = load_info(fname)
                     coeffs = belief_info['coeffs']
                     max_start_vals = coeffs[belief_info['max_start_idx']]
                     all_results[hparams]['compare_perf'] = np.array([np.dot(max_start_vals, belief_info['p0'])])
-                    print(f"loaded results for {hparams.spec} from {fname}")
-                elif ('tmaze' in hparams.spec and 'tmaze' in fname.stem) or ('tiger' in fname.stem and 'tiger' in hparam.spec):
-                    vi_path = Path(ROOT_DIR, 'results', 'pomdps_vi', 'slippery_tmaze_5_two_thirds_up_vi_s(2022)_Tue Nov 22 11:35:49 2022.npy')
-                    vi_info = load_info(vi_path)
-                    all_results[hparams]['compare_perf'] = np.array([(vi_info['optimal_vs'] * vi_info['p0']).sum()])
+                    # print(f"loaded results for {hparams.spec} from {fname}")
 
 elif compare_to == 'state':
     for hparams, res_dict in all_results.items():
@@ -108,8 +108,8 @@ else:
 # all_normalized_perf_results = {}
 for hparams, res in all_results.items():
     max_key = 'compare_perf'
-    if max_key not in res:
-        max_key = 'final_mem_perf'
+    # if max_key not in res:
+    #     max_key = 'final_mem_perf'
     max_v = res[max_key]
     min_v = res['init_policy_perf']
     for k, v in res.items():
@@ -165,7 +165,6 @@ for k in sorted(all_plot_results.keys()):
 
 
 # %%
-ordered_plot
 
 # %%
 def maybe_spec_map(id: str):
@@ -175,7 +174,7 @@ def maybe_spec_map(id: str):
         'paint.95': 'paint',
         'shuttle.95': 'shuttle',
         'example_7': 'ex. 7',
-        'slippery_tmaze_5_two_thirds_up': 'tmaze',
+        'tmaze_5_two_thirds_up': 'tmaze',
         'tiger-alt': 'tiger'
     }
     if id not in spec_map:
@@ -193,8 +192,10 @@ for i, (label, plot_dict) in enumerate(ordered_plot):
     ax.bar(x + (i + 1) * bar_width, plot_dict['mean'], bar_width,
            yerr=plot_dict['std_err'], label=label)
 ax.set_ylim([0, 1])
-ax.set_ylabel(f'Performance\n (w.r.t. optimal {compare_to} policy)')
+ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.7, 0.7), framealpha=0.95)
+ax.legend(bbox_to_anchor=(0.7, 0.6), framealpha=0.95)
 ax.set_title("Performance of ε-greedy (0.1) policies in POMDPs")
+
+final_mem_info['q'].shape
