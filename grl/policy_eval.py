@@ -43,7 +43,7 @@ def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
     repeat_occupancy = jnp.repeat(occupancy[..., None], phi.shape[-1], -1)
 
     # Q vals
-    p_of_o_given_s = phi.astype('float')
+    p_of_o_given_s = phi.astype(float)
     w = repeat_occupancy * p_of_o_given_s
 
     p_pi_of_s_given_o = w / (w.sum(axis=0) + 1e-10)
