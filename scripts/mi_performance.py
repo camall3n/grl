@@ -3,8 +3,10 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from jax.nn import softmax
+from jax.config import config
 from pathlib import Path
 from collections import namedtuple
+config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
@@ -41,17 +43,17 @@ spec_to_belief_state = {
 all_results = {}
 
 for results_path in results_dir.iterdir():
-    if results_path.suffix != '.npy':
+    if results_path.is_dir() or results_path.suffix != '.npy':
         continue
     info = load_info(results_path)
 
     args = info['args']
     if 'n_mem_states' not in args:
         args['n_mem_states'] = 2
-    agent = info['agent']
+    # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
-    init_improvement_info = info['logs']['initial_improvement_stats']
-    final_mem_info = info['logs']['final_mem_stats']
+    init_improvement_info = info['logs']['greedy_initial_improvement_stats']
+    final_mem_info = info['logs']['greedy_final_mem_stats']
 
     def get_perf(info: dict):
         return (info['state_vals_v'] * info['p0']).sum()
@@ -62,8 +64,8 @@ for results_path in results_dir.iterdir():
         'final_mem_perf': get_perf(final_mem_info),
         'init_policy': info['logs']['initial_policy'],
         'init_improvement_policy': info['logs']['initial_improvement_policy'],
-        'final_mem': np.array(agent.memory),
-        'final_policy': np.array(agent.policy)
+        # 'final_mem': np.array(agent.memory),
+        # 'final_policy': np.array(agent.policy)
     }
 
     hparams = Args(*tuple(args[s] for s in split_by))

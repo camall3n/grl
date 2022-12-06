@@ -2,13 +2,13 @@ import numpy as np
 from jax import random
 from jax.nn import softmax
 
-from grl import load_spec, do_grad, RTOL, MDP, AbstractMDP
+from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
 from grl.analytical_agent import AnalyticalAgent
 from grl.mi import mem_improvement
 
 def test_example_7_m():
     """
-    Tests that do_grad reaches a known no-discrepancy memory for example 7
+    Tests that pe_grad reaches a known no-discrepancy memory for example 7
     """
     spec = load_spec('example_7')
     memory_start = np.array([
@@ -69,7 +69,7 @@ def test_example_7_m():
     amdp = AbstractMDP(mdp, spec['phi'])
 
     mem_loss = mem_improvement(agent, amdp, lr=1, iterations=int(1e5))
-    memory_grad, _ = do_grad(spec, pi, 'm', lr=1)
+    memory_grad, _ = pe_grad(spec, pi, 'm', lr=1)
 
     assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
     assert np.allclose(memory_end, agent.memory, atol=1e-2)

@@ -3,8 +3,27 @@ import jax.numpy as jnp
 from jax import jit, value_and_grad, nn
 from functools import partial
 
-from .mdp import MDP
+from .mdp import MDP, AbstractMDP
 from .memory import functional_memory_cross_product, memory_cross_product
+
+def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
+    amdp_pe = PolicyEval(amdp)
+    state_vals, mc_vals, td_vals = amdp_pe.run(pi)
+    pi_occupancy = amdp_pe.get_occupancy(pi)
+    pr_oa = (pi_occupancy @ amdp.phi * pi.T)
+    discrep = {
+        'v': (mc_vals['v'] - td_vals['v'])**2,
+        'q': (mc_vals['q'] - td_vals['q'])**2,
+        'mc_vals_q': mc_vals['q'],
+        'td_vals_q': td_vals['q'],
+        'mc_vals_v': mc_vals['v'],
+        'td_vals_v': td_vals['v'],
+        'state_vals_v': state_vals['v'],
+        'state_vals_q': state_vals['q'],
+        'p0': amdp.p0.copy()
+    }
+    discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+    return discrep
 
 @partial(jit, static_argnames=['gamma'])
 def functional_get_occupancy(pi_ground: jnp.ndarray, T: jnp.ndarray, p0: jnp.ndarray,
@@ -61,13 +80,13 @@ def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float,
     diff = mc_vals[value_type] - td_vals[value_type]
     return diff, mc_vals, td_vals
 
-def mem_v_sq_loss(mem_params: jnp.ndarray, gamma: float,
+def mem_v_l2_loss(mem_params: jnp.ndarray, gamma: float,
                 pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                 p0: jnp.ndarray):
     diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
     return (diff ** 2).mean()
 
-def mem_q_sq_loss(mem_params: jnp.ndarray, gamma: float,
+def mem_q_l2_loss(mem_params: jnp.ndarray, gamma: float,
                   pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                   p0: jnp.ndarray):
     diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
@@ -157,7 +176,7 @@ def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
     return state_vals, mc_vals, td_vals
 
 class PolicyEval:
-    def __init__(self, amdp, verbose=True, error_type: str = 'l2'):
+    def __init__(self, amdp, verbose=True, error_type: str = 'l2', value_type: str = 'q'):
         """
         :param amdp:     AMDP
         :param verbose:  log everything
@@ -165,11 +184,29 @@ class PolicyEval:
         self.amdp = amdp
         self.verbose = verbose
         self.error_type = error_type
+        self.value_type = value_type
+
+        # memory
+        if self.value_type == 'v':
+            if self.error_type == 'l2':
+                self.fn_mem_loss = mem_v_l2_loss
+            elif self.error_type == 'abs':
+                self.fn_mem_loss = mem_v_abs_loss
+        elif self.value_type == 'q':
+            if self.error_type == 'l2':
+                self.fn_mem_loss = mem_q_l2_loss
+            elif self.error_type == 'abs':
+                self.fn_mem_loss = mem_q_abs_loss
+
+        # policy
         self.functional_loss_fn = self.functional_mse_loss
         self.loss_fn = self.mse_loss
         if self.error_type == 'max':
             self.functional_loss_fn = self.functional_max_loss
             self.loss_fn = self.max_loss
+        elif self.error_type == 'abs':
+            self.functional_loss_fn = self.functional_abs_loss
+            self.loss_fn = self.abs_loss
 
     def run(self, pi_abs):
         """
@@ -215,6 +252,21 @@ class PolicyEval:
         _, mc_vals, td_vals = self.run(pi)
         diff = mc_vals[value_type] - td_vals[value_type]
         return (diff**2).mean()
+
+    @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
+    def functional_abs_loss(self, pi: jnp.ndarray, value_type: str, phi: jnp.ndarray,
+                            T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
+        _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
+        diff = mc_vals[value_type] - td_vals[value_type]
+        return jnp.abs(diff).mean()
+
+    def abs_loss(self, pi, value_type, **kwargs):
+        """
+        sum_o |V_td^pi(o) - V_mc^pi(o)|
+        """
+        _, mc_vals, td_vals = self.run(pi)
+        diff = mc_vals[value_type] - td_vals[value_type]
+        return jnp.abs(diff).mean()
 
     @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
     def functional_mse_loss(self, pi: jnp.ndarray, value_type: str, phi: jnp.ndarray,

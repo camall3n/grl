@@ -8,14 +8,14 @@ from .utils import pformat_vals
 
 import numpy as np
 
-def do_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
+def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
-    :param discrep_type: 'l2' or 'max'
+    :param discrep_type: 'l2' or 'max' or 'abs'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
         - (see policy_eval.py)
@@ -25,18 +25,18 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     # TODO: refactor this to be more functional
-    policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
+    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
 
     if grad_type == 'p':
         params = pi_abs
         if 'mem_params' in spec.keys():
             amdp = memory_cross_product(amdp, spec['mem_params'])
-            policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
+            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
 
         update = policy_eval.policy_update
-        if discrep_type == 'l2':
+        if error_type == 'l2':
             loss_fn = policy_eval.mse_loss
-        elif discrep_type == 'max':
+        elif error_type == 'max':
             loss_fn = policy_eval.max_loss
         else:
             raise NotImplementedError
