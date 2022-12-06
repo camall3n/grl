@@ -2,6 +2,8 @@ import numpy as np
 import jax
 from jax.nn import softmax
 from tqdm import trange
+from jax.config import config
+config.update('jax_platform_name', 'cpu')
 
 from grl import MDP, AbstractMDP
 from grl.environment import load_spec

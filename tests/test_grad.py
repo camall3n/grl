@@ -1,5 +1,7 @@
 import numpy as np
 from jax.nn import softmax
+from jax.config import config
+config.update('jax_platform_name', 'cpu')
 
 from grl import load_spec, pe_grad, RTOL
 
