@@ -71,6 +71,15 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
 
     return v_vals, q_vals
 
+def abs_td_loss(mem_params: jnp.ndarray, gamma: float,
+                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                p0: jnp.ndarray):
+    """
+    Absolute TD error loss.
+    This is an upper bound on absolute lambda discrepancy.
+    """
+    raise NotImplementedError
+
 def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float,
              pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
              p0: jnp.ndarray):
