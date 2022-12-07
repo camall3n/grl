@@ -10,7 +10,7 @@ from grl.environment import load_spec
 from grl.analytical_agent import AnalyticalAgent
 
 def test_pg_fully_observable_tmaze():
-    iterations = 10000
+    iterations = 20000
     lr = 1
     spec = load_spec('tmaze_5_two_thirds_up_fully_observable')
     print(f"Testing analytical policy gradient on fully observable T-Maze.")

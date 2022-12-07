@@ -532,8 +532,11 @@ if __name__ == '__main__':
                                                    policy_optim_alg=args.policy_optim_alg)
 
                 info = {'logs': logs, 'args': args.__dict__}
-                agent_path = results_path.parent / 'agents' / f'{results_path.stem}.pkl'
-                np.save(agent_path, agent)
+                agents_dir = results_path.parent / 'agents'
+                agents_dir.mkdir(exist_ok=True)
+
+                agents_path = agents_dir / f'{results_path.stem}.pkl'
+                np.save(agents_path, agent)
 
             elif args.algo == 'vi':
                 optimal_vs = value_iteration(spec['T'], spec['R'], spec['gamma'])
