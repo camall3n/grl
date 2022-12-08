@@ -71,13 +71,34 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
 
     return v_vals, q_vals
 
-def abs_td_loss(mem_params: jnp.ndarray, gamma: float,
+def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float,
                 pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                 p0: jnp.ndarray):
     """
     Absolute TD error loss.
     This is an upper bound on absolute lambda discrepancy.
     """
+    T_mem = nn.softmax(mem_params, axis=-1)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
+
+    # observation policy, but expanded over states
+    pi_state = phi_x @ pi
+    occupancy = functional_get_occupancy(pi_state, T_x, p0_x, gamma)
+
+    p_pi_of_s_given_o = get_p_s_given_o(phi_x, occupancy)
+
+    # TD
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi_x, T_x, R_x)
+    td_v_vals, td_q_vals = functional_solve_mdp(pi, T_obs_obs, R_obs_obs, gamma)
+    td_vals = {'v': td_v_vals, 'q': td_q_vals}
+
+    # Get starting obs distribution
+    obs_p0_x = phi_x * p0_x
+    # based on our TD model, get our observation occupancy
+    obs_occupancy = functional_get_occupancy(pi, T_obs_obs, obs_p0_x, gamma)
+
+
+
     raise NotImplementedError
 
 def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float,

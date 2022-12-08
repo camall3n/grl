@@ -14,6 +14,7 @@ from grl.vi import td_pe
 
 def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
                          policy_optim_alg: str = 'pi', mi_iterations: int = 1,
+                         mi_steps: int = 50000, pi_steps: int = 50000,
                          rand_key: jax.random.PRNGKey = None):
     """
     Runs interspersing memory iteration and policy improvement.
@@ -35,7 +36,8 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     agent = AnalyticalAgent(pi_params, rand_key, mem_params=mem_params,
                             policy_optim_alg=policy_optim_alg)
 
-    info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations)
+    info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations,
+                                   pi_per_step=pi_steps, mi_per_step=mi_steps)
 
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here

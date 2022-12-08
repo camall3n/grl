@@ -16,7 +16,8 @@ from definitions import ROOT_DIR
 
 
 # %%
-results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
+# results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
+results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi_q_abs')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -198,6 +199,8 @@ ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial po
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 ax.legend(bbox_to_anchor=(0.7, 0.6), framealpha=0.95)
-ax.set_title("Performance of ε-greedy (0.1) policies in POMDPs")
+ax.set_title("Performance of Memory Iteration in POMDPs")
 
-final_mem_info['q'].shape
+downloads = Path().home() / 'Downloads'
+fig_path = downloads / f"{results_dir.stem}.pdf"
+fig.savefig(fig_path)

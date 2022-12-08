@@ -401,6 +401,10 @@ if __name__ == '__main__':
              '"vi" - value iteration on ground-truth MDP')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='if we do memory iteration, how many iterations of memory iterations do we do?')
+    parser.add_argument('--mi_steps', type=int, default=50000,
+                        help='if we do memory iteration, how many steps of memory improvement do we do per iteration?')
+    parser.add_argument('--pi_steps', type=int, default=50000,
+                        help='if we do memory iteration, how many steps of policy improvement do we do per iteration?')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
                         help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
                              '"dm" - discrepancy maximization')
@@ -529,7 +533,8 @@ if __name__ == '__main__':
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
                                                    mi_iterations=args.mi_iterations,
-                                                   policy_optim_alg=args.policy_optim_alg)
+                                                   policy_optim_alg=args.policy_optim_alg,
+                                                   mi_steps=args.mi_steps, pi_steps=args.pi_steps)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'
