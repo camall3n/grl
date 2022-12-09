@@ -17,5 +17,6 @@ logs/
 .DS_Store
 *.bin
 *.egg-info/
+.onager
 generated/
 scripts/runs/

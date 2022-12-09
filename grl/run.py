@@ -387,6 +387,8 @@ def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
 
 
 if __name__ == '__main__':
+    start_time = time()
+
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
@@ -551,6 +553,10 @@ if __name__ == '__main__':
 
             else:
                 raise NotImplementedError
+
+            end_time = time()
+            run_stats = {'start_time': start_time, 'end_time': end_time}
+            info['run_stats'] = run_stats
 
             print(f"Saving results to {results_path}")
             numpyify_and_save(results_path, info)
