@@ -405,6 +405,81 @@ class POMDPFile:
 
         return i + 1
 
+    def convert_obs_actions(self):
+        """
+        If we're here, we want to convert our POMDP phi-action tensor
+        into a phi tensor (so they're all the same).
+
+        To do so, we add an extra "initialization" observation
+        We also need to expand our state space to include the last action.
+
+        ONE BIG ASSUMPTION: In the POMDPs with phi(s, a), the action
+        is applied to the state BEFORE an observation comes out.
+        """
+        # first we construct our new transition function.
+        # we go from |A| x |S| x |S| -> |A| x (|S| + 1)|A| x (|S| + 1)|A|
+        # states are ordered as s0a0, s0a1, s0a2, ..., s1a0, s1a1, ..., etc.
+        n_actions = self.T.shape[0]
+        og_n_states = self.T.shape[1]
+
+        # T_extra_start is |A| x (|S| + 1) x (|S| + 1)
+        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)
+        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)
+        R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
+
+        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))
+        no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
+        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)
+        R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
+
+        extra_n_states = og_n_states + 1
+
+        # Now we expand our T and R to add previous actions
+        # We start with the transition function
+        new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
+        T_repeat_start_state = T_extra_start.repeat(n_actions, axis=1)
+        for i in range(new_T.shape[0]):
+            for j in range(new_T.shape[1]):
+                new_T[i, j, np.arange(extra_n_states) * n_actions + i] = T_repeat_start_state[i, j]
+
+        # # make sure terminal states are self-transitions
+        # for i in range(n_actions):
+        #     new_T[:, -n_actions - i - 1] = 0
+        #     new_T[:, -n_actions - i - 1, -n_actions - i - 1] = 1
+
+        # Now our reward function - it should just be our current reward
+        # function but repeated over actions.
+        new_R = R_extra_start.repeat(n_actions, axis=1).repeat(n_actions, axis=2)
+
+        # Now the phi function. We have to add an observation for the new start state
+        # as well as add a new row for the new start state
+
+        # new obs
+        cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
+        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)
+        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
+
+        # New start state can only emit this new start obs.
+        new_start_phi[:, 0, -1] = 1
+        extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
+        new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
+
+        # We need to add a policy for our starting observation
+        new_pi_phi = None
+        if self.Pi_phi is not None:
+            new_pi_phi = []
+            uniform_dist = np.ones((1, n_actions)) / n_actions
+            for pi in self.Pi_phi:
+                new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
+
+        # We have a new start state - update start state dist.
+        # Expand start states over actions as well.
+        new_start = np.zeros(new_T.shape[-1])
+        # set the (last state, action) pairs as equal starting probabilities.
+        new_start[-n_actions:] = (1 / n_actions)
+
+        return to_dict(new_T, new_R, self.discount, new_start, new_Z, new_pi_phi)
+
     def get_spec(self):
         phi = self.Z[0]
         if len(self.Z) > 1:
@@ -417,9 +492,8 @@ class POMDPFile:
                     break
 
             if not all_same:
-                raise NotImplementedError("Phi function is action-dependent")
+                return self.convert_obs_actions()
 
-        # Assuming phi is not dependent on action
         return to_dict(self.T, self.R, self.discount, self.start, phi, self.Pi_phi)
 
     def print_summary(self):

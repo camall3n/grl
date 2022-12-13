@@ -4,6 +4,7 @@ from pathlib import Path
 from . import examples_lib
 from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
+from grl.utils import normalize
 from definitions import ROOT_DIR
 
 def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
@@ -42,6 +43,7 @@ def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
 
     if spec['Pi_phi'] is not None:
         spec['Pi_phi'] = np.array(spec['Pi_phi']).astype('float')
+        spec['Pi_phi'] = normalize(spec['Pi_phi'])
         if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
             raise ValueError("T, R, and Pi_phi must contain the same number of actions")
 
@@ -53,9 +55,8 @@ def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
-    with np.errstate(invalid='ignore'):
-        spec['T'] /= spec['T'].sum(2)[:, :, None]
-    spec['T'] = np.nan_to_num(spec['T']) # terminal states had all zeros -> nan
-    spec['p0'] /= spec['p0'].sum()
+    spec['T'] = normalize(spec['T'])  # terminal states had all zeros -> nan
+    spec['p0'] = normalize(spec['p0'])
+    spec['phi'] = normalize(spec['phi'])
 
     return spec

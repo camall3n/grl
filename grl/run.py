@@ -18,13 +18,14 @@ from grl.mdp import MDP, AbstractMDP
 from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
-from grl.grad import do_grad
+from grl.pe_grad import pe_grad
 from grl.utils import pformat_vals, RTOL, results_path, numpyify_and_save
 from grl.mi import run_memory_iteration
 from grl.vi import value_iteration
 
 def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
-                 use_grad: bool = False, n_episodes: int = 500, lr: float = 1.):
+                 use_grad: bool = False, n_episodes: int = 500, lr: float = 1.,
+                 value_type: str = 'v', error_type: str = 'l2'):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -111,18 +112,19 @@ def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
 
             discrepancies.append(discrep)
 
-            # Check if there are discrepancies in V or Q
-            # V takes precedence
-            value_type = None
-            if not np.allclose(mc_vals_a['v'], td_vals_a['v'], rtol=RTOL):
-                value_type = 'v'
-            elif not np.allclose(mc_vals_a['q'], td_vals_a['q'], rtol=RTOL):
-                value_type = 'q'
+            # # Check if there are discrepancies in V or Q
+            # # V takes precedence
+            # value_type = None
+            # if not np.allclose(mc_vals_a['v'], td_vals_a['v'], rtol=RTOL):
+            #     value_type = 'v'
+            # elif not np.allclose(mc_vals_a['q'], td_vals_a['q'], rtol=RTOL):
+            #     value_type = 'q'
 
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    learnt_params, grad_info = do_grad(spec, pi, grad_type=use_grad, value_type=value_type, lr=lr)
+                    learnt_params, grad_info = pe_grad(spec, pi, grad_type=use_grad, value_type=value_type,
+                                                       error_type=error_type, lr=lr)
                     info['grad_info'] = grad_info
 
         if method == 's' or method == 'b':
@@ -385,6 +387,8 @@ def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
 
 
 if __name__ == '__main__':
+    start_time = time()
+
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
@@ -399,6 +403,10 @@ if __name__ == '__main__':
              '"vi" - value iteration on ground-truth MDP')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='if we do memory iteration, how many iterations of memory iterations do we do?')
+    parser.add_argument('--mi_steps', type=int, default=50000,
+                        help='if we do memory iteration, how many steps of memory improvement do we do per iteration?')
+    parser.add_argument('--pi_steps', type=int, default=50000,
+                        help='if we do memory iteration, how many steps of policy improvement do we do per iteration?')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
                         help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
                              '"dm" - discrepancy maximization')
@@ -414,6 +422,10 @@ if __name__ == '__main__':
                         help='for memory_id = 0, how many memory states do we have?')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
+    parser.add_argument('--value_type', default='v', type=str,
+                        help='Do we use (v | q) for our discrepancies?')
+    parser.add_argument('--error_type', default='l2', type=str,
+                        help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
@@ -507,25 +519,32 @@ if __name__ == '__main__':
 
         logging.info(f'n_episodes:\n {args.n_episodes}')
 
+        results_path = results_path(args)
+
         if args.heatmap:
             heatmap(spec)
         else:
             if args.algo == 'pe':
 
-                _, info = run_pe_algos(spec,
-                             args.method,
-                             args.n_random_policies,
-                             args.use_grad,
-                             args.n_episodes,
-                             lr=args.lr)
+                _, info = run_pe_algos(spec, args.method, args.n_random_policies,
+                                       args.use_grad, args.n_episodes, lr=args.lr,
+                                       value_type=args.value_type, error_type=args.error_type,
+                                       )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
                                                    mi_iterations=args.mi_iterations,
-                                                   policy_optim_alg=args.policy_optim_alg)
+                                                   policy_optim_alg=args.policy_optim_alg,
+                                                   mi_steps=args.mi_steps, pi_steps=args.pi_steps)
 
-                info = {'logs': logs, 'agent': agent, 'args': args.__dict__}
+                info = {'logs': logs, 'args': args.__dict__}
+                agents_dir = results_path.parent / 'agents'
+                agents_dir.mkdir(exist_ok=True)
+
+                agents_path = agents_dir / f'{results_path.stem}.pkl'
+                np.save(agents_path, agent)
+
             elif args.algo == 'vi':
                 optimal_vs = value_iteration(spec['T'], spec['R'], spec['gamma'])
                 print("Optimal state values from value iteration:")
@@ -535,7 +554,10 @@ if __name__ == '__main__':
             else:
                 raise NotImplementedError
 
-            results_path = results_path(args)
+            end_time = time()
+            run_stats = {'start_time': start_time, 'end_time': end_time}
+            info['run_stats'] = run_stats
+
             print(f"Saving results to {results_path}")
             numpyify_and_save(results_path, info)
 

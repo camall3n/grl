@@ -58,5 +58,24 @@ def numpyify_and_save(path: Path, info: dict):
     numpy_dict = numpyify_dict(info)
     np.save(path, numpy_dict)
 
-def load_info(results_path: Path):
+def load_info(results_path: Path) -> dict:
     return np.load(results_path, allow_pickle=True).item()
+
+def normalize(arr: np.ndarray, axis=-1) -> np.ndarray:
+    with np.errstate(invalid='ignore'):
+        normalized_arr = arr / np.expand_dims(arr.sum(axis), axis)
+    normalized_arr = np.nan_to_num(normalized_arr)
+    return normalized_arr
+
+def greedify(pi: np.ndarray) -> np.ndarray:
+    """
+    pi: |O| x |A| array.
+    This function returns an array of the same size, except with the max values of each row
+    == 1, where everything else is 0.
+    """
+    pi_greedy = np.zeros_like(pi)
+    pi_greedy[np.arange(pi.shape[0]), pi.argmax(axis=-1)] = 1
+    return pi_greedy
+
+
+

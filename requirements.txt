@@ -5,3 +5,4 @@ seaborn
 matplotlib
 -e .
 tqdm
+onager

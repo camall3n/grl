@@ -5,33 +5,16 @@ from jax.nn import softmax
 from tqdm import trange
 
 from grl.analytical_agent import AnalyticalAgent
-from grl.policy_eval import PolicyEval
+from grl.policy_eval import lambda_discrep_measures
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
-from grl.utils import glorot_init
+from grl.utils import glorot_init, greedify
 from grl.vi import td_pe
 
-def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
-    amdp_pe = PolicyEval(amdp)
-    state_vals, mc_vals, td_vals = amdp_pe.run(pi)
-    pi_occupancy = amdp_pe.get_occupancy(pi)
-    pr_oa = (pi_occupancy @ amdp.phi * pi.T)
-    discrep = {
-        'v': (mc_vals['v'] - td_vals['v'])**2,
-        'q': (mc_vals['q'] - td_vals['q'])**2,
-        'mc_vals_q': mc_vals['q'],
-        'td_vals_q': td_vals['q'],
-        'mc_vals_v': mc_vals['v'],
-        'td_vals_v': td_vals['v'],
-        'state_vals_v': state_vals['v'],
-        'state_vals_q': state_vals['q'],
-        'p0': amdp.p0.copy()
-    }
-    discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
-    return discrep
 
 def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
                          policy_optim_alg: str = 'pi', mi_iterations: int = 1,
+                         mi_steps: int = 50000, pi_steps: int = 50000,
                          rand_key: jax.random.PRNGKey = None):
     """
     Runs interspersing memory iteration and policy improvement.
@@ -53,13 +36,16 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     agent = AnalyticalAgent(pi_params, rand_key, mem_params=mem_params,
                             policy_optim_alg=policy_optim_alg)
 
-    info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations)
+    info, agent = memory_iteration(agent, amdp, pi_lr=pi_lr, mi_lr=mi_lr, mi_iterations=mi_iterations,
+                                   pi_per_step=pi_steps, mi_per_step=mi_steps)
 
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here
     # initial policy lambda-discrepancy
     info['initial_policy_stats'] = lambda_discrep_measures(amdp, initial_policy)
     info['initial_improvement_stats'] = lambda_discrep_measures(amdp, info['initial_improvement_policy'])
+    greedy_initial_improvement_policy = greedify(info['initial_improvement_policy'])
+    info['greedy_initial_improvement_stats'] = lambda_discrep_measures(amdp, greedy_initial_improvement_policy)
 
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
@@ -69,6 +55,8 @@ def run_memory_iteration(spec: dict, pi_lr: float = 1., mi_lr: float = 1.,
     # Final memory w/ final policy discrep
     final_mem_amdp = memory_cross_product(amdp, agent.mem_params)
     info['final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, agent.policy)
+    greedy_final_policy = greedify(agent.policy)
+    info['greedy_final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, greedy_final_policy)
 
     return info, agent
 

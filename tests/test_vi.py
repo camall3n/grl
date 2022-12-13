@@ -1,7 +1,8 @@
-
 import numpy as np
+from jax.config import config
+config.update('jax_platform_name', 'cpu')
 
-from grl import MDP, AbstractMDP, PolicyEval, environment
+from grl import MDP, AbstractMDP, environment
 from grl.vi import po_policy_iteration, value_iteration
 
 def test_vi():

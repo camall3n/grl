@@ -1,5 +1,5 @@
 # Problem based on example in some of Steve Hanks' papers
-# BL - blemished, FL - falwed, PA painted
+# BL - blemished, FL - flawed, PA painted
 
 discount: 0.95
 values: reward
