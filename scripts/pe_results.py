@@ -3,11 +3,11 @@ import jax.numpy as jnp
 from jax.nn import softmax
 from pathlib import Path
 from collections import namedtuple
+
 np.set_printoptions(precision=4)
 
 from grl.utils import load_info
 from definitions import ROOT_DIR
-
 
 # %%
 results_dir = Path(ROOT_DIR, 'results')
@@ -22,7 +22,6 @@ results_path = results_dir / 'tmaze_eps_hyperparams_pe_method(a)_grad(m)_s(2022)
 info = load_info(results_path)
 info
 # %%
-
 
 def test_mem_matrix(mem_params: jnp.ndarray):
     """
@@ -95,7 +94,6 @@ for hparams, res_dict in all_results.items():
         all_results[hparams][k] = np.stack(v)
 info['grad_info'].keys()
 
-
 # %%
 
 all_results[list(all_results.keys())[0]]['final_params'].shape
@@ -123,6 +121,7 @@ right_down_start = right_mem_func[DOWN_START_OBS, 0]
 # we test whether start bits set to different memory states
 right_up_start - right_down_start
 np.isclose(np.abs(right_up_start - right_down_start).sum() / 2, 1, atol=1e-1)
+
 def test_start_bits_set(right_up_start: np.ndarray, right_down_start: np.ndarray):
     return np.isclose(np.abs(right_up_start - right_down_start).sum() / 2, 1, atol=1e-1)
 

@@ -59,8 +59,8 @@ def value_iteration(T: jnp.ndarray, R: jnp.ndarray, gamma: float, tol: float = 1
 #     Get our policy over
 #     """
 
-def td_pe(pi_phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-          p0: jnp.ndarray, gamma: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
+def td_pe(pi_phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray,
+          gamma: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
     pi_ground = phi @ pi_phi
     occupancy = functional_get_occupancy(pi_ground, T, p0, gamma)
 
@@ -79,8 +79,13 @@ def get_eps_greedy_pi(q_vals: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
     new_phi_pi = new_phi_pi.at[jnp.arange(new_phi_pi.shape[0]), max_a].add(1 - eps)
     return new_phi_pi
 
-def policy_iteration_step(pi_params: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                          p0: jnp.ndarray, gamma: float, eps: float = 0.1):
+def policy_iteration_step(pi_params: jnp.ndarray,
+                          T: jnp.ndarray,
+                          R: jnp.ndarray,
+                          phi: jnp.ndarray,
+                          p0: jnp.ndarray,
+                          gamma: float,
+                          eps: float = 0.1):
     pi_phi = nn.softmax(pi_params, axis=-1)
     # now we calculate our TD model and values
     td_v_vals, td_q_vals = td_pe(pi_phi, T, R, phi, p0, gamma)
@@ -93,9 +98,12 @@ def policy_iteration_step(pi_params: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray
 
     return new_pi_params, td_v_vals, td_q_vals
 
-
-def po_policy_iteration(T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                       gamma: float, p0: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
+def po_policy_iteration(T: jnp.ndarray,
+                        R: jnp.ndarray,
+                        phi: jnp.ndarray,
+                        gamma: float,
+                        p0: jnp.ndarray,
+                        eps: float = 0.1) -> jnp.ndarray:
     """
     Value iteration over observations.
     :param T: A x S x S
@@ -119,7 +127,13 @@ def po_policy_iteration(T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
 
         # now we calculate our TD model and values
         # along with a greedification step
-        new_pi_phi, td_v_vals, td_q_vals = jitted_policy_iteration_step(pi_phi, T, R, phi, p0, gamma, eps=eps)
+        new_pi_phi, td_v_vals, td_q_vals = jitted_policy_iteration_step(pi_phi,
+                                                                        T,
+                                                                        R,
+                                                                        phi,
+                                                                        p0,
+                                                                        gamma,
+                                                                        eps=eps)
 
         if np.allclose(pi_phi, new_pi_phi):
             break

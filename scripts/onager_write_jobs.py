@@ -56,7 +56,6 @@ def generate_onager_runs(run_dicts: List[dict],
         print(f"Launching prelaunch script: {prelaunch_string}")
         os.system(prelaunch_string)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--hparam', default='', type=str)
@@ -75,4 +74,3 @@ if __name__ == "__main__":
         pairs = hparams['pairs']
 
     generate_onager_runs(hparams['args'], args.hparam, main_fname=main_fname)
-

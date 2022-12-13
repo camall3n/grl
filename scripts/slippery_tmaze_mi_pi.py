@@ -5,13 +5,13 @@ import matplotlib.cm as cm
 from jax.nn import softmax
 from pathlib import Path
 from collections import namedtuple
+
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
 from grl.utils import load_info
 from definitions import ROOT_DIR
-
 
 # %%
 results_dir = Path(ROOT_DIR, 'results', 'slippery_tmaze_mi_pi')
@@ -20,7 +20,6 @@ split_by = ['spec', 'algo']
 Args = namedtuple('args', split_by)
 
 # %%
-
 
 def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: float = 0):
     """
@@ -74,8 +73,6 @@ def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: fl
 
     results['pi_begin_right'] = pi_begin_right
 
-
-
     pi_junction = policy[6:8]
     pi_junction_0_mem, pi_junction_1_mem = pi_junction[:, :2]
     # right_up_start, right_down_start: what are we setting the memory bit to in the beginning?
@@ -84,7 +81,9 @@ def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: fl
     # we need to see if pi_junction_0_mem == right_up_start, and pi_junction_1_mem == right_down_start
     # TODO: think about whether or not if we flip this it might be ok as well
     up_mem_matches_junc_pi = np.allclose(right_up_start[pi_junction_0_mem.argmax()], 1, atol=1e-1)
-    down_mem_matches_junc_pi = np.allclose(right_down_start[pi_junction_1_mem.argmax()], 1, atol=1e-1)
+    down_mem_matches_junc_pi = np.allclose(right_down_start[pi_junction_1_mem.argmax()],
+                                           1,
+                                           atol=1e-1)
 
     results['up_mem_matches_junc_pi'] = up_mem_matches_junc_pi
     results['down_mem_matches_junc_pi'] = down_mem_matches_junc_pi
@@ -104,11 +103,12 @@ for results_path in results_dir.iterdir():
     pi_params = info['agent'].pi_params
     epsilon = info['agent'].epsilon
 
-    initial_q_discrep, initial_v_discrep = info['logs']['initial_mem_discrep']['q'], info['logs']['initial_mem_discrep']['v']
-    final_q_discrep, final_v_discrep = info['logs']['final_mem_discrep']['q'], info['logs']['final_mem_discrep']['v']
+    initial_q_discrep, initial_v_discrep = info['logs']['initial_mem_discrep']['q'], info['logs'][
+        'initial_mem_discrep']['v']
+    final_q_discrep, final_v_discrep = info['logs']['final_mem_discrep']['q'], info['logs'][
+        'final_mem_discrep']['v']
 
     results = test_mem_and_pi(mem_params, pi_params, epsilon)
-
 
     single_res = {
         'initial_v_discrep': initial_v_discrep,

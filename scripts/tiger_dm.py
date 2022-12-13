@@ -5,13 +5,13 @@ import matplotlib.cm as cm
 from jax.nn import softmax
 from pathlib import Path
 from collections import namedtuple
+
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
 from grl.utils import load_info
 from definitions import ROOT_DIR
-
 
 # %%
 results_dir = Path(ROOT_DIR, 'results')
@@ -29,7 +29,6 @@ pi_params = info['agent'].pi_params
 epsilon = info['agent'].epsilon
 info['logs']['initial_improvement_discrep'], info['logs']['initial_improvement_policy']
 # %%
-
 
 def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: float = 0):
     """
@@ -83,8 +82,6 @@ def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: fl
 
     results['pi_begin_right'] = pi_begin_right
 
-
-
     pi_junction = policy[6:8]
     pi_junction_0_mem, pi_junction_1_mem = pi_junction[:, :2]
     # right_up_start, right_down_start: what are we setting the memory bit to in the beginning?
@@ -93,7 +90,9 @@ def test_mem_and_pi(mem_params: jnp.ndarray, pi_params: jnp.ndarray, epsilon: fl
     # we need to see if pi_junction_0_mem == right_up_start, and pi_junction_1_mem == right_down_start
     # TODO: think about whether or not if we flip this it might be ok as well
     up_mem_matches_junc_pi = np.allclose(right_up_start[pi_junction_0_mem.argmax()], 1, atol=1e-1)
-    down_mem_matches_junc_pi = np.allclose(right_down_start[pi_junction_1_mem.argmax()], 1, atol=1e-1)
+    down_mem_matches_junc_pi = np.allclose(right_down_start[pi_junction_1_mem.argmax()],
+                                           1,
+                                           atol=1e-1)
 
     results['up_mem_matches_junc_pi'] = up_mem_matches_junc_pi
     results['down_mem_matches_junc_pi'] = down_mem_matches_junc_pi
@@ -114,11 +113,12 @@ for results_path in results_dir.iterdir():
     pi_params = info['agent'].pi_params
     epsilon = info['agent'].epsilon
 
-    initial_q_discrep, initial_v_discrep = info['logs']['initial_mem_discrep']['q'], info['logs']['initial_mem_discrep']['v']
-    final_q_discrep, final_v_discrep = info['logs']['final_mem_discrep']['q'], info['logs']['final_mem_discrep']['v']
+    initial_q_discrep, initial_v_discrep = info['logs']['initial_mem_discrep']['q'], info['logs'][
+        'initial_mem_discrep']['v']
+    final_q_discrep, final_v_discrep = info['logs']['final_mem_discrep']['q'], info['logs'][
+        'final_mem_discrep']['v']
 
     results = test_mem_and_pi(mem_params, pi_params, epsilon)
-
 
     single_res = {
         'initial_v_discrep': initial_v_discrep,
@@ -167,13 +167,22 @@ all_to_plot = {
     'starting_down_discrep_std_errs': np.zeros((num_pis, 2))
 }
 for hparam, res in all_results.items():
-    all_to_plot['final_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).mean(axis=0)
-    all_to_plot['final_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(res['final_v_discrep'].shape[0])
-    all_to_plot['initial_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).mean(axis=0)
-    all_to_plot['initial_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(res['initial_v_discrep'].shape[0])
-    all_to_plot['starting_up_discrep_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].mean(axis=0)
-    all_to_plot['starting_up_discrep_std_errs'][pi_map[hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].std(axis=0)
-    all_to_plot['is_optimal_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['is_optimal'].mean(axis=0)
+    all_to_plot['final_discrep_means'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).mean(axis=0)
+    all_to_plot['final_discrep_std_errs'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['final_v_discrep'].mean(axis=-1).std(axis=0) / np.sqrt(
+            res['final_v_discrep'].shape[0])
+    all_to_plot['initial_discrep_means'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).mean(axis=0)
+    all_to_plot['initial_discrep_std_errs'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['initial_v_discrep'].mean(axis=-1).std(
+            axis=0) / np.sqrt(res['initial_v_discrep'].shape[0])
+    all_to_plot['starting_up_discrep_means'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].mean(axis=0)
+    all_to_plot['starting_up_discrep_std_errs'][pi_map[
+        hparam.tmaze_junction_up_pi]] = res['final_v_discrep'][:, :2].std(axis=0)
+    all_to_plot['is_optimal_means'][pi_map[hparam.tmaze_junction_up_pi]] = res['is_optimal'].mean(
+        axis=0)
 res['final_v_discrep'].shape
 
 # %%
@@ -193,16 +202,30 @@ mean_is_optimal = all_to_plot['is_optimal_means']
 x = all_sorted_pis
 
 axes[0].plot(x, initial_discrep_means, color='blue')
-axes[0].fill_between(x, initial_discrep_means - initial_discrep_std_errs, initial_discrep_means + initial_discrep_std_errs, color='blue', alpha=0.2)
+axes[0].fill_between(x,
+                     initial_discrep_means - initial_discrep_std_errs,
+                     initial_discrep_means + initial_discrep_std_errs,
+                     color='blue',
+                     alpha=0.2)
 axes[0].set_title('Initial λ-discreps')
 # axes[0].set_xlabel('π(up | junction)')
 axes[0].set_ylabel('Avg. λ-discreps across obs+')
 axes[0].set_ylim([y_low, y_high])
 axes[0].set_xlim([x_low, x_high])
 
-axes[1].imshow(mean_is_optimal[None, :], vmin=0, vmax=1, extent=(x_low, x_high, y_low, y_high), cmap='RdYlGn', aspect='auto', alpha=0.5)
+axes[1].imshow(mean_is_optimal[None, :],
+               vmin=0,
+               vmax=1,
+               extent=(x_low, x_high, y_low, y_high),
+               cmap='RdYlGn',
+               aspect='auto',
+               alpha=0.5)
 axes[1].plot(x, final_discrep_means, color='blue')
-axes[1].fill_between(x, final_discrep_means - final_discrep_std_errs, final_discrep_means + final_discrep_std_errs, color='blue', alpha=0.2)
+axes[1].fill_between(x,
+                     final_discrep_means - final_discrep_std_errs,
+                     final_discrep_means + final_discrep_std_errs,
+                     color='blue',
+                     alpha=0.2)
 axes[1].set_title('Final λ-discreps')
 
 # axes[1].set_xlabel('π(up | junction)')
@@ -210,7 +233,6 @@ axes[1].set_title('Final λ-discreps')
 axes[1].set_ylim([y_low, y_high])
 axes[1].set_xlim([x_low, x_high])
 fig.text(0.52, 0.0, 'π(up | junction)', ha='center', va='center')
-
 
 plt.tight_layout()
 # %%

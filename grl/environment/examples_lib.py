@@ -628,21 +628,26 @@ def simple_chain(n: int = 10):
 
     return to_dict(T, R, 0.9, p0, phi, Pi_phi)
 
-def tmaze_hyperparams(corridor_length: int = 5, discount: float = 0.9, junction_up_pi: float = 2 / 3):
+def tmaze_hyperparams(corridor_length: int = 5,
+                      discount: float = 0.9,
+                      junction_up_pi: float = 2 / 3):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
     policy is still go right everywhere except for junction.
     """
     # n_obs x n_actions
     Pi_phi = [
-        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0],
+                  [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
     ]
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(corridor_length, discount=discount), Pi_phi, Pi_phi_x)
 
-def tmaze_eps_hyperparams(corridor_length: int = 5, discount: float = 0.9, junction_up_pi: float = 2 / 3,
+def tmaze_eps_hyperparams(corridor_length: int = 5,
+                          discount: float = 0.9,
+                          junction_up_pi: float = 2 / 3,
                           epsilon: float = 0.1):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
@@ -650,7 +655,8 @@ def tmaze_eps_hyperparams(corridor_length: int = 5, discount: float = 0.9, junct
     """
     # n_obs x n_actions
     Pi_phi = [
-        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0],
+                  [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
     ]
 
     Pi_phi[0] *= (1 - epsilon)

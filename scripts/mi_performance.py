@@ -6,6 +6,7 @@ from jax.nn import softmax
 from jax.config import config
 from pathlib import Path
 from collections import namedtuple
+
 config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
@@ -13,7 +14,6 @@ plt.rcParams.update({'font.size': 18})
 
 from grl.utils import load_info
 from definitions import ROOT_DIR
-
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
@@ -31,13 +31,12 @@ compare_to = 'belief'
 # spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
-spec_plot_order = ['example_7', 'tmaze_5_two_thirds_up',
-                   'tiger-alt', 'paint.95', 'cheese.95',
-                   'network', 'shuttle.95', '4x3.95']
+spec_plot_order = [
+    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt', 'paint.95', 'cheese.95', 'network',
+    'shuttle.95', '4x3.95'
+]
 
-spec_to_belief_state = {
-    'tmaze_5_two_thirds_up': 'tmaze'
-}
+spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze'}
 
 # %%
 
@@ -91,11 +90,14 @@ if compare_to == 'belief':
     for fname in pomdp_files_dir.iterdir():
         if 'pomdp-solver-results' in fname.stem:
             for hparams in all_results.keys():
-                if (fname.stem == f"{spec_to_belief_state.get(hparams.spec, hparams.spec)}-pomdp-solver-results"):
+                if (fname.stem ==
+                        f"{spec_to_belief_state.get(hparams.spec, hparams.spec)}-pomdp-solver-results"
+                    ):
                     belief_info = load_info(fname)
                     coeffs = belief_info['coeffs']
                     max_start_vals = coeffs[belief_info['max_start_idx']]
-                    all_results[hparams]['compare_perf'] = np.array([np.dot(max_start_vals, belief_info['p0'])])
+                    all_results[hparams]['compare_perf'] = np.array(
+                        [np.dot(max_start_vals, belief_info['p0'])])
                     # print(f"loaded results for {hparams.spec} from {fname}")
 
 elif compare_to == 'state':
@@ -103,7 +105,9 @@ elif compare_to == 'state':
         for vi_path in vi_results_dir.iterdir():
             if hparams.spec in vi_path.name:
                 vi_info = load_info(vi_path)
-                all_results[hparams]['compare_perf'] = np.array([(vi_info['optimal_vs'] * vi_info['p0']).sum()])
+                all_results[hparams]['compare_perf'] = np.array([
+                    (vi_info['optimal_vs'] * vi_info['p0']).sum()
+                ])
 else:
     raise NotImplementedError
 
@@ -124,7 +128,8 @@ all_table_results = {}
 all_plot_results = {'x': [], 'xlabels': []}
 
 for i, spec in enumerate(spec_plot_order):
-    hparams = sorted([k for k in all_results.keys() if k.spec == spec], key=lambda hp: hp.n_mem_states)
+    hparams = sorted([k for k in all_results.keys() if k.spec == spec],
+                     key=lambda hp: hp.n_mem_states)
 
     first_res = all_results[hparams[0]]
     all_plot_results['x'].append(i)
@@ -156,7 +161,6 @@ for i, spec in enumerate(spec_plot_order):
                 all_plot_results[mem_label]['mean'].append(mean)
                 all_plot_results[mem_label]['std_err'].append(std_err)
 
-
 ordered_plot = []
 # ordered_plot.append(('init_policy', all_plot_results['init_policy']))
 ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
@@ -164,8 +168,6 @@ for k in sorted(all_plot_results.keys()):
     if 'mem' in k:
         ordered_plot.append((k, all_plot_results[k]))
 # ordered_plot.append(('state_optimal', all_plot_results['vi']))
-
-
 
 # %%
 
@@ -192,8 +194,11 @@ x = np.array(all_plot_results['x'])
 xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]
 
 for i, (label, plot_dict) in enumerate(ordered_plot):
-    ax.bar(x + (i + 1) * bar_width, plot_dict['mean'], bar_width,
-           yerr=plot_dict['std_err'], label=label)
+    ax.bar(x + (i + 1) * bar_width,
+           plot_dict['mean'],
+           bar_width,
+           yerr=plot_dict['std_err'],
+           label=label)
 ax.set_ylim([0, 1])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)

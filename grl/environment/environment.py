@@ -7,8 +7,7 @@ from .pomdp_file import POMDPFile
 from grl.utils import normalize
 from definitions import ROOT_DIR
 
-def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
-              **kwargs):
+def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2, **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:      the name of the function or .POMDP file defining the POMDP
@@ -55,7 +54,7 @@ def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2,
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
-    spec['T'] = normalize(spec['T'])  # terminal states had all zeros -> nan
+    spec['T'] = normalize(spec['T']) # terminal states had all zeros -> nan
     spec['p0'] = normalize(spec['p0'])
     spec['phi'] = normalize(spec['phi'])
 
