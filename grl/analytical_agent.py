@@ -15,7 +15,7 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi:
                       p0: jnp.ndarray, R: jnp.ndarray):
     """
     Policy gradient objective function:
-    \sum_{s_0} p(s_0) v_pi(s_0)
+    sum_{s_0} p(s_0) v_pi(s_0)
     """
     pi_abs = softmax(pi_params, axis=-1)
     pi_ground = phi @ pi_abs
