@@ -1,6 +1,7 @@
 import numpy as np
 import jax.numpy as jnp
 from jax.config import config
+
 config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, AbstractMDP, PolicyEval

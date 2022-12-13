@@ -2,6 +2,7 @@ import numpy as np
 from jax import random
 from jax.nn import softmax
 from jax.config import config
+
 config.update('jax_platform_name', 'cpu')
 
 from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
@@ -65,8 +66,11 @@ def test_example_7_m():
     pi_params = np.log(pi)
     rand_key = random.PRNGKey(2022)
 
-    agent = AnalyticalAgent(pi_params, rand_key, mem_params=spec['mem_params'],
-                            policy_optim_alg='pi', epsilon=0)
+    agent = AnalyticalAgent(pi_params,
+                            rand_key,
+                            mem_params=spec['mem_params'],
+                            policy_optim_alg='pi',
+                            epsilon=0)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 

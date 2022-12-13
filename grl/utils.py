@@ -76,6 +76,3 @@ def greedify(pi: np.ndarray) -> np.ndarray:
     pi_greedy = np.zeros_like(pi)
     pi_greedy[np.arange(pi.shape[0]), pi.argmax(axis=-1)] = 1
     return pi_greedy
-
-
-

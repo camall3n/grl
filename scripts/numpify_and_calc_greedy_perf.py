@@ -28,7 +28,8 @@ if __name__ == "__main__":
         agent = info['agent']
         args = info['args']
 
-        spec = load_spec(args['spec'], memory_id=args['use_memory'],
+        spec = load_spec(args['spec'],
+                         memory_id=args['use_memory'],
                          n_mem_states=args['n_mem_states'],
                          corridor_length=args['tmaze_corridor_length'],
                          discount=args['tmaze_discount'],
@@ -40,14 +41,15 @@ if __name__ == "__main__":
         info_less_agent = {k: v for k, v in info.items() if k != 'agent'}
 
         greedy_init_improvement_policy = greedify(logs['initial_improvement_policy'])
-        info_less_agent['logs']['greedy_initial_improvement_stats'] = lambda_discrep_measures(amdp, greedy_init_improvement_policy)
+        info_less_agent['logs']['greedy_initial_improvement_stats'] = lambda_discrep_measures(
+            amdp, greedy_init_improvement_policy)
 
         greedy_final_policy = greedify(agent.policy)
-        info_less_agent['logs']['greedy_final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, greedy_final_policy)
+        info_less_agent['logs']['greedy_final_mem_stats'] = lambda_discrep_measures(
+            final_mem_amdp, greedy_final_policy)
 
         agent_path = agents_dir / f'{res_path.stem}.pkl'
 
         np.save(agent_path, agent)
         res_path.unlink()
         numpyify_and_save(res_path, info_less_agent)
-

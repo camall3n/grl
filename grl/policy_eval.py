@@ -29,7 +29,7 @@ def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
 def functional_get_occupancy(pi_ground: jnp.ndarray, T: jnp.ndarray, p0: jnp.ndarray,
                              gamma: float):
     Pi_pi = pi_ground.transpose()[..., None]
-    T_pi = (Pi_pi * T).sum(axis=0)  # T^π(s'|s)
+    T_pi = (Pi_pi * T).sum(axis=0) # T^π(s'|s)
 
     # A*C_pi(s) = b
     # A = (I - \gamma (T^π)^T)
@@ -56,8 +56,8 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
     For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
     """
     Pi_pi = pi.transpose()[..., None]
-    T_pi = (Pi_pi * T).sum(axis=0)  # T^π(s'|s)
-    R_pi = (Pi_pi * T * R).sum(axis=0).sum(axis=-1)  # R^π(s)
+    T_pi = (Pi_pi * T).sum(axis=0) # T^π(s'|s)
+    R_pi = (Pi_pi * T * R).sum(axis=0).sum(axis=-1) # R^π(s)
 
     # A*V_pi(s) = b
     # A = (I - \gamma (T^π))
@@ -66,14 +66,13 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
     b = R_pi
     v_vals = jnp.linalg.solve(A, b)
 
-    R_sa = (T * R).sum(axis=-1)  # R(s,a)
+    R_sa = (T * R).sum(axis=-1) # R(s,a)
     q_vals = (R_sa + (gamma * T @ v_vals))
 
     return v_vals, q_vals
 
-def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float,
-                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                p0: jnp.ndarray):
+def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+                    R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     """
     Absolute TD error loss.
     This is an upper bound on absolute lambda discrepancy.
@@ -97,41 +96,34 @@ def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float,
     # based on our TD model, get our observation occupancy
     obs_occupancy = functional_get_occupancy(pi, T_obs_obs, obs_p0_x, gamma)
 
-
-
     raise NotImplementedError
 
-def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float,
-             pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-             p0: jnp.ndarray):
+def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
+             T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
     _, mc_vals, td_vals = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
     diff = mc_vals[value_type] - td_vals[value_type]
     return diff, mc_vals, td_vals
 
-def mem_v_l2_loss(mem_params: jnp.ndarray, gamma: float,
-                pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                p0: jnp.ndarray):
+def mem_v_l2_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+                  R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
-    return (diff ** 2).mean()
+    return (diff**2).mean()
 
-def mem_q_l2_loss(mem_params: jnp.ndarray, gamma: float,
-                  pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                  p0: jnp.ndarray):
+def mem_q_l2_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+                  R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
     diff = diff * pi.T
-    return (diff ** 2).mean()
+    return (diff**2).mean()
 
-def mem_v_abs_loss(mem_params: jnp.ndarray, gamma: float,
-                     pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                     p0: jnp.ndarray):
+def mem_v_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+                   R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
     return jnp.abs(diff).mean()
 
-def mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float,
-                     pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
-                     p0: jnp.ndarray):
+def mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+                   R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
     diff = diff * pi.T
     return jnp.abs(diff).mean()
@@ -148,12 +140,13 @@ def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarra
     return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
 @jit
-def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray,
-                               T: jnp.ndarray, R: jnp.ndarray):
+def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
+                               R: jnp.ndarray):
     # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
     # we flip here so that we have curr_obs, next_obs (order matters).
     obs_idx_product = jnp.flip(
-        jnp.dstack(jnp.meshgrid(jnp.arange(phi.shape[-1]), jnp.arange(phi.shape[-1]))).reshape(-1, 2), -1)
+        jnp.dstack(jnp.meshgrid(jnp.arange(phi.shape[-1]),
+                                jnp.arange(phi.shape[-1]))).reshape(-1, 2), -1)
 
     # this gives us (n_obs * n_obs) x states x 1 and (n_obs * n_obs) x 1 x states
     curr_s_given_o = p_pi_of_s_given_o[:, obs_idx_product[:, 0]].T[..., None]
@@ -184,8 +177,8 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray,
     return T_obs_obs, R_obs_obs
 
 @partial(jit, static_argnames=['gamma'])
-def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
-                  R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
+def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
+                  p0: jnp.ndarray, gamma: float):
     # observation policy, but expanded over states
     pi_state = phi @ pi_obs
 
@@ -332,23 +325,22 @@ class PolicyEval:
                                  lr: float, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
                                  p0: jnp.ndarray):
         pi = nn.softmax(params, axis=-1)
-        loss, params_grad = value_and_grad(self.functional_loss_fn,
-                                           argnums=0)(pi, value_type, phi, T, R, p0, gamma)
+        loss, params_grad = value_and_grad(self.functional_loss_fn, argnums=0)(pi, value_type, phi,
+                                                                               T, R, p0, gamma)
         params -= lr * params_grad
         return loss, params
 
     def memory_update(self, mem_params: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
         assert value_type == self.value_type
-        return self.functional_memory_update(mem_params, self.amdp.gamma, lr, pi,
-                                             self.amdp.T, self.amdp.R, self.amdp.phi, self.amdp.p0)
+        return self.functional_memory_update(mem_params, self.amdp.gamma, lr, pi, self.amdp.T,
+                                             self.amdp.R, self.amdp.phi, self.amdp.p0)
 
     @partial(jit, static_argnames=['self', 'gamma', 'lr'])
-    def functional_memory_update(self, params: jnp.ndarray, gamma: float,
-                                 lr: float, pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
-                                 phi: jnp.ndarray, p0: jnp.ndarray):
-        loss, params_grad = value_and_grad(self.fn_mem_loss,
-                                           argnums=0)(params, gamma, pi, T, R, phi, p0)
+    def functional_memory_update(self, params: jnp.ndarray, gamma: float, lr: float,
+                                 pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                                 p0: jnp.ndarray):
+        loss, params_grad = value_and_grad(self.fn_mem_loss, argnums=0)(params, gamma, pi, T, R,
+                                                                        phi, p0)
         params -= lr * params_grad
 
         return loss, params
-

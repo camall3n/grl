@@ -23,9 +23,14 @@ from grl.utils import pformat_vals, RTOL, results_path, numpyify_and_save
 from grl.mi import run_memory_iteration
 from grl.vi import value_iteration
 
-def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
-                 use_grad: bool = False, n_episodes: int = 500, lr: float = 1.,
-                 value_type: str = 'v', error_type: str = 'l2'):
+def run_pe_algos(spec: dict,
+                 method: str = 'a',
+                 n_random_policies: int = 0,
+                 use_grad: bool = False,
+                 n_episodes: int = 500,
+                 lr: float = 1.,
+                 value_type: str = 'v',
+                 error_type: str = 'l2'):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -123,8 +128,12 @@ def run_pe_algos(spec: dict, method: str = 'a', n_random_policies: int = 0,
             if value_type:
                 discrepancy_ids.append(i)
                 if use_grad:
-                    learnt_params, grad_info = pe_grad(spec, pi, grad_type=use_grad, value_type=value_type,
-                                                       error_type=error_type, lr=lr)
+                    learnt_params, grad_info = pe_grad(spec,
+                                                       pi,
+                                                       grad_type=use_grad,
+                                                       value_type=value_type,
+                                                       error_type=error_type,
+                                                       lr=lr)
                     info['grad_info'] = grad_info
 
         if method == 's' or method == 'b':
@@ -377,14 +386,19 @@ def heatmap(spec, discrep_type='l2', num_ticks=5):
 
 def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
     # hyperparams for tmaze_hperparams
-    parser.add_argument('--tmaze_corridor_length', default=None, type=int,
-        help='Length of corridor for tmaze_hyperparams')
-    parser.add_argument('--tmaze_discount', default=None, type=float,
-        help='Discount rate for tmaze_hyperparams')
-    parser.add_argument('--tmaze_junction_up_pi', default=None, type=float,
-        help='probability of traversing up at junction for tmaze_hyperparams')
+    parser.add_argument('--tmaze_corridor_length',
+                        default=None,
+                        type=int,
+                        help='Length of corridor for tmaze_hyperparams')
+    parser.add_argument('--tmaze_discount',
+                        default=None,
+                        type=float,
+                        help='Discount rate for tmaze_hyperparams')
+    parser.add_argument('--tmaze_junction_up_pi',
+                        default=None,
+                        type=float,
+                        help='probability of traversing up at junction for tmaze_hyperparams')
     return parser
-
 
 if __name__ == '__main__':
     start_time = time()
@@ -476,7 +490,6 @@ if __name__ == '__main__':
     else:
         rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
 
-
     # Run
     if args.generate_pomdps:
         a = args.generate_pomdps
@@ -499,7 +512,8 @@ if __name__ == '__main__':
                       mem_fn_id=args.mem_fn_id)
     else:
         # Get POMDP definition
-        spec = load_spec(args.spec, memory_id=args.use_memory,
+        spec = load_spec(args.spec,
+                         memory_id=args.use_memory,
                          n_mem_states=args.n_mem_states,
                          corridor_length=args.tmaze_corridor_length,
                          discount=args.tmaze_discount,
@@ -526,17 +540,27 @@ if __name__ == '__main__':
         else:
             if args.algo == 'pe':
 
-                _, info = run_pe_algos(spec, args.method, args.n_random_policies,
-                                       args.use_grad, args.n_episodes, lr=args.lr,
-                                       value_type=args.value_type, error_type=args.error_type,
-                                       )
+                _, info = run_pe_algos(
+                    spec,
+                    args.method,
+                    args.n_random_policies,
+                    args.use_grad,
+                    args.n_episodes,
+                    lr=args.lr,
+                    value_type=args.value_type,
+                    error_type=args.error_type,
+                )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
                 assert args.method == 'a'
-                logs, agent = run_memory_iteration(spec, pi_lr=args.lr, mi_lr=args.lr, rand_key=rand_key,
+                logs, agent = run_memory_iteration(spec,
+                                                   pi_lr=args.lr,
+                                                   mi_lr=args.lr,
+                                                   rand_key=rand_key,
                                                    mi_iterations=args.mi_iterations,
                                                    policy_optim_alg=args.policy_optim_alg,
-                                                   mi_steps=args.mi_steps, pi_steps=args.pi_steps)
+                                                   mi_steps=args.mi_steps,
+                                                   pi_steps=args.pi_steps)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'
@@ -560,4 +584,3 @@ if __name__ == '__main__':
 
             print(f"Saving results to {results_path}")
             numpyify_and_save(results_path, info)
-
