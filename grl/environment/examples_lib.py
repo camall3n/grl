@@ -688,7 +688,8 @@ def tmaze_2_two_thirds_up():
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
-    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+    tmaze_instance = tmaze(n, discount=discount, good_term_reward=1, bad_term_reward=0)
+    return to_dict(*tmaze_instance, Pi_phi, Pi_phi_x)
 
 def tmaze_5_two_thirds_up_fully_observable():
     # n_obs x n_actions
