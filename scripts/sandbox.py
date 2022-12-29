@@ -122,7 +122,8 @@ q_td = copy.deepcopy(q_td_orig)
 q_td.augment_with_memory(n_mem_states)
 q_mc.augment_with_memory(n_mem_states)
 
-pi_aug = np.stack((pi_base, np.ones_like(pi_base) / amdp.n_actions), axis=1).reshape(-1, amdp.n_actions)
+pi_aug = np.stack((pi_base, np.ones_like(pi_base) / amdp.n_actions),
+                  axis=1).reshape(-1, amdp.n_actions)
 
 #%%
 n_episodes = 10000
