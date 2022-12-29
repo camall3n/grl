@@ -66,7 +66,8 @@ class TDLambdaQFunction:
         """
         # augment last dim with input mem states
         self.n_observations *= n_mem_states
-        q_mem_states = np.expand_dims(self.q, -1).repeat(n_mem_states, -1)
+        # q_mem_states = np.stack((self.q, np.zeros_like(self.q)), axis=-1)
+        q_mem_states = np.expand_dims(self.q, -1).repeat(n_mem_states, -1) # A x O x M
         self.q = q_mem_states.reshape(self.n_actions, self.n_observations)
 
         if np.any(self.eligibility > 0):
