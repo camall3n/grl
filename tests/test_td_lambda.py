@@ -1,4 +1,7 @@
 import numpy as np
+from jax.config import config
+
+config.update('jax_platform_name', 'cpu')
 
 from grl import MDP, AbstractMDP, PolicyEval, environment
 from grl.agents.td_lambda import run_td_lambda_on_mdp

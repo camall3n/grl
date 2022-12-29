@@ -1,4 +1,5 @@
 import logging
+from jax.nn import softmax
 
 from .mdp import MDP, AbstractMDP
 from .policy_eval import PolicyEval
@@ -7,77 +8,85 @@ from .utils import pformat_vals
 
 import numpy as np
 
-def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
+def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
-    :param discrep_type: 'l2' or 'max'
+    :param discrep_type: 'l2' or 'max' or 'abs'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
         - (see policy_eval.py)
         - Currently has to be adjusted above directly
     """
-
+    info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
+    # TODO: refactor this to be more functional
+    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
 
     if grad_type == 'p':
         params = pi_abs
-        if 'T_mem' in spec.keys():
-            amdp = memory_cross_product(amdp, spec['T_mem'])
-            policy_eval = PolicyEval(amdp, discrep_type=discrep_type)
+        if 'mem_params' in spec.keys():
+            amdp = memory_cross_product(amdp, spec['mem_params'])
+            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
 
         update = policy_eval.policy_update
-        if discrep_type == 'l2':
+        if error_type == 'l2':
             loss_fn = policy_eval.mse_loss
-        elif discrep_type == 'max':
+        elif error_type == 'max':
             loss_fn = policy_eval.max_loss
         else:
             raise NotImplementedError
 
     elif grad_type == 'm':
-        if 'T_mem' not in spec.keys():
+        if 'mem_params' not in spec.keys():
             raise ValueError(
                 'Must include memory with "--use_memory <id>" to do gradient with memory')
-        params = spec['T_mem']
+        params = spec['mem_params']
         update = policy_eval.memory_update
         loss_fn = policy_eval.memory_loss
     else:
         raise NotImplementedError
 
     policy_eval.verbose = False
-    logging.info(f'\nStarting discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
+    initial_discrep = loss_fn(params, value_type, pi_abs=pi_abs)
+    info['initial_discrep'] = initial_discrep
+    info['initial_params'] = params.copy()
+    logging.info(f'\nInitial discrep:\n {initial_discrep}')
 
     i = 0
     done_count = 0
+    logged_losses = []
     # old_params = params
 
     while done_count < 5:
         i += 1
 
         old_params = params
-        loss, params = update(params, value_type, lr, pi_abs)
+        loss, new_params = update(params, value_type, lr, pi_abs)
+        params = new_params
 
-        if i % 10 == 0:
+        if i % 100 == 0:
             # print('\n\n')
-            print('Gradient iteration', i)
+            logged_losses.append(loss.item())
+            print(f'Gradient iteration {i}, loss: {loss.item():.4f}')
             # print('params_grad\n', params_grad)
             # print()
             # print('params\n', params)
 
-        if np.allclose(old_params, params):
+        if np.allclose(old_params, params, atol=1e-10):
             done_count += 1
         else:
             done_count = 0
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
-    logging.info(f'-Final gradient params:\n {params}')
+    logging.info(f'-Final gradient params:\n {softmax(params, axis=-1)}')
     logging.info(f'in {i} gradient steps with lr={lr}')
+    info['final_params'] = params.copy()
 
     old_amdp = policy_eval.amdp
     if grad_type == 'm':
@@ -89,6 +98,7 @@ def do_grad(spec, pi_abs, grad_type, value_type='v', discrep_type='l2', lr=1):
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
     logging.info(f'td:\n {pformat_vals(td_vals)}')
     policy_eval.amdp = old_amdp
+    info['final_vals'] = {'mdp': mdp_vals, 'mc': amdp_vals, 'td': td_vals}
     # logging.info(f'discrep:\n {loss_fn(params, value_type, pi_abs=pi_abs)}')
 
-    return params
+    return params, info

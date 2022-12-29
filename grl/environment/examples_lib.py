@@ -1,7 +1,8 @@
 import numpy as np
 
 from .memory_lib import *
-from .tmaze_lib import tmaze
+from .tmaze_lib import tmaze, slippery_tmaze
+from grl.mdp import random_stochastic_matrix
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -11,7 +12,7 @@ Library of POMDP specifications. Each function returns a dict of the form:
         p0:       starting state probabilities,
         phi:      observation matrix (currently the same for all actions),
         Pi_phi:   policies to evaluate in the observation space of the POMDP
-        T_mem:    memory transition function
+        mem_params:    memory parameters. We get our memory function by calling softmax(mem_params, axis=-1)
         Pi_phi_x: policies to evaluate in the observation space of the cross product of the underyling MDP and memory function
     }
 
@@ -627,6 +628,44 @@ def simple_chain(n: int = 10):
 
     return to_dict(T, R, 0.9, p0, phi, Pi_phi)
 
+def tmaze_hyperparams(corridor_length: int = 5,
+                      discount: float = 0.9,
+                      junction_up_pi: float = 2 / 3):
+    """
+    tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
+    policy is still go right everywhere except for junction.
+    """
+    # n_obs x n_actions
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0],
+                  [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(corridor_length, discount=discount), Pi_phi, Pi_phi_x)
+
+def tmaze_eps_hyperparams(corridor_length: int = 5,
+                          discount: float = 0.9,
+                          junction_up_pi: float = 2 / 3,
+                          epsilon: float = 0.1):
+    """
+    tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
+    policy is still go right everywhere except for junction.
+    """
+    # n_obs x n_actions
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0],
+                  [junction_up_pi, 1 - junction_up_pi, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    Pi_phi[0] *= (1 - epsilon)
+    Pi_phi[0] += (epsilon / Pi_phi[0].shape[-1])
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(corridor_length, discount=discount), Pi_phi, Pi_phi_x)
+
 def tmaze_5_two_thirds_up():
     # n_obs x n_actions
     n = 5
@@ -671,6 +710,11 @@ def tmaze_5_two_thirds_up_fully_observable():
     return to_dict(T, R, discount, p0, phi_fully_observable, Pi_phi, Pi_phi_x)
 
 def tmaze_5_two_thirds_up_almost_fully_observable():
+    """
+    Almost fully observable t-maze.
+    Goal "orientation" is always observable, so only aliased states
+    are the corridor states.
+    """
     # n_obs x n_actions
     n = 5
     discount = 0.9
@@ -698,6 +742,43 @@ def tmaze_5_two_thirds_up_almost_fully_observable():
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(T, R, discount, p0, phi_almost_fully_observable, Pi_phi, Pi_phi_x)
+
+def slippery_tmaze_5_two_thirds_up():
+    # n_obs x n_actions
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
+
+def slippery_tmaze_5_random():
+    """
+    Slippery t-maze, with a randomly sampled policy
+    """
+    n = 5
+    discount = 0.9
+    Pi_phi = [random_stochastic_matrix((5, 4))]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*slippery_tmaze(n, discount=discount, slip_prob=0.3), Pi_phi, Pi_phi_x)
+
+def tmaze_5_obs_optimal():
+    """
+    T-Maze, with the optimal policy given observations.
+    """
+    n = 5
+    discount = 0.9
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [1, 0, 0, 0], [0, 0.13, 0.87, 0]])
+    ]
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {

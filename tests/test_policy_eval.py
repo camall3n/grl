@@ -1,4 +1,7 @@
 import numpy as np
+from jax.config import config
+
+config.update('jax_platform_name', 'cpu')
 
 from grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
 
@@ -8,7 +11,7 @@ def assert_pe_results(spec, answers, use_memory=False):
     policies = spec['Pi_phi']
 
     if use_memory:
-        amdp = memory_cross_product(amdp, spec['T_mem'])
+        amdp = memory_cross_product(amdp, spec['mem_params'])
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):

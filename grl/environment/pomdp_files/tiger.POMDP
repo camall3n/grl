@@ -18,17 +18,17 @@ start:
 T: listen
 1.0 0.0 0.0
 0.0 1.0 0.0
-0.0 0.0 0.0
+0.0 0.0 1.0
 
 T: open-left
 0.0 0.0 1.0
 0.0 0.0 1.0
-0.0 0.0 0.0
+0.0 0.0 1.0
 
 T: open-right
 0.0 0.0 1.0
 0.0 0.0 1.0
-0.0 0.0 0.0
+0.0 0.0 1.0
 
 O: listen
 0.85 0.15 0.0
@@ -46,6 +46,7 @@ O: open-right
 0.0 0.0 1.0
 
 R: listen : * : * : * -1
+R: listen : terminal : * : * 0
 
 R: open-left : tiger-left : * : * -100
 

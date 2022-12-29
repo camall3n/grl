@@ -1,21 +1,18 @@
 from .mdp import MDP, AbstractMDP
 
 import numpy as np
-from jax import jit
+from jax import jit, nn
 import jax.numpy as jnp
-from jax.config import config
 from tqdm import tqdm
 
-config.update("jax_enable_x64", True)
-config.update('jax_platform_name', 'cpu')
-
-def memory_cross_product(amdp, T_mem):
+def memory_cross_product(amdp, mem_params: jnp.ndarray):
     """
     Returns AMDP resulting from cross product of the underlying MDP with given memory function
 
     :param amdp:  AMDP
-    :param T_mem: memory transition function
+    :param mem_params: memory transition function parameters
     """
+    T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(amdp.T, T_mem, amdp.phi, amdp.R,
                                                             amdp.p0)
 

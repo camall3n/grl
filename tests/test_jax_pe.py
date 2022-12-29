@@ -1,8 +1,11 @@
 import numpy as np
 import jax.numpy as jnp
-from itertools import product
+from jax.config import config
+
+config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
+from grl.policy_eval import get_p_s_given_o
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
@@ -71,6 +74,8 @@ def create_td_model(amdp, occupancy):
 
     return MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 
+# Given an environment specification, compare serial functions we were using (defined above)
+# and functional jax-based functions defined now in PolicyEval.
 def indv_spec_jaxify_pe_funcs(spec):
     pi = spec['Pi_phi'][0]
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
@@ -85,7 +90,7 @@ def indv_spec_jaxify_pe_funcs(spec):
     # mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
     mdp_vals = pe._solve_mdp(pe.amdp, pi_ground)
     occupancy = pe.get_occupancy(pi)
-    p_pi_of_s_given_o = pe._get_p_s_given_o(amdp.n_obs, amdp.phi, occupancy)
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
 
     func_mc_vals = pe._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o, pi)
 
@@ -103,6 +108,7 @@ def indv_spec_jaxify_pe_funcs(spec):
     assert np.all(np.isclose(func_td_mdp.T, td_mdp.T))
     assert np.all(np.isclose(func_td_mdp.R, td_mdp.R))
 
+# Test on two example environments!
 def test_jaxify_pe_funcs():
     spec_strings = ['example_3', 'tmaze_5_two_thirds_up']
     for spec_str in spec_strings:

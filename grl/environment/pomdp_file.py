@@ -1,4 +1,5 @@
 import numpy as np
+from typing import List, Union
 
 from .examples_lib import to_dict
 
@@ -24,9 +25,16 @@ class POMDPFile:
             Pi_phi
         """
         f = open(filename, 'r')
-        self.contents = [
-            x.strip() for x in f.readlines() if (not (x.startswith("#") or x.isspace()))
-        ]
+        self.contents = []
+        for x in f.readlines():
+            if (not (x.startswith("#") or x.isspace())):
+                # remove comments after lines too
+                try:
+                    hashtag_idx = x.index('#')
+                    x = x[:hashtag_idx]
+                except ValueError:
+                    pass
+                self.contents.append(x.strip())
 
         self.T = None
         self.Z = None
@@ -77,6 +85,13 @@ class POMDPFile:
 
         # cleanup
         f.close()
+
+    @staticmethod
+    def get_indices(l: list, el: str) -> Union[List[int], int]:
+        if el == '*':
+            return list(range(len(l)))
+        else:
+            return l.index(el)
 
     def __get_discount(self, i):
         line = self.contents[i]
@@ -132,20 +147,20 @@ class POMDPFile:
     def __get_transition(self, i):
         line = self.contents[i]
         pieces = [x for x in line.split() if (x.find(':') == -1)]
-        action = self.actions.index(pieces[0])
+        action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 4:
             # case 1: T: <action> : <start-state> : <next-state> %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states, pieces[1])
+            next_state = self.get_indices(self.states, pieces[2])
             prob = float(pieces[3])
             self.T[action, start_state, next_state] = prob
             return i + 1
         elif len(pieces) == 3:
             # case 2: T: <action> : <start-state> : <next-state>
             # %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states, pieces[1])
+            next_state = self.get_indices(self.states, pieces[2])
             next_line = self.contents[i + 1]
             prob = float(next_line)
             self.T[action, start_state, next_state] = prob
@@ -156,7 +171,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 start_state = slice(None)
             else:
-                start_state = self.states.index(pieces[1])
+                start_state = self.get_indices(self.states, pieces[1])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.states)
@@ -206,14 +221,14 @@ class POMDPFile:
             # Case when action does not affect observation
             action = slice(None)
         else:
-            action = self.actions.index(pieces[0])
+            action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 4:
             # case 1: O: <action> : <next-state> : <obs> %f
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states, pieces[1])
             if '*' in pieces[2]:
                 obs = slice(None)
             else:
@@ -227,7 +242,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states, pieces[1])
             if '*' in pieces[2]:
                 obs = slice(None)
             else:
@@ -242,7 +257,7 @@ class POMDPFile:
             if '*' in pieces[1]:
                 next_state = slice(None)
             else:
-                next_state = self.states.index(pieces[1])
+                next_state = self.get_indices(self.states, pieces[1])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
@@ -296,7 +311,7 @@ class POMDPFile:
         if pieces[0] == "*":
             action = slice(None)
         else:
-            action = self.actions.index(pieces[0])
+            action = self.get_indices(self.actions, pieces[0])
 
         if len(pieces) == 5 or len(pieces) == 4:
             # case 1:
@@ -313,8 +328,8 @@ class POMDPFile:
         elif len(pieces) == 3:
             # case 2: R: <action> : <start-state> : <next-state>
             # %f %f ... %f
-            start_state = self.states.index(pieces[1])
-            next_state = self.states.index(pieces[2])
+            start_state = self.get_indices(self.states, pieces[1])
+            next_state = self.get_indices(self.states, pieces[2])
             next_line = self.contents[i + 1]
             probs = next_line.split()
             assert len(probs) == len(self.observations)
@@ -328,7 +343,7 @@ class POMDPFile:
             # %f %f ... %f
             # ...
             # %f %f ... %f
-            start_state = self.states.index(pieces[1])
+            start_state = self.get_indices(self.states, pieces[1])
             next_line = self.contents[i + 1]
             for j in range(len(self.states)):
                 probs = next_line.split()
@@ -351,7 +366,7 @@ class POMDPFile:
             for i in range(len(self.states)):
                 self.__reward_ns(a, i, next_state_raw, obs_raw, prob)
         else:
-            start_state = self.states.index(start_state_raw)
+            start_state = self.get_indices(self.states, start_state_raw)
             self.__reward_ns(a, start_state, next_state_raw, obs_raw, prob)
 
     def __reward_ns(self, a, start_state, next_state_raw, obs_raw, prob):
@@ -364,7 +379,7 @@ class POMDPFile:
         if next_state_raw == '*':
             self.R[a, start_state, :] = prob
         else:
-            next_state = self.states.index(next_state_raw)
+            next_state = self.get_indices(self.states, next_state_raw)
             self.R[a, start_state, next_state] = prob
 
     def __get_pi_phi(self, i):
@@ -390,9 +405,96 @@ class POMDPFile:
 
         return i + 1
 
+    def convert_obs_actions(self):
+        """
+        If we're here, we want to convert our POMDP phi-action tensor
+        into a phi tensor (so they're all the same).
+
+        To do so, we add an extra "initialization" observation
+        We also need to expand our state space to include the last action.
+
+        ONE BIG ASSUMPTION: In the POMDPs with phi(s, a), the action
+        is applied to the state BEFORE an observation comes out.
+        """
+        # first we construct our new transition function.
+        # we go from |A| x |S| x |S| -> |A| x (|S| + 1)|A| x (|S| + 1)|A|
+        # states are ordered as s0a0, s0a1, s0a2, ..., s1a0, s1a1, ..., etc.
+        n_actions = self.T.shape[0]
+        og_n_states = self.T.shape[1]
+
+        # T_extra_start is |A| x (|S| + 1) x (|S| + 1)
+        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)
+        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)
+        R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
+
+        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))
+        no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
+        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)
+        R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
+
+        extra_n_states = og_n_states + 1
+
+        # Now we expand our T and R to add previous actions
+        # We start with the transition function
+        new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
+        T_repeat_start_state = T_extra_start.repeat(n_actions, axis=1)
+        for i in range(new_T.shape[0]):
+            for j in range(new_T.shape[1]):
+                new_T[i, j, np.arange(extra_n_states) * n_actions + i] = T_repeat_start_state[i, j]
+
+        # # make sure terminal states are self-transitions
+        # for i in range(n_actions):
+        #     new_T[:, -n_actions - i - 1] = 0
+        #     new_T[:, -n_actions - i - 1, -n_actions - i - 1] = 1
+
+        # Now our reward function - it should just be our current reward
+        # function but repeated over actions.
+        new_R = R_extra_start.repeat(n_actions, axis=1).repeat(n_actions, axis=2)
+
+        # Now the phi function. We have to add an observation for the new start state
+        # as well as add a new row for the new start state
+
+        # new obs
+        cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
+        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)
+        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
+
+        # New start state can only emit this new start obs.
+        new_start_phi[:, 0, -1] = 1
+        extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
+        new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
+
+        # We need to add a policy for our starting observation
+        new_pi_phi = None
+        if self.Pi_phi is not None:
+            new_pi_phi = []
+            uniform_dist = np.ones((1, n_actions)) / n_actions
+            for pi in self.Pi_phi:
+                new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
+
+        # We have a new start state - update start state dist.
+        # Expand start states over actions as well.
+        new_start = np.zeros(new_T.shape[-1])
+        # set the (last state, action) pairs as equal starting probabilities.
+        new_start[-n_actions:] = (1 / n_actions)
+
+        return to_dict(new_T, new_R, self.discount, new_start, new_Z, new_pi_phi)
+
     def get_spec(self):
-        # Assuming phi is not dependent on action
-        return to_dict(self.T, self.R, self.discount, self.start, self.Z[0], self.Pi_phi)
+        phi = self.Z[0]
+        if len(self.Z) > 1:
+            # first we test if all phi matrices are the same for all actions
+            prev_z = self.Z[0]
+            all_same = True
+            for z in self.Z[1:]:
+                all_same &= np.allclose(prev_z, z)
+                if not all_same:
+                    break
+
+            if not all_same:
+                return self.convert_obs_actions()
+
+        return to_dict(self.T, self.R, self.discount, self.start, phi, self.Pi_phi)
 
     def print_summary(self):
         print("discount:", self.discount)

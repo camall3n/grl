@@ -6,7 +6,10 @@ JUNCTION_UP = -3
 JUNCTION_DOWN = -2
 TERMINAL = -1
 
-def tmaze(n: int, discount: float = 0.9):
+def tmaze(n: int,
+          discount: float = 0.9,
+          good_term_reward: float = 4.0,
+          bad_term_reward: float = -0.1):
     """
     Return T, R, gamma, p0 and phi for tmaze, for a given corridor length n
 
@@ -56,12 +59,12 @@ def tmaze(n: int, discount: float = 0.9):
     R_down = R_up.copy()
 
     # If rewarding state is north
-    R_up[JUNCTION_UP, TERMINAL] = 1
-    R_down[JUNCTION_UP, TERMINAL] = 0
+    R_up[JUNCTION_UP, TERMINAL] = good_term_reward
+    R_down[JUNCTION_UP, TERMINAL] = bad_term_reward
 
     # If rewarding state is south
-    R_up[JUNCTION_DOWN, TERMINAL] = 0
-    R_down[JUNCTION_DOWN, TERMINAL] = 1
+    R_up[JUNCTION_DOWN, TERMINAL] = bad_term_reward
+    R_down[JUNCTION_DOWN, TERMINAL] = good_term_reward
 
     R = np.array([R_up, R_down, R_right, R_left])
 
@@ -86,5 +89,24 @@ def tmaze(n: int, discount: float = 0.9):
 
     # we have a special termination observations
     phi[-1, 4] = 1
+
+    return T, R, discount, p0, phi
+
+def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
+    T, R, discount, p0, phi = tmaze(n, discount=discount)
+
+    # First, create a transition matrix w/ a prob of slip_prob of
+    # staying in the same state (hence the np.eye call)
+    # This is an identity matrix with slip_prob at diagonal
+    slip_T = np.eye(T.shape[-1]) * slip_prob
+
+    # We add these slip probabilities to ALL actions for all states.
+    # So all actions have a probability slip_prob of resulting in a no-op.
+    # Now we need to remove slip_prob probability mass from the rest of the transitions.
+    # Transitions sum to 1, so we multiply by (1 - slip_prob) so they sum to the latter.
+    T *= (1 - slip_prob)
+
+    # Add our slip probabilities to all actions and all states
+    T += slip_T
 
     return T, R, discount, p0, phi
