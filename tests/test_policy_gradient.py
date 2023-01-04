@@ -29,10 +29,10 @@ def test_pg_fully_observable_tmaze():
 
     learnt_pi = softmax(agent.pi_params, axis=-1)
     assert np.allclose(learnt_pi[:-3, 2], np.ones_like(learnt_pi[:-3, 2]), atol=1e-2), \
-        "Learnt policy is not to go right in corridor"
+        f"Learnt policy should be go right in corridor, but is {learnt_pi[:-3]} instead."
 
     assert np.isclose(learnt_pi[-2, 1], 1, atol=1e-2) and np.isclose(learnt_pi[-3, 0], 1, atol=1e-2), \
-        "Learnt policy is not to go up/down depending on reward"
+        "Learnt policy should be to go up/down depending on reward."
 
     print(f"Learnt policy gradient policy: \n"
           f"{learnt_pi}")
@@ -41,7 +41,7 @@ def test_pg_tmaze():
     iterations = 20000
     lr = 1
     spec = load_spec('tmaze_5_two_thirds_up')
-    print(f"Testing analytical policy gradient on fully observable T-Maze.")
+    print(f"Testing analytical policy gradient on partially observable T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])

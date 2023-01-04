@@ -18,7 +18,7 @@ if __name__ == '__main__':
     spec_name = 'slippery_tmaze_5_random'
     spec = load_spec(spec_name)
     pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
-    pomdp_path = pomdp_files_dir / 'slippery-tmaze.POMDP'
+    pomdp_path = pomdp_files_dir / 'tmaze5.POMDP'
 
     lines = [f"# Converted POMDP file for {spec_name}"]
     lines.append('')

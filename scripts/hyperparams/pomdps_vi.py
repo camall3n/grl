@@ -1,9 +1,8 @@
 hparams = {
     'file_name':
-    'runs_pomdps_vi.txt',
+        'runs_pomdps_vi.txt',
     'args': [{
-        'algo':
-        'vi',
+        'algo': 'vi',
         'spec': [
             'slippery_tmaze_5_two_thirds_up',
             'example_7',
@@ -15,11 +14,8 @@ hparams = {
             # 'bridge-repair', 'paint.95'
             # 'hallway'
         ],
-        'method':
-        'a',
-        'lr':
-        1,
-        'seed':
-        2022
+        'method': 'a',
+        'lr': 1,
+        'seed': 2022,
     }]
 }

@@ -15,7 +15,7 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
-    :param discrep_type: 'l2' or 'max' or 'abs'
+    :param error_type: 'l2' or 'max' or 'abs'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
         - (see policy_eval.py)

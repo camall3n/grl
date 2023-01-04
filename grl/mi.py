@@ -8,7 +8,7 @@ from grl.analytical_agent import AnalyticalAgent
 from grl.policy_eval import lambda_discrep_measures
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
-from grl.utils import glorot_init, greedify
+from grl.utils.math import glorot_init, greedify
 from grl.vi import td_pe
 
 def run_memory_iteration(spec: dict,

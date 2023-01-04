@@ -9,7 +9,7 @@ from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
 from grl.analytical_agent import AnalyticalAgent
 from grl.mi import mem_improvement
 
-def test_example_7_m():
+def test_example_7_mi():
     """
     Tests that pe_grad reaches a known no-discrepancy memory for example 7
     """
@@ -81,4 +81,4 @@ def test_example_7_m():
     assert np.allclose(memory_end, agent.memory, atol=1e-2)
 
 if __name__ == "__main__":
-    test_example_7_m()
+    test_example_7_mi()

@@ -1,14 +1,13 @@
 import numpy as np
-import jax.numpy as jnp
-from jax import jit, value_and_grad, random
+from jax import random
 from jax.nn import softmax
 from functools import partial
 from typing import Sequence
 
-from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
-from grl.policy_eval import analytical_pe, mem_v_l2_loss, mem_q_l2_loss, mem_v_abs_loss, mem_q_abs_loss
+from grl.utils.pe import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model, analytical_pe
+from grl.utils.loss import *
 from grl.mdp import AbstractMDP
-from grl.utils import glorot_init
+from grl.utils.math import glorot_init
 from grl.vi import policy_iteration_step
 
 def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi: jnp.ndarray,
@@ -27,34 +26,6 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi:
     p_init_obs = p0 @ phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
-def calc_diff(value_type: str, pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray,
-              R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    pi = softmax(pi_params, axis=-1)
-    _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
-    diff = mc_vals[value_type] - td_vals[value_type]
-    return diff, mc_vals, td_vals, pi
-
-def pi_discrep_v_l2_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                         phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, _ = calc_diff('v', pi_params, gamma, T, R, phi, p0)
-    return (diff**2).mean(), (mc_vals, td_vals)
-
-def pi_discrep_q_l2_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                         phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, pi = calc_diff('q', pi_params, gamma, T, R, phi, p0)
-    diff = diff * pi.T
-    return (diff**2).mean(), (mc_vals, td_vals)
-
-def pi_discrep_v_abs_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                          phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, _ = calc_diff('v', pi_params, gamma, T, R, phi, p0)
-    return jnp.abs(diff).mean(), (mc_vals, td_vals)
-
-def pi_discrep_q_abs_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                          phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, pi = calc_diff('q', pi_params, gamma, T, R, phi, p0)
-    diff = diff * pi.T
-    return jnp.abs(diff).mean(), (mc_vals, td_vals)
 
 class AnalyticalAgent:
     """

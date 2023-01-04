@@ -4,8 +4,8 @@ from jax import jit, nn
 from typing import Tuple
 from functools import partial
 
-from grl.utils import glorot_init
-from grl.policy_eval import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
+from grl.utils.math import glorot_init
+from grl.utils.pe import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model
 
 @partial(jit, static_argnames=['gamma'])
 def value_iteration_step(vp: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma: float):

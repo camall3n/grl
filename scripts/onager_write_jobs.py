@@ -1,3 +1,7 @@
+"""
+Converts and runs a specified hyperparams/XYZ.py hyperparam file
+into an Onager prelaunch script.
+"""
 import os
 import numpy as np
 import argparse

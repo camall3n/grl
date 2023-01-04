@@ -4,7 +4,7 @@ from pathlib import Path
 from . import examples_lib
 from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
-from grl.utils import normalize
+from grl.utils.math import normalize
 from definitions import ROOT_DIR
 
 def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2, **kwargs):

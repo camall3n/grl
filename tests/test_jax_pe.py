@@ -5,7 +5,7 @@ from jax.config import config
 config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
-from grl.policy_eval import get_p_s_given_o
+from grl.utils.pe import get_p_s_given_o, functional_create_td_model
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
@@ -100,8 +100,10 @@ def indv_spec_jaxify_pe_funcs(spec):
         np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
-    func_td_mdp = pe._create_td_model(p_pi_of_s_given_o)
-    # td_vals = pe._solve_mdp(func_td_mdp, pi)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp.phi,
+                                                      amdp.T, amdp.R)
+
+    func_td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 
     td_mdp = create_td_model(amdp, occupancy)
 
