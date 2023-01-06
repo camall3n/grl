@@ -410,72 +410,96 @@ class POMDPFile:
         If we're here, we want to convert our POMDP phi-action tensor
         into a phi tensor (so they're all the same).
 
-        To do so, we add an extra "initialization" observation
-        We also need to expand our state space to include the last action.
+        To do so, we add an extra "initialization" observation and state.
+        We also need to expand our state space to include the most recent action.
 
         ONE BIG ASSUMPTION: In the POMDPs with phi(s, a), the action
         is applied to the state BEFORE an observation comes out.
+
+        IN other words, if phi(obs|state,action), there are two possible conventions:
+            1. action -> state -> obs
+            2. state -> action -> obs
+        We assume convention 1.
         """
         # first we construct our new transition function.
         # we go from |A| x |S| x |S| -> |A| x (|S| + 1)|A| x (|S| + 1)|A|
-        # states are ordered as s0a0, s0a1, s0a2, ..., s1a0, s1a1, ..., etc.
+        # states are ordered as a0s0, a1s0, a2s0, ..., a0s1, a1s1, ..., etc.
+        # i.e. all the actions that brought you to s0 appear first, then all the actions that brought you to s1, ...
         n_actions = self.T.shape[0]
         og_n_states = self.T.shape[1]
 
+        # Create a new (initial) state and concatenate it to T such that all the actions that "precede" the initial
+        # state lead to the same original start state distribution.
+
         # T_extra_start is |A| x (|S| + 1) x (|S| + 1)
-        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)
-        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)
+        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)  # (A, 1, S)
+        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)  # (A, S+1, S)
+
+        # But none of the newly added states produce rewards
         R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
 
-        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))
+        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))  # (A, S+1, S+1)
         no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
-        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)
+        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)  # (A, S+1, S+1)
         R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
 
         extra_n_states = og_n_states + 1
 
-        # Now we expand our T and R to add previous actions
-        # We start with the transition function
+        # Now we expand our T and R to add previous actions.
+        # Initial state transition behavior does not depend on actions.
+        # We start with the transition function.
         new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
         T_repeat_start_state = T_extra_start.repeat(n_actions, axis=1)
-        for i in range(new_T.shape[0]):
-            for j in range(new_T.shape[1]):
-                new_T[i, j, np.arange(extra_n_states) * n_actions + i] = T_repeat_start_state[i, j]
+        for action in range(new_T.shape[0]):
+            for action_state in range(new_T.shape[1]):
+                # The "preceding" action of the "next" state needs to match the selected action,
+                # so we copy these probabilities and leave the rest at zero.
+                new_T[action, action_state, np.arange(extra_n_states) * n_actions + action] = \
+                    T_repeat_start_state[action, action_state]
 
-        # # make sure terminal states are self-transitions
-        # for i in range(n_actions):
-        #     new_T[:, -n_actions - i - 1] = 0
-        #     new_T[:, -n_actions - i - 1, -n_actions - i - 1] = 1
-
-        # Now our reward function - it should just be our current reward
-        # function but repeated over actions.
+        """
+        Now our reward function - it should just be our current reward
+        function but repeated over actions.
+        Again there are two conventions:
+            1. Define rewards as being over only the valid transitions.
+            2. Define rewards as being over all expressible transitions.
+        Since we have carefully accounted for transition probabilities above, we opt for the second convention here.
+        """
         new_R = R_extra_start.repeat(n_actions, axis=1).repeat(n_actions, axis=2)
 
         # Now the phi function. We have to add an observation for the new start state
         # as well as add a new row for the new start state
 
-        # new obs
+        # Create a new (initial) observation and concatenate it to phi such that
+        # all the action-states lead to the same original observation distributions.
         cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
-        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)
-        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
+        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)  # (A, S+1, O+1)
 
         # New start state can only emit this new start obs.
+        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
         new_start_phi[:, 0, -1] = 1
         extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
+
+        # This swapaxes keeps the correct convention for combining action-states.
         new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
 
         # We need to add a policy for our starting observation
         new_pi_phi = None
         if self.Pi_phi is not None:
             new_pi_phi = []
+            # Initial-state policy is uniform random.
             uniform_dist = np.ones((1, n_actions)) / n_actions
             for pi in self.Pi_phi:
+                # Otherwise it's the same.
                 new_pi_phi.append(np.concatenate((pi, uniform_dist), axis=0))
 
         # We have a new start state - update start state dist.
         # Expand start states over actions as well.
         new_start = np.zeros(new_T.shape[-1])
-        # set the (last state, action) pairs as equal starting probabilities.
+
+        # Set the (last state, action) pairs as equal starting probabilities.
+        # This is arbitrary, since all actions lead to the initial state, and all actions have the
+        # same effect. But basically, start with the initial state we invented.
         new_start[-n_actions:] = (1 / n_actions)
 
         return to_dict(new_T, new_R, self.discount, new_start, new_Z, new_pi_phi)

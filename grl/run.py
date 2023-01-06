@@ -19,7 +19,7 @@ from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.pe_grad import pe_grad
-from grl.utils import pformat_vals, results_path, numpyify_and_save
+from grl.utils import pformat_vals, results_path, numpyify_and_save, amdp_get_occupancy
 from grl.mi import run_memory_iteration
 from grl.vi import value_iteration
 
@@ -60,7 +60,7 @@ def run_pe_algos(spec: dict,
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
-            occupancy = pe.get_occupancy(pi)
+            occupancy = amdp_get_occupancy(pi, amdp)
             pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
@@ -77,7 +77,7 @@ def run_pe_algos(spec: dict,
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
             if 'mem_params' in spec.keys():
-                occupancy_x = pe.get_occupancy(pi)
+                occupancy_x = amdp_get_occupancy(pi, amdp)
                 n_mem_states = spec['mem_params'].shape[-1]
                 n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
 

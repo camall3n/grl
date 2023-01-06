@@ -5,6 +5,7 @@ from .mdp import MDP, AbstractMDP
 from .policy_eval import PolicyEval
 from .memory import memory_cross_product
 from .utils import pformat_vals
+from grl.utils.lambda_discrep import lambda_discrep_measures
 
 import numpy as np
 
@@ -34,12 +35,6 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
             policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
 
         update = policy_eval.policy_update
-        if error_type == 'l2':
-            loss_fn = policy_eval.mse_loss
-        elif error_type == 'max':
-            loss_fn = policy_eval.max_loss
-        else:
-            raise NotImplementedError
 
     elif grad_type == 'm':
         if 'mem_params' not in spec.keys():
@@ -47,15 +42,15 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
                 'Must include memory with "--use_memory <id>" to do gradient with memory')
         params = spec['mem_params']
         update = policy_eval.memory_update
-        loss_fn = policy_eval.memory_loss
     else:
         raise NotImplementedError
 
     policy_eval.verbose = False
-    initial_discrep = loss_fn(params, value_type, pi_abs=pi_abs)
-    info['initial_discrep'] = initial_discrep
+    if grad_type == 'm':
+        info['initial_params_stats'] = lambda_discrep_measures(memory_cross_product(amdp, params), pi_abs)
+    else:
+        info['initial_params_stats'] = lambda_discrep_measures(amdp, pi_abs)
     info['initial_params'] = params.copy()
-    logging.info(f'\nInitial discrep:\n {initial_discrep}')
 
     i = 0
     done_count = 0

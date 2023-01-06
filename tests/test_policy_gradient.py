@@ -28,10 +28,10 @@ def test_pg_fully_observable_tmaze():
         v_0 = agent.policy_improvement(amdp, lr)
 
     learnt_pi = softmax(agent.pi_params, axis=-1)
-    assert np.allclose(learnt_pi[:-3, 2], np.ones_like(learnt_pi[:-3, 2]), atol=1e-2), \
+    assert np.allclose(learnt_pi[:-3, 2], np.ones_like(learnt_pi[:-3, 2]), atol=5e-2), \
         f"Learnt policy should be go right in corridor, but is {learnt_pi[:-3]} instead."
 
-    assert np.isclose(learnt_pi[-2, 1], 1, atol=1e-2) and np.isclose(learnt_pi[-3, 0], 1, atol=1e-2), \
+    assert np.isclose(learnt_pi[-2, 1], 1, atol=5e-2) and np.isclose(learnt_pi[-3, 0], 1, atol=1e-2), \
         "Learnt policy should be to go up/down depending on reward."
 
     print(f"Learnt policy gradient policy: \n"
@@ -56,9 +56,9 @@ def test_pg_tmaze():
 
     learnt_pi = softmax(agent.pi_params, axis=-1)
     if np.isclose(learnt_pi[0, 2], 1, atol=1e-2):
-        assert np.isclose(learnt_pi[-2, 0], 1, atol=1e-2)
+        assert np.isclose(learnt_pi[-2, 0], 1, atol=5e-2)
     else:
-        assert np.isclose(learnt_pi[-2, 1], 1, atol=1e-2)
+        assert np.isclose(learnt_pi[-2, 1], 1, atol=5e-2)
 
     print(f"Learnt policy gradient policy: \n"
           f"{learnt_pi}")

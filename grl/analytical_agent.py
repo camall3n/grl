@@ -1,10 +1,9 @@
 import numpy as np
-from jax import random
+from jax import random, jit, value_and_grad
 from jax.nn import softmax
 from functools import partial
 from typing import Sequence
 
-from grl.utils.pe import functional_get_occupancy, get_p_s_given_o, functional_solve_mdp, functional_create_td_model, analytical_pe
 from grl.utils.loss import *
 from grl.mdp import AbstractMDP
 from grl.utils.math import glorot_init
