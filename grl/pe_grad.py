@@ -47,7 +47,8 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
 
     policy_eval.verbose = False
     if grad_type == 'm':
-        info['initial_params_stats'] = lambda_discrep_measures(memory_cross_product(amdp, params), pi_abs)
+        info['initial_params_stats'] = lambda_discrep_measures(memory_cross_product(amdp, params),
+                                                               pi_abs)
     else:
         info['initial_params_stats'] = lambda_discrep_measures(amdp, pi_abs)
     info['initial_params'] = params.copy()

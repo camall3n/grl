@@ -432,15 +432,18 @@ class POMDPFile:
         # state lead to the same original start state distribution.
 
         # T_extra_start is |A| x (|S| + 1) x (|S| + 1)
-        start_expanded = np.expand_dims(np.expand_dims(self.start, 0), 0).repeat(n_actions, axis=0)  # (A, 1, S)
-        T_extra_start = np.concatenate((self.T, start_expanded), axis=1)  # (A, S+1, S)
+        start_expanded = np.expand_dims(np.expand_dims(self.start, 0),
+                                        0).repeat(n_actions, axis=0) # (A, 1, S)
+        T_extra_start = np.concatenate((self.T, start_expanded), axis=1) # (A, S+1, S)
 
         # But none of the newly added states produce rewards
         R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
 
-        cannot_transition_to_s0 = np.zeros((T_extra_start.shape[0], T_extra_start.shape[1], 1))  # (A, S+1, S+1)
+        cannot_transition_to_s0 = np.zeros(
+            (T_extra_start.shape[0], T_extra_start.shape[1], 1)) # (A, S+1, S+1)
         no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
-        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0), axis=2)  # (A, S+1, S+1)
+        T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0),
+                                       axis=2) # (A, S+1, S+1)
         R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
 
         extra_n_states = og_n_states + 1
@@ -456,7 +459,6 @@ class POMDPFile:
                 # so we copy these probabilities and leave the rest at zero.
                 new_T[action, action_state, np.arange(extra_n_states) * n_actions + action] = \
                     T_repeat_start_state[action, action_state]
-
         """
         Now our reward function - it should just be our current reward
         function but repeated over actions.
@@ -473,7 +475,7 @@ class POMDPFile:
         # Create a new (initial) observation and concatenate it to phi such that
         # all the action-states lead to the same original observation distributions.
         cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
-        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2)  # (A, S+1, O+1)
+        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2) # (A, S+1, O+1)
 
         # New start state can only emit this new start obs.
         new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))

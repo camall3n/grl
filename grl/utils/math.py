@@ -17,7 +17,6 @@ def pformat_vals(vals):
 def glorot_init(shape: Sequence[int], scale: float = 0.5) -> jnp.ndarray:
     return np.random.normal(size=shape) * scale
 
-
 def normalize(arr: np.ndarray, axis=-1) -> np.ndarray:
     with np.errstate(invalid='ignore'):
         normalized_arr = arr / np.expand_dims(arr.sum(axis), axis)

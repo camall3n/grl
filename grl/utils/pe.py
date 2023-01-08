@@ -26,7 +26,6 @@ def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.
 
     return state_vals, mc_vals, td_vals
 
-
 @partial(jit, static_argnames=['gamma'])
 def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma: float):
     """
@@ -48,7 +47,6 @@ def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma:
     q_vals = (R_sa + (gamma * T @ v_vals))
 
     return v_vals, q_vals
-
 
 @jit
 def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,

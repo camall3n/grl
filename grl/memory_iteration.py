@@ -16,11 +16,20 @@ def run_memory_iteration(spec: dict,
                          mi_lr: float = 1.,
                          policy_optim_alg: str = 'pi',
                          mi_iterations: int = 1,
-                         mi_steps: int = 50000,
-                         pi_steps: int = 50000,
+                         mi_per_steps: int = 50000,
+                         pi_per_steps: int = 50000,
                          rand_key: jax.random.PRNGKey = None):
     """
-    Runs interspersing memory iteration and policy improvement.
+    Wrapper function for the Memory Iteration algorithm.
+    Memory iteration intersperses memory improvement and policy improvement.
+    :param spec:                POMDP specification.
+    :param pi_lr:               Policy improvement learning rate
+    :param mi_lr:               Memory improvement learning rate
+    :param policy_optim_alg:    Which policy improvement algorithm do we use?
+        (dm: discrepancy maximization | pi: policy iteration | pg: policy gradient)
+    :param mi_iterations:       How many memory iterations do we do?
+    :param mi_per_step:         Number of memory improvement steps PER memory iteration step.
+    :param pi_per_step:         Number of policy improvement steps PER memory iteration step.
     """
     assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
     mem_params = spec['mem_params']
@@ -46,8 +55,8 @@ def run_memory_iteration(spec: dict,
                                    pi_lr=pi_lr,
                                    mi_lr=mi_lr,
                                    mi_iterations=mi_iterations,
-                                   pi_per_step=pi_steps,
-                                   mi_per_step=mi_steps)
+                                   pi_per_step=pi_per_steps,
+                                   mi_per_step=mi_per_steps)
 
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here
@@ -84,6 +93,20 @@ def memory_iteration(
     init_pi_improvement: bool = True,
     log_every: int = 1000,
 ):
+    """
+    The memory iteration algorithm. This algorithm flips between improving
+    policy parameters to maximize return, and memory parameters to minimize lambda discrepancy.
+    Each step of memory iteration includes multiple steps of memory improvement and policy improvement.
+    :param agent:               Agent instance to run memory iteration.
+    :param init_amdp:           Initial abstract MDP for us to train our agent on.
+    :param pi_lr:               Policy improvement learning rate
+    :param mi_lr:               Memory improvement learning rate
+    :param pi_per_step:         Number of policy improvement steps PER memory iteration step.
+    :param mi_per_step:         Number of memory improvement steps PER memory iteration step.
+    :param mi_iterations:       Number of steps of memory iteration to perform.
+    :param init_pi_improvement: Do we start out with an initial policy improvement step?
+    :param log_every:           How often do we log stats?
+    """
     info = {'policy_improvement_outputs': [], 'mem_loss': []}
     td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp.T, init_amdp.R, init_amdp.phi,
                                  init_amdp.p0, init_amdp.gamma)
@@ -104,7 +127,7 @@ def memory_iteration(
     print(f"Starting (unexpanded) policy: \n{agent.policy}")
 
     # we have to set our policy over our memory MDP now
-    # we do so with a random policy given new memory bit
+    # we do so with a random/copied policy given new memory bit
     agent.new_pi_over_mem()
     info['initial_expanded_improvement_policy'] = agent.policy.copy()
     print(f"Starting (expanded) policy: \n{agent.policy}")
@@ -176,7 +199,12 @@ def pi_improvement(agent: AnalyticalAgent,
                    iterations: int = 10000,
                    log_every: int = 1000) -> dict:
     """
-    Policy improvement over multiple steps
+    Policy improvement over multiple steps.
+    :param agent:               Agent instance to run memory iteration.
+    :param amdp:                Initial abstract MDP for us to train our policy on.
+    :param lr:                  Policy improvement learning rate
+    :param iterations:          Number of policy improvement steps.
+    :param log_every:           How many steps per log?
     """
     output = {}
     for it in trange(iterations):

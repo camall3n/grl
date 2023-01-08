@@ -95,8 +95,7 @@ def indv_spec_jaxify_pe_funcs(spec):
         np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp.phi,
-                                                      amdp.T, amdp.R)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp.phi, amdp.T, amdp.R)
 
     func_td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 

@@ -31,7 +31,6 @@ def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
     p_pi_of_s_given_o = w / (w.sum(axis=0) + 1e-10)
     return p_pi_of_s_given_o
 
-
 @jit
 def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray,
                                R: jnp.ndarray):

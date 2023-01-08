@@ -20,7 +20,7 @@ from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.pe_grad import pe_grad
 from grl.utils import pformat_vals, results_path, numpyify_and_save, amdp_get_occupancy
-from grl.mi import run_memory_iteration
+from grl.memory_iteration import run_memory_iteration
 from grl.vi import value_iteration
 
 def run_pe_algos(spec: dict,
