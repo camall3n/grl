@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-from grl.utils import glorot_init
+from grl.utils.math import glorot_init
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down

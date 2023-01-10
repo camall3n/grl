@@ -1,6 +1,6 @@
 hparams = {
     'file_name':
-    'runs_pomdps_mi_pi.txt',
+        'runs_pomdps_mi_pi.txt',
     'args': [{
         'algo': 'mi',
         'spec': [
@@ -20,6 +20,6 @@ hparams = {
         'use_grad': 'm',
         'n_mem_states': [2, 3],
         'mi_iterations': 2,
-        'seed': [2020 + i for i in range(30)]
+        'seed': [2020 + i for i in range(30)],
     }]
 }

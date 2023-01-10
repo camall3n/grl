@@ -1,4 +1,5 @@
 # Converted POMDP file for tmaze_hyperparams
+# with tmaze hallway length = 5
 
 discount: 0.9
 values: reward

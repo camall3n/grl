@@ -2,7 +2,7 @@ import numpy as np
 
 hparams = {
     'file_name':
-    'runs_tmaze_sweep_junction_pi.txt',
+        'runs_tmaze_sweep_junction_pi.txt',
     'args': [{
         'algo': 'pe',
         'spec': 'tmaze_hyperparams',
@@ -13,6 +13,6 @@ hparams = {
         'use_memory': 0,
         'use_grad': 'm',
         'lr': 1,
-        'seed': [2020 + i for i in range(1, 10)]
+        'seed': [2020 + i for i in range(1, 10)],
     }]
 }

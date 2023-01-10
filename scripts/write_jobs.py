@@ -1,3 +1,7 @@
+"""
+Script to convert hyperparams/XYZ.py files into a .txt file
+where every line of the .txt file is one experiment.
+"""
 import argparse
 import numpy as np
 import importlib.util

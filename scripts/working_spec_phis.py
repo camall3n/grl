@@ -1,3 +1,6 @@
+"""
+Simple script to see if all the specs in the list spec_names can be loaded.
+"""
 from grl.environment import load_spec
 
 if __name__ == "__main__":
