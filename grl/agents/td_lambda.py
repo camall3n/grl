@@ -4,7 +4,7 @@ import numpy as np
 
 class TDLambdaQFunction:
     def __init__(self,
-                 n_observations: int,
+                 n_obs: int,
                  n_actions: int,
                  lambda_: float,
                  gamma: float = 0.99,
@@ -20,21 +20,24 @@ class TDLambdaQFunction:
         :param learning_rate:   learning rate / step size parameter, in range [0, 1]
         :param trace_type:      'accumulating' or 'replacing'
         """
-        self.n_observations = n_observations
+        self.n_obs = n_obs
         self.n_actions = n_actions
         self.lambda_ = lambda_
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.trace_type = trace_type
 
+        self.reset()
+
+    def reset(self):
         self._reset_q_values()
         self._reset_eligibility()
 
     def _reset_q_values(self):
-        self.q = np.zeros((self.n_actions, self.n_observations))
+        self.q = np.zeros((self.n_actions, self.n_obs))
 
     def _reset_eligibility(self):
-        self.eligibility = np.zeros((self.n_actions, self.n_observations))
+        self.eligibility = np.zeros((self.n_actions, self.n_obs))
 
     def update(self, obs, action, reward, terminal, next_obs, next_action):
         # Because mdp.step() terminates with probability (1-γ),
@@ -65,10 +68,10 @@ class TDLambdaQFunction:
         Expand q (A x O) => A x OM to include memory states
         """
         # augment last dim with input mem states
-        self.n_observations *= n_mem_states
+        self.n_obs *= n_mem_states
         # q_mem_states = np.stack((self.q, np.zeros_like(self.q)), axis=-1)
         q_mem_states = np.expand_dims(self.q, -1).repeat(n_mem_states, -1) # A x O x M
-        self.q = q_mem_states.reshape(self.n_actions, self.n_observations)
+        self.q = q_mem_states.reshape(self.n_actions, self.n_obs)
 
         if np.any(self.eligibility > 0):
             warnings.warn('Resetting non-zero eligibility during memory augmentation')

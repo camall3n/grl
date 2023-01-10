@@ -19,11 +19,12 @@ class ReplayMemory:
         self.position = 0
 
     def push(self, experience: dict):
+        e = experience.copy()
         if len(self.memory) < self.capacity:
             self.memory.append(None)
-        experience['_index_'] = self.position
-        self.fields = self.fields.union(set(experience.keys()))
-        self.memory[self.position] = experience
+        e['_index_'] = self.position
+        self.fields = self.fields.union(set(e.keys()))
+        self.memory[self.position] = e
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size: int, fields: list = None):

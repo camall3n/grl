@@ -18,12 +18,12 @@ pi_base = spec['Pi_phi'][0] # abstract policy over base (non-memory) actions
 n_episodes = 10000
 
 #%% Run TD-lambda until convergence
-q_td = TDLambdaQFunction(n_observations=amdp.n_obs,
+q_td = TDLambdaQFunction(n_obs=amdp.n_obs,
                          n_actions=amdp.n_actions,
                          lambda_=0,
                          gamma=amdp.gamma,
                          learning_rate=0.001)
-q_mc = TDLambdaQFunction(n_observations=amdp.n_obs,
+q_mc = TDLambdaQFunction(n_obs=amdp.n_obs,
                          n_actions=amdp.n_actions,
                          lambda_=0.99,
                          gamma=amdp.gamma,
