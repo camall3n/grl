@@ -5,7 +5,7 @@ from functools import partial
 from grl.utils.loss import *
 from grl.utils.mdp import functional_get_occupancy
 from grl.memory import memory_cross_product
-from grl.utils.pe import functional_solve_amdp
+from grl.utils.policy_eval import functional_solve_amdp
 
 class PolicyEval:
     def __init__(self, amdp, verbose=True, error_type: str = 'l2', value_type: str = 'q'):

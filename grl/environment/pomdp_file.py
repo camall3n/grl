@@ -435,29 +435,28 @@ class POMDPFile:
         start_expanded = np.expand_dims(np.expand_dims(self.start, 0),
                                         0).repeat(n_actions, axis=0) # (A, 1, S)
         T_extra_start = np.concatenate((self.T, start_expanded), axis=1) # (A, S+1, S)
+        extra_start_n_states = T_extra_start.shape[1]
 
         # But none of the newly added states produce rewards
         R_extra_start = np.concatenate((self.R, np.zeros_like(start_expanded)), axis=1)
 
-        cannot_transition_to_s0 = np.zeros(
-            (T_extra_start.shape[0], T_extra_start.shape[1], 1)) # (A, S+1, S+1)
+        cannot_transition_to_s0 = np.zeros((n_actions, extra_start_n_states, 1)) # (A, S+1, S+1)
         no_rewards_to_s0 = np.zeros_like(cannot_transition_to_s0)
         T_extra_start = np.concatenate((T_extra_start, cannot_transition_to_s0),
                                        axis=2) # (A, S+1, S+1)
         R_extra_start = np.concatenate((R_extra_start, no_rewards_to_s0), axis=2)
 
-        extra_n_states = og_n_states + 1
-
         # Now we expand our T and R to add previous actions.
         # Initial state transition behavior does not depend on actions.
         # We start with the transition function.
-        new_T = np.zeros((n_actions, extra_n_states * n_actions, extra_n_states * n_actions))
+        new_T = np.zeros(
+            (n_actions, extra_start_n_states * n_actions, extra_start_n_states * n_actions))
         T_repeat_start_state = T_extra_start.repeat(n_actions, axis=1)
         for action in range(new_T.shape[0]):
             for action_state in range(new_T.shape[1]):
                 # The "preceding" action of the "next" state needs to match the selected action,
                 # so we copy these probabilities and leave the rest at zero.
-                new_T[action, action_state, np.arange(extra_n_states) * n_actions + action] = \
+                new_T[action, action_state, np.arange(extra_start_n_states) * n_actions + action] = \
                     T_repeat_start_state[action, action_state]
         """
         Now our reward function - it should just be our current reward
@@ -474,16 +473,19 @@ class POMDPFile:
 
         # Create a new (initial) observation and concatenate it to phi such that
         # all the action-states lead to the same original observation distributions.
-        cannot_see_new_obs = np.zeros((self.Z.shape[0], self.Z.shape[1], 1))
-        extra_Z = np.concatenate((self.Z, cannot_see_new_obs), axis=2) # (A, S+1, O+1)
+        cannot_see_new_obs = np.zeros((n_actions, og_n_states, 1))
+        Z_extra_start_obs = np.concatenate((self.Z, cannot_see_new_obs), axis=2) # (A, S, O+1)
+        extra_obs_n_obs = Z_extra_start_obs.shape[2]
 
         # New start state can only emit this new start obs.
-        new_start_phi = np.zeros((extra_Z.shape[0], 1, extra_Z.shape[2]))
+        new_start_phi = np.zeros((n_actions, 1, extra_obs_n_obs))
         new_start_phi[:, 0, -1] = 1
-        extra_Z = np.concatenate((extra_Z, new_start_phi), axis=1)
+        new_Z_actions_first = np.concatenate((Z_extra_start_obs, new_start_phi),
+                                             axis=1) # (A, S+1, O+1)
 
         # This swapaxes keeps the correct convention for combining action-states.
-        new_Z = np.swapaxes(extra_Z, 0, 1).reshape(-1, extra_Z.shape[2])
+        new_Z = np.swapaxes(new_Z_actions_first, 0,
+                            1).reshape(-1, new_Z_actions_first.shape[2]) # ((S+1)*A, O+1)
 
         # We need to add a policy for our starting observation
         new_pi_phi = None

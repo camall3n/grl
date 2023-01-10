@@ -7,11 +7,19 @@ from .pomdp_file import POMDPFile
 from grl.utils.math import normalize
 from definitions import ROOT_DIR
 
-def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2, **kwargs):
+def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
     """
     Loads a pre-defined POMDP
-    :param name:      the name of the function or .POMDP file defining the POMDP
-    :param memory_id: id of memory function to use
+    :param name:            The name of the function or .POMDP file defining the POMDP.
+    :param memory_id:       ID of memory function to use.
+    :param n_mem_states:    Number of memory states allowed.
+
+    The following **kwargs are specified for the following specs:
+    tmaze_hyperparams:
+        :param corridor_length:     Length of the maze corridor.
+        :param discount:            Discount factor gamma to use.
+        :param junction_up_pi:      If we specify a policy for the tmaze spec, what is the probability
+                                    of traversing UP at the tmaze junction?
     """
 
     # Try to load from examples_lib first
@@ -19,7 +27,7 @@ def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2, **kwarg
     spec = None
     try:
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
-        spec = getattr(examples_lib, name)(*args, **kwargs)
+        spec = getattr(examples_lib, name)(**kwargs)
 
     except AttributeError as _:
         pass
@@ -27,7 +35,7 @@ def load_spec(name, *args, memory_id: int = None, n_mem_states: int = 2, **kwarg
     if spec is None:
         try:
             file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'{name}.POMDP')
-            spec = POMDPFile(file_path).get_spec(*args, **kwargs)
+            spec = POMDPFile(file_path).get_spec()
         except FileNotFoundError as _:
             raise NotImplementedError(
                 f'{name} not found in examples_lib.py nor pomdp_files/') from None

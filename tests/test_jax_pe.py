@@ -6,7 +6,7 @@ config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
 from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, amdp_get_occupancy
-from grl.utils.pe import functional_solve_amdp, functional_solve_mdp
+from grl.utils.policy_eval import functional_solve_amdp, functional_solve_mdp
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):

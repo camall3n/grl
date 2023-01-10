@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jax import nn
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
-from grl.utils.pe import analytical_pe, functional_solve_mdp
+from grl.utils.policy_eval import analytical_pe, functional_solve_mdp
 from grl.memory import functional_memory_cross_product
 """
 The following few functions are loss function w.r.t. memory parameters, mem_params.

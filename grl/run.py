@@ -20,6 +20,7 @@ from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.pe_grad import pe_grad
 from grl.utils import pformat_vals, results_path, numpyify_and_save, amdp_get_occupancy
+from grl.utils.lambda_discrep import calc_discrep_from_values
 from grl.memory_iteration import run_memory_iteration
 from grl.vi import value_iteration
 
@@ -65,10 +66,8 @@ def run_pe_algos(spec: dict,
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
-            discrep = {
-                'v': (td_vals_a['v'] - mc_vals_a['v'])**2,
-                'q': (td_vals_a['q'] - mc_vals_a['q'])**2,
-            }
+
+            discrep = calc_discrep_from_values(td_vals_a, mc_vals_a, error_type=error_type)
             discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
             info['initial_discrep'] = discrep
 
@@ -104,26 +103,17 @@ def run_pe_algos(spec: dict,
                 # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
                 logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
                 logging.info(f'td:\n {pformat_vals(td_vals_x)}')
-                discrep = {
-                    'v': np.abs(td_vals_x['v'] - mc_vals_x['v']),
-                    'q': np.abs(td_vals_x['q'] - mc_vals_x['q']),
-                }
+
+                discrep = calc_discrep_from_values(td_vals_x, mc_vals_x, error_type=error_type)
                 occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
                 pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
                 pr_oa = (occ_obs * pi_obs.T)
+
                 discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
 
                 logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             discrepancies.append(discrep)
-
-            # # Check if there are discrepancies in V or Q
-            # # V takes precedence
-            # value_type = None
-            # if not np.allclose(mc_vals_a['v'], td_vals_a['v'], rtol=RTOL):
-            #     value_type = 'v'
-            # elif not np.allclose(mc_vals_a['q'], td_vals_a['q'], rtol=RTOL):
-            #     value_type = 'q'
 
             if value_type:
                 discrepancy_ids.append(i)
@@ -182,10 +172,7 @@ def run_pe_algos(spec: dict,
             logging.info(f'mdp:\n {pformat_vals(mdp_vals_s)}')
             logging.info(f'mc:\n {pformat_vals(mc_vals_s)}')
             logging.info(f'td:\n {pformat_vals(td_vals_s)}')
-            discrep = {
-                'v': np.abs(td_vals_s['v'] - mc_vals_s['v']),
-                'q': np.abs(td_vals_s['q'] - mc_vals_s['q']),
-            }
+            discrep = calc_discrep_from_values(td_vals_s, mc_vals_s, error_type=error_type)
             logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
     logging.info('\nTD-MC* Discrepancy ids:')
