@@ -79,6 +79,7 @@ class MDP:
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
         self.p0 = p0
+        self.current_state = None
 
     def __repr__(self):
         return repr(self.T) + '\n' + repr(self.R)
@@ -113,21 +114,29 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a, gamma=None):
-        if gamma == None:
-            gamma = self.gamma
-        pr_next_s = self.T[a, s, :]
-        sp = np.random.choice(self.n_states, p=pr_next_s)
-        r = self.R[a][s][sp]
-        # Check if sp is terminal state
-        sp_is_absorbing = (self.T[:, sp, sp] == 1)
-        done = sp_is_absorbing.all()
-        # Discounting
-        # End episode with probability 1-gamma
-        if np.random.uniform() < (1 - gamma):
-            done = True
+    def reset(self, state=None):
+        if state is None:
+            state = np.random.choice(self.n_states, p=self.p0)
+        self.current_state = state
+        info = {'state': self.current_state}
+        return self.observe(self.current_state), info
 
-        return sp, r, done
+    def step(self, action):
+        pr_next_s = self.T[action, self.current_state, :]
+        next_state = np.random.choice(self.n_states, p=pr_next_s)
+        reward = self.R[action][self.current_state][next_state]
+        # Check if next_state is absorbing state
+        is_absorbing = (self.T[:, next_state, next_state] == 1)
+        terminal = is_absorbing.all() # absorbing for all actions
+        # Discounting: end episode with probability 1-gamma
+        if np.random.uniform() < (1 - self.gamma):
+            terminal = True
+        truncated = False
+        observation = self.observe(next_state)
+        info = {'state': next_state}
+        self.current_state = next_state
+        # Conform to new-style Gym API
+        return observation, reward, terminal, truncated, info
 
     def observe(self, s):
         return s

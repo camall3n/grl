@@ -1,14 +1,14 @@
 import copy
-from tqdm import tqdm
 
+from jax import nn
 import numpy as np
+import optuna
+from tqdm import tqdm
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
-
-from jax import nn
-
 from grl.agents.td_lambda import TDLambdaQFunction
+from grl.agents.replaymemory import ReplayMemory
 
 #%% Define base decision process
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
@@ -28,27 +28,31 @@ q_mc = TDLambdaQFunction(n_observations=amdp.n_obs,
                          lambda_=0.99,
                          gamma=amdp.gamma,
                          learning_rate=0.001)
+replay = ReplayMemory(capacity=1000000)
 
-for i in range(n_episodes):
-    s = np.random.choice(mdp.n_states, p=mdp.p0)
-    ob = amdp.observe(s)
-    a = np.random.choice(mdp.n_actions, p=pi_base[ob])
-    s, ob, a
+for i in tqdm(range(n_episodes)):
+    ob, _ = amdp.reset()
+    action = np.random.choice(mdp.n_actions, p=pi_base[ob])
     terminal = False
     while not terminal:
-        s, ob, a
-        next_s, r, terminal = mdp.step(s, a, mdp.gamma)
-        r, terminal
-        next_ob = amdp.observe(next_s)
-        next_a = np.random.choice(mdp.n_actions, p=pi_base[next_ob])
-        next_s, next_ob, next_a
+        next_ob, reward, terminal, _, info = amdp.step(action)
+        next_action = np.random.choice(mdp.n_actions, p=pi_base[next_ob])
 
-        q_td.update(ob, a, r, terminal, next_ob, next_a)
-        q_mc.update(ob, a, r, terminal, next_ob, next_a)
+        experience = {
+            'obs': ob,
+            'action': action,
+            'reward': reward,
+            'terminal': terminal,
+            'next_obs': next_ob,
+            'next_action': next_action,
+        }
 
-        s = next_s
+        q_td.update(**experience)
+        q_mc.update(**experience)
+        replay.push(experience)
+
         ob = next_ob
-        a = next_a
+        action = next_action
 
 q_mc_orig = copy.deepcopy(q_mc)
 q_td_orig = copy.deepcopy(q_td)
@@ -127,10 +131,8 @@ pi_aug = np.stack((pi_base, np.ones_like(pi_base) / amdp.n_actions),
 #%%
 n_episodes = 10000
 for i in tqdm(range(n_episodes)):
-    s_base = np.random.choice(amdp.n_states, p=mdp.p0)
+    ob_base, _ = amdp.reset()
     s_mem = initial_mem
-
-    ob_base = amdp.observe(s_base)
     ob_aug = augment_obs(ob_base, s_mem, n_mem_states)
 
     # a_base = np.random.choice(amdp.n_actions, p=pi_base[ob_base])
@@ -143,15 +145,13 @@ for i in tqdm(range(n_episodes)):
     terminal = False
     timestep = 0
     while not terminal:
-        next_s_base, r_base, terminal = amdp.step(s_base, a_base)
-        next_ob_base = amdp.observe(next_s_base)
-        next_a_base = np.random.choice(mdp.n_actions, p=pi_base[next_ob_base])
-
+        next_ob_base, r_base, terminal, _, _ = amdp.step(s_base, a_base)
         next_s_mem = step_mem(s_mem, a_mem)
+        next_ob_aug = augment_obs(next_ob_base, next_s_mem, n_mem_states)
+
+        next_a_base = np.random.choice(mdp.n_actions, p=pi_base[next_ob_base])
         next_a_mem = np.random.choice(n_mem_states,
                                       p=pi_mem(next_a_base, next_ob_base, next_s_mem))
-
-        next_ob_aug = augment_obs(next_ob_base, next_s_mem, n_mem_states)
 
         # update Q functions
         q_td.update(ob_aug, a_base, r_base, terminal, next_ob_aug, next_a_base)

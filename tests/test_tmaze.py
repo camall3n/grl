@@ -8,7 +8,7 @@ def test_slippery_tmaze():
     corridor_length = 5
     slip_prob = 0.1
     T, R, gamma, p0, phi = tmaze_lib.slippery_tmaze(corridor_length, slip_prob=slip_prob)
-    mdp = MDP(T, R, p0, gamma=gamma)
+    mdp = MDP(T, R, p0, gamma=1.0)
     slip_tmaze = AbstractMDP(mdp, phi)
 
     # make sure we have proper prob. dists.
@@ -21,13 +21,17 @@ def test_slippery_tmaze():
 
     success_right_counts, success_left_counts = np.zeros_like(go_right_states), np.zeros_like(
         go_left_states)
-    for i in range(samples):
+    for _ in range(samples):
         for s in go_right_states:
-            next_s, r, done = slip_tmaze.step(s, 2, 1)
+            slip_tmaze.reset(s)
+            info = slip_tmaze.step(2)[-1]
+            next_s = info['state']
             success_right_counts[s] += next_s == s + 2
 
         for s in go_left_states:
-            next_s, r, done = slip_tmaze.step(s, 3, 1)
+            slip_tmaze.reset(s)
+            info = slip_tmaze.step(3)[-1]
+            next_s = info['state']
             success_left_counts[s - 2] += next_s == s - 2
     success_right_ratios = success_right_counts / samples
     success_left_ratios = success_left_counts / samples
@@ -39,7 +43,7 @@ def test_slippery_tmaze():
 def tmaze():
     corridor_length = 5
     T, R, gamma, p0, phi = tmaze_lib.tmaze(corridor_length)
-    mdp = MDP(T, R, p0, gamma=gamma)
+    mdp = MDP(T, R, p0, gamma=1)
     tmaze = AbstractMDP(mdp, phi)
     return tmaze
 
@@ -49,10 +53,10 @@ def test_tmaze_start(tmaze):
     # first we test our start states
     start_counts = np.zeros(2)
     for _ in range(n_samples):
-        s = np.random.choice(tmaze.n_states, p=tmaze.p0)
+        ob, info = tmaze.reset()
+        s = info['state']
         start_counts[s] += 1
 
-        ob = tmaze.observe(s)
         if s == 0:
             assert ob == 0
         elif s == 1:
@@ -63,43 +67,58 @@ def test_tmaze_start(tmaze):
 
 def test_tmaze_noop(tmaze):
     # Now we test bumping - or self-loops/no-op actions.
-    bump_ns_states = np.arange(0, tmaze.n_states - 3).astype(int)
+    bump_ns_states = np.arange(0, tmaze.n_states - 3, dtype=int)
     for s in bump_ns_states:
         # test up
-        next_s, r, done = tmaze.step(s, 0, 1)
-        assert next_s == s and r == 0 and not done
+        tmaze.reset(s)
+        tmaze.gamma
+        _, r, terminal, _, info = tmaze.step(0)
+        next_s = info['state']
+        assert next_s == s and r == 0 and not terminal
 
         # test down
-        next_s, r, done = tmaze.step(s, 1, 1)
-        assert next_s == s and r == 0 and not done
+        tmaze.reset(s)
+        _, r, terminal, _, info = tmaze.step(1)
+        next_s = info['state']
+        assert next_s == s and r == 0 and not terminal
 
     bump_east_states = np.array([tmaze.n_states - 2 - 1, tmaze.n_states - 1 - 1])
     bump_west_states = np.array([0, 1])
     for s in bump_east_states:
-        next_s, r, done = tmaze.step(s, 2, 1)
-        assert next_s == s and r == 0 and not done
+        tmaze.reset(s)
+        _, r, terminal, _, info = tmaze.step(2)
+        next_s = info['state']
+        assert next_s == s and r == 0 and not terminal
 
     for s in bump_west_states:
-        next_s, r, done = tmaze.step(s, 3, 1)
-        assert next_s == s and r == 0 and not done
+        tmaze.reset(s)
+        _, r, terminal, _, info = tmaze.step(3)
+        next_s = info['state']
+        assert next_s == s and r == 0 and not terminal
 
 # Now we test moving
 def test_tmaze_move(tmaze):
     go_right_states = np.arange(0, tmaze.n_states - 3)
     for s in go_right_states:
-        next_s, r, done = tmaze.step(s, 2, 1)
-        assert next_s == s + 2 and r == 0 and not done
+        tmaze.reset(s)
+        _, r, terminal, _, info = tmaze.step(2)
+        next_s = info['state']
+        assert next_s == s + 2 and r == 0 and not terminal
 
     go_left_states = np.arange(2, tmaze.n_states - 1)
     for s in go_left_states:
-        next_s, r, done = tmaze.step(s, 3, 1)
-        assert next_s == s - 2 and r == 0 and not done
+        tmaze.reset(s)
+        _, r, terminal, _, info = tmaze.step(3)
+        next_s = info['state']
+        assert next_s == s - 2 and r == 0 and not terminal
 
 def test_tmaze_terminals(tmaze):
     # make sure our terminals are terminals
     for i in range(tmaze.n_actions):
-        next_s, r, done = tmaze.step(tmaze.n_states - 1, 0, 0)
-        assert done and next_s == tmaze.n_states - 1 and r == 0
+        tmaze.reset(tmaze.n_states - 1)
+        _, r, terminal, _, info = tmaze.step(0)
+        next_s = info['state']
+        assert terminal and next_s == tmaze.n_states - 1 and r == 0
 
 def test_tmaze_rewards(tmaze):
     # Test rewarding transitions
@@ -107,18 +126,26 @@ def test_tmaze_rewards(tmaze):
     bottom_junction = tmaze.n_states - 1 - 1
 
     # top rewards
-    next_s, r, done = tmaze.step(top_junction, 0, 0)
-    assert done and next_s == tmaze.n_states - 1 and r == 4
+    tmaze.reset(top_junction)
+    _, r, terminal, _, info = tmaze.step(0)
+    next_s = info['state']
+    assert terminal and next_s == tmaze.n_states - 1 and r == 4
 
-    next_s, r, done = tmaze.step(top_junction, 1, 0)
-    assert done and next_s == tmaze.n_states - 1 and r == -0.1
+    tmaze.reset(top_junction)
+    _, r, terminal, _, info = tmaze.step(1)
+    next_s = info['state']
+    assert terminal and next_s == tmaze.n_states - 1 and r == -0.1
 
     # Bottom rewards
-    next_s, r, done = tmaze.step(bottom_junction, 0, 0)
-    assert done and next_s == tmaze.n_states - 1 and r == -0.1
+    tmaze.reset(bottom_junction)
+    _, r, terminal, _, info = tmaze.step(0)
+    next_s = info['state']
+    assert terminal and next_s == tmaze.n_states - 1 and r == -0.1
 
-    next_s, r, done = tmaze.step(bottom_junction, 1, 0)
-    assert done and next_s == tmaze.n_states - 1 and r == 4
+    tmaze.reset(bottom_junction)
+    _, r, terminal, _, info = tmaze.step(1)
+    next_s = info['state']
+    assert terminal and next_s == tmaze.n_states - 1 and r == 4
 
 def test_tmaze_obs(tmaze):
     all_0_obs_states = np.array([0])
