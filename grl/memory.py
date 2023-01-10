@@ -3,11 +3,7 @@ from .mdp import MDP, AbstractMDP
 import numpy as np
 from jax import jit, nn
 import jax.numpy as jnp
-from jax.config import config
 from tqdm import tqdm
-
-config.update("jax_enable_x64", True)
-config.update('jax_platform_name', 'cpu')
 
 def memory_cross_product(amdp, mem_params: jnp.ndarray):
     """

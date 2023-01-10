@@ -1,11 +1,14 @@
 import numpy as np
 from jax.nn import softmax
+from jax.config import config
 
-from grl import load_spec, do_grad, RTOL
+config.update('jax_platform_name', 'cpu')
+
+from grl import load_spec, pe_grad, RTOL
 
 def test_example_7_p():
     """
-    Tests that do_grad reaches the known no-discrepancy policy for example 7
+    Tests that pe_grad reaches the known no-discrepancy policy for example 7
     """
     spec = load_spec('example_7')
 
@@ -16,13 +19,14 @@ def test_example_7_p():
     ])
 
     pi = np.array([[1., 0], [1, 0], [1, 0]])
-    pi_grad = do_grad(spec, pi, 'p', lr=1e-2)
+    pi_params, _ = pe_grad(spec, pi, 'p', lr=1e-2)
+    pi_grad = softmax(pi_params, axis=-1)
 
     assert np.allclose(pi_known[0], pi_grad[0], rtol=RTOL) # just assert the red obs policy
 
 def test_example_7_m():
     """
-    Tests that do_grad reaches a known no-discrepancy memory for example 7
+    Tests that pe_grad reaches a known no-discrepancy memory for example 7
     """
     spec = load_spec('example_7')
     memory_start = np.array([
@@ -71,6 +75,9 @@ def test_example_7_m():
         [1, 0],
         [1, 0],
     ])
-    memory_grad = do_grad(spec, pi, 'm', lr=1)
+    memory_grad, _ = pe_grad(spec, pi, 'm', lr=1)
 
     assert np.allclose(memory_end, softmax(memory_grad, axis=-1), atol=1e-2)
+
+if __name__ == "__main__":
+    test_example_7_m()

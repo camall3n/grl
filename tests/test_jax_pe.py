@@ -1,8 +1,12 @@
 import numpy as np
 import jax.numpy as jnp
-from itertools import product
+from jax.config import config
+
+config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, AbstractMDP, PolicyEval
+from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, amdp_get_occupancy
+from grl.utils.policy_eval import functional_solve_amdp, functional_solve_mdp
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
@@ -78,27 +82,22 @@ def indv_spec_jaxify_pe_funcs(spec):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 
     amdp = AbstractMDP(mdp, spec['phi'])
-
-    pe = PolicyEval(amdp)
-
-    pi_ground = amdp.get_ground_policy(pi)
-
     # MC*
-    # mdp_vals = self._solve_mdp(self.amdp, self.pi_ground)
-    mdp_vals = pe._solve_mdp(pe.amdp, pi_ground)
-    occupancy = pe.get_occupancy(pi)
-    p_pi_of_s_given_o = pe._get_p_s_given_o(amdp.n_obs, amdp.phi, occupancy)
+    pi_ground = amdp.get_ground_policy(pi)
+    mdp_v, mdp_q = functional_solve_mdp(pi_ground, mdp.T, mdp.R, mdp.gamma)
+    occupancy = amdp_get_occupancy(pi, amdp)
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
+    func_mc_vals = functional_solve_amdp(mdp_q, p_pi_of_s_given_o, pi)
 
-    func_mc_vals = pe._solve_amdp(mdp_vals['q'], p_pi_of_s_given_o, pi)
-
-    mc_vals = solve_amdp(amdp, mdp_vals['q'], pi, occupancy)
+    mc_vals = solve_amdp(amdp, mdp_q, pi, occupancy)
 
     assert np.all(np.isclose(mc_vals['v'], func_mc_vals['v'])) and np.all(
         np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
-    func_td_mdp = pe._create_td_model(p_pi_of_s_given_o)
-    # td_vals = pe._solve_mdp(func_td_mdp, pi)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp.phi, amdp.T, amdp.R)
+
+    func_td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 
     td_mdp = create_td_model(amdp, occupancy)
 

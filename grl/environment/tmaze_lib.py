@@ -95,8 +95,9 @@ def tmaze(n: int,
 def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
     T, R, discount, p0, phi = tmaze(n, discount=discount)
 
-    # First, create a matrix representing transition dynamics w/ a slip prob of slip_prob
-    # This is an identity matrix with slip_prob at diagonal b/c slip = no-op
+    # First, create a transition matrix w/ a prob of slip_prob of
+    # staying in the same state (hence the np.eye call)
+    # This is an identity matrix with slip_prob at diagonal
     slip_T = np.eye(T.shape[-1]) * slip_prob
 
     # We add these slip probabilities to ALL actions for all states.
