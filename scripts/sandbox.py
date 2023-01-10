@@ -50,7 +50,6 @@ for i in range(n_episodes):
         ob = next_ob
         a = next_a
 
-# TODO: archive non-augmented q functions to use as baselines?
 q_mc_orig = copy.deepcopy(q_mc)
 q_td_orig = copy.deepcopy(q_td)
 
@@ -160,9 +159,7 @@ for i in tqdm(range(n_episodes)):
 
         if pg_mode == 'selected_action':
             # compute sampled (squared) lambda discrepancy
-            # (R + \gamma G_{t+1}) - (R + \gamma Q_TD([ob+m]', a'))
             # (Q_MC([ob+m]', a') - Q_TD([ob+m]', a'))
-            # step_discr = (q_mc.q[a_base, ob_aug] - (r_base + amdp.gamma * q_td.q[next_a_base, next_ob_aug]))**2
             step_discr = (q_mc.q[a_base, ob_aug] - q_td.q[a_base, ob_aug])**2
             total_discrepancy += step_discr
 
@@ -191,14 +188,6 @@ for i in tqdm(range(n_episodes)):
         ob_aug = next_ob_aug
 
     mem_params += lr * total_discrepancy * param_updates
-    # if i % 100 == 0:
-    #     print(param_updates.round(4)[2, 0])
-    #     print()
-    #     print(param_updates.round(4)[2, 1])
-    #     print()
-    #     print(param_updates.round(4)[2, 2])
-    #     print()
-    #     print()
 
 #%%
 q_mc_orig.q
