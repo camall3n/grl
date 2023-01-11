@@ -96,7 +96,7 @@ mem_16 = np.array([
     ],
 ])
 memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
-mem_params = np.log(memory_16+1e-5)
+mem_params = np.log(memory_16 + 1e-5)
 # mem_params = np.sqrt(2) * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states)).round(2)
 lr = 0.01
 

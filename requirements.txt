@@ -6,3 +6,4 @@ matplotlib
 -e .
 tqdm
 onager
+optuna==3.1.0b0
