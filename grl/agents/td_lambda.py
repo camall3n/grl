@@ -97,18 +97,16 @@ def run_td_lambda_on_mdp(
     tdlq = TDLambdaQFunction(mdp.n_obs, mdp.n_actions, lambda_, mdp.gamma, alpha)
 
     for i in range(n_episodes):
-        s = np.random.choice(mdp.n_states, p=mdp.p0)
-        a = np.random.choice(mdp.n_actions, p=pi_ground[s])
+        obs, _ = mdp.reset()
+        a = np.random.choice(mdp.n_actions, p=pi[obs])
         done = False
         while not done:
-            ob = mdp.observe(s)
-            next_s, r, done = mdp.step(s, a, mdp.gamma)
-            next_a = np.random.choice(mdp.n_actions, p=pi_ground[next_s])
-            next_ob = mdp.observe(next_s)
+            next_obs, r, done, _, _ = mdp.step(a)
+            next_a = np.random.choice(mdp.n_actions, p=pi[next_obs])
 
-            tdlq.update(ob, a, r, done, next_ob, next_a)
+            tdlq.update(obs, a, r, done, next_obs, next_a)
 
-            s = next_s
+            obs = next_obs
             a = next_a
 
         if i % (n_episodes / 10) == 0:
