@@ -7,12 +7,11 @@ from optuna.visualization.matplotlib import plot_parallel_coordinate
 from optuna.visualization.matplotlib import plot_param_importances
 from optuna.visualization.matplotlib import plot_slice
 
-experiment_name = 'mlp_tune02'
+study_name = 'tmaze_cmaes_2k'
 storage = optuna.storages.JournalStorage(
-    optuna.storages.JournalFileStorage(
-        f"./factored_rl/hyperparams/tuning/{experiment_name}.journal"))
+    optuna.storages.JournalFileStorage(f"./results/sample_based/{study_name}/study.journal"))
 study = optuna.load_study(
-    study_name=f'{experiment_name}'.replace('_reduced', ''),
+    study_name=f'{study_name}',
     storage=storage,
 )
 
