@@ -25,7 +25,7 @@ assert agent.memory_params.shape == (4, 5, 1, 1)
 
 #%% Converge value functions
 
-n_episodes = 200
+n_episodes = 20000
 for i in tqdm(range(n_episodes)):
     agent.reset()
     obs, _ = env.reset()
