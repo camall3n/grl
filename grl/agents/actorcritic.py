@@ -1,4 +1,5 @@
 import copy
+from tqdm import tqdm
 
 # from jax.nn import softmax
 from scipy.special import softmax
@@ -17,16 +18,17 @@ class ActorCritic:
                  n_mem_entries: int = 0,
                  n_mem_values: int = 2,
                  learning_rate: float = 0.001,
-                 trace_type: str = 'accumulating') -> None:
+                 trace_type: str = 'accumulating',
+                 replay_buffer_size: int = 1000000) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
         self.n_mem_values = n_mem_values
         self.n_mem_entries = n_mem_entries
         self.n_mem_states = n_mem_values**n_mem_entries
-        self.policy_params = glorot_init((n_obs, n_actions), scale=0.2)
-        self.cached_policy = softmax(self.policy_params, axis=-1)
-        self.memory_params = glorot_init((n_obs, n_actions, self.n_mem_states, self.n_mem_states))
-        self.cached_memory_fn = softmax(self.memory_params, axis=-1)
+
+        self.set_policy(glorot_init((n_obs, n_actions), scale=0.2))
+        self.set_memory(glorot_init((n_actions, n_obs, self.n_mem_states, self.n_mem_states)))
+
         q_fn_kwargs = {
             'n_obs': n_obs,
             'n_actions': n_actions,
@@ -36,7 +38,7 @@ class ActorCritic:
         }
         self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
         self.q_mc = TDLambdaQFunction(lambda_=0.99, **q_fn_kwargs)
-        self.replay = ReplayMemory(capacity=1000000)
+        self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 
     def reset(self):
@@ -44,18 +46,18 @@ class ActorCritic:
         self.prev_action = None
 
     def act(self, obs):
-        obs = self.augment_obs(obs)
-        # policy_probs = softmax(self.policy_params[obs], axis=-1)
-        action = np.random.choice(self.n_actions, p=self.cached_policy[obs])
+        obs_aug = self.augment_obs(obs)
+        action = np.random.choice(self.n_actions, p=self.cached_policy[obs_aug])
+        self.step_memory(obs, action)
+        return action
 
-        # memory_probs = softmax(self.memory_params[obs, action, self.memory])
-        next_memory = np.random.choice(self.n_mem_states,
-                                       p=self.cached_memory_fn[obs, action, self.memory])
-
+    def step_memory(self, obs, action):
+        next_memory = np.random.choice(
+            self.n_mem_states,
+            p=self.cached_memory_fn[action, obs, self.memory],
+        )
         self.prev_memory = self.memory
         self.memory = next_memory
-
-        return action
 
     def store(self, experience):
         self.replay.push(experience)
@@ -89,16 +91,19 @@ class ActorCritic:
         study.optimize(objective, n_trials=100)
         study.best_params
 
-    def evaluate_memory(self):
-        self.q_mc.reset()
-        self.q_td.reset()
-        for experience in self.replay.memory:
-            e = experience.copy()
-            del e['_index_']
-            self.update_critic(experience)
-            if experience['terminal']:
-                self.reset()
-        return np.abs(self.q_mc.q - self.q_td.q).mean()
+    def evaluate_memory(self, n_epochs=1):
+        for epoch in range(n_epochs):
+            self.reset()
+            self.q_mc.reset()
+            self.q_td.reset()
+            for experience in tqdm(self.replay.memory, desc=f'epoch {epoch}'):
+                e = experience.copy()
+                del e['_index_']
+                self.step_memory(e['obs'], e['action'])
+                self.update_critic(e)
+                if experience['terminal']:
+                    self.reset()
+        return np.abs(self.q_mc.q - self.q_td.q).sum()
 
     def augment_obs(self, obs: int, memory: int = None) -> int:
         if memory is None:
@@ -111,7 +116,7 @@ class ActorCritic:
         augmented_experience = copy.deepcopy(experience)
         augmented_experience['obs'] = self.augment_obs(experience['obs'], self.prev_memory)
         augmented_experience['next_obs'] = self.augment_obs(experience['next_obs'], self.memory)
-        return experience
+        return augmented_experience
 
     def augment_policy(self, n_mem_states: int):
         """
@@ -127,3 +132,9 @@ class ActorCritic:
         self.q_td.augment_with_memory(mem_increase_multiplier)
         self.q_mc.augment_with_memory(mem_increase_multiplier)
         self.augment_policy(mem_increase_multiplier)
+
+        self.n_mem_entries += n_mem_entries
+        self.n_mem_states = self.n_mem_states * mem_increase_multiplier
+        memory_params = glorot_init(
+            (self.n_obs, self.n_actions, self.n_mem_states, self.n_mem_states))
+        self.set_memory(memory_params)

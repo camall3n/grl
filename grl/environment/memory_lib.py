@@ -9,10 +9,15 @@ and 2 actions: up, down
 Dimensions: AxZxMxM
 """
 
-def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2) -> np.ndarray:
+def get_memory(memory_id: int,
+               n_obs: int = None,
+               n_actions: int = None,
+               n_mem_states: int = 2) -> np.ndarray:
     current_module = globals()
     mem_name = f'memory_{memory_id}'
     if memory_id == 0:
+        if n_obs is None or n_actions is None:
+            raise ValueError('Must specify n_obs and n_actions when generating memory params')
         mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
     else:
         if mem_name in current_module:

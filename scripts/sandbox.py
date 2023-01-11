@@ -61,42 +61,42 @@ q_td_orig = copy.deepcopy(q_td)
 n_mem_states = 2
 n_mem_obs = amdp.n_obs * amdp.n_actions * n_mem_states
 initial_mem = 0
-p_hold = 0.95
-p_toggle = 1 - p_hold
-pi_mem_template = np.expand_dims(np.array([
-    [p_hold, p_toggle],
-    [p_toggle, p_hold],
-]), axis=(0, 1))
-mem_params = pi_mem_template * np.ones((amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
-mem_params = np.log(mem_params + 1e-5)
+# p_hold = 0.95
+# p_toggle = 1 - p_hold
+# pi_mem_template = np.expand_dims(np.array([
+#     [p_hold, p_toggle],
+#     [p_toggle, p_hold],
+# ]), axis=(0, 1))
+# mem_params = pi_mem_template * np.ones((amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
+# mem_params = np.log(mem_params + 1e-5)
 # mem_params += 0.5 * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
-# # Optimal memory for t-maze
-# mem_16 = np.array([
-#     [ # we see the goal as UP
-#         # Pr(m'| m, o)
-#         # m0', m1'
-#         [1., 0], # m0
-#         [1, 0], # m1
-#     ],
-#     [ # we see the goal as DOWN
-#         [0, 1],
-#         [0, 1],
-#     ],
-#     [ # corridor
-#         [1, 0],
-#         [0, 1],
-#     ],
-#     [ # junction
-#         [1, 0],
-#         [0, 1],
-#     ],
-#     [ # terminal
-#         [1, 0],
-#         [0, 1],
-#     ],
-# ])
-# memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
-# mem_params = np.log(memory_16+1e-5)
+# Optimal memory for t-maze
+mem_16 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
+    ],
+    [ # we see the goal as DOWN
+        [0, 1],
+        [0, 1],
+    ],
+    [ # corridor
+        [1, 0],
+        [0, 1],
+    ],
+    [ # junction
+        [1, 0],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
+mem_params = np.log(memory_16+1e-5)
 # mem_params = np.sqrt(2) * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states)).round(2)
 lr = 0.01
 
@@ -117,7 +117,8 @@ def augment_obs(ob_base, s_mem, n_mem_states):
     return ob_augmented
 
 #%%
-pg_mode = 'selected_action'
+pg_mode = None
+# pg_mode = 'selected_action'
 # pg_mode = 'all_actions'
 
 q_mc = copy.deepcopy(q_mc_orig)
@@ -145,7 +146,7 @@ for i in tqdm(range(n_episodes)):
     terminal = False
     timestep = 0
     while not terminal:
-        next_ob_base, r_base, terminal, _, _ = amdp.step(s_base, a_base)
+        next_ob_base, r_base, terminal, _, _ = amdp.step(a_base)
         next_s_mem = step_mem(s_mem, a_mem)
         next_ob_aug = augment_obs(next_ob_base, next_s_mem, n_mem_states)
 
@@ -183,7 +184,7 @@ for i in tqdm(range(n_episodes)):
 
         # increment timestep
         timestep += 1
-        s_base, ob_base, a_base = next_s_base, next_ob_base, next_a_base
+        ob_base, a_base = next_ob_base, next_a_base
         s_mem, a_mem = next_s_mem, next_a_mem
         ob_aug = next_ob_aug
 
@@ -194,8 +195,8 @@ q_mc_orig.q
 q_td_orig.q
 np.abs(q_mc_orig.q - q_td_orig.q)
 
-q_mc.q.round(4)
-q_td.q.round(4)
+q_mc.q.round(3)
+q_td.q.round(3)
 np.abs(q_mc.q - q_td.q).round(4)
 
 pi_base
