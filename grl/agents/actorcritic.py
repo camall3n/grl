@@ -1,4 +1,6 @@
 import copy
+import os
+import shutil
 from tqdm import tqdm
 
 # from jax.nn import softmax
@@ -6,7 +8,7 @@ from scipy.special import softmax
 import numpy as np
 import optuna
 
-from grl.utils.math import glorot_init
+from grl.utils.math import glorot_init as normal_init
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
 
@@ -26,8 +28,8 @@ class ActorCritic:
         self.n_mem_entries = n_mem_entries
         self.n_mem_states = n_mem_values**n_mem_entries
 
-        self.set_policy(glorot_init((n_obs * self.n_mem_states, n_actions), scale=0.2))
-        self.set_memory(glorot_init((n_actions, n_obs, self.n_mem_states, self.n_mem_states)))
+        self.reset_policy()
+        self.reset_memory()
 
         q_fn_kwargs = {
             'n_obs': n_obs,
@@ -41,10 +43,10 @@ class ActorCritic:
         self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 
-    def print_mem_summary(self):
+    def mem_summary(self):
         mem = self.cached_memory_fn.round(1)
-        mem_summary = np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1)
-        print(mem_summary)
+        mem_summary = str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1))
+        return mem_summary
 
     def reset(self):
         self.memory = 0
@@ -52,7 +54,7 @@ class ActorCritic:
 
     def act(self, obs):
         obs_aug = self.augment_obs(obs)
-        action = np.random.choice(self.n_actions, p=self.cached_policy[obs_aug])
+        action = np.random.choice(self.n_actions, p=self.cached_policy_fn[obs_aug])
         self.step_memory(obs, action)
         return action
 
@@ -72,9 +74,13 @@ class ActorCritic:
         self.q_td.update(**augmented_experience)
         self.q_mc.update(**augmented_experience)
 
-    def set_policy(self, params):
-        self.policy_params = params
-        self.cached_policy = softmax(self.policy_params, axis=-1)
+    def set_policy(self, params, logits=True):
+        if logits:
+            self.policy_params = params
+            self.cached_policy_fn = softmax(self.policy_params, axis=-1)
+        else:
+            self.cached_policy_fn = params
+            self.policy_params = np.log(self.cached_policy_fn + 1e-20)
 
     def set_memory(self, params, logits=True):
         if logits:
@@ -84,35 +90,71 @@ class ActorCritic:
             self.cached_memory_fn = params
             self.memory_params = np.log(self.cached_memory_fn + 1e-20)
 
+    def reset_policy(self):
+        policy_shape = (self.n_obs * self.n_mem_states, self.n_actions)
+        normal_init(policy_shape, scale=0.2)
+
+    def reset_memory(self):
+        mem_shape = (self.n_actions, self.n_obs, self.n_mem_states, self.n_mem_states)
+        self.set_memory(normal_init(mem_shape))
+
+    def fill_in_params(self, required_params):
+        required_params_shape = self.memory_params.shape[:-1] + (self.n_mem_values - 1, )
+        params = np.empty_like(self.memory_params)
+        params[:, :, :, :-1] = np.asarray(required_params).reshape(required_params_shape)
+        params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
+        return params
+
     def optimize_memory(
             self,
+            study_name=None,
             n_trials=100,
             n_epochs_per_trial=1,
-            sampler=optuna.samplers.CmaEsSampler(),
+            sampler=optuna.samplers.CmaEsSampler(restart_strategy='ipop', inc_popsize=2),
     ):
-        study = optuna.create_study(direction='minimize', sampler=sampler)
-
-        required_params_shape = self.memory_params.shape[:-1] + (self.n_mem_values - 1, )
-        n_required_params = np.prod(required_params_shape)
-
-        def fill_in_params(required_params):
-            params = np.empty_like(self.memory_params)
-            params[:, :, :, :-1] = np.asarray(required_params).reshape(required_params_shape)
-            params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
-            return params
+        study_dir = f'./results/sample_based/{study_name}'
+        if os.path.exists(study_dir):
+            shutil.rmtree(study_dir)
+        os.makedirs(study_dir, exist_ok=True)
+        study = optuna.create_study(
+            study_name=study_name,
+            direction='minimize',
+            storage=optuna.storages.JournalStorage(
+                optuna.storages.JournalFileStorage(os.path.join(study_dir, "study.journal"))),
+            sampler=sampler,
+        )
 
         def objective(trial: optuna.Trial):
-            print(trial.number)
+            n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
             required_params = [
                 trial.suggest_float(str(i), low=0.0, high=1.0) for i in range(n_required_params)
             ]
-            self.set_memory(fill_in_params(required_params), logits=False)
-            self.print_mem_summary()
+            self.set_memory(self.fill_in_params(required_params), logits=False)
             result = self.evaluate_memory(n_epochs_per_trial)
-            print(f'Discrep: {result}\n')
+
+            with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
+                file.write(f'{trial.number}\n')
+                file.write(self.mem_summary() + '\n')
+                file.write(f'Discrep: {result}\n\n')
+                file.flush()
             return result
 
         study.optimize(objective, n_trials=n_trials)
+
+        required_params = [
+            study.best_trial.params[key]
+            for key in sorted(study.best_trial.params.keys(), key=lambda x: int(x))
+        ]
+        params = self.fill_in_params(required_params)
+        self.set_memory(params, logits=False)
+
+        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
+            file.write('--------------------------------------------\n')
+            file.write(f'Best trial: {study.best_trial.number}\n')
+            file.write(self.mem_summary() + '\n')
+            file.write(f'Discrep: {study.best_trial.value}\n\n')
+            file.flush()
+
         return study
 
     def evaluate_memory(self, n_epochs=1):
@@ -157,7 +199,5 @@ class ActorCritic:
 
         self.n_mem_entries += n_mem_entries
         self.n_mem_states = self.n_mem_states * mem_increase_multiplier
-        memory_params = glorot_init(
-            (self.n_actions, self.n_obs, self.n_mem_states, self.n_mem_states))
-        self.set_memory(memory_params)
+        self.reset_memory()
         self.augment_policy(mem_increase_multiplier)
