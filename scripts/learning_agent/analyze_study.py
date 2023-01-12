@@ -24,7 +24,8 @@ agent = ActorCritic(n_obs=env.n_obs,
 agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
 agent.add_memory()
 
-study_name = 'tmaze_tpe_2k'
+sampler = 'tpe'
+study_name = f'tmaze_{sampler}_2k'
 storage = optuna.storages.JournalStorage(
     optuna.storages.JournalFileStorage(f"./results/sample_based/{study_name}/study.journal"))
 study = optuna.load_study(
@@ -36,12 +37,16 @@ params = [study.best_trial.params[key] for key in sorted(study.best_trial.params
 agent.set_memory(agent.fill_in_params(params), logits=False)
 print(agent.mem_summary())
 
-#%%
-plot_contour(study)
-plot_edf(study)
 plot_optimization_history(study)
-plt.title('Optimization History (TPE)')
-plt.ylim([0.05, 0.68])
-plot_parallel_coordinate(study)
-plot_param_importances(study)
-plot_slice(study)
+plt.title(f'Optimization History ({sampler.upper()})')
+plt.xlim([-20, 1000])
+plt.ylim([0.01, 0.75])
+plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
+plt.savefig(f'opt-history-{sampler}.png')
+
+#%%
+# plot_contour(study)
+# plot_edf(study)
+# plot_parallel_coordinate(study)
+# plot_param_importances(study)
+# plot_slice(study)
