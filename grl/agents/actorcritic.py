@@ -43,8 +43,8 @@ class ActorCritic:
         self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 
-    def mem_summary(self):
-        mem = self.cached_memory_fn.round(1)
+    def mem_summary(self, precision=2):
+        mem = self.cached_memory_fn.round(precision)
         mem_summary = str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1))
         return mem_summary
 
@@ -108,6 +108,7 @@ class ActorCritic:
     def optimize_memory(
             self,
             study_name=None,
+            preamble_str='',
             n_trials=100,
             n_epochs_per_trial=1,
             sampler=optuna.samplers.CmaEsSampler(restart_strategy='ipop', inc_popsize=2),
@@ -123,6 +124,10 @@ class ActorCritic:
                 optuna.storages.JournalFileStorage(os.path.join(study_dir, "study.journal"))),
             sampler=sampler,
         )
+
+        with open(os.path.join(study_dir, 'output.txt'), 'w') as file:
+            file.write(preamble_str)
+            file.flush()
 
         def objective(trial: optuna.Trial):
             n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states

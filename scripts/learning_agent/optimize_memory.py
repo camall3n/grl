@@ -2,6 +2,7 @@ import copy
 
 import numpy as np
 from tqdm import tqdm
+import optuna
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
@@ -55,16 +56,42 @@ q_td_orig = copy.deepcopy(agent.q_td.q)
 d0 = np.abs(q_mc_orig - q_td_orig).sum()
 
 #%% Add memory
-agent.add_memory(n_mem_entries=1)
+agent.add_memory()
 assert agent.policy_params.shape == (5 * 2, 4)
 assert agent.memory_params.shape == (4, 5, 2, 2)
 
 #%% Re-converge value functions based on expert memory
 
 agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
-print(agent.mem_summary())
-agent.evaluate_memory(n_epochs=1)
+discrep = agent.evaluate_memory(n_epochs=1)
+preamble_str = f"""Optimal memory function:
+{agent.mem_summary()}
+Discrep: {discrep}
+--------------------------------------------
+"""
+
+#%% Compare against noisy versions
+
+# def noisy_mem(mem_fn, alpha=0.1, n_mem_states=2):
+#     return (1-alpha) * mem_fn + alpha * np.ones_like(mem_fn) / n_mem_states
+#
+# agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
+# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.05), logits=False)
+# print(agent.mem_summary())
+# print(agent.evaluate_memory(n_epochs=1))
+#
+# print()
+# agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
+# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.1), logits=False)
+# print(agent.mem_summary())
+# print(agent.evaluate_memory(n_epochs=1))
+#
+# print()
+# agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
+# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.2), logits=False)
+# print(agent.mem_summary())
+# print(agent.evaluate_memory(n_epochs=1))
 
 #%% Optimize memory function
 
-study = agent.optimize_memory(study_name='tmaze_cmaes_2k', n_trials=2000)
+study = agent.optimize_memory(study_name='tmaze_tpe_2k', n_trials=2000, preamble_str=preamble_str, sampler=optuna.samplers.TPESampler())
