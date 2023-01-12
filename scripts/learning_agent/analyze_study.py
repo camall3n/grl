@@ -24,7 +24,6 @@ agent = ActorCritic(n_obs=env.n_obs,
 agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
 agent.add_memory()
 
-
 study_name = 'tmaze_tpe_2k'
 storage = optuna.storages.JournalStorage(
     optuna.storages.JournalFileStorage(f"./results/sample_based/{study_name}/study.journal"))
