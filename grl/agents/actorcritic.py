@@ -10,12 +10,12 @@ import optuna
 
 from grl.utils.math import glorot_init as normal_init
 from grl.agents.td_lambda import TDLambdaQFunction
-from grl.agents.replaymemory import ReplayMemory
+from grl.agents.base_agent import BaseAgent
 
 def one_hot(x, n):
     return np.eye(n)[x]
 
-class ActorCritic:
+class ActorCritic(BaseAgent):
     def __init__(self,
                  n_obs: int,
                  n_actions: int,
@@ -26,6 +26,8 @@ class ActorCritic:
                  trace_type: str = 'accumulating',
                  policy_epsilon: float = 0.1,
                  replay_buffer_size: int = 1000000) -> None:
+
+        super.__init__(replay_buffer_size)
         self.n_obs = n_obs
         self.n_actions = n_actions
         self.n_mem_values = n_mem_values
@@ -45,7 +47,6 @@ class ActorCritic:
         }
         self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
         self.q_mc = TDLambdaQFunction(lambda_=0.99, **q_fn_kwargs)
-        self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 
     def mem_summary(self, precision=2):
@@ -70,9 +71,6 @@ class ActorCritic:
         )
         self.prev_memory = self.memory
         self.memory = next_memory
-
-    def store(self, experience):
-        self.replay.push(experience)
 
     def update_actor(self):
         best_a = np.argmax(self.q_td.q.transpose(), axis=-1)

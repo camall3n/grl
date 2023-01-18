@@ -32,3 +32,8 @@ def greedify(pi: np.ndarray) -> np.ndarray:
     pi_greedy = np.zeros_like(pi)
     pi_greedy[np.arange(pi.shape[0]), pi.argmax(axis=-1)] = 1
     return pi_greedy
+
+def softmax(arr: np.ndarray) -> np.ndarray:
+    assert len(arr.shape) == 2
+    exps = np.exp(arr - np.max(arr, axis=1, keepdims=True))
+    return exps / np.sum(exps, axis=1, keepdims=True)
