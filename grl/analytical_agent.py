@@ -18,8 +18,9 @@ class AnalyticalAgent:
                  pi_params: jnp.ndarray,
                  rand_key: random.PRNGKey,
                  mem_params: jnp.ndarray = None,
-                 val_type: str = 'v',
+                 value_type: str = 'v',
                  error_type: str = 'l2',
+                 weight_discrep: bool = False,
                  pi_softmax_temp: float = 1,
                  policy_optim_alg: str = 'pi',
                  new_mem_pi: str = 'copy',
@@ -28,7 +29,7 @@ class AnalyticalAgent:
         :param pi_params: Policy parameters
         :param rand_key: Initialized jax PRNG key
         :param mem_params: Memory parameters (optional)
-        :param val_type: If we optimize lambda discrepancy, what type of lambda discrepancy do we optimize? (v | q)
+        :param value_type: If we optimize lambda discrepancy, what type of lambda discrepancy do we optimize? (v | q)
         :param error_type: lambda discrepancy error type (l2 | abs)
         :param pi_softmax_temp: When we take the softmax over pi_params, what is the softmax temperature?
         :param policy_optim_alg: What type of policy optimization do we do? (pi | pg)
@@ -46,8 +47,9 @@ class AnalyticalAgent:
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
         self.epsilon = epsilon
 
-        self.val_type = val_type
+        self.val_type = value_type
         self.error_type = error_type
+        self.weight_discrep = weight_discrep
 
         if self.val_type == 'v':
             if self.error_type == 'l2':
@@ -66,7 +68,10 @@ class AnalyticalAgent:
             elif self.error_type == 'abs':
                 self.policy_discrep_objective_func = jit(policy_discrep_v_abs_loss,
                                                          static_argnames=['gamma'])
-                self.memory_objective_func = jit(mem_q_abs_loss, static_argnames=['gamma'])
+                if self.weight_discrep:
+                    self.memory_objective_func = jit(weighted_mem_q_abs_loss, static_argnames=['gamma'])
+                else:
+                    self.memory_objective_func = jit(mem_q_abs_loss, static_argnames=['gamma'])
 
         self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi

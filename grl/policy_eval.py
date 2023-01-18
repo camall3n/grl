@@ -3,12 +3,10 @@ from jax import jit, value_and_grad
 from functools import partial
 
 from grl.utils.loss import *
-from grl.utils.mdp import functional_get_occupancy
-from grl.memory import memory_cross_product
-from grl.utils.policy_eval import functional_solve_amdp
 
 class PolicyEval:
-    def __init__(self, amdp, verbose=True, error_type: str = 'l2', value_type: str = 'q'):
+    def __init__(self, amdp, verbose=True, error_type: str = 'l2', value_type: str = 'q',
+                 weight_discrep: bool = False):
         """
         :param amdp:     AMDP
         :param verbose:  log everything
@@ -17,6 +15,7 @@ class PolicyEval:
         self.verbose = verbose
         self.error_type = error_type
         self.value_type = value_type
+        self.weight_discrep = weight_discrep
 
         # memory
         if self.value_type == 'v':
@@ -28,7 +27,10 @@ class PolicyEval:
             if self.error_type == 'l2':
                 self.fn_mem_loss = mem_q_l2_loss
             elif self.error_type == 'abs':
-                self.fn_mem_loss = mem_q_abs_loss
+                if self.weight_discrep:
+                    self.fn_mem_loss = weighted_mem_q_abs_loss
+                else:
+                    self.fn_mem_loss = mem_q_abs_loss
 
         # policy
         self.functional_loss_fn = self.functional_mse_loss
@@ -47,21 +49,21 @@ class PolicyEval:
     @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
     def functional_abs_loss(self, pi: jnp.ndarray, value_type: str, phi: jnp.ndarray,
                             T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
-        _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
+        _, mc_vals, td_vals, _ = analytical_pe(pi, phi, T, R, p0, gamma)
         diff = mc_vals[value_type] - td_vals[value_type]
         return jnp.abs(diff).mean()
 
     @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
     def functional_mse_loss(self, pi: jnp.ndarray, value_type: str, phi: jnp.ndarray,
                             T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
-        _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
+        _, mc_vals, td_vals, _ = analytical_pe(pi, phi, T, R, p0, gamma)
         diff = mc_vals[value_type] - td_vals[value_type]
         return (diff**2).mean()
 
     @partial(jit, static_argnames=['self', 'value_type', 'gamma'])
     def functional_max_loss(self, pi: jnp.ndarray, value_type: str, phi: jnp.ndarray,
                             T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
-        _, mc_vals, td_vals = analytical_pe(pi, phi, T, R, p0, gamma)
+        _, mc_vals, td_vals, _ = analytical_pe(pi, phi, T, R, p0, gamma)
         return jnp.abs(mc_vals[value_type] - td_vals[value_type]).max()
 
     def policy_update(self, params: jnp.ndarray, value_type: str, lr: float, *args, **kwargs):

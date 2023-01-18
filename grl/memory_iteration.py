@@ -16,9 +16,13 @@ def run_memory_iteration(spec: dict,
                          mi_lr: float = 1.,
                          policy_optim_alg: str = 'pi',
                          mi_iterations: int = 1,
-                         mi_per_steps: int = 50000,
-                         pi_per_steps: int = 50000,
-                         rand_key: jax.random.PRNGKey = None):
+                         mi_steps: int = 50000,
+                         pi_steps: int = 50000,
+                         rand_key: jax.random.PRNGKey = None,
+                         error_type: str = 'l2',
+                         value_type: str = 'v',
+                         weight_discrep: bool = False
+):
     """
     Wrapper function for the Memory Iteration algorithm.
     Memory iteration intersperses memory improvement and policy improvement.
@@ -28,8 +32,8 @@ def run_memory_iteration(spec: dict,
     :param policy_optim_alg:    Which policy improvement algorithm do we use?
         (dm: discrepancy maximization | pi: policy iteration | pg: policy gradient)
     :param mi_iterations:       How many memory iterations do we do?
-    :param mi_per_step:         Number of memory improvement steps PER memory iteration step.
-    :param pi_per_step:         Number of policy improvement steps PER memory iteration step.
+    :param mi_steps:         Number of memory improvement steps PER memory iteration step.
+    :param pi_steps:         Number of policy improvement steps PER memory iteration step.
     """
     assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
     mem_params = spec['mem_params']
@@ -48,15 +52,18 @@ def run_memory_iteration(spec: dict,
     agent = AnalyticalAgent(pi_params,
                             rand_key,
                             mem_params=mem_params,
-                            policy_optim_alg=policy_optim_alg)
+                            policy_optim_alg=policy_optim_alg,
+                            error_type=error_type,
+                            value_type=value_type,
+                            weight_discrep=weight_discrep)
 
     info, agent = memory_iteration(agent,
                                    amdp,
                                    pi_lr=pi_lr,
                                    mi_lr=mi_lr,
                                    mi_iterations=mi_iterations,
-                                   pi_per_step=pi_per_steps,
-                                   mi_per_step=mi_per_steps)
+                                   pi_per_step=pi_steps,
+                                   mi_per_step=mi_steps)
 
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here

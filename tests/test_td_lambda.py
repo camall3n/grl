@@ -34,7 +34,7 @@ def test_td_lambda():
     pe = PolicyEval(amdp)
     pi = spec['Pi_phi'][0]
 
-    mdp_vals, mc_vals, td_vals = pe.run(pi)
+    mdp_vals, mc_vals, td_vals, _ = pe.run(pi)
 
     assert np.all(np.isclose(mdp_vals['v'][:-1], ground_truth_vals)) and np.all(
         np.isclose(mdp_vals['q'][0][:-1], ground_truth_vals))
