@@ -6,3 +6,4 @@ matplotlib
 -e .
 tqdm
 onager
+sympy
