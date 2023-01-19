@@ -26,7 +26,13 @@ def discover_tests(pomdp):
 	# grab stuff from POMDP for convenience & to match namespace of Littman et al. 2001.
 	n = pomdp.n_states
 	T = pomdp.T
-	O = pomdp.phi # TODO may need to transform this?
+	# Slight modification: Phi is a matrix of (States x obs) giving probability of each observation for each state.
+	# we want to generate (obs x states x states) tensor, where each (states x states) matrix is diagonal, with diagonal value
+	# i, i of each matrix being probability of that observation at state i.
+	O = np.array([np.diag(v) for v in np.transpose(pomdp.phi)])
+
+	print(n)
+	print(O.shape)
 
 
 	# define u-function recursively as in Littman et al. 2001
@@ -34,13 +40,14 @@ def discover_tests(pomdp):
 	def _u_function(test):
 		# recursive function that converts a test to a 1xn vec for independence testing
 		if len(test) == 0:
-			return np.ones((1, n))
+			return np.ones((n,))
 		else:
 			prefix = test[0]
 			suffix = test[1:]
 			a = prefix[0]
 			o = prefix[1]
-			return np.transpose(T[a] @ O[a][o] @ np.transpose(_u_function(suffix)))
+			# modification: observation/state probabilities are independent of action
+			return np.transpose(T[a] @ O[o] @ np.transpose(_u_function(suffix)))
 
 	# def _u_function_one(ao_pair, vec):
 	# 	# function that performs only one step of the u-function: just append one action-observation pair.
@@ -55,7 +62,7 @@ def discover_tests(pomdp):
 	# start by visiting the null test
 	to_visit = [[]]
 	# start having visited nothing
-	visted = []
+	visited = []
 	# efficiency buffer for u vectors
 	visited_vectors = []
 
@@ -67,7 +74,7 @@ def discover_tests(pomdp):
 	current = to_visit[0]
 	to_visit = to_visit[1:]
 
-	visted.append(current)
+	visited.append(current)
 	visited_vectors.append(_u_function(current))
 	#first one is always linearly independent of nothing
 	Q.append(current)
@@ -77,10 +84,10 @@ def discover_tests(pomdp):
 		for obs in range(pomdp.n_obs):
 			new_pair = (action, obs)
 			# append test consisting of [(a', o'), (a, o), ...] to to_visit
-			to_visit.append(new_pair + current)
+			to_visit.append([new_pair] + current)
 
 
-
+	print(len(to_visit))
 	while len(to_visit) > 0:
 		# pop the next test
 		current = to_visit[0]
@@ -93,6 +100,7 @@ def discover_tests(pomdp):
 
 		# check linear independence
 		Q_check_m = np.stack(Q_uvectors + [current_u], axis=0)
+		print(current_u)
 
 		_, indexes = sym.Matrix(Q_check_m).T.rref()  # T is for transpose
 		if len(indexes) == len(Q_check_m):
@@ -105,10 +113,19 @@ def discover_tests(pomdp):
 				for obs in range(pomdp.n_obs):
 					new_pair = (action, obs)
 					# append test consisting of [(a', o'), (a, o), ...] to to_visit
-					to_visit.append(new_pair + current)
+					to_visit.append([new_pair] + current)
 
 	# when we're done, return Q
 	return Q
+
+
+def learn_test_probs(pomdp, Q):
+	"""
+	Learning algorithm from Littman, Jong et al. 2003.
+	Requires that a set of core tests Q have already been discovered (i.e. using discover_tests())
+	A "test" is a list of (action, observation) pairs.
+	"""
+	pass
 
 
 
