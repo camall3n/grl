@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 
-from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
+from grl import load_spec, MDP, AbstractMDP
 from grl.baselines.psr_jong import discover_tests
-from grl.memory_iteration import mem_improvement
 
 def test_discovery_tiger():
     """

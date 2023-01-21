@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 
-from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
+from grl import load_spec, MDP, AbstractMDP
 from grl.baselines.psr_jong import discover_tests, learn_weights
-from grl.memory_iteration import mem_improvement
 
 def test_learning_cheese():
     """
@@ -25,6 +24,7 @@ def test_learning_cheese():
     psr_model, err = learn_weights(amdp, Q)
     # print(psr_model.pi.shape)
     # print(psr_model.pi)
+
 
     # make sure we generated enough extension tests
     assert len(psr_model.weights.keys()) == amdp.n_obs * amdp.n_actions * len(Q) 
