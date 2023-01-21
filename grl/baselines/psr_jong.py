@@ -306,18 +306,5 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
         s = next_s
 
     
-    return model, None
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return model, avg_error
 
