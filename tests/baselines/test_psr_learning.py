@@ -34,5 +34,3 @@ def test_learning_cheese():
 
     # assert error is close to paper's value
     assert round(err-0.00037, 7) == 0, f"Error was {err}, should be close to 0.00037"
-
-
