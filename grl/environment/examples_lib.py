@@ -1,8 +1,12 @@
 import numpy as np
+from pathlib import Path
 
 from .memory_lib import *
 from .tmaze_lib import tmaze, slippery_tmaze
 from grl.mdp import random_stochastic_matrix
+from grl.environment.pomdp_file import POMDPFile
+from grl.utils.mdp import to_dict
+from definitions import ROOT_DIR
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -768,13 +772,23 @@ def tmaze_5_obs_optimal():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
-def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
-    return {
-        'T': T,
-        'R': R,
-        'gamma': gamma,
-        'p0': p0,
-        'phi': phi,
-        'Pi_phi': Pi_phi,
-        'Pi_phi_x': Pi_phi_x,
-    }
+def tiger_fixed_pi():
+    file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'tiger-alt-start.POMDP')
+    spec = POMDPFile(file_path).get_spec()
+    Pi_phi = [
+        np.array([
+            [1, 0, 0],
+            [0.1, 0.1, 0.8],
+            [0.1, 0.7, 0.2],
+            [0, 0, 1],
+        ])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+
+    spec['Pi_phi'] = Pi_phi
+    spec['Pi_phi_x'] = Pi_phi_x
+
+    return spec
+

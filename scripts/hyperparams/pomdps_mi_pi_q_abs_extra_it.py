@@ -4,7 +4,7 @@ hparams = {
     'args': [{
         'algo': 'mi',
         'spec': [
-            'tmaze_5_two_thirds_up', 'example_7', 'tiger-alt', '4x3.95', 'cheese.95', 'network',
+            'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95', 'network',
             'shuttle.95', 'paint.95'
             # 'bridge-repair',
             # 'hallway'

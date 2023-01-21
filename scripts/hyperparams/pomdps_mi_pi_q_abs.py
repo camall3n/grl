@@ -20,6 +20,6 @@ hparams = {
         # 'n_mem_states': [2, 3],
         'n_mem_states': 2,
         'mi_iterations': 2,
-        'seed': [2020 + i for i in range(10)],
+        'seed': [2020 + i for i in range(10, 30)],
     }]
 }

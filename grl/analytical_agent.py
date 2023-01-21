@@ -120,11 +120,11 @@ class AnalyticalAgent:
         params += lr * params_grad
         return v_0, td_v_vals, td_q_vals, params
 
-    @partial(jit, static_argnames=['self', 'value_type', 'gamma', 'lr'])
-    def functional_dm_update(self, params: jnp.ndarray, gamma: float, value_type: str, lr: float,
+    @partial(jit, static_argnames=['self', 'gamma', 'lr'])
+    def functional_dm_update(self, params: jnp.ndarray, gamma: float, lr: float,
                              T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
-                                           has_aux=True)(params, gamma, value_type, T, R, phi, p0)
+                                           has_aux=True)(params, gamma, T, R, phi, p0)
         loss, (mc_vals, td_vals) = outs
         params += lr * params_grad
         return loss, mc_vals, td_vals, params

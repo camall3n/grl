@@ -75,6 +75,10 @@ def run_memory_iteration(spec: dict,
     info['greedy_initial_improvement_stats'] = lambda_discrep_measures(
         amdp, greedy_initial_improvement_policy)
 
+    if policy_optim_alg == 'dm':
+        info['td_optimal_policy_stats'] = lambda_discrep_measures(amdp, info['td_optimal_memoryless_policy'])
+        info['greedy_td_optimal_policy_stats'] = lambda_discrep_measures(amdp, greedify(info['td_optimal_memoryless_policy']))
+
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
         init_mem_amdp = memory_cross_product(amdp, info['initial_mem_params'])
@@ -118,6 +122,19 @@ def memory_iteration(
     td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp.T, init_amdp.R, init_amdp.phi,
                                  init_amdp.p0, init_amdp.gamma)
     info['initial_values'] = {'v': td_v_vals, 'q': td_q_vals}
+
+    if agent.policy_optim_alg == 'dm':
+        initial_pi_params = agent.pi_params.copy()
+
+        # Change modes, run policy iteration
+        agent.policy_optim_alg = 'pi'
+        print("Calculating TD-optimal memoryless policy")
+        pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
+        info['td_optimal_memoryless_policy'] = agent.policy.copy()
+
+        # reset our policy again
+        agent.pi_params = initial_pi_params
+        agent.policy_optim_alg = 'dm'
 
     if init_pi_improvement:
         # initial policy improvement

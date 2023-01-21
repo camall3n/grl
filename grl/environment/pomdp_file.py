@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Union
 
-from .examples_lib import to_dict
+from grl.utils.mdp import to_dict
 
 class POMDPFile:
     """

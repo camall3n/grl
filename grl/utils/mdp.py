@@ -67,3 +67,18 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, phi: jnp.ndarray,
     R_obs_obs = R_obs_obs_flat.reshape(R.shape[0], phi.shape[-1], phi.shape[-1])
 
     return T_obs_obs, R_obs_obs
+
+def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
+    return {
+        'T': T,
+        'R': R,
+        'gamma': gamma,
+        'p0': p0,
+        'phi': phi,
+        'Pi_phi': Pi_phi,
+        'Pi_phi_x': Pi_phi_x,
+    }
+
+def get_perf(info: dict):
+    return (info['state_vals_v'] * info['p0']).sum()
+

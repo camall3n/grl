@@ -428,9 +428,9 @@ if __name__ == '__main__':
                         help='Weight our lambda discrepancy with observation occupancies.')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
-    parser.add_argument('--value_type', default='v', type=str,
+    parser.add_argument('--value_type', default='q', type=str,
                         help='Do we use (v | q) for our discrepancies?')
-    parser.add_argument('--error_type', default='l2', type=str,
+    parser.add_argument('--error_type', default='abs', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--heatmap', action='store_true',
