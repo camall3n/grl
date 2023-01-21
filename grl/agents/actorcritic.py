@@ -12,6 +12,9 @@ from grl.utils.math import glorot_init as normal_init
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
 
+def one_hot(x, n):
+    return np.eye(n)[x]
+
 class ActorCritic:
     def __init__(self,
                  n_obs: int,
@@ -21,12 +24,14 @@ class ActorCritic:
                  n_mem_values: int = 2,
                  learning_rate: float = 0.001,
                  trace_type: str = 'accumulating',
+                 policy_epsilon: float = 0.1,
                  replay_buffer_size: int = 1000000) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
         self.n_mem_values = n_mem_values
         self.n_mem_entries = n_mem_entries
         self.n_mem_states = n_mem_values**n_mem_entries
+        self.policy_epsilon = policy_epsilon
 
         self.reset_policy()
         self.reset_memory()
@@ -69,6 +74,16 @@ class ActorCritic:
     def store(self, experience):
         self.replay.push(experience)
 
+    def update_actor(self):
+        best_a = np.argmax(self.q_td.q.transpose(), axis=-1)
+        greedy_pi = one_hot(best_a, self.n_actions)
+        uniform_pi = np.ones_like(greedy_pi) / self.n_actions
+        new_policy = (1 - self.policy_epsilon) * greedy_pi + self.policy_epsilon * uniform_pi
+        did_change = self.set_policy(new_policy, logits=False)
+        if did_change:
+            self.replay.reset()
+        return did_change
+
     def update_critic(self, experience: dict):
         augmented_experience = self.augment_experience(experience)
         self.q_td.update(**augmented_experience)
@@ -76,11 +91,14 @@ class ActorCritic:
 
     def set_policy(self, params, logits=True):
         if logits:
+            did_change = not np.array_equal(params, self.policy_params)
             self.policy_params = params
             self.cached_policy_fn = softmax(self.policy_params, axis=-1)
         else:
+            did_change = not np.array_equal(params, self.cached_policy_fn)
             self.cached_policy_fn = params
             self.policy_params = np.log(self.cached_policy_fn + 1e-20)
+        return did_change
 
     def set_memory(self, params, logits=True):
         if logits:
@@ -91,8 +109,10 @@ class ActorCritic:
             self.memory_params = np.log(self.cached_memory_fn + 1e-20)
 
     def reset_policy(self):
+        self.policy_params = None
+        self.cached_policy_fn = None
         policy_shape = (self.n_obs * self.n_mem_states, self.n_actions)
-        normal_init(policy_shape, scale=0.2)
+        self.set_policy(normal_init(policy_shape, scale=0.2))
 
     def reset_memory(self):
         mem_shape = (self.n_actions, self.n_obs, self.n_mem_states, self.n_mem_states)
@@ -109,9 +129,10 @@ class ActorCritic:
             self,
             study_name=None,
             preamble_str='',
-            n_trials=100,
+            n_trials=500,
+            n_jobs=1,
             n_epochs_per_trial=1,
-            sampler=optuna.samplers.CmaEsSampler(restart_strategy='ipop', inc_popsize=2),
+            sampler=optuna.samplers.TPESampler(),
     ):
         study_dir = f'./results/sample_based/{study_name}'
         if os.path.exists(study_dir):
@@ -144,7 +165,11 @@ class ActorCritic:
                 file.flush()
             return result
 
-        study.optimize(objective, n_trials=n_trials)
+        study.optimize(
+            objective,
+            n_trials=n_trials,
+            n_jobs=n_jobs,
+        )
 
         required_params = [
             study.best_trial.params[key]

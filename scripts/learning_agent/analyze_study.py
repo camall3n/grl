@@ -25,9 +25,10 @@ agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory obser
 agent.add_memory()
 
 sampler = 'tpe'
-study_name = f'tmaze_{sampler}_2k'
+study_name = f'mi/0'
+study_dir = f'./results/sample_based/{study_name}/'
 storage = optuna.storages.JournalStorage(
-    optuna.storages.JournalFileStorage(f"./results/sample_based/{study_name}/study.journal"))
+    optuna.storages.JournalFileStorage(f"{study_dir}/study.journal"))
 study = optuna.load_study(
     study_name=f'{study_name}',
     storage=storage,
@@ -39,10 +40,10 @@ print(agent.mem_summary())
 
 plot_optimization_history(study)
 plt.title(f'Optimization History ({sampler.upper()})')
-plt.xlim([-20, 1000])
-plt.ylim([0.01, 0.75])
+plt.xlim([-20, 500])
+plt.ylim([-0.01, 0.75])
 plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
-plt.savefig(f'opt-history-{sampler}.png')
+plt.savefig(f'{study_dir}/opt-history-{sampler}.png')
 
 #%%
 # plot_contour(study)

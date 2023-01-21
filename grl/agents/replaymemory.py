@@ -11,10 +11,10 @@ class ReplayMemory:
         if on_retrieve is not None:
             self.on_retrieve.update(on_retrieve)
 
-        self.fields = set()
         self.reset()
 
     def reset(self):
+        self.fields = set()
         self.memory = []
         self.position = 0
 
