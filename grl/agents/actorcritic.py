@@ -135,8 +135,8 @@ class ActorCritic:
             sampler=optuna.samplers.TPESampler(),
     ):
         study_dir = f'./results/sample_based/{study_name}'
-        if os.path.exists(study_dir):
-            shutil.rmtree(study_dir)
+        # if os.path.exists(study_dir):
+        #     shutil.rmtree(study_dir)
         os.makedirs(study_dir, exist_ok=True)
         study = optuna.create_study(
             study_name=study_name,
@@ -144,6 +144,7 @@ class ActorCritic:
             storage=optuna.storages.JournalStorage(
                 optuna.storages.JournalFileStorage(os.path.join(study_dir, "study.journal"))),
             sampler=sampler,
+            load_if_exists=True,
         )
 
         with open(os.path.join(study_dir, 'output.txt'), 'w') as file:

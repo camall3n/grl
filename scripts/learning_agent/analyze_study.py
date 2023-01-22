@@ -13,7 +13,7 @@ from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
 
-spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
+spec = environment.load_spec('tmaze_5_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])
 agent = ActorCritic(n_obs=env.n_obs,
@@ -41,7 +41,7 @@ print(agent.mem_summary())
 plot_optimization_history(study)
 plt.title(f'Optimization History ({sampler.upper()})')
 plt.xlim([-20, 500])
-plt.ylim([-0.01, 0.75])
+# plt.ylim([-0.01, 0.75])
 plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
 plt.savefig(f'{study_dir}/opt-history-{sampler}.png')
 
