@@ -1,4 +1,6 @@
+import argparse
 import copy
+import os
 
 import numpy as np
 from tqdm import tqdm
@@ -9,19 +11,21 @@ from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
 
-#%% Initialize environment
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
+    parser.add_argument('--study_name', type=str, default='mi')
+    parser.add_argument('--n_memory_trials', type=int, default=10000)
+    parser.add_argument('--n_memory_iterations', type=int, default=2)
+    parser.add_argument('--n_policy_iterations', type=int, default=100)
+    parser.add_argument('--n_episodes_per_policy', type=int, default=50000)
+    return parser.parse_args()
 
-spec = environment.load_spec('tmaze_5_two_thirds_up', memory_id=None)
-mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-env = AbstractMDP(mdp, spec['phi'])
-agent = ActorCritic(n_obs=env.n_obs,
-                    n_actions=env.n_actions,
-                    gamma=env.gamma,
-                    n_mem_entries=0,
-                    replay_buffer_size=int(4e6))
+global args
+args = parse_args()
 
-def converge_value_functions(n_episodes=1000):
-    for i in tqdm(range(n_episodes)):
+def converge_value_functions(agent, env):
+    for i in range(args.n_episodes_per_policy):
         agent.reset()
         obs, _ = env.reset()
         action = agent.act(obs)
@@ -44,18 +48,75 @@ def converge_value_functions(n_episodes=1000):
 
             obs = next_obs
             action = next_action
-#%%
-n_mem_iterations = 0
-for i in range(100):
-    print(f'iteration: {i}')
-    print(agent.cached_policy_fn)
-    converge_value_functions()
-    did_change = agent.update_actor()
-    if not did_change:
-        break
 
-#%%
-if agent.n_mem_entries == 0:
-    agent.add_memory()
-agent.optimize_memory(f'mi1/{n_mem_iterations}', n_jobs=3)
-n_mem_iterations += 1
+def optimize_policy(agent, env):
+    for i in tqdm(range(args.n_policy_iterations)):
+        print(f'Policy iteration: {i}')
+        print(agent.cached_policy_fn)
+        converge_value_functions(agent, env)
+        did_change = agent.update_actor()
+        if not did_change:
+            break
+
+def cpu_count():
+    # os.cpu_count()
+    #     returns number of cores on machine
+    # os.sched_getaffinity(pid)
+    #     returns set of cores on which process is allowed to run
+    #     if pid=0, results are for current process
+    #
+    # if os.sched_getaffinity doesn't exist, just return cpu_count and hope for the best
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        return os.cpu_count()
+
+def get_n_workers(n_tasks):
+    workers_available = max(1, cpu_count())
+    workers_needed = n_tasks
+    n_workers = min(workers_needed, workers_available)
+    return n_workers
+
+def main():
+    parse_args()
+    spec = environment.load_spec(args.env, memory_id=None)
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    env = AbstractMDP(mdp, spec['phi'])
+    agent = ActorCritic(n_obs=env.n_obs,
+                        n_actions=env.n_actions,
+                        gamma=env.gamma,
+                        n_mem_entries=0,
+                        replay_buffer_size=int(4e6))
+
+    for n_mem_iterations in range(args.n_memory_iterations):
+        print(f"Memory iteration {n_mem_iterations}")
+        agent.reset_policy()
+        optimize_policy(agent, env)
+
+        if agent.n_mem_entries == 0:
+            agent.add_memory()
+
+        agent.optimize_memory(
+            f'{args.env}/{args.study_name}/{n_mem_iterations}',
+            n_jobs=get_n_workers(args.n_memory_trials),
+            n_trials=args.n_memory_trials,
+        )
+
+        print('Memory:')
+        print(agent.mem_summary())
+        print()
+        print('Policy:')
+        print(agent.cached_policy_fn)
+
+
+    agent.reset_policy()
+    optimize_policy(agent, env)
+
+    print('Final memory:')
+    print(agent.mem_summary())
+    print()
+    print('Final policy:')
+    print(agent.cached_policy_fn)
+
+if __name__ == '__main__':
+    main()

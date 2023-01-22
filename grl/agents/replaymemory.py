@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json
 import os
+import pickle
 
 import numpy as np
 
@@ -74,33 +75,44 @@ class ReplayMemory:
         return items
 
     def save(self, directory, filename='replaymemory', extension='.json'):
-        if extension != '.json':
-            raise NotImplementedError
-        fields = sorted(list(self.fields))
-
-        data = [{key: serialize_np(value)
-                 for key, value in experience.items()} for experience in self.memory]
-        archive = {
-            'capacity': self.capacity,
-            'position': self.position,
-            'fields': fields,
-            'memory': data,
-        }
-        os.makedirs(directory, exist_ok=True)
         filepath = os.path.join(directory, filename + extension)
-        with open(filepath, 'w') as fp:
-            json.dump(archive, fp)
+        if extension == '.json':
+            fields = sorted(list(self.fields))
+
+            data = [{key: serialize_np(value)
+                     for key, value in experience.items()} for experience in self.memory]
+            archive = {
+                'capacity': self.capacity,
+                'position': self.position,
+                'fields': fields,
+                'memory': data,
+            }
+            os.makedirs(directory, exist_ok=True)
+            with open(filepath, 'w') as fp:
+                json.dump(archive, fp)
+        elif extension == '.pkl':
+            with open(filepath, 'wb') as fp:
+                pickle.dump(self, fp)
+        else:
+            raise NotImplementedError(f'Unknown replaymemory file type: {extension}')
 
     def load(self, filepath):
-        with open(filepath, 'r') as fp:
-            archive = json.load(fp)
-        self.capacity = int(archive['capacity'])
-        self.position = int(archive['position'])
-        self.fields = set(archive['fields'])
-        self.memory = [{
-            key: unserialize_np(value, dtype)
-            for (key, (value, dtype)) in experience.items()
-        } for experience in archive['memory']]
+        extension = os.path.splitext(filepath)[-1]
+        if extension == '.json':
+            with open(filepath, 'r') as fp:
+                archive = json.load(fp)
+            self.capacity = int(archive['capacity'])
+            self.position = int(archive['position'])
+            self.fields = set(archive['fields'])
+            self.memory = [{
+                key: unserialize_np(value, dtype)
+                for (key, (value, dtype)) in experience.items()
+            } for experience in archive['memory']]
+        elif extension == '.pkl':
+            with open(filepath, 'rb') as fp:
+                return pickle.load(fp)
+        else:
+            raise NotImplementedError(f'Unknown replaymemory file type: {extension}')
 
 def serialize_np(value):
     output = value

@@ -40,7 +40,7 @@ print(agent.mem_summary())
 
 plot_optimization_history(study)
 plt.title(f'Optimization History ({sampler.upper()})')
-plt.xlim([-20, 500])
+plt.xlim([-20, 1000])
 # plt.ylim([-0.01, 0.75])
 plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
 plt.savefig(f'{study_dir}/opt-history-{sampler}.png')
