@@ -1,6 +1,7 @@
 import copy
 import os
 import shutil
+from multiprocessing import Pool
 from tqdm import tqdm
 
 # from jax.nn import softmax
@@ -166,11 +167,14 @@ class ActorCritic:
                 file.flush()
             return result
 
-        study.optimize(
-            objective,
-            n_trials=n_trials,
-            n_jobs=n_jobs,
-        )
+        n_trials_per_worker = np.ones(n_jobs) * (n_trials // n_jobs)
+        n_trials_per_worker[-1] = n_trials % n_trials_per_worker[0]
+        print(f'Starting pool with {n_jobs} workers')
+        print(f'n_trials_per_worker: {n_trials_per_worker}')
+        pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
+        pool.map(lambda n: study.optimize(objective, n_trials=n), n_trials_per_worker)
+        pool.close()
+        pool.join()
 
         required_params = [
             study.best_trial.params[key]
