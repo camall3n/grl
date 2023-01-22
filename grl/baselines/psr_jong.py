@@ -123,6 +123,8 @@ class PSR:
         self.pi = pi
         self.Q = Q
         self.pred_vec = np.ones((self.num_Q,))
+        self._sub_histories = set()
+        self._sub_histories_actions = set()
 
         # set of extension tests and associated weight vectors
         # currently zero-initalize? TODO
@@ -133,6 +135,13 @@ class PSR:
                 for core_test in Q:
                     ext_test = [extension_pair] + core_test
                     self.weights[tuple(ext_test)] = np.zeros((self.num_Q,))
+
+    def flush_history(self):
+        # dump stored subhistories and learned prediction vectors.
+        # Use this if you're restarting in a new environment; for instance, if you are
+        # evaluating on a run separate from the training run.
+        self.pred_vec = np.ones((self.num_Q,))
+        self._sub_histories = set()
 
     def get_pair_prob(self, action, observation):
         """
@@ -173,17 +182,30 @@ class PSR:
     def update_weights(self, history, stepsize):
         # get all sub-histories using list comprehension, ignoring duplicates
         # convert sub-histories to tuples for compatability with weight keys
-        sub_histories = set([tuple(history[i: j]) for i in range(len(history)) for j in range(i + 1, len(history) + 1)])
-        sub_histories_actions = set([tuple([tup[0] for tup in sh]) for sh in sub_histories])
+
+
+        # efficient sub history calculation, thanks Sam!!
+
+
+        for i in range(len(history)):
+            # only get the sub-histories that end at the end of history;
+            # we got the intermediate ones on previous calls to update_weights (assuming normal training conditions.)
+            subseq = tuple(history[i:len(history)+1])
+            if subseq in self._sub_histories:
+                break
+            
+            self._sub_histories.add(subseq)
+            self._sub_histories_actions.add(tuple(tup[0] for tup in subseq))
+
 
         for ext_test in self.weights.keys():
             # always 1 in original paper
             importance_sampling_weight = 1
             test_actions = tuple([tup[0] for tup in ext_test])
             # check if the test's actions have ever been executed
-            if test_actions in sub_histories_actions:
+            if test_actions in self._sub_histories_actions:
                 # check if test observations were seen
-                X_xt = 1 if ext_test in sub_histories else 0
+                X_xt = 1 if ext_test in self._sub_histories else 0
                 # run weight update
                 self.weights[ext_test] = self.weights[ext_test] + stepsize * importance_sampling_weight * \
                 (X_xt - np.transpose(self.pred_vec).dot(self.weights[ext_test])) * self.pred_vec
@@ -239,8 +261,8 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
     avg_error = 0.0
 
     for t in range(steps):
-        if len(history) > 100000:
-            # truncate history to last 100k steps to save memory
+        if len(history) > 10000:
+            # truncate history to last 10k steps to save memory
             history = history[1:]
 
         if done:

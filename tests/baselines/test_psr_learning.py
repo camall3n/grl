@@ -21,7 +21,7 @@ def test_learning_cheese():
 
     assert len(Q) == 11
 
-    psr_model, err = learn_weights(amdp, Q)
+    psr_model, err = learn_weights(amdp, Q, steps=5000)
     # print(psr_model.pi.shape)
     # print(psr_model.pi)
 
