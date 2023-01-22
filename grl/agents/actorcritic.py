@@ -1,7 +1,9 @@
 import copy
+from functools import partial
+from itertools import repeat
+from multiprocessing import Pool
 import os
 import shutil
-from multiprocessing import Pool
 from tqdm import tqdm
 
 # from jax.nn import softmax
@@ -126,13 +128,27 @@ class ActorCritic:
         params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
         return params
 
+    def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
+        n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
+        required_params = [
+            trial.suggest_float(str(i), low=0.0, high=1.0) for i in range(n_required_params)
+        ]
+        self.set_memory(self.fill_in_params(required_params), logits=False)
+        result = self.evaluate_memory()
+
+        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
+            file.write(f'{trial.number}\n')
+            file.write(self.mem_summary() + '\n')
+            file.write(f'Discrep: {result}\n\n')
+            file.flush()
+        return result
+
     def optimize_memory(
             self,
             study_name=None,
             preamble_str='',
             n_trials=500,
             n_jobs=1,
-            n_epochs_per_trial=1,
             sampler=optuna.samplers.TPESampler(),
     ):
         study_dir = f'./results/sample_based/{study_name}'
@@ -152,27 +168,16 @@ class ActorCritic:
             file.write(preamble_str)
             file.flush()
 
-        def objective(trial: optuna.Trial):
-            n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
-            required_params = [
-                trial.suggest_float(str(i), low=0.0, high=1.0) for i in range(n_required_params)
-            ]
-            self.set_memory(self.fill_in_params(required_params), logits=False)
-            result = self.evaluate_memory(n_epochs_per_trial)
-
-            with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
-                file.write(f'{trial.number}\n')
-                file.write(self.mem_summary() + '\n')
-                file.write(f'Discrep: {result}\n\n')
-                file.flush()
-            return result
-
+        n_jobs = max(n_jobs, 1)
         n_trials_per_worker = np.ones(n_jobs) * (n_trials // n_jobs)
-        n_trials_per_worker[-1] = n_trials % n_trials_per_worker[0]
+        n_trials_per_worker[-1] = np.ceil(n_trials / n_jobs)
         print(f'Starting pool with {n_jobs} workers')
         print(f'n_trials_per_worker: {n_trials_per_worker}')
         pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
-        pool.map(lambda n: study.optimize(objective, n_trials=n), n_trials_per_worker)
+        pool.starmap(
+            study.optimize,
+            zip(repeat(partial(self.objective, study_dir=study_dir)), n_trials_per_worker),
+        )
         pool.close()
         pool.join()
 

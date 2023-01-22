@@ -20,7 +20,7 @@ agent = ActorCritic(n_obs=env.n_obs,
                     n_mem_entries=0,
                     replay_buffer_size=int(4e6))
 
-def converge_value_functions(n_episodes=20000):
+def converge_value_functions(n_episodes=1000):
     for i in tqdm(range(n_episodes)):
         agent.reset()
         obs, _ = env.reset()
@@ -44,7 +44,6 @@ def converge_value_functions(n_episodes=20000):
 
             obs = next_obs
             action = next_action
-
 #%%
 n_mem_iterations = 0
 for i in range(100):
@@ -58,5 +57,5 @@ for i in range(100):
 #%%
 if agent.n_mem_entries == 0:
     agent.add_memory()
-agent.optimize_memory(f'mi/{n_mem_iterations}')
+agent.optimize_memory(f'mi1/{n_mem_iterations}', n_jobs=3)
 n_mem_iterations += 1

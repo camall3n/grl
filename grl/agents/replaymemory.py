@@ -56,6 +56,15 @@ class ReplayMemory:
     def __len__(self):
         return len(self.memory)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['on_retrieve']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.on_retrieve = defaultdict(lambda: (lambda items: items))
+
     def _extract_array(self, experiences, key):
         items = [experience[key] for experience in experiences]
         if self.on_retrieve:
