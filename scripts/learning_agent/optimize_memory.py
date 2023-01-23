@@ -94,7 +94,4 @@ Discrep: {discrep}
 
 #%% Optimize memory function
 
-study = agent.optimize_memory(study_name='tmaze_tpe_2k',
-                              n_trials=2000,
-                              preamble_str=preamble_str,
-                              sampler=optuna.samplers.TPESampler())
+study = agent.optimize_memory(study_name='tmaze_tpe_2k', n_trials=2000, preamble_str=preamble_str)

@@ -150,7 +150,7 @@ class ActorCritic:
             preamble_str='',
             n_trials=500,
             n_jobs=1,
-            sampler=optuna.samplers.TPESampler(),
+            sampler=optuna.samplers.TPESampler(constant_liar=True),
     ):
         study_dir = f'./results/sample_based/{study_name}'
         # if os.path.exists(study_dir):
