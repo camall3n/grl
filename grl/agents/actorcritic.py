@@ -47,7 +47,7 @@ class ActorCritic:
             'trace_type': trace_type
         }
         self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
-        self.q_mc = TDLambdaQFunction(lambda_=0.99, **q_fn_kwargs)
+        self.q_mc = TDLambdaQFunction(lambda_=0.9, **q_fn_kwargs)
         self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 

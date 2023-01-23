@@ -14,12 +14,11 @@ from grl.environment.memory_lib import get_memory
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
-    parser.add_argument('--study_name', type=str, default='mi')
-    parser.add_argument('--n_memory_trials', type=int, default=5000)
-    parser.add_argument('--n_memory_trials_per_buffer', type=int, default=100)
-    parser.add_argument('--n_memory_iterations', type=int, default=2)
+    parser.add_argument('--study_name', type=str, default='exp03-mi')
+    parser.add_argument('--n_memory_trials', type=int, default=1000)
+    parser.add_argument('--n_memory_iterations', type=int, default=20)
     parser.add_argument('--n_policy_iterations', type=int, default=100)
-    parser.add_argument('--n_episodes_per_policy', type=int, default=50000)
+    parser.add_argument('--n_episodes_per_policy', type=int, default=20000)
     return parser.parse_args()
 
 global args
@@ -88,26 +87,20 @@ def main():
                         gamma=env.gamma,
                         n_mem_entries=0,
                         replay_buffer_size=int(4e6))
+    agent.reset_policy()
 
     for n_mem_iterations in range(args.n_memory_iterations):
         print(f"Memory iteration {n_mem_iterations}")
-        agent.reset_policy()
         optimize_policy(agent, env)
 
         if agent.n_mem_entries == 0:
             agent.add_memory()
 
-        n_memory_trials = args.n_memory_trials
-        n_memory_trials_per_buffer = args.n_memory_trials_per_buffer
-        while n_memory_trials > 0:
-            agent.optimize_memory(
-                f'{args.env}/{args.study_name}/{n_mem_iterations}',
-                n_jobs=get_n_workers(n_memory_trials_per_buffer),
-                n_trials=n_memory_trials_per_buffer,
-            )
-            n_memory_trials -= n_memory_trials_per_buffer
-            agent.replay.reset()
-            converge_value_functions(agent, env)
+        agent.optimize_memory(
+            f'{args.env}/{args.study_name}',
+            n_jobs=get_n_workers(args.n_memory_trials),
+            n_trials=args.n_memory_trials,
+        )
 
         print('Memory:')
         print(agent.cached_memory_fn.round(3))
