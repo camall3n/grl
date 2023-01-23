@@ -211,6 +211,7 @@ class ActorCritic:
             self.reset()
             self.q_mc.reset()
             self.q_td.reset()
+            assert len(self.replay.memory) > 0
             for experience in tqdm(self.replay.memory, desc=f'epoch {epoch}'):
                 e = experience.copy()
                 del e['_index_']
