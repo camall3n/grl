@@ -15,6 +15,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
     parser.add_argument('--study_name', type=str, default='exp03-mi')
+    parser.add_argument('--load_policy', action='store_true')
+    parser.add_argument('--trial_id', type=int, default=1)
     parser.add_argument('--n_memory_trials', type=int, default=1000)
     parser.add_argument('--n_memory_iterations', type=int, default=20)
     parser.add_argument('--n_policy_iterations', type=int, default=100)
@@ -87,17 +89,21 @@ def main():
                         gamma=env.gamma,
                         n_mem_entries=0,
                         replay_buffer_size=int(4e6))
-    agent.reset_policy()
+    if args.load_policy:
+        agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
+    else:
+        agent.reset_policy()
 
     for n_mem_iterations in range(args.n_memory_iterations):
         print(f"Memory iteration {n_mem_iterations}")
-        optimize_policy(agent, env)
+        if not args.load_policy:
+            optimize_policy(agent, env)
 
         if agent.n_mem_entries == 0:
             agent.add_memory()
 
         agent.optimize_memory(
-            f'{args.env}/{args.study_name}',
+            f'{args.study_name}/{args.env}/{args.trial_id}',
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
         )
@@ -108,9 +114,9 @@ def main():
         print('Policy:')
         print(agent.cached_policy_fn)
 
-
-    agent.reset_policy()
-    optimize_policy(agent, env)
+    if not args.load_policy:
+        agent.reset_policy()
+        optimize_policy(agent, env)
 
     print('Final memory:')
     print(agent.cached_memory_fn.round(3))
