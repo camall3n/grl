@@ -188,14 +188,18 @@ class PSR:
 
 
         for i in range(len(history)):
+            for j in reversed(range(i+1, len(history)+1)):
+                subseq = tuple(history[i:j])
+                if subseq in self._sub_histories:
+                    break
+                
+                self._sub_histories.add(subseq)
+                self._sub_histories_actions.add(tuple(tup[0] for tup in subseq))
+
+        #for i in range(len(history)):
             # only get the sub-histories that end at the end of history;
             # we got the intermediate ones on previous calls to update_weights (assuming normal training conditions.)
-            subseq = tuple(history[i:len(history)+1])
-            if subseq in self._sub_histories:
-                break
             
-            self._sub_histories.add(subseq)
-            self._sub_histories_actions.add(tuple(tup[0] for tup in subseq))
 
 
         for ext_test in self.weights.keys():
@@ -218,7 +222,7 @@ class PSR:
 
 
 
-def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_stepsize=0.00001, stepsize_delta=0.5, stepsize_reduce_interval=0.01):
+def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_stepsize=0.00001, stepsize_delta=0.9, stepsize_reduce_interval=0.01):
     """
     Learning algorithm from Littman, Jong et al. 2003.
     Requires that a set of core tests Q have already been discovered (i.e. using discover_tests())
@@ -261,15 +265,10 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
     avg_error = 0.0
 
     for t in range(steps):
-        if len(history) > 10000:
-            # truncate history to last 10k steps to save memory
+        if len(history) > 20 * longest_test_len:
+            # truncate history to length of largest extension test to save memory
             history = history[1:]
 
-        if done:
-            # initialize state and get initial observation
-            s = np.random.choice(pomdp.n_states, p=pomdp.p0)
-            ob = pomdp.observe(s)
-            done = False
         if training:
 
 
@@ -277,8 +276,18 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
             model.update_weights(history, stepsize)
             model.update_prediction_vector(history[-1])
 
+        if done:
+            #print("Finished epoch")
+            # initialize state and get initial observation
+            # also wipe history, because we started over
+            s = np.random.choice(pomdp.n_states, p=pomdp.p0)
+            ob = pomdp.observe(s)
+            done = False
+            training = False
+            model.flush_history()
+            history = []
 
-        if t >= longest_test_len and not training:
+        if len(history) >= longest_test_len and not training:
             # initialize weights
             model.update_weights(history, stepsize)
 
@@ -297,7 +306,7 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
 
         # adjust stepsize if needed
         if t != 0 and (t % (steps * stepsize_reduce_interval) == 0):
-            print(f"Step {t}: Current average error is {avg_error}")
+            print(f"Step {t} (training {training}): Current average error is {avg_error}")
             stepsize = stepsize * stepsize_delta
             if stepsize < end_stepsize:
                 stepsize = end_stepsize
