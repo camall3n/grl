@@ -91,6 +91,7 @@ def main():
                         replay_buffer_size=int(4e6))
     if args.load_policy:
         agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
+        converge_value_functions(agent, env)
     else:
         agent.reset_policy()
 
