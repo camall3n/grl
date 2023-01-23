@@ -7,47 +7,60 @@ from optuna.visualization.matplotlib import plot_optimization_history
 from optuna.visualization.matplotlib import plot_parallel_coordinate
 from optuna.visualization.matplotlib import plot_param_importances
 from optuna.visualization.matplotlib import plot_slice
+from tqdm import tqdm
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
 
-spec = environment.load_spec('tmaze_5_two_thirds_up', memory_id=None)
-mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-env = AbstractMDP(mdp, spec['phi'])
-agent = ActorCritic(n_obs=env.n_obs,
-                    n_actions=env.n_actions,
-                    gamma=env.gamma,
-                    n_mem_entries=0,
-                    replay_buffer_size=int(4e6))
-agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
-agent.add_memory()
+for env_name in [
+    'tmaze_5_two_thirds_up',
+    'tiger-alt-start',
+    'cheese.95',
+    'paint.95',
+    'network',
+    'shuttle.95',
+    '4x3.95',
+]:
+    print(env_name)
+    for seed in tqdm(range(1,6)):
+        try:
+            # env_name = '
+            study_name = f'{env_name}/exp03-mi0{seed}'
 
-sampler = 'tpe'
-study_name = f'mi/0'
-study_dir = f'./results/sample_based/{study_name}/'
-storage = optuna.storages.JournalStorage(
-    optuna.storages.JournalFileStorage(f"{study_dir}/study.journal"))
-study = optuna.load_study(
-    study_name=f'{study_name}',
-    storage=storage,
-)
+            spec = environment.load_spec(env_name, memory_id=None)
+            mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+            env = AbstractMDP(mdp, spec['phi'])
+            agent = ActorCritic(n_obs=env.n_obs,
+                                n_actions=env.n_actions,
+                                gamma=env.gamma,
+                                n_mem_entries=0,
+                                replay_buffer_size=int(4e6))
+            agent.reset_policy()
+            # agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
+            agent.add_memory()
 
-params = [study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)]
-agent.set_memory(agent.fill_in_params(params), logits=False)
-print(agent.mem_summary())
+            sampler = 'tpe'
+            study_dir = f'./results/sample_based/{study_name}'
+            storage = optuna.storages.JournalStorage(
+                optuna.storages.JournalFileStorage(f"{study_dir}/study.journal"))
+            study = optuna.load_study(
+                study_name=f'{study_name}',
+                storage=storage,
+            )
 
-plot_optimization_history(study)
-plt.title(f'Optimization History ({sampler.upper()})')
-plt.xlim([-20, 1000])
-# plt.ylim([-0.01, 0.75])
-plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
-plt.savefig(f'{study_dir}/opt-history-{sampler}.png')
+            params = [study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)]
+            agent.set_memory(agent.fill_in_params(params), logits=False)
+            # print(agent.cached_memory_fn.round(3))
 
-#%%
-# plot_contour(study)
-# plot_edf(study)
-# plot_parallel_coordinate(study)
-# plot_param_importances(study)
-# plot_slice(study)
+            plot_optimization_history(study)
+            plt.title(f'Optimization History ({sampler.upper()})')
+            plt.xlim([-20, 20020])
+            plt.ylim([-0.01, 10.01])
+            plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
+            plt.savefig(f'{study_dir}/opt-history-{sampler}.png')
+            plt.close()
+
+        except:
+            continue
