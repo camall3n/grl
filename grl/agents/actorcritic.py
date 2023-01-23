@@ -155,14 +155,14 @@ class ActorCritic:
         # if os.path.exists(study_dir):
         #     shutil.rmtree(study_dir)
         os.makedirs(study_dir, exist_ok=True)
-        saved_replaymemory_path = os.path.join(study_dir, 'replaymemory.pkl')
-        print(saved_replaymemory_path)
-        if os.path.exists(saved_replaymemory_path):
-            print("Loading existing replay buffer")
-            self.replay = self.replay.load(saved_replaymemory_path)
-        else:
-            print("Saving replay buffer")
-            self.replay.save(study_dir, filename='replaymemory', extension='.pkl')
+        # saved_replaymemory_path = os.path.join(study_dir, 'replaymemory.pkl')
+        # print(saved_replaymemory_path)
+        # if os.path.exists(saved_replaymemory_path):
+        #     print("Loading existing replay buffer")
+        #     self.replay = self.replay.load(saved_replaymemory_path)
+        # else:
+        #     print("Saving replay buffer")
+        #     self.replay.save(study_dir, filename='replaymemory', extension='.pkl')
 
         study = optuna.create_study(
             study_name=study_name,
