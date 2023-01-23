@@ -51,9 +51,10 @@ class ActorCritic:
         self.replay = ReplayMemory(capacity=replay_buffer_size)
         self.reset()
 
-    def mem_summary(self, precision=2):
+    def mem_summary(self, precision=3):
         mem = self.cached_memory_fn.round(precision)
-        mem_summary = str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1))
+        # mem_summary = str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1))
+        mem_summary = mem
         return mem_summary
 
     def reset(self):
@@ -137,9 +138,9 @@ class ActorCritic:
         result = self.evaluate_memory()
 
         with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
-            file.write(f'{trial.number}\n')
-            file.write(self.mem_summary() + '\n')
-            file.write(f'Discrep: {result}\n\n')
+            file.write(f'Trial: {trial.number}\n')
+            file.write(f'Discrep: {result}\n')
+            file.write(f'Memory:\n{self.mem_summary()}\n\n')
             file.flush()
         return result
 
@@ -199,8 +200,8 @@ class ActorCritic:
         with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
             file.write('--------------------------------------------\n')
             file.write(f'Best trial: {study.best_trial.number}\n')
-            file.write(self.mem_summary() + '\n')
-            file.write(f'Discrep: {study.best_trial.value}\n\n')
+            file.write(f'Discrep: {study.best_trial.value}\n')
+            file.write(f'Memory:\n{self.mem_summary()}\n\n')
             file.flush()
 
         return study
