@@ -32,3 +32,15 @@ def greedify(pi: np.ndarray) -> np.ndarray:
     pi_greedy = np.zeros_like(pi)
     pi_greedy[np.arange(pi.shape[0]), pi.argmax(axis=-1)] = 1
     return pi_greedy
+
+def reverse_softmax(dists: jnp.ndarray, eps: float = 1e-20) -> jnp.ndarray:
+    """
+    A fast and efficient way to turn a distribution
+    into softmax-able parameters, where
+    dist = softmax(reverse_softmax(dist))
+    :param dists: distribution to un-softmax. We assume that the last dimension sums to 1.
+    """
+    # c = jnp.log(jnp.exp(dists).sum(axis=-1))
+    # params = jnp.log(dists) + c
+    params = jnp.log(dists + eps)
+    return params

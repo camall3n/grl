@@ -21,7 +21,8 @@ def run_memory_iteration(spec: dict,
                          rand_key: jax.random.PRNGKey = None,
                          error_type: str = 'l2',
                          value_type: str = 'v',
-                         weight_discrep: bool = False
+                         weight_discrep: bool = False,
+                         pi_params: jnp.ndarray = None,
 ):
     """
     Wrapper function for the Memory Iteration algorithm.
@@ -46,7 +47,9 @@ def run_memory_iteration(spec: dict,
         pi_phi_shape = (spec['phi'].shape[-1], spec['T'].shape[0])
     else:
         pi_phi_shape = spec['Pi_phi'][0].shape
-    pi_params = glorot_init(pi_phi_shape, scale=0.2)
+
+    if pi_params is None:
+        pi_params = glorot_init(pi_phi_shape, scale=0.2)
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params,

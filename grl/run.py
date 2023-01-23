@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
+from grl.environment.policy_lib import get_start_pi
 from grl.mdp import MDP, AbstractMDP
 from grl.td_lambda import td_lambda
 from grl.policy_eval import PolicyEval
@@ -416,6 +417,7 @@ if __name__ == '__main__':
                              '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
+    parser.add_argument('--start_pi_name', default=None, type=str)
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
@@ -545,6 +547,9 @@ if __name__ == '__main__':
                 )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
+                pi_params = None
+                if args.start_pi_name is not None:
+                    pi_params = get_start_pi(args.start_pi_name)
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec,
                                                    pi_lr=args.lr,
