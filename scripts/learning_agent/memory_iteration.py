@@ -18,11 +18,11 @@ def parse_args():
     parser.add_argument('--study_name', type=str, default='exp03-mi')
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--trial_id', default=1)
-    parser.add_argument('--n_memory_trials', type=int, default=1000)
-    parser.add_argument('--n_memory_iterations', type=int, default=20)
+    parser.add_argument('--n_memory_trials', type=int, default=4000)
+    parser.add_argument('--n_memory_iterations', type=int, default=1)
     parser.add_argument('--n_policy_iterations', type=int, default=100)
     parser.add_argument('--n_episodes_per_policy', type=int, default=20000)
-    parser.add_argument('--sigma0', type=float, default=1 / 6)
+    # parser.add_argument('--sigma0', type=float, default=1 / 6)
     return parser.parse_args()
 
 global args
