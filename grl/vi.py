@@ -4,7 +4,7 @@ from jax import jit, nn
 from typing import Tuple
 from functools import partial
 
-from grl.utils.math import glorot_init
+from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils import functional_solve_mdp
 
@@ -95,7 +95,7 @@ def policy_iteration_step(pi_params: jnp.ndarray,
     new_pi_phi = get_eps_greedy_pi(td_q_vals, eps)
 
     # now we need to reparameterize our policy to softmaxable pi_params
-    new_pi_params = jnp.log(new_pi_phi + 1e-20)
+    new_pi_params = reverse_softmax(new_pi_phi)
 
     return new_pi_params, td_v_vals, td_q_vals
 

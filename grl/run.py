@@ -561,7 +561,8 @@ if __name__ == '__main__':
                                                    pi_steps=args.pi_steps,
                                                    value_type=args.value_type,
                                                    error_type=args.error_type,
-                                                   weight_discrep=args.weight_discrep)
+                                                   weight_discrep=args.weight_discrep,
+                                                   pi_params=pi_params)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'

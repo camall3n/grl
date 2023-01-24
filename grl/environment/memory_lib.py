@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-from grl.utils.math import glorot_init
+from grl.utils.math import glorot_init, reverse_softmax
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down
@@ -18,7 +18,7 @@ def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2
         if mem_name in current_module:
             T_mem = current_module[mem_name]
             # smooth out for softmax
-            mem_params = np.log(T_mem + 1e-20)
+            mem_params = reverse_softmax(T_mem)
         else:
             raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
     return mem_params
