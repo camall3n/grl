@@ -131,9 +131,22 @@ class ActorCritic:
 
     def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
         n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
-        required_params = [
-            trial.suggest_float(str(i), low=0.0, high=1.0) for i in range(n_required_params)
-        ]
+
+        required_params = []
+        for i in range(n_required_params):
+            n_suggest_float_attempts = 0
+            while True:
+                n_suggest_float_attempts += 1
+                if n_suggest_float_attempts >= 100 and n_suggest_float_attempts % 100 == 0:
+                    print(f'Failed to suggest_float {n_suggest_float_attempts} in a row!?')
+                try:
+                    x = trial.suggest_float(str(i), low=0.0, high=1.0)
+                except RuntimeError:
+                    continue
+                else:
+                    break
+            required_params.append(x)
+
         self.set_memory(self.fill_in_params(required_params), logits=False)
         result = self.evaluate_memory()
 

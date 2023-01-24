@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+import sys
 
 import numpy as np
 from tqdm import tqdm
@@ -16,11 +17,12 @@ def parse_args():
     parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
     parser.add_argument('--study_name', type=str, default='exp03-mi')
     parser.add_argument('--load_policy', action='store_true')
-    parser.add_argument('--trial_id', type=int, default=1)
+    parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=1000)
     parser.add_argument('--n_memory_iterations', type=int, default=20)
     parser.add_argument('--n_policy_iterations', type=int, default=100)
     parser.add_argument('--n_episodes_per_policy', type=int, default=20000)
+    parser.add_argument('--sigma0', type=float, default=1 / 6)
     return parser.parse_args()
 
 global args
@@ -95,19 +97,35 @@ def main():
     else:
         agent.reset_policy()
 
+    if not args.load_policy:
+        optimize_policy(agent, env)
+
+    agent.add_memory()
+    agent.reset_memory()
+    required_params = list(agent.cached_memory_fn[:, :, :, :-1].flatten())
+    assert np.allclose(agent.cached_memory_fn, agent.fill_in_params(required_params))
+    initial_cmaes_x0 = {str(i): x for i, x in enumerate(required_params)}
+
     for n_mem_iterations in range(args.n_memory_iterations):
         print(f"Memory iteration {n_mem_iterations}")
         if not args.load_policy:
             optimize_policy(agent, env)
 
-        if agent.n_mem_entries == 0:
-            agent.add_memory()
-
+        # yapf: disable
         agent.optimize_memory(
             f'{args.study_name}/{args.env}/{args.trial_id}',
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
+            sampler=optuna.samplers.CmaEsSampler(
+                # x0=initial_cmaes_x0,
+                # sigma0=args.sigma0,
+                # n_startup_trials=100,
+                # independent_sampler=optuna.samplers.TPESampler(constant_liar=True),
+                restart_strategy='ipop',
+                inc_popsize=1,
+            ),
         )
+        # yapf: enable
 
         print('Memory:')
         print(agent.cached_memory_fn.round(3))
