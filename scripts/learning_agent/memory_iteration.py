@@ -116,14 +116,18 @@ def main():
             f'{args.study_name}/{args.env}/{args.trial_id}',
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
-            sampler=optuna.samplers.CmaEsSampler(
-                # x0=initial_cmaes_x0,
-                # sigma0=args.sigma0,
-                # n_startup_trials=100,
-                # independent_sampler=optuna.samplers.TPESampler(constant_liar=True),
-                restart_strategy='ipop',
-                inc_popsize=1,
-            ),
+            sampler=optuna.samplers.TPESampler(
+                n_startup_trials=100,
+                constant_liar=True,
+            )
+            # sampler=optuna.samplers.CmaEsSampler(
+            #     # x0=initial_cmaes_x0,
+            #     # sigma0=args.sigma0,
+            #     # n_startup_trials=100,
+            #     # independent_sampler=optuna.samplers.TPESampler(constant_liar=True),
+            #     restart_strategy='ipop',
+            #     inc_popsize=1,
+            # ),
         )
         # yapf: enable
 
