@@ -27,7 +27,7 @@ class ActorCritic:
                  n_mem_values: int = 2,
                  learning_rate: float = 0.001,
                  trace_type: str = 'accumulating',
-                 policy_epsilon: float = 0.1,
+                 policy_epsilon: float = 0.05,
                  replay_buffer_size: int = 1000000) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
