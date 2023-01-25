@@ -147,9 +147,9 @@ def main():
         print('Policy:')
         print(agent.cached_policy_fn)
 
-    # if not args.load_policy:
-    #     optimize_policy(agent, env, mode='mc')
-    #     optimize_policy(agent, env, mode='mc', full_greedy=True)
+    if not args.load_policy:
+        agent.reset_policy()
+        optimize_policy(agent, env, mode='mc')
 
     print('Final memory:')
     print(agent.cached_memory_fn.round(3))
