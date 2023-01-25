@@ -55,7 +55,7 @@ def converge_value_functions(agent, env):
             obs = next_obs
             action = next_action
 
-def optimize_policy(agent, env, mode='td'):
+def optimize_policy(agent: ActorCritic, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
         print(agent.cached_policy_fn)
@@ -95,6 +95,10 @@ def main():
                         gamma=env.gamma,
                         n_mem_entries=0,
                         replay_buffer_size=int(4e6))
+    study_name = f'{args.study_name}/{args.env}/{args.trial_id}'
+    study_dir = f'results/sample_based/{study_name}'
+    os.makedirs(study_dir, exist_ok=True)
+
     if args.load_policy:
         agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
         converge_value_functions(agent, env)
@@ -115,7 +119,7 @@ def main():
 
         # yapf: disable
         agent.optimize_memory(
-            f'{args.study_name}/{args.env}/{args.trial_id}',
+            study_name,
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
             sampler=optuna.samplers.TPESampler(
@@ -152,6 +156,10 @@ def main():
     print()
     print('Final policy:')
     print(agent.cached_policy_fn)
+    np.save(study_dir + '/memory.npy', agent.cached_memory_fn)
+    np.save(study_dir + '/policy.npy', agent.cached_policy_fn)
+    np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
+    np.save(study_dir + '/q_td.npy', agent.q_td.q)
 
 if __name__ == '__main__':
     main()
