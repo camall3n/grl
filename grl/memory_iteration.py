@@ -240,7 +240,8 @@ def pi_improvement(agent: AnalyticalAgent,
                    amdp: AbstractMDP,
                    lr: float = 1.,
                    iterations: int = 10000,
-                   log_every: int = 1000) -> dict:
+                   log_every: int = 1000,
+                   progress_bar: bool = True) -> dict:
     """
     Policy improvement over multiple steps.
     :param agent:               Agent instance to run memory iteration.
@@ -250,7 +251,10 @@ def pi_improvement(agent: AnalyticalAgent,
     :param log_every:           How many steps per log?
     """
     output = {}
-    for it in trange(iterations):
+    to_iterate = range(iterations)
+    if progress_bar:
+        to_iterate = trange(iterations)
+    for it in to_iterate:
         output = agent.policy_improvement(amdp, lr)
         if it % log_every == 0:
             if agent.policy_optim_alg == 'pg':
@@ -265,12 +269,16 @@ def mem_improvement(agent: AnalyticalAgent,
                     amdp: AbstractMDP,
                     lr: float = 1.,
                     iterations: int = 10000,
-                    log_every: int = 1000) -> np.ndarray:
+                    log_every: int = 1000,
+                    progress_bar: bool = True) -> np.ndarray:
     """
     Memory improvement over multiple steps
     """
     memory_losses = []
-    for it in trange(iterations):
+    to_iterate = range(iterations)
+    if progress_bar:
+        to_iterate = trange(iterations)
+    for it in to_iterate:
         loss = agent.memory_improvement(amdp, lr)
         if it % log_every == 0:
             print(f"Memory improvement loss for step {it}: {loss.item():.4f}")

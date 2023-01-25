@@ -49,8 +49,8 @@ def get_perf(pi_obs: jnp.ndarray,
     return jnp.dot(p0, state_v)
 
 def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
-             pi_iterations: int = 10000):
-    rand_key = jax.random.PRNGKey(2020)
+             pi_iterations: int = 10000, seed: int = 2020):
+    rand_key = jax.random.PRNGKey(seed)
     mem_params = get_memory(0,
                             amdp.phi.shape[-1],
                             amdp.T.shape[0],
@@ -68,7 +68,8 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                                amdp,
                                lr=1,
                                iterations=mem_iterations,
-                               log_every=1000)
+                               log_every=mem_iterations,
+                               progress_bar=False)
 
     amdp_mem = memory_cross_product(amdp, agent.mem_params)
 
@@ -79,7 +80,8 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                                    amdp_mem,
                                    lr=1,
                                    iterations=pi_iterations,
-                                   log_every=1000)
+                                   log_every=pi_iterations,
+                                   progress_bar=False)
     return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, amdp_mem.gamma)
 
 
@@ -128,27 +130,38 @@ if __name__ == "__main__":
     )
     results = {}
 
+
     pi_params_shape = (amdp.phi.shape[-1], amdp.T.shape[0])
     def objective(trial: optuna.Trial):
-        n_required_params = pi_params_shape[0] * (pi_params_shape[1] - 1)
-
-        required_params = []
-        for i in range(n_required_params):
+        def try_suggesting_float(i_str: str, low: float, high: float):
             n_suggest_float_attempts = 0
             while True:
                 n_suggest_float_attempts += 1
                 if n_suggest_float_attempts >= 100 and n_suggest_float_attempts % 100 == 0:
                     print(f'Failed to suggest_float {n_suggest_float_attempts} in a row!?')
                 try:
-                    x = trial.suggest_float(str(i), low=0.0, high=1.0)
+                    f = trial.suggest_float(i_str, low=low, high=high)
                 except RuntimeError:
                     continue
                 else:
                     break
-            required_params.append(x)
+            return f
+
+        required_params = []
+        idx = 0
+        for i in range(pi_params_shape[0]):
+            dist = []
+            for j in range(pi_params_shape[1] - 1):
+                high = 1 if not dist else 1 - sum(dist)
+                x = try_suggesting_float(str(idx), low=0, high=high)
+                dist.append(x)
+                required_params.append(x)
+                idx += 1
+            assert sum(dist) < 1
 
         pi = fill_in_params(required_params, pi_params_shape)
-        return fixed_mi(pi, amdp)
+        assert not jnp.any(jnp.isnan(pi))
+        return fixed_mi(pi, amdp, seed=trial.number)
 
     n_jobs = args.n_jobs if args.n_jobs > 0 else cpu_count()
     if n_jobs > 1:
@@ -170,7 +183,7 @@ if __name__ == "__main__":
         for key in sorted(study.best_trial.params.keys(), key=lambda x: int(x))
     ]
 
-    pi_params = fill_in_params(required_params, spec['Pi_phi'][0])
+    pi_params = fill_in_params(required_params, pi_params_shape)
     results['best_trial_pi_params'] = pi_params
     results['best_trial_discrep'] = study.best_trial.value
     results['best_trial_number'] = study.best_trial.number

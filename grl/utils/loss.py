@@ -53,8 +53,10 @@ def mem_v_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jn
 def mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
                    R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
-    diff = diff * pi.T
-    return jnp.abs(diff).mean()
+    # diff = diff * pi.T
+    # return jnp.abs(diff).mean()
+    diff = jnp.abs(diff) * pi.T
+    return diff.mean()
 
 def weighted_mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
                    R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
