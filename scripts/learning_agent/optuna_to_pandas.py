@@ -13,7 +13,7 @@ def main():
     results_dirs = glob.glob(f'results/sample_based/{glob_pattern}')
     output_file = f'results/sample_based/{glob_pattern.replace("*", "")}-{env_name}-summary.pkl'
 
-    assert not os.path.exists(output_file)
+    assert not os.path.exists(output_file), 'Output file already exists. Disable this assert to overwrite it.'
 
     studies = []
     for results_dir in results_dirs:
