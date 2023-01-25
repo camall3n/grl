@@ -55,12 +55,12 @@ def converge_value_functions(agent, env):
             obs = next_obs
             action = next_action
 
-def optimize_policy(agent, env):
+def optimize_policy(agent, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
         print(agent.cached_policy_fn)
         converge_value_functions(agent, env)
-        did_change = agent.update_actor()
+        did_change = agent.update_actor(mode=mode)
         if not did_change:
             break
 
@@ -112,8 +112,6 @@ def main():
 
     for n_mem_iterations in range(args.n_memory_iterations):
         print(f"Memory iteration {n_mem_iterations}")
-        if not args.load_policy:
-            optimize_policy(agent, env)
 
         # yapf: disable
         agent.optimize_memory(
@@ -135,15 +133,19 @@ def main():
         )
         # yapf: enable
 
+        if not args.load_policy:
+            agent.reset_policy()
+            optimize_policy(agent, env)
+
         print('Memory:')
         print(agent.cached_memory_fn.round(3))
         print()
         print('Policy:')
         print(agent.cached_policy_fn)
 
-    if not args.load_policy:
-        agent.reset_policy()
-        optimize_policy(agent, env)
+    # if not args.load_policy:
+    #     optimize_policy(agent, env, mode='mc')
+    #     optimize_policy(agent, env, mode='mc', full_greedy=True)
 
     print('Final memory:')
     print(agent.cached_memory_fn.round(3))

@@ -82,11 +82,20 @@ class ActorCritic:
     def store(self, experience):
         self.replay.push(experience)
 
-    def update_actor(self):
-        best_a = np.argmax(self.q_td.q.transpose(), axis=-1)
+    def update_actor(self, mode='td', full_greedy=False):
+        if mode == 'td':
+            q_fn = self.q_td.q
+        elif mode == 'mc':
+            q_fn = self.q_mc.q
+        else:
+            raise ValueError(f'Invalid mode: {mode}')
+        best_a = np.argmax(q_fn.transpose(), axis=-1)
         greedy_pi = one_hot(best_a, self.n_actions)
-        uniform_pi = np.ones_like(greedy_pi) / self.n_actions
-        new_policy = (1 - self.policy_epsilon) * greedy_pi + self.policy_epsilon * uniform_pi
+        if not full_greedy:
+            uniform_pi = np.ones_like(greedy_pi) / self.n_actions
+            new_policy = (1 - self.policy_epsilon) * greedy_pi + self.policy_epsilon * uniform_pi
+        else:
+            new_policy = greedy_pi
         did_change = self.set_policy(new_policy, logits=False)
         if did_change:
             self.replay.reset()
