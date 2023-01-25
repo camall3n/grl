@@ -30,8 +30,9 @@ global args
 args = parse_args()
 
 def converge_value_functions(agent, env):
+    agent.reset_value_functions()
     for i in range(args.n_episodes_per_policy):
-        agent.reset()
+        agent.reset_memory_state()
         obs, _ = env.reset()
         action = agent.act(obs)
         terminal = False

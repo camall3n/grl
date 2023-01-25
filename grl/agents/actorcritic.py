@@ -49,7 +49,7 @@ class ActorCritic:
         self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
         self.q_mc = TDLambdaQFunction(lambda_=0.9, **q_fn_kwargs)
         self.replay = ReplayMemory(capacity=replay_buffer_size)
-        self.reset()
+        self.reset_memory_state()
 
     def mem_summary(self, precision=3):
         mem = self.cached_memory_fn.round(precision)
@@ -57,9 +57,13 @@ class ActorCritic:
         mem_summary = mem
         return mem_summary
 
-    def reset(self):
+    def reset_memory_state(self):
         self.memory = 0
         self.prev_action = None
+
+    def reset_value_functions(self):
+        self.q_mc.reset()
+        self.q_td.reset()
 
     def act(self, obs):
         obs_aug = self.augment_obs(obs)
@@ -254,9 +258,8 @@ class ActorCritic:
 
     def evaluate_memory(self, n_epochs=1):
         for epoch in range(n_epochs):
-            self.reset()
-            self.q_mc.reset()
-            self.q_td.reset()
+            self.reset_memory_state()
+            self.reset_value_functions()
             assert len(self.replay.memory) > 0
             for experience in self.replay.memory:
                 e = experience.copy()
@@ -264,7 +267,7 @@ class ActorCritic:
                 self.step_memory(e['obs'], e['action'])
                 self.update_critic(e)
                 if experience['terminal']:
-                    self.reset()
+                    self.reset_memory_state()
         abs_lambda_discrepancy = np.abs(self.q_mc.q - self.q_td.q)
         obs, actions = self.replay.retrieve(fields=['obs', 'action'])
         observed_lambda_discrepancies = abs_lambda_discrepancy[actions, obs]

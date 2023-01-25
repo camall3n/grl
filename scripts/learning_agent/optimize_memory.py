@@ -28,7 +28,7 @@ assert agent.memory_params.shape == (4, 5, 1, 1)
 
 n_episodes = 20000
 for i in tqdm(range(n_episodes)):
-    agent.reset()
+    agent.reset_memory_state()
     obs, _ = env.reset()
     action = agent.act(obs)
     terminal = False
