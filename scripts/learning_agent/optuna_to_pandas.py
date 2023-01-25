@@ -6,13 +6,31 @@ from numpy.linalg import norm
 import optuna
 import pandas as pd
 
-env_name = 'tmaze_5_two_thirds_up'
-glob_pattern = 'tpe50k'
+def main():
+    env_name = 'tmaze_5_two_thirds_up'
+    glob_pattern = 'tpe50k'
 
-results_dirs = glob.glob(f'results/sample_based/{glob_pattern}')
-output_file = f'results/sample_based/{glob_pattern.replace("*", "")}-{env_name}-summary.pkl'
+    results_dirs = glob.glob(f'results/sample_based/{glob_pattern}')
+    output_file = f'results/sample_based/{glob_pattern.replace("*", "")}-{env_name}-summary.pkl'
 
-assert not os.path.exists(output_file)
+    assert not os.path.exists(output_file)
+
+    studies = []
+    for results_dir in results_dirs:
+        experiment_name = os.path.basename(results_dir)
+        envs = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/*'))))
+        if env_name not in envs:
+            continue
+        seeds = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/{env_name}/*'))))
+        for seed in seeds:
+            study = load_study_into_pandas(experiment_name, env_name, seed)
+            studies.append(study)
+    if studies == []:
+        raise RuntimeError(f'No results for "{env_name}" in files matching "{glob_pattern}"')
+    data = pd.concat(studies, ignore_index=True)
+
+    data.to_pickle(output_file)
+
 
 def extract_tmaze_mem_coords(trial):
     p_m0_after_m0_o0 = trial.params['20']  # y
@@ -55,22 +73,8 @@ def load_study_into_pandas(experiment_name, env_name, seed):
     complete_trials = complete_trials.assign(best_value=best_value_by_trial_id)
     return complete_trials
 
-studies = []
-for results_dir in results_dirs:
-    experiment_name = os.path.basename(results_dir)
-    envs = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/*'))))
-    if env_name not in envs:
-        continue
-    seeds = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/{env_name}/*'))))
-    for seed in seeds:
-        study = load_study_into_pandas(experiment_name, env_name, seed)
-        studies.append(study)
-if studies == []:
-    raise RuntimeError(f'No results for "{env_name}" in files matching "{glob_pattern}"')
-data = pd.concat(studies, ignore_index=True)
-
-data.to_pickle(output_file)
-
+if __name__ == '__main__':
+    main()
 #%%
 
 # data = pd.read_csv('analytical_tmaze_plot_data.csv')

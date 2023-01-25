@@ -19,6 +19,9 @@ from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
+from scripts.learning_agent.optuna_to_pandas import load_study
+
+#%%
 
 data = pd.read_pickle('results/sample_based/exp12-tmaze_2_two_thirds_up-summary.pkl')
 subset = data
@@ -30,7 +33,18 @@ plt.savefig('foo.png')
 
 
 #%%
-study = load_study('exp11-cmaes-startup-tpe', env_name, '10')
+env_name = 'tmaze_2_two_thirds_up'
+study = load_study('foooo', env_name, '1')
+plot_optimization_history(study)
+plt.title(f'Optimization History ({experiment_name})')
+plt.xlim([-20, 1000])
+plt.ylim([-0.01, 1.0])
+plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
+plt.savefig(f'opt-history.png')
+plt.close()
+
+#%%
+
 params = [
     study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)
 ]
@@ -50,14 +64,3 @@ agent.set_memory(agent.fill_in_params(params), logits=False)
 mem = agent.cached_memory_fn.round(3)
 print(str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1)))
 print()
-
-#%%
-plot_optimization_history(study)
-plt.title(f'Optimization History ({experiment_name})')
-plt.xlim([-20, 1000])
-plt.ylim([-0.01, 1.0])
-plt.legend(loc='upper left', facecolor='white', framealpha=0.9)
-plt.savefig(f'opt-history.png')
-plt.close()
-
-study.add_trial()
