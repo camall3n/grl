@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
+from grl.environment.policy_lib import get_start_pi
 from grl.mdp import MDP, AbstractMDP
 from grl.agents.td_lambda import run_td_lambda_on_mdp
 from grl.policy_eval import PolicyEval
@@ -31,7 +32,8 @@ def run_pe_algos(spec: dict,
                  n_episodes: int = 500,
                  lr: float = 1.,
                  value_type: str = 'v',
-                 error_type: str = 'l2'):
+                 error_type: str = 'l2',
+                 weight_discrep: bool = False):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -60,14 +62,15 @@ def run_pe_algos(spec: dict,
 
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
-            mdp_vals_a, mc_vals_a, td_vals_a = pe.run(pi)
+            mdp_vals_a, mc_vals_a, td_vals_a, _ = pe.run(pi)
             occupancy = amdp_get_occupancy(pi, amdp)
             pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
 
-            discrep = calc_discrep_from_values(td_vals_a, mc_vals_a, error_type=error_type)
+            discrep = calc_discrep_from_values(td_vals_a, mc_vals_a, error_type=error_type,
+                                               weight_discrep=weight_discrep)
             discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
             info['initial_discrep'] = discrep
 
@@ -123,6 +126,7 @@ def run_pe_algos(spec: dict,
                                                        grad_type=use_grad,
                                                        value_type=value_type,
                                                        error_type=error_type,
+                                                       weight_discrep=weight_discrep,
                                                        lr=lr)
                     info['grad_info'] = grad_info
 
@@ -413,6 +417,7 @@ if __name__ == '__main__':
                              '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
+    parser.add_argument('--start_pi_name', default=None, type=str)
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
@@ -421,11 +426,13 @@ if __name__ == '__main__':
         help='use memory function during policy eval if set')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
+    parser.add_argument('--weight_discrep', action='store_true',
+                        help='Weight our lambda discrepancy with observation occupancies.')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
-    parser.add_argument('--value_type', default='v', type=str,
+    parser.add_argument('--value_type', default='q', type=str,
                         help='Do we use (v | q) for our discrepancies?')
-    parser.add_argument('--error_type', default='l2', type=str,
+    parser.add_argument('--error_type', default='abs', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--heatmap', action='store_true',
@@ -536,9 +543,13 @@ if __name__ == '__main__':
                     lr=args.lr,
                     value_type=args.value_type,
                     error_type=args.error_type,
+                    weight_discrep=args.weight_discrep
                 )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
+                pi_params = None
+                if args.start_pi_name is not None:
+                    pi_params = get_start_pi(args.start_pi_name)
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec,
                                                    pi_lr=args.lr,
@@ -547,7 +558,11 @@ if __name__ == '__main__':
                                                    mi_iterations=args.mi_iterations,
                                                    policy_optim_alg=args.policy_optim_alg,
                                                    mi_steps=args.mi_steps,
-                                                   pi_steps=args.pi_steps)
+                                                   pi_steps=args.pi_steps,
+                                                   value_type=args.value_type,
+                                                   error_type=args.error_type,
+                                                   weight_discrep=args.weight_discrep,
+                                                   pi_params=pi_params)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'

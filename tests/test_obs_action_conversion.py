@@ -24,8 +24,8 @@ def test_tiger():
     c_pe = PolicyEval(converted_amdp)
 
     for oa_pi, c_pi in zip(obs_action_spec['Pi_phi'], converted_spec['Pi_phi']):
-        oa_state_vals, oa_mc_vals, oa_td_vals = oa_pe.run(oa_pi)
-        c_state_vals, c_mc_vals, c_td_vals = c_pe.run(c_pi)
+        oa_state_vals, oa_mc_vals, oa_td_vals, _ = oa_pe.run(oa_pi)
+        c_state_vals, c_mc_vals, c_td_vals, _ = c_pe.run(c_pi)
 
         check_vals(oa_state_vals, c_state_vals)
         check_vals(oa_mc_vals, c_mc_vals)

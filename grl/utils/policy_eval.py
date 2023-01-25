@@ -24,7 +24,7 @@ def analytical_pe(pi_obs: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.
     td_v_vals, td_q_vals = functional_solve_mdp(pi_obs, T_obs_obs, R_obs_obs, gamma)
     td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
-    return state_vals, mc_vals, td_vals
+    return state_vals, mc_vals, td_vals, {'occupancy': occupancy}
 
 @partial(jit, static_argnames=['gamma'])
 def functional_solve_mdp(pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma: float):

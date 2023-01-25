@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-from grl.utils.math import glorot_init
+from grl.utils.math import glorot_init, reverse_softmax
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down
@@ -23,7 +23,7 @@ def get_memory(memory_id: int,
         if mem_name in current_module:
             T_mem = current_module[mem_name]
             # smooth out for softmax
-            mem_params = np.log(T_mem + 1e-20)
+            mem_params = reverse_softmax(T_mem)
         else:
             raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
     return mem_params
@@ -293,3 +293,31 @@ mem_17 = np.array([
     ],
 ])
 memory_17 = np.array([mem_17, mem_17, mem_17, mem_17]) # up, down, right, left
+
+# Optimal memory for t-maze
+mem_18 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
+    ],
+    [ # we see the goal as DOWN
+        [0, 1],
+        [0, 1],
+    ],
+    [ # corridor
+        [0, 1],
+        [1, 0],
+    ],
+    [ # junction
+        [1, 0],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left
+

@@ -1,4 +1,5 @@
 import logging
+import jax.numpy as jnp
 from jax.nn import softmax
 
 from .mdp import MDP, AbstractMDP
@@ -9,7 +10,9 @@ from grl.utils.lambda_discrep import lambda_discrep_measures
 
 import numpy as np
 
-def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
+def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
+            value_type: str = 'v', error_type: str = 'l2', lr: float = 1,
+            weight_discrep: bool = False):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
@@ -26,7 +29,7 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     # TODO: refactor this to be more functional
-    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
+    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, weight_discrep=weight_discrep)
 
     if grad_type == 'p':
         params = pi_abs
@@ -88,7 +91,7 @@ def pe_grad(spec, pi_abs, grad_type, value_type='v', error_type='l2', lr=1):
     if grad_type == 'm':
         policy_eval.amdp = memory_cross_product(amdp, params)
     policy_eval.verbose = True
-    mdp_vals, amdp_vals, td_vals = policy_eval.run(pi_abs)
+    mdp_vals, amdp_vals, td_vals, _ = policy_eval.run(pi_abs)
     logging.info(f'\n-Final vals using grad_type {grad_type} on value_type {value_type}')
     logging.info(f'mdp:\n {pformat_vals(mdp_vals)}')
     logging.info(f'mc*:\n {pformat_vals(amdp_vals)}')
