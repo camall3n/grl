@@ -225,7 +225,7 @@ class ActorCritic:
             load_if_exists=True,
         )
 
-        with open(os.path.join(study_dir, 'output.txt'), 'w') as file:
+        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
             file.write(preamble_str)
             file.flush()
 
