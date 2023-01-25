@@ -129,6 +129,31 @@ class ActorCritic:
         params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
         return params
 
+    def on_trial_stopped_callback(self, study: optuna.study.Study,
+                                  trial: optuna.trial.FrozenTrial) -> None:
+        # whenever there's a new best trial
+        if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] <= study.best_value:
+            print(f"New best trial: {trial.number}")
+            # check if rounding params might help
+            params = trial.params
+            rounded_params = {key: np.round(val) for (key, val) in params.items()}
+            if all([params[key] == rounded_params[key] for key in params.keys()]):
+                return # already rounded; nothing useful to suggest by rounding
+
+            # also construct a compromise set of "half-rounded" params
+            compromise_params = {
+                key: np.mean([params[key], rounded_params[key]])
+                for key in params.keys()
+            }
+
+            # enqueue fully rounded params first, since they're expected to help more
+            print(f"Enqueuing rounded version")
+            study.enqueue_trial(rounded_params, skip_if_exists=True)
+
+            # then enqueue the compromise as a backup
+            print(f"Enqueuing semi-rounded version")
+            study.enqueue_trial(compromise_params, skip_if_exists=True)
+
     def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
         n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
 
@@ -199,13 +224,17 @@ class ActorCritic:
             freeze_support()
             pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
             pool.starmap(
-                study.optimize,
+                partial(study.optimize, callbacks=[self.on_trial_stopped_callback]),
                 zip(repeat(partial(self.objective, study_dir=study_dir)), n_trials_per_worker),
             )
             pool.close()
             pool.join()
         else:
-            study.optimize(partial(self.objective, study_dir=study_dir), n_trials_per_worker)
+            study.optimize(
+                partial(self.objective, study_dir=study_dir),
+                n_trials_per_worker[0],
+                callbacks=[self.on_trial_stopped_callback],
+            )
 
         required_params = [
             study.best_trial.params[key]
