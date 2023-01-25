@@ -16,6 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
     parser.add_argument('--study_name', type=str, default='exp03-mi')
+    parser.add_argument('--max_jobs', type=int, default=None)
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=4000)
@@ -79,6 +80,8 @@ def get_n_workers(n_tasks):
     workers_available = max(1, cpu_count())
     workers_needed = n_tasks
     n_workers = min(workers_needed, workers_available)
+    if args.max_jobs is not None:
+        n_workers = min(n_workers, args.max_jobs)
     return n_workers
 
 def main():

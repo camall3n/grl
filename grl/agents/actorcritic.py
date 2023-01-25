@@ -1,7 +1,7 @@
 import copy
 from functools import partial
 from itertools import repeat
-from multiprocessing import Pool
+from multiprocessing import Pool, freeze_support
 import os
 import shutil
 from tqdm import tqdm
@@ -195,13 +195,17 @@ class ActorCritic:
         n_trials_per_worker = list(map(len, np.array_split(np.arange(n_trials), n_jobs)))
         print(f'Starting pool with {n_jobs} workers')
         print(f'n_trials_per_worker: {n_trials_per_worker}')
-        pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
-        pool.starmap(
-            study.optimize,
-            zip(repeat(partial(self.objective, study_dir=study_dir)), n_trials_per_worker),
-        )
-        pool.close()
-        pool.join()
+        if n_jobs > 1:
+            freeze_support()
+            pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
+            pool.starmap(
+                study.optimize,
+                zip(repeat(partial(self.objective, study_dir=study_dir)), n_trials_per_worker),
+            )
+            pool.close()
+            pool.join()
+        else:
+            study.optimize(partial(self.objective, study_dir=study_dir), n_trials_per_worker)
 
         required_params = [
             study.best_trial.params[key]
