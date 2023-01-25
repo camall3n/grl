@@ -24,7 +24,7 @@ samples = np.concatenate((np.array(data['mem_coords'].tolist()), data['value'].t
 df_sampled = pd.DataFrame(data=samples, columns=['y', 'p1', 'p2', 'D'])
 
 #%%
-summary_filepath = 'analytical_tmaze_plot_data.pkl'
+summary_filepath = 'results/analytical_tmaze_plot_data.pkl'
 df_analytical = pd.read_pickle(summary_filepath)
 
 #%%
