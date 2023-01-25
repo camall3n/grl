@@ -20,59 +20,14 @@ from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
 
-env_name = 'tmaze_5_two_thirds_up'
-results_dirs = glob.glob('results/sample_based/exp11*')
+data = pd.read_pickle('results/sample_based/exp12-tmaze_2_two_thirds_up-summary.pkl')
+subset = data
+# subset=subset.query("experiment_name=='exp11-cmaes-sigma0'")
+# subset['sigma'] = list(map(lambda x: x.split('_')[-1], subset['seed']))
+# subset['seed'] = list(map(lambda x: int(x.split('_')[-4]) % 5, subset['seed']))
+sns.lineplot(data=subset, x='trial_id', y='best_value')#, units='seed', estimator=None)
+plt.savefig('foo.png')
 
-def load_study(experiment_name, env_name, seed):
-    study_name = f'{experiment_name}/{env_name}/{seed}'
-    study_dir = f'./results/sample_based/{study_name}'
-    storage = optuna.storages.JournalStorage(
-        optuna.storages.JournalFileStorage(f"{study_dir}/study.journal"))
-    study = optuna.load_study(
-        study_name=f'{study_name}',
-        storage=storage,
-    )
-    return study
-
-def study_to_pandas(study, experiment_name, env_name, seed):
-    df = pd.DataFrame([{
-        'trial_id': t.number,
-        'experiment_name': experiment_name,
-        'env_name': env_name,
-        'seed': seed,
-        'state': str(t.state).replace('TrialState.', ''),
-        'value': t.values[0] if t.values is not None and t.values != [] else np.nan,
-        'datetime_start': t.datetime_start,
-        'datetime_complete': t.datetime_complete,
-        'duration': (t.datetime_complete - t.datetime_start) if (t.datetime_complete is not None) else None,
-    } for t in study.trials])
-    complete_trials = df.query('state=="COMPLETE"')
-    values_by_trial_id = complete_trials.sort_values(by='trial_id')['value'].tolist()
-    best_value_by_trial_id = np.minimum.accumulate(values_by_trial_id)
-    complete_trials = complete_trials.assign(best_value=best_value_by_trial_id)
-    return complete_trials
-
-dfs = []
-for results_dir in tqdm(results_dirs):
-    experiment_name = os.path.basename(results_dir)
-    envs = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/*'))))
-    assert env_name in envs
-    seeds = sorted(list(map(os.path.basename, glob.glob(f'{results_dir}/{env_name}/*'))))
-    for seed in seeds:
-        study = load_study(experiment_name, env_name, seed)
-        data = study_to_pandas(study, experiment_name, env_name, seed)
-        dfs.append(data)
-
-data = pd.concat(dfs, ignore_index=True)
-
-#%%
-# data.to_pickle('results/sample_based/exp11_summary.pkl')
-
-#%%
-sns.lineplot(data=data, x='trial_id', y='best_value', hue='experiment_name', units='seed', estimator=None)
-
-#%%
-data.query("experiment_name=='exp11-cmaes-startup-tpe'").sort_values(by='best_value')
 
 #%%
 study = load_study('exp11-cmaes-startup-tpe', env_name, '10')
