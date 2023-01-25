@@ -229,14 +229,17 @@ class ActorCritic:
             self.q_mc.reset()
             self.q_td.reset()
             assert len(self.replay.memory) > 0
-            for experience in tqdm(self.replay.memory, desc=f'epoch {epoch}'):
+            for experience in self.replay.memory:
                 e = experience.copy()
                 del e['_index_']
                 self.step_memory(e['obs'], e['action'])
                 self.update_critic(e)
                 if experience['terminal']:
                     self.reset()
-        return np.abs(self.q_mc.q - self.q_td.q).sum()
+        abs_lambda_discrepancy = np.abs(self.q_mc.q - self.q_td.q)
+        obs, actions = self.replay.retrieve(fields=['obs', 'action'])
+        observed_lambda_discrepancies = abs_lambda_discrepancy[actions, obs]
+        return observed_lambda_discrepancies.mean()
 
     def augment_obs(self, obs: int, memory: int = None) -> int:
         if memory is None:
