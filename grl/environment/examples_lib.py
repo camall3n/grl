@@ -768,6 +768,76 @@ def tmaze_5_obs_optimal():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
+def float_reset():
+    """
+    Float/reset, as defined by Littman, Jong et al. (2003).
+    2 Actions: "float" and "reset".
+    5 states, 0 is leftmost, 5 is rightmost.
+    "Float" moves left or right uniformly at random.
+    "Reset" moves to state 5, and yields observation 1 when already in state 5.
+    All other action/state pairs yield observation 0.
+    No rewards.
+
+    Because we don't model observations as relying on actions,
+    we have to model this as 6 states rather than 5 to disambiguate
+    taking the reset action in the reset state vs reaching the reset state otherwise.
+    """
+    # b, r1, r2, t
+    T_float = np.array([
+        [0.5, 0.5, 0, 0, 0, 0],
+        [0.5, 0, 0.5, 0, 0, 0],
+        [0, 0.5, 0, 0.5, 0, 0],
+        [0, 0, 0.5, 0, 0.5, 0],
+        [0, 0, 0, 0.5, 0.5, 0],
+        [0, 0, 0, 0.5, 0.5, 0],
+    ])
+    T_reset = np.array([
+        [0, 0, 0, 0, 1.0, 0],
+        [0, 0, 0, 0, 1.0, 0],
+        [0, 0, 0, 0, 1.0, 0],
+        [0, 0, 0, 0, 1.0, 0],
+        [0, 0, 0, 0, 0, 1.0],
+        [0, 0, 0, 0, 0, 1.0],
+    ])
+    T = np.array([T_float, T_reset])
+
+    R_float = np.array([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+    ])
+    R_reset = np.array([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+    ])
+    R = np.array([R_float, R_reset])
+
+    p0 = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.0])
+    
+
+    phi = np.array([
+        [1.0, 0],
+        [1.0, 0],
+        [1.0, 0],
+        [1.0, 0],
+        [1.0, 0],
+        [0, 1.0],
+    ])
+
+    # p = 0.75
+    # q = 0.75
+    # TODO, we don't use this for PSRs
+    Pi_phi = None
+    return to_dict(T, R, 0.0, p0, phi, Pi_phi)
+
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
