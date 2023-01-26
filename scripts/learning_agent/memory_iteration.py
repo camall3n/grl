@@ -56,6 +56,17 @@ def converge_value_functions(agent, env):
             obs = next_obs
             action = next_action
 
+    td_v0s = []
+    mc_v0s = []
+    for i in range(100):
+        obs, _ = env.reset()
+        td_v0s.append(np.dot(agent.q_td.q[obs, :], agent.policy_probs[:, obs]))
+        mc_v0s.append(np.dot(agent.q_mc.q[obs, :], agent.policy_probs[:, obs]))
+    td_v0 = np.mean(td_v0s)
+    mc_v0 = np.mean(mc_v0s)
+    print(f"td_v0: {td_v0}")
+    print(f"mc_v0: {mc_v0}")
+
 def optimize_policy(agent: ActorCritic, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
