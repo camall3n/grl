@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument('--n_memory_iterations', type=int, default=1)
     parser.add_argument('--n_policy_iterations', type=int, default=100)
     parser.add_argument('--n_episodes_per_policy', type=int, default=20000)
+    parser.add_argument('--new_study', action='store_true')
     # parser.add_argument('--sigma0', type=float, default=1 / 6)
     return parser.parse_args()
 
@@ -58,9 +59,9 @@ def converge_value_functions(agent, env):
 def optimize_policy(agent: ActorCritic, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
-        print(agent.cached_policy_fn)
+        print(agent.policy_probs)
         converge_value_functions(agent, env)
-        did_change = agent.update_actor(mode=mode)
+        did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
         if not did_change:
             break
 
@@ -125,7 +126,7 @@ def main():
             sampler=optuna.samplers.TPESampler(
                 n_startup_trials=100,
                 constant_liar=True,
-            )
+            ),
             # sampler=optuna.samplers.CmaEsSampler(
             #     # x0=initial_cmaes_x0,
             #     # sigma0=args.sigma0,
@@ -134,6 +135,7 @@ def main():
             #     restart_strategy='ipop',
             #     inc_popsize=1,
             # ),
+            new_study=args.new_study,
         )
         # yapf: enable
 
@@ -145,7 +147,7 @@ def main():
         print(agent.cached_memory_fn.round(3))
         print()
         print('Policy:')
-        print(agent.cached_policy_fn)
+        print(agent.policy_probs)
 
     if not args.load_policy:
         agent.reset_policy()
@@ -155,9 +157,9 @@ def main():
     print(agent.cached_memory_fn.round(3))
     print()
     print('Final policy:')
-    print(agent.cached_policy_fn)
+    print(agent.policy_probs)
     np.save(study_dir + '/memory.npy', agent.cached_memory_fn)
-    np.save(study_dir + '/policy.npy', agent.cached_policy_fn)
+    np.save(study_dir + '/policy.npy', agent.policy_probs)
     np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(study_dir + '/q_td.npy', agent.q_td.q)
 

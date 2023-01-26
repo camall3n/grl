@@ -11,6 +11,7 @@ from scipy.special import softmax
 import numpy as np
 import optuna
 
+from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman
 from grl.utils.math import glorot_init as normal_init
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
@@ -67,7 +68,7 @@ class ActorCritic:
 
     def act(self, obs):
         obs_aug = self.augment_obs(obs)
-        action = np.random.choice(self.n_actions, p=self.cached_policy_fn[obs_aug])
+        action = np.random.choice(self.n_actions, p=self.policy_probs[obs_aug])
         self.step_memory(obs, action)
         return action
 
@@ -82,21 +83,29 @@ class ActorCritic:
     def store(self, experience):
         self.replay.push(experience)
 
-    def update_actor(self, mode='td', full_greedy=False):
+    def update_actor(self, mode='td', argmax_type='hardmax', eps=None):
         if mode == 'td':
             q_fn = self.q_td.q
         elif mode == 'mc':
             q_fn = self.q_mc.q
         else:
             raise ValueError(f'Invalid mode: {mode}')
-        best_a = np.argmax(q_fn.transpose(), axis=-1)
-        greedy_pi = one_hot(best_a, self.n_actions)
-        if not full_greedy:
+
+        if eps is None:
+            eps = self.policy_epsilon
+
+        if argmax_type == 'hardmax':
+            greedy_pi = arg_hardmax(q_fn, axis=0)
             uniform_pi = np.ones_like(greedy_pi) / self.n_actions
-            new_policy = (1 - self.policy_epsilon) * greedy_pi + self.policy_epsilon * uniform_pi
+            new_policy = (1 - eps) * greedy_pi + eps * uniform_pi
+        elif argmax_type == 'mellowmax':
+            new_policy = arg_mellowmax(q_fn, axis=0)
+        elif argmax_type == 'boltzman':
+            new_policy = arg_boltzman(q_fn, axis=0)
         else:
-            new_policy = greedy_pi
-        did_change = self.set_policy(new_policy, logits=False)
+            raise ValueError(f'Invalid argmax_type: {argmax_type}')
+
+        did_change = self.set_policy(new_policy.T, logits=False)
         if did_change:
             self.replay.reset()
         return did_change
@@ -107,14 +116,18 @@ class ActorCritic:
         self.q_mc.update(**augmented_experience)
 
     def set_policy(self, params, logits=True):
+        old_policy_probs = self.policy_probs
         if logits:
-            did_change = not np.array_equal(params, self.policy_params)
-            self.policy_params = params
-            self.cached_policy_fn = softmax(self.policy_params, axis=-1)
+            self.policy_logits = params
+            self.policy_probs = softmax(self.policy_logits, axis=-1)
         else:
-            did_change = not np.array_equal(params, self.cached_policy_fn)
-            self.cached_policy_fn = params
-            self.policy_params = np.log(self.cached_policy_fn + 1e-20)
+            self.policy_probs = params
+            self.policy_logits = np.log(self.policy_probs + 1e-20)
+
+        if old_policy_probs is None:
+            did_change = True
+        else:
+            did_change = not np.allclose(old_policy_probs, self.policy_probs, atol=0.01)
         return did_change
 
     def set_memory(self, params, logits=True):
@@ -126,8 +139,8 @@ class ActorCritic:
             self.memory_params = np.log(self.cached_memory_fn + 1e-20)
 
     def reset_policy(self):
-        self.policy_params = None
-        self.cached_policy_fn = None
+        self.policy_logits = None
+        self.policy_probs = None
         policy_shape = (self.n_obs * self.n_mem_states, self.n_actions)
         self.set_policy(normal_init(policy_shape, scale=0.2))
 
@@ -202,10 +215,12 @@ class ActorCritic:
             n_trials=500,
             n_jobs=1,
             sampler=optuna.samplers.TPESampler(constant_liar=True),
+            new_study=False,
     ):
         study_dir = f'./results/sample_based/{study_name}'
-        # if os.path.exists(study_dir):
-        #     shutil.rmtree(study_dir)
+        if new_study and os.path.exists(study_dir):
+            shutil.rmtree(study_dir)
+
         os.makedirs(study_dir, exist_ok=True)
         # saved_replaymemory_path = os.path.join(study_dir, 'replaymemory.pkl')
         # print(saved_replaymemory_path)
@@ -300,7 +315,8 @@ class ActorCritic:
         Expand π (O x A) => OM x A to include memory states
         """
         # augment last dim with input mem states
-        pi_augmented = np.expand_dims(self.policy_params, 1).repeat(n_mem_states, 1) # O x M x A
+        pi_augmented = np.expand_dims(self.policy_logits, 1).repeat(n_mem_states, 1) # O x M x A
+        self.policy_probs = None
         self.set_policy(pi_augmented.reshape(self.n_obs * n_mem_states, self.n_actions)) # OM x A
 
     def add_memory(self, n_mem_entries=1):

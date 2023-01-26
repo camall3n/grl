@@ -1,5 +1,7 @@
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
+import scipy.optimize
+from scipy.special import logsumexp, softmax
 
 from pprint import pformat
 from typing import Sequence, Union
@@ -44,3 +46,43 @@ def reverse_softmax(dists: jnp.ndarray, eps: float = 1e-20) -> jnp.ndarray:
     # params = jnp.log(dists) + c
     params = jnp.log(dists + eps)
     return params
+
+def one_hot(x, n, axis=-1):
+    output = np.eye(n)[x]
+    return np.moveaxis(output, -1, axis)
+
+def arg_hardmax(x, axis=-1):
+    best_a = np.argmax(x, axis=axis)
+    greedy_pi = one_hot(best_a, x.shape[axis], axis=axis)
+    return greedy_pi
+
+def arg_boltzman(x, axis=-1, beta=1.):
+    numer = np.exp(beta * x)
+    denom = np.sum(numer, axis=axis, keepdims=True)
+    return (numer / denom)
+
+def mellowmax(x, axis=-1, beta=3.9):
+    n = x.shape[axis]
+    return (logsumexp(beta * x, axis=axis) - np.log(n)) / beta
+
+def arg_mellowmax(x, axis=-1, beta=3.9, beta_min=-10, beta_max=10):
+    axis_last = np.moveaxis(x, axis, -1)
+    mm = mellowmax(axis_last, beta=beta, axis=-1)
+    batch_adv = axis_last - np.broadcast_to(np.expand_dims(mm, -1), axis_last.shape)
+    batch_beta = np.empty(mm.shape, dtype=np.float32)
+
+    # Beta is computed as the root of this function
+    def f(y, adv):
+        return np.sum(np.exp(y * adv) * adv)
+
+    for idx in np.ndindex(mm.shape):
+        idx_full = idx + (slice(None), )
+        adv = batch_adv[idx_full]
+        try:
+            beta = scipy.optimize.brentq(f, a=beta_min, b=beta_max, args=(adv, ))
+        except ValueError:
+            beta = 0
+        batch_beta[idx] = beta
+
+    softmax_last = softmax(np.expand_dims(np.asarray(batch_beta), -1) * axis_last, axis=-1)
+    return np.moveaxis(softmax_last, -1, axis)

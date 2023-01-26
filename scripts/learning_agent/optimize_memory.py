@@ -21,7 +21,7 @@ agent = ActorCritic(n_obs=env.n_obs,
                     replay_buffer_size=int(4e6))
 agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
 
-assert agent.policy_params.shape == (5, 4)
+assert agent.policy_logits.shape == (5, 4)
 assert agent.memory_params.shape == (4, 5, 1, 1)
 
 #%% Converge value functions
@@ -57,7 +57,7 @@ d0 = np.abs(q_mc_orig - q_td_orig).sum()
 
 #%% Add memory
 agent.add_memory()
-assert agent.policy_params.shape == (5 * 2, 4)
+assert agent.policy_logits.shape == (5 * 2, 4)
 assert agent.memory_params.shape == (4, 5, 2, 2)
 
 #%% Re-converge value functions based on expert memory
