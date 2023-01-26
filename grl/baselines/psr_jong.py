@@ -119,12 +119,18 @@ def discover_tests(pomdp):
 
 class PSR:
     def __init__(self, pomdp, Q, pi):
+        self.__init_max = 2.0 / len(Q)
+        self.__init_min = 0.0001
+        self.__random_gen = np.random.default_rng(seed=10)
+
+
         self.num_Q = len(Q)
         self.pi = pi
         self.Q = Q
-        self.pred_vec = np.ones((self.num_Q,))
+        self.pred_vec = self.__random_gen.uniform(self.__init_min, self.__init_max, (self.num_Q,))
         self._sub_histories = set()
         self._sub_histories_actions = set()
+
 
         # set of extension tests and associated weight vectors
         # currently zero-initalize? TODO
@@ -134,14 +140,16 @@ class PSR:
                 extension_pair = (action, obs)
                 for core_test in Q:
                     ext_test = [extension_pair] + core_test
-                    self.weights[tuple(ext_test)] = np.zeros((self.num_Q,))
+                    # TODO random initialization? hard to find what original paper did
+                    self.weights[tuple(ext_test)] = self.__random_gen.uniform(self.__init_min, self.__init_max, (self.num_Q,))
 
     def flush_history(self):
         # dump stored subhistories and learned prediction vectors.
         # Use this if you're restarting in a new environment; for instance, if you are
         # evaluating on a run separate from the training run.
-        self.pred_vec = np.ones((self.num_Q,))
+        self.pred_vec = self.__random_gen.uniform(self.__init_min, self.__init_max, (self.num_Q,))
         self._sub_histories = set()
+        self._sub_histories_actions = set()
 
     def get_pair_prob(self, action, observation):
         """
@@ -157,15 +165,15 @@ class PSR:
         Re-Calculates prediction vector p(Q|h) for a given history h.
         A History is a list of (action, observation) pairs.
         """
-        self.pred_vec = np.ones((self.num_Q,))
+        self.pred_vec = self.__random_gen.uniform(self.__init_min, self.__init_max, (self.num_Q,))
 
         for step in h:
-            self.update_prediction_vector(step)
+            self._update_prediction_vector(step)
 
 
         return self.pred_vec
 
-    def update_prediction_vector(self, pair):
+    def _update_prediction_vector(self, pair):
         """
         Updates stored prediction vector with the given action-observation pair (tuple).
         returns nothing.
@@ -176,7 +184,7 @@ class PSR:
             self.pred_vec[i] = (np.transpose(self.pred_vec).dot(ext_test_weight)) / (np.transpose(self.pred_vec).dot(base_test_weight))
             # bound as in original paper
             self.pred_vec[i] = 1.0 if self.pred_vec[i] > 1.0 else self.pred_vec[i]
-            self.pred_vec[i] = 0.0001 if self.pred_vec[i] < 0.0001 else self.pred_vec[i]
+            self.pred_vec[i] = self.__init_min if self.pred_vec[i] < self.__init_min else self.pred_vec[i]
 
 
     def update_weights(self, history, stepsize):
@@ -262,10 +270,14 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
     done = True
     history = []
 
+    errors = []
+
     avg_error = 0.0
+    tot_error = 0.0
 
     for t in range(steps):
-        if len(history) > 20 * longest_test_len:
+        # 1024 is default capacity from Jong code
+        if len(history) > 1024:
             # truncate history to length of largest extension test to save memory
             history = history[1:]
 
@@ -274,7 +286,8 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
 
             # update weights and prediction vector
             model.update_weights(history, stepsize)
-            model.update_prediction_vector(history[-1])
+            # switch to recalculating as that should be more correct
+            model.recalculate_prediction_vector(history)
 
         if done:
             #print("Finished epoch")
@@ -286,6 +299,19 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
             training = False
             model.flush_history()
             history = []
+
+            # run a number of fake training steps to generate a long enough history to learn from
+            # (this is what they do in the original code)
+            for i in range(longest_test_len):
+                a = np.random.choice(pomdp.n_actions, p=pi[ob])
+                next_s, r, done = pomdp.step(s, a, pomdp.gamma)
+                ob = pomdp.observe(next_s)
+                # TODO currently doing nothing with the reward? This is true of the original PSR algorithm 
+                # but seems wrong if we want to do planning eventually.
+                pair = (a, ob)
+                history.append(pair)  
+                
+                s = next_s              
 
         if len(history) >= longest_test_len and not training:
             # initialize weights
@@ -326,16 +352,25 @@ def learn_weights(pomdp, Q, pi=None, steps=10000000, start_stepsize=0.1, end_ste
                 # probability of transiting into a state times probability of yielding observation from that state
                 true = true + (T_a_s[state] * pomdp.phi[state][observation])
 
+            #print(f"True error: {true} | Estimated: {est}")
+
             diff = true - est
             step_tot_err = step_tot_err + (diff * diff)
 
         # update running average
         avg_error = (avg_error * t + step_tot_err) / (t + 1)
+        tot_error = tot_error + step_tot_err
+
+        # TODO error reporting for float/reset
+        if (t + 1) % 10000 == 0:
+            errors.append(tot_error / 10000)
+            tot_error = 0.0
+            print(f"Step {t} 10,000 evg error: {errors[-1]}")
 
 
         # advance state
         s = next_s
 
-    
+    # TODO
     return model, avg_error
 
