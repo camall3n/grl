@@ -84,9 +84,10 @@ def test_learning_floatreset():
     assert len(Q) == 5
     # can assert particular tests because they are enumerated in the paper
     #" fO, rO, fOrO, fOfOrO, and fOfOfOrO"
-    tests = [[], [(0, 0)], [(1, 0)], [(0, 0), (1, 0)], [(0, 0), (0, 0), (1, 0)], [(0, 0), (0, 0), (0, 0), (1, 0)]]
+    tests = [[(0, 0)], [(1, 0)], [(0, 0), (1, 0)], [(0, 0), (0, 0), (1, 0)], [(0, 0), (0, 0), (0, 0), (1, 0)]]
+    assert Q == tests, f"Tests found were {Q}"
     # going to use these tests for consistency?
-    psr_model, err = learn_weights(amdp, tests)
+    psr_model, err = learn_weights(amdp, Q, steps=2000000, stepsize_delta=0.5, stepsize_reduce_interval=0.05)
     # print(psr_model.pi.shape)
     # print(psr_model.pi)
 

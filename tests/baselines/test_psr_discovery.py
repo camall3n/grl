@@ -91,6 +91,5 @@ def test_discovery_floatreset():
     # can assert particular tests because they are enumerated in the paper
     #" fO, rO, fOrO, fOfOrO, and fOfOfOrO"
     tests = [[(0, 0)], [(1, 0)], [(0, 0), (1, 0)], [(0, 0), (0, 0), (1, 0)], [(0, 0), (0, 0), (0, 0), (1, 0)]]
-    # TODO: this fails, but core tests are not unique, so should be fine?
-   # assert Q == tests, f"Tests found were {Q}"
+    assert Q == tests, f"Tests found were {Q}"
 
