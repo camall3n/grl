@@ -7,7 +7,7 @@ import numpy as np
 
 class ReplayMemory:
     def __init__(self, capacity: int, on_retrieve: dict = None):
-        self.capacity = capacity
+        self.capacity = int(capacity)
         self.on_retrieve = defaultdict(lambda: (lambda items: items))
         if on_retrieve is not None:
             self.on_retrieve.update(on_retrieve)

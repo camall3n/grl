@@ -29,6 +29,7 @@ class ActorCritic:
                  learning_rate: float = 0.001,
                  trace_type: str = 'accumulating',
                  policy_epsilon: float = 0.10,
+                 mellowmax_beta: float = 10.0,
                  replay_buffer_size: int = 1000000) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -36,6 +37,7 @@ class ActorCritic:
         self.n_mem_entries = n_mem_entries
         self.n_mem_states = n_mem_values**n_mem_entries
         self.policy_epsilon = policy_epsilon
+        self.mellowmax_beta = mellowmax_beta
 
         self.reset_policy()
         self.reset_memory()
@@ -99,7 +101,7 @@ class ActorCritic:
             uniform_pi = np.ones_like(greedy_pi) / self.n_actions
             new_policy = (1 - eps) * greedy_pi + eps * uniform_pi
         elif argmax_type == 'mellowmax':
-            new_policy = arg_mellowmax(q_fn, axis=0, beta=10)
+            new_policy = arg_mellowmax(q_fn, axis=0, beta=self.mellowmax_beta)
         elif argmax_type == 'boltzman':
             new_policy = arg_boltzman(q_fn, axis=0)
         else:
