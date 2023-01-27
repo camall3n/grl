@@ -158,7 +158,7 @@ class ActorCritic:
     def on_trial_stopped_callback(self, study: optuna.study.Study,
                                   trial: optuna.trial.FrozenTrial) -> None:
         # whenever there's a new best trial
-        if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] <= study.best_value:
+        if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] < study.best_value:
             print(f"New best trial: {trial.number}")
             # check if rounding params might help
             params = trial.params
