@@ -4,17 +4,20 @@ from itertools import repeat
 from multiprocessing import Pool, freeze_support
 import os
 import shutil
-from tqdm import tqdm
+import warnings
 
 # from jax.nn import softmax
 from scipy.special import softmax
 import numpy as np
 import optuna
+from optuna.storages import JournalStorage, JournalFileStorage
+from tqdm import tqdm
 
-from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman
-from grl.utils.math import glorot_init as normal_init
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
+from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman
+from grl.utils.math import glorot_init as normal_init
+from grl.utils.optuna import until_successful
 
 def one_hot(x, n):
     return np.eye(n)[x]
@@ -157,8 +160,33 @@ class ActorCritic:
         params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
         return params
 
-    def on_trial_stopped_callback(self, study: optuna.study.Study,
-                                  trial: optuna.trial.FrozenTrial) -> None:
+    def build_study(self, study_name, study_dir, seed: int = None):
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            study = optuna.create_study(
+                study_name=study_name,
+                direction='minimize',
+                storage=JournalStorage(JournalFileStorage(os.path.join(study_dir,
+                                                                       "study.journal"))),
+                sampler=optuna.samplers.TPESampler(
+                    n_startup_trials=100,
+                    constant_liar=True,
+                    seed=seed,
+                ),
+                # sampler=optuna.samplers.CmaEsSampler(
+                #     # x0=initial_cmaes_x0,
+                #     # sigma0=args.sigma0,
+                #     # n_startup_trials=100,
+                #     # independent_sampler=optuna.samplers.TPESampler(constant_liar=True),
+                #     restart_strategy='ipop',
+                #     inc_popsize=1,
+                # ),
+                load_if_exists=True,
+            )
+        return study
+
+    def on_trial_end_callback(self, study: optuna.study.Study,
+                              trial: optuna.trial.FrozenTrial) -> None:
         # whenever there's a new best trial
         if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] < study.best_value:
             print(f"New best trial: {trial.number}")
@@ -184,20 +212,9 @@ class ActorCritic:
 
     def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
         n_required_params = np.prod(self.memory_logits.shape) // self.n_mem_states
-
         required_params = []
         for i in range(n_required_params):
-            n_suggest_float_attempts = 0
-            while True:
-                n_suggest_float_attempts += 1
-                if n_suggest_float_attempts >= 100 and n_suggest_float_attempts % 100 == 0:
-                    print(f'Failed to suggest_float {n_suggest_float_attempts} in a row!?')
-                try:
-                    x = trial.suggest_float(str(i), low=0.0, high=1.0)
-                except RuntimeError:
-                    continue
-                else:
-                    break
+            x = until_successful(trial.suggest_float, str(i), low=0.0, high=1.0)
             required_params.append(x)
 
         self.set_memory(self.fill_in_params(required_params), logits=False)
@@ -210,37 +227,27 @@ class ActorCritic:
             file.flush()
         return result
 
+    def worker(self, seed, n_trials, study_name, study_dir='./results/sample_based/'):
+        study = self.build_study(study_name, study_dir, seed)
+        study.optimize(
+            partial(self.objective, study_dir=study_dir),
+            n_trials=n_trials,
+            callbacks=[self.on_trial_end_callback],
+        )
+
     def optimize_memory(
-            self,
-            study_name=None,
-            preamble_str='',
-            n_trials=500,
-            n_jobs=1,
-            sampler=optuna.samplers.TPESampler(constant_liar=True),
-            new_study=False,
+        self,
+        study_name=None,
+        preamble_str='',
+        n_trials=500,
+        n_jobs=1,
+        new_study=False,
     ):
         study_dir = f'./results/sample_based/{study_name}'
         if new_study and os.path.exists(study_dir):
             shutil.rmtree(study_dir)
-
         os.makedirs(study_dir, exist_ok=True)
-        # saved_replaymemory_path = os.path.join(study_dir, 'replaymemory.pkl')
-        # print(saved_replaymemory_path)
-        # if os.path.exists(saved_replaymemory_path):
-        #     print("Loading existing replay buffer")
-        #     self.replay = self.replay.load(saved_replaymemory_path)
-        # else:
-        #     print("Saving replay buffer")
-        #     self.replay.save(study_dir, filename='replaymemory', extension='.pkl')
-
-        study = optuna.create_study(
-            study_name=study_name,
-            direction='minimize',
-            storage=optuna.storages.JournalStorage(
-                optuna.storages.JournalFileStorage(os.path.join(study_dir, "study.journal"))),
-            sampler=sampler,
-            load_if_exists=True,
-        )
+        study = self.build_study(study_name, study_dir)
 
         with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
             file.write(preamble_str)
@@ -248,22 +255,22 @@ class ActorCritic:
 
         n_jobs = max(n_jobs, 1)
         n_trials_per_worker = list(map(len, np.array_split(np.arange(n_trials), n_jobs)))
-        print(f'Starting pool with {n_jobs} workers')
-        print(f'n_trials_per_worker: {n_trials_per_worker}')
+        worker_seeds = np.arange(n_trials)
+        worker_args = zip(worker_seeds, n_trials_per_worker, repeat(study_name), repeat(study_dir))
+
         if n_jobs > 1:
+            print(f'Starting pool with {n_jobs} workers')
+            print(f'n_trials_per_worker: {n_trials_per_worker}')
             freeze_support()
-            pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
-            pool.starmap(
-                partial(study.optimize, callbacks=[self.on_trial_stopped_callback]),
-                zip(repeat(partial(self.objective, study_dir=study_dir)), n_trials_per_worker),
-            )
+            pool = Pool(n_jobs, maxtasksperchild=1) # Each new task gets a fresh worker
+            pool.starmap(self.worker, worker_args)
             pool.close()
             pool.join()
         else:
             study.optimize(
                 partial(self.objective, study_dir=study_dir),
                 n_trials_per_worker[0],
-                callbacks=[self.on_trial_stopped_callback],
+                callbacks=[self.on_trial_end_callback],
             )
 
         required_params = [
@@ -272,13 +279,6 @@ class ActorCritic:
         ]
         params = self.fill_in_params(required_params)
         self.set_memory(params, logits=False)
-
-        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
-            file.write('--------------------------------------------\n')
-            file.write(f'Best trial: {study.best_trial.number}\n')
-            file.write(f'Discrep: {study.best_trial.value}\n')
-            file.write(f'Memory:\n{self.mem_summary()}\n\n')
-            file.flush()
 
         return study
 

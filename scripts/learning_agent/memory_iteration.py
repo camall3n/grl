@@ -148,26 +148,12 @@ def main():
     for n_mem_iterations in range(args.n_memory_iterations):
         print(f"Memory iteration {n_mem_iterations}")
 
-        # yapf: disable
         agent.optimize_memory(
             study_name,
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
-            sampler=optuna.samplers.TPESampler(
-                n_startup_trials=100,
-                constant_liar=True,
-            ),
-            # sampler=optuna.samplers.CmaEsSampler(
-            #     # x0=initial_cmaes_x0,
-            #     # sigma0=args.sigma0,
-            #     # n_startup_trials=100,
-            #     # independent_sampler=optuna.samplers.TPESampler(constant_liar=True),
-            #     restart_strategy='ipop',
-            #     inc_popsize=1,
-            # ),
             new_study=args.new_study,
         )
-        # yapf: enable
         np.save(study_dir + '/memory.npy', agent.memory_probs)
 
         if not args.load_policy:
