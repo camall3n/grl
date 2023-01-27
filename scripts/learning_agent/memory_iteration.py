@@ -31,9 +31,11 @@ def parse_args():
 
 global args
 args = parse_args()
+global study_dir
 
-def converge_value_functions(agent, env):
-    agent.reset_value_functions()
+def converge_value_functions(agent, env, mode='td', update_policy=False):
+    if not update_policy:
+        agent.reset_value_functions()
     for i in range(args.n_episodes_per_policy):
         agent.reset_memory_state()
         obs, _ = env.reset()
@@ -58,25 +60,34 @@ def converge_value_functions(agent, env):
             obs = next_obs
             action = next_action
 
+        if update_policy:
+            agent.update_actor(mode=mode, argmax_type='mellowmax')
+
     td_v0s = []
     mc_v0s = []
     for i in range(100):
         obs, _ = env.reset()
-        td_v0s.append(np.dot(agent.q_td.q[obs, :], agent.policy_probs[:, obs]))
-        mc_v0s.append(np.dot(agent.q_mc.q[obs, :], agent.policy_probs[:, obs]))
+        td_v0s.append(np.dot(agent.q_td.q[:, obs], agent.policy_probs[obs, :]))
+        mc_v0s.append(np.dot(agent.q_mc.q[:, obs], agent.policy_probs[obs, :]))
     td_v0 = np.mean(td_v0s)
     mc_v0 = np.mean(mc_v0s)
     print(f"td_v0: {td_v0}")
     print(f"mc_v0: {mc_v0}")
+    np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
+    np.save(study_dir + '/q_td.npy', agent.q_td.q)
 
 def optimize_policy(agent: ActorCritic, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
-        print(agent.policy_probs)
-        converge_value_functions(agent, env)
-        did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
-        if not did_change:
-            break
+        print('Policy:\n', agent.policy_probs.round(4))
+        print('Q(TD):\n', agent.q_td.q.T.round(5))
+        print('Q(MC):\n', agent.q_mc.q.T.round(5))
+        converge_value_functions(agent, env, mode=mode, update_policy=True)
+        np.save(study_dir + '/policy.npy', agent.policy_probs)
+
+        # did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
+        # if not did_change:
+        #     break
 
 def cpu_count():
     # os.cpu_count()
@@ -100,6 +111,8 @@ def get_n_workers(n_tasks):
     return n_workers
 
 def main():
+    np.set_printoptions(suppress=True)
+
     parse_args()
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
@@ -113,6 +126,7 @@ def main():
         mellowmax_beta=args.mellowmax_beta,
     )
     study_name = f'{args.study_name}/{args.env}/{args.trial_id}'
+    global study_dir
     study_dir = f'results/sample_based/{study_name}'
     os.makedirs(study_dir, exist_ok=True)
 
@@ -154,6 +168,7 @@ def main():
             new_study=args.new_study,
         )
         # yapf: enable
+        np.save(study_dir + '/memory.npy', agent.memory_probs)
 
         if not args.load_policy:
             agent.reset_policy()
@@ -165,9 +180,9 @@ def main():
         print('Policy:')
         print(agent.policy_probs)
 
-    if not args.load_policy:
-        agent.reset_policy()
-        optimize_policy(agent, env, mode='mc')
+    # if not args.load_policy:
+    #     agent.reset_policy()
+    #     optimize_policy(agent, env, mode='mc')
 
     print('Final memory:')
     print(agent.memory_probs.round(3))
