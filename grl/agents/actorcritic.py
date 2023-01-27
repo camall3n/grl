@@ -23,17 +23,21 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 class ActorCritic:
-    def __init__(self,
-                 n_obs: int,
-                 n_actions: int,
-                 gamma: float,
-                 n_mem_entries: int = 0,
-                 n_mem_values: int = 2,
-                 learning_rate: float = 0.001,
-                 trace_type: str = 'accumulating',
-                 policy_epsilon: float = 0.10,
-                 mellowmax_beta: float = 10.0,
-                 replay_buffer_size: int = 1000000) -> None:
+    def __init__(
+        self,
+        n_obs: int,
+        n_actions: int,
+        gamma: float,
+        n_mem_entries: int = 0,
+        n_mem_values: int = 2,
+        learning_rate: float = 0.001,
+        trace_type: str = 'accumulating',
+        policy_epsilon: float = 0.10,
+        mellowmax_beta: float = 10.0,
+        replay_buffer_size: int = 1000000,
+        study_name='default_study',
+        use_existing_study=False,
+    ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
         self.n_mem_values = n_mem_values
@@ -41,6 +45,9 @@ class ActorCritic:
         self.n_mem_states = n_mem_values**n_mem_entries
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
+        self.study_name = study_name
+        self.study_dir = f'./results/sample_based/{study_name}'
+        self.build_study(use_existing=use_existing_study)
 
         self.reset_policy()
         self.reset_memory()
@@ -160,14 +167,18 @@ class ActorCritic:
         params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
         return params
 
-    def build_study(self, study_name, study_dir, seed: int = None):
+    def build_study(self, seed: int = None, use_existing=True):
+        if not use_existing and os.path.exists(self.study_dir):
+            shutil.rmtree(self.study_dir)
+        os.makedirs(self.study_dir, exist_ok=True)
+
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             study = optuna.create_study(
-                study_name=study_name,
+                study_name=self.study_name,
                 direction='minimize',
-                storage=JournalStorage(JournalFileStorage(os.path.join(study_dir,
-                                                                       "study.journal"))),
+                storage=JournalStorage(
+                    JournalFileStorage(os.path.join(self.study_dir, "study.journal"))),
                 sampler=optuna.samplers.TPESampler(
                     n_startup_trials=100,
                     constant_liar=True,
@@ -210,7 +221,7 @@ class ActorCritic:
             print(f"Enqueuing semi-rounded version")
             study.enqueue_trial(compromise_params, skip_if_exists=True)
 
-    def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
+    def objective(self, trial: optuna.Trial):
         n_required_params = np.prod(self.memory_logits.shape) // self.n_mem_states
         required_params = []
         for i in range(n_required_params):
@@ -220,43 +231,28 @@ class ActorCritic:
         self.set_memory(self.fill_in_params(required_params), logits=False)
         result = self.evaluate_memory()
 
-        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
+        with open(os.path.join(self.study_dir, 'output.txt'), 'a') as file:
             file.write(f'Trial: {trial.number}\n')
             file.write(f'Discrep: {result}\n')
             file.write(f'Memory:\n{self.mem_summary()}\n\n')
             file.flush()
         return result
 
-    def worker(self, seed, n_trials, study_name, study_dir='./results/sample_based/'):
-        study = self.build_study(study_name, study_dir, seed)
-        study.optimize(
-            partial(self.objective, study_dir=study_dir),
-            n_trials=n_trials,
-            callbacks=[self.on_trial_end_callback],
-        )
+    def worker(self, seed, n_trials): #TODO
+        study = self.build_study(seed)
+        study.optimize(self.objective, n_trials=n_trials, callbacks=[self.on_trial_end_callback])
 
     def optimize_memory(
         self,
-        study_name=None,
-        preamble_str='',
         n_trials=500,
         n_jobs=1,
-        new_study=False,
     ):
-        study_dir = f'./results/sample_based/{study_name}'
-        if new_study and os.path.exists(study_dir):
-            shutil.rmtree(study_dir)
-        os.makedirs(study_dir, exist_ok=True)
-        study = self.build_study(study_name, study_dir)
-
-        with open(os.path.join(study_dir, 'output.txt'), 'a') as file:
-            file.write(preamble_str)
-            file.flush()
+        study = self.build_study()
 
         n_jobs = max(n_jobs, 1)
         n_trials_per_worker = list(map(len, np.array_split(np.arange(n_trials), n_jobs)))
         worker_seeds = np.arange(n_trials)
-        worker_args = zip(worker_seeds, n_trials_per_worker, repeat(study_name), repeat(study_dir))
+        worker_args = zip(worker_seeds, n_trials_per_worker)
 
         if n_jobs > 1:
             print(f'Starting pool with {n_jobs} workers')
@@ -267,11 +263,7 @@ class ActorCritic:
             pool.close()
             pool.join()
         else:
-            study.optimize(
-                partial(self.objective, study_dir=study_dir),
-                n_trials_per_worker[0],
-                callbacks=[self.on_trial_end_callback],
-            )
+            study.optimize(self.objective, n_trials, callbacks=[self.on_trial_end_callback])
 
         required_params = [
             study.best_trial.params[key]

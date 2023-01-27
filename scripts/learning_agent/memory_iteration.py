@@ -24,14 +24,13 @@ def parse_args():
     parser.add_argument('--n_policy_iterations', type=int, default=300)
     parser.add_argument('--n_episodes_per_policy', type=int, default=200)
     parser.add_argument('--replay_buffer_size', type=int, default=4e6)
-    parser.add_argument('--mellowmax_beta', type=float, default=100.)
-    parser.add_argument('--new_study', action='store_true')
+    parser.add_argument('--mellowmax_beta', type=float, default=10.)
+    parser.add_argument('--use_existing_study', action='store_true')
     # parser.add_argument('--sigma0', type=float, default=1 / 6)
     return parser.parse_args()
 
 global args
 args = parse_args()
-global study_dir
 
 def converge_value_functions(agent, env, mode='td', update_policy=False):
     if not update_policy:
@@ -73,8 +72,8 @@ def converge_value_functions(agent, env, mode='td', update_policy=False):
     mc_v0 = np.mean(mc_v0s)
     print(f"td_v0: {td_v0}")
     print(f"mc_v0: {mc_v0}")
-    np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
-    np.save(study_dir + '/q_td.npy', agent.q_td.q)
+    np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
+    np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
 
 def optimize_policy(agent: ActorCritic, env, mode='td'):
     for i in tqdm(range(args.n_policy_iterations)):
@@ -83,7 +82,7 @@ def optimize_policy(agent: ActorCritic, env, mode='td'):
         print('Q(TD):\n', agent.q_td.q.T.round(5))
         print('Q(MC):\n', agent.q_mc.q.T.round(5))
         converge_value_functions(agent, env, mode=mode, update_policy=True)
-        np.save(study_dir + '/policy.npy', agent.policy_probs)
+        np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
         # did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
         # if not did_change:
@@ -117,18 +116,14 @@ def main():
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
-    agent = ActorCritic(
-        n_obs=env.n_obs,
-        n_actions=env.n_actions,
-        gamma=env.gamma,
-        n_mem_entries=0,
-        replay_buffer_size=args.replay_buffer_size,
-        mellowmax_beta=args.mellowmax_beta,
-    )
-    study_name = f'{args.study_name}/{args.env}/{args.trial_id}'
-    global study_dir
-    study_dir = f'results/sample_based/{study_name}'
-    os.makedirs(study_dir, exist_ok=True)
+    agent = ActorCritic(n_obs=env.n_obs,
+                        n_actions=env.n_actions,
+                        gamma=env.gamma,
+                        n_mem_entries=0,
+                        replay_buffer_size=args.replay_buffer_size,
+                        mellowmax_beta=args.mellowmax_beta,
+                        study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
+                        use_existing_study=args.use_existing_study)
 
     if args.load_policy:
         agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
@@ -149,12 +144,10 @@ def main():
         print(f"Memory iteration {n_mem_iterations}")
 
         agent.optimize_memory(
-            study_name,
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
-            new_study=args.new_study,
         )
-        np.save(study_dir + '/memory.npy', agent.memory_probs)
+        np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
 
         if not args.load_policy:
             agent.reset_policy()
@@ -175,10 +168,10 @@ def main():
     print()
     print('Final policy:')
     print(agent.policy_probs)
-    np.save(study_dir + '/memory.npy', agent.memory_probs)
-    np.save(study_dir + '/policy.npy', agent.policy_probs)
-    np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
-    np.save(study_dir + '/q_td.npy', agent.q_td.q)
+    np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
+    np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
+    np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
+    np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
 
 if __name__ == '__main__':
     main()
