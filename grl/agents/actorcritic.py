@@ -282,12 +282,19 @@ class ActorCritic:
 
     def evaluate_memory(self, n_epochs=1):
         for epoch in range(n_epochs):
+            assert len(self.replay.memory) > 0
             self.reset_memory_state()
             self.reset_value_functions()
-            assert len(self.replay.memory) > 0
+
+            first_episode = True
             for experience in self.replay.memory:
                 e = experience.copy()
                 del e['_index_']
+                # Skip the first episode since it might be partial
+                if first_episode:
+                    if e['terminal']:
+                        first_episode = False
+                    continue
                 self.step_memory(e['obs'], e['action'])
                 self.update_critic(e)
                 if experience['terminal']:
