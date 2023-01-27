@@ -199,7 +199,7 @@ class ActorCritic:
     def on_trial_end_callback(self, study: optuna.study.Study,
                               trial: optuna.trial.FrozenTrial) -> None:
         # whenever there's a new best trial
-        if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] < study.best_value:
+        if trial.state == optuna.trial.TrialState.COMPLETE and trial.values[0] == study.best_value:
             print(f"New best trial: {trial.number}")
             # check if rounding params might help
             params = trial.params
@@ -207,19 +207,20 @@ class ActorCritic:
             if all([params[key] == rounded_params[key] for key in params.keys()]):
                 return # already rounded; nothing useful to suggest by rounding
 
-            # also construct a compromise set of "half-rounded" params
-            compromise_params = {
-                key: np.mean([params[key], rounded_params[key]])
-                for key in params.keys()
-            }
+            # # also construct a compromise set of "half-rounded" params
+            # compromise_params = {
+            #     key: np.mean([params[key], rounded_params[key]])
+            #     for key in params.keys()
+            # }
 
             # enqueue fully rounded params first, since they're expected to help more
-            print(f"Enqueuing rounded version")
-            study.enqueue_trial(rounded_params, skip_if_exists=True)
-
-            # then enqueue the compromise as a backup
-            print(f"Enqueuing semi-rounded version")
-            study.enqueue_trial(compromise_params, skip_if_exists=True)
+            if not study._should_skip_enqueue(rounded_params):
+                print(f"Enqueuing rounded version")
+                study.enqueue_trial(rounded_params)
+            # elif not study._should_skip_enqueue(compromise_params):
+            #     # then enqueue the compromise as a backup
+            #     print(f"Enqueuing semi-rounded version")
+            #     study.enqueue_trial(compromise_params)
 
     def objective(self, trial: optuna.Trial):
         n_required_params = np.prod(self.memory_logits.shape) // self.n_mem_states
@@ -247,6 +248,7 @@ class ActorCritic:
         n_trials=500,
         n_jobs=1,
     ):
+        print(f'Replay buffer contains {len(self.replay)} experiences')
         study = self.build_study()
 
         n_jobs = max(n_jobs, 1)
