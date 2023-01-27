@@ -53,7 +53,7 @@ class ActorCritic:
         self.reset_memory_state()
 
     def mem_summary(self, precision=3):
-        mem = self.cached_memory_fn.round(precision)
+        mem = self.memory_probs.round(precision)
         # mem_summary = str(np.concatenate((mem[2, 0], mem[2, 1], mem[2, 2]), axis=-1))
         mem_summary = mem
         return mem_summary
@@ -75,7 +75,7 @@ class ActorCritic:
     def step_memory(self, obs, action):
         next_memory = np.random.choice(
             self.n_mem_states,
-            p=self.cached_memory_fn[action, obs, self.memory],
+            p=self.memory_probs[action, obs, self.memory],
         )
         self.prev_memory = self.memory
         self.memory = next_memory
@@ -132,11 +132,11 @@ class ActorCritic:
 
     def set_memory(self, params, logits=True):
         if logits:
-            self.memory_params = params
-            self.cached_memory_fn = softmax(self.memory_params, axis=-1)
+            self.memory_logits = params
+            self.memory_probs = softmax(self.memory_logits, axis=-1)
         else:
-            self.cached_memory_fn = params
-            self.memory_params = np.log(self.cached_memory_fn + 1e-20)
+            self.memory_probs = params
+            self.memory_logits = np.log(self.memory_probs + 1e-20)
 
     def reset_policy(self):
         self.policy_logits = None
@@ -149,8 +149,8 @@ class ActorCritic:
         self.set_memory(normal_init(mem_shape))
 
     def fill_in_params(self, required_params):
-        required_params_shape = self.memory_params.shape[:-1] + (self.n_mem_values - 1, )
-        params = np.empty_like(self.memory_params)
+        required_params_shape = self.memory_logits.shape[:-1] + (self.n_mem_values - 1, )
+        params = np.empty_like(self.memory_logits)
         params[:, :, :, :-1] = np.asarray(required_params).reshape(required_params_shape)
         params[:, :, :, -1] = 1 - np.sum(params[:, :, :, :-1], axis=-1)
         return params
@@ -181,7 +181,7 @@ class ActorCritic:
             study.enqueue_trial(compromise_params, skip_if_exists=True)
 
     def objective(self, trial: optuna.Trial, study_dir='./results/sample_based/'):
-        n_required_params = np.prod(self.memory_params.shape) // self.n_mem_states
+        n_required_params = np.prod(self.memory_logits.shape) // self.n_mem_states
 
         required_params = []
         for i in range(n_required_params):

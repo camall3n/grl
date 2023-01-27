@@ -122,8 +122,8 @@ def main():
 
     agent.add_memory()
     agent.reset_memory()
-    required_params = list(agent.cached_memory_fn[:, :, :, :-1].flatten())
-    assert np.allclose(agent.cached_memory_fn, agent.fill_in_params(required_params))
+    required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
+    assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
     initial_cmaes_x0 = {str(i): x for i, x in enumerate(required_params)}
 
     for n_mem_iterations in range(args.n_memory_iterations):
@@ -155,7 +155,7 @@ def main():
             optimize_policy(agent, env)
 
         print('Memory:')
-        print(agent.cached_memory_fn.round(3))
+        print(agent.memory_probs.round(3))
         print()
         print('Policy:')
         print(agent.policy_probs)
@@ -165,11 +165,11 @@ def main():
         optimize_policy(agent, env, mode='mc')
 
     print('Final memory:')
-    print(agent.cached_memory_fn.round(3))
+    print(agent.memory_probs.round(3))
     print()
     print('Final policy:')
     print(agent.policy_probs)
-    np.save(study_dir + '/memory.npy', agent.cached_memory_fn)
+    np.save(study_dir + '/memory.npy', agent.memory_probs)
     np.save(study_dir + '/policy.npy', agent.policy_probs)
     np.save(study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(study_dir + '/q_td.npy', agent.q_td.q)

@@ -22,7 +22,7 @@ agent = ActorCritic(n_obs=env.n_obs,
 agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
 
 assert agent.policy_logits.shape == (5, 4)
-assert agent.memory_params.shape == (4, 5, 1, 1)
+assert agent.memory_logits.shape == (4, 5, 1, 1)
 
 #%% Converge value functions
 
@@ -58,7 +58,7 @@ d0 = np.abs(q_mc_orig - q_td_orig).sum()
 #%% Add memory
 agent.add_memory()
 assert agent.policy_logits.shape == (5 * 2, 4)
-assert agent.memory_params.shape == (4, 5, 2, 2)
+assert agent.memory_logits.shape == (4, 5, 2, 2)
 
 #%% Re-converge value functions based on expert memory
 
@@ -76,19 +76,19 @@ Discrep: {discrep}
 #     return (1-alpha) * mem_fn + alpha * np.ones_like(mem_fn) / n_mem_states
 #
 # agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
-# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.05), logits=False)
+# agent.set_memory(noisy_mem(agent.memory_probs, 0.05), logits=False)
 # print(agent.mem_summary())
 # print(agent.evaluate_memory(n_epochs=1))
 #
 # print()
 # agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
-# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.1), logits=False)
+# agent.set_memory(noisy_mem(agent.memory_probs, 0.1), logits=False)
 # print(agent.mem_summary())
 # print(agent.evaluate_memory(n_epochs=1))
 #
 # print()
 # agent.set_memory(get_memory(16)) # grab optimal memory for t-maze
-# agent.set_memory(noisy_mem(agent.cached_memory_fn, 0.2), logits=False)
+# agent.set_memory(noisy_mem(agent.memory_probs, 0.2), logits=False)
 # print(agent.mem_summary())
 # print(agent.evaluate_memory(n_epochs=1))
 
