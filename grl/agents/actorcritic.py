@@ -204,7 +204,7 @@ class ActorCritic:
             # check if rounding params might help
             params = trial.params
             rounded_params = {key: np.round(val) for (key, val) in params.items()}
-            if all([params[key] == rounded_params[key] for key in params.keys()]):
+            if np.allclose(*zip(*[(params[key], rounded_params[key]) for key in params.keys()])):
                 return # already rounded; nothing useful to suggest by rounding
 
             # # also construct a compromise set of "half-rounded" params
