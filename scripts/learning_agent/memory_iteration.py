@@ -13,6 +13,7 @@ from grl.agents.actorcritic import ActorCritic
 from grl.environment.memory_lib import get_memory
 
 def parse_args():
+    # yapf: disable
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='tmaze_5_two_thirds_up')
     parser.add_argument('--study_name', type=str, default='exp03-mi')
@@ -23,10 +24,13 @@ def parse_args():
     parser.add_argument('--n_memory_iterations', type=int, default=50)
     parser.add_argument('--n_policy_iterations', type=int, default=300)
     parser.add_argument('--n_episodes_per_policy', type=int, default=200)
+    parser.add_argument('--min_mem_opt_replay_size', type=int, default=1e5,
+        help="Minimum number of experiences in replay buffer for memory optimization")
     parser.add_argument('--replay_buffer_size', type=int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     # parser.add_argument('--sigma0', type=float, default=1 / 6)
+    # yapf: enable
     return parser.parse_args()
 
 global args
@@ -141,6 +145,9 @@ def main():
     initial_cmaes_x0 = {str(i): x for i, x in enumerate(required_params)}
 
     for n_mem_iterations in range(args.n_memory_iterations):
+        while len(agent.replay) < args.min_mem_opt_replay_size:
+            converge_value_functions(agent, env, update_policy=False)
+
         print(f"Memory iteration {n_mem_iterations}")
 
         agent.optimize_memory(
