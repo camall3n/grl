@@ -207,20 +207,20 @@ class ActorCritic:
             if np.allclose(*zip(*[(params[key], rounded_params[key]) for key in params.keys()])):
                 return # already rounded; nothing useful to suggest by rounding
 
-            # # also construct a compromise set of "half-rounded" params
-            # compromise_params = {
-            #     key: np.mean([params[key], rounded_params[key]])
-            #     for key in params.keys()
-            # }
+            # also construct a compromise set of "half-rounded" params
+            compromise_params = {
+                key: np.mean([params[key], rounded_params[key]])
+                for key in params.keys()
+            }
 
             # enqueue fully rounded params first, since they're expected to help more
             if not study._should_skip_enqueue(rounded_params):
                 print(f"Enqueuing rounded version")
                 study.enqueue_trial(rounded_params)
-            # elif not study._should_skip_enqueue(compromise_params):
-            #     # then enqueue the compromise as a backup
-            #     print(f"Enqueuing semi-rounded version")
-            #     study.enqueue_trial(compromise_params)
+            elif not study._should_skip_enqueue(compromise_params):
+                # then enqueue the compromise as a backup
+                print(f"Enqueuing semi-rounded version")
+                study.enqueue_trial(compromise_params)
 
     def objective(self, trial: optuna.Trial):
         n_required_params = np.prod(self.memory_logits.shape) // self.n_mem_states
