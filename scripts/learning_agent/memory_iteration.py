@@ -149,6 +149,12 @@ def main():
         )
         np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
 
+        print('Memory:')
+        print(agent.memory_probs.round(3))
+        print()
+        print('Policy:')
+        print(agent.policy_probs)
+
         if not args.load_policy:
             agent.reset_policy()
             optimize_policy(agent, env)
