@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--n_policy_iterations', type=int, default=300)
     parser.add_argument('--n_episodes_per_policy', type=int, default=200)
     parser.add_argument('--replay_buffer_size', type=int, default=4e6)
-    parser.add_argument('--mellowmax_beta', type=float, default=10.)
+    parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     # parser.add_argument('--sigma0', type=float, default=1 / 6)
     return parser.parse_args()
