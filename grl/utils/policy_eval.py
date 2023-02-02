@@ -58,3 +58,4 @@ def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarra
     amdp_v_vals = (amdp_q_vals * pi_abs.T).sum(0)
 
     return {'v': amdp_v_vals, 'q': amdp_q_vals}
+

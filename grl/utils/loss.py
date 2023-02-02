@@ -16,7 +16,7 @@ def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi: jnp.nda
     diff = mc_vals[value_type] - td_vals[value_type]
     return diff, mc_vals, td_vals
 
-def weighted_mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
+def weighted_q_mem_diff(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
              T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     """
     TODO: this might be wrong.
@@ -24,13 +24,10 @@ def weighted_mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
     _, mc_vals, td_vals, info = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
-    state_x_occupancy = info['occupancy']
-    occupancy = state_x_occupancy @ phi_x
-    if value_type == 'q':
-        occupancy = jnp.expand_dims(occupancy, axis=0)
-        occupancy = jnp.repeat(occupancy, pi.shape[-1], axis=0)
-        occupancy = occupancy * pi.T
-    occupancy = lax.stop_gradient(occupancy)
+    c_s = info['occupancy']
+    c_o = c_s @ phi_x
+    p_o = c_o / c_o.sum()
+    weight = (pi * p_o[:, None])
     diff = (mc_vals[value_type] - td_vals[value_type]) * occupancy
     return diff, mc_vals, td_vals
 

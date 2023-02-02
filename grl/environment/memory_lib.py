@@ -316,3 +316,31 @@ mem_18 = np.array([
 ])
 memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left
 
+
+mem_19_param = 0.1
+# Optimal memory for t-maze
+mem_19 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1 - mem_19_param, mem_19_param], # m0
+        [mem_19_param, 1 - mem_19_param], # m1
+    ],
+    [ # we see the goal as DOWN
+        [1 - mem_19_param, mem_19_param], # m0
+        [mem_19_param, 1 - mem_19_param], # m1
+    ],
+    [ # corridor
+        [1 - mem_19_param, mem_19_param], # m0
+        [mem_19_param, 1 - mem_19_param], # m1
+    ],
+    [ # junction
+        [1 - mem_19_param, mem_19_param], # m0
+        [mem_19_param, 1 - mem_19_param], # m1
+    ],
+    [ # terminal
+        [1 - mem_19_param, mem_19_param], # m0
+        [mem_19_param, 1 - mem_19_param], # m1
+    ],
+])
+memory_19 = np.array([mem_19, mem_19, mem_19, mem_19]) # up, down, right, left

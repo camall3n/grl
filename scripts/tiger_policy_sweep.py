@@ -93,8 +93,6 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
     return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, amdp_mem.gamma)
 
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--spec', default='tiger-alt-start', type=str,
