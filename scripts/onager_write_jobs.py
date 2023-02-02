@@ -58,6 +58,7 @@ def generate_onager_runs(run_dicts: List[dict],
 
         prelaunch_string = ' '.join(prelaunch_list)
         print(f"Launching prelaunch script: {prelaunch_string}")
+        os.chdir(ROOT_DIR)
         os.system(prelaunch_string)
 
 if __name__ == "__main__":

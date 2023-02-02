@@ -4,10 +4,12 @@ hparams = {
     'args': [{
         'algo': 'mi',
         'spec': [
-            'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95', 'network',
-            'shuttle.95', 'paint.95'
+            # 'tiger-alt-start', 'network'
+            # 'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95', 'network',
+            # 'shuttle.95',
             # 'bridge-repair',
             # 'hallway'
+            'paint.95'
         ],
         'policy_optim_alg': 'pi',
         'value_type': 'q',
@@ -18,7 +20,8 @@ hparams = {
         'lr': 1,
         'use_memory': 0,
         'use_grad': 'm',
-        'n_mem_states': [4, 6],
+        # 'n_mem_states': [4, 6],
+        'n_mem_states': 6,
         'mi_iterations': 2,
         'seed': [2020 + i for i in range(10)],
     }]
