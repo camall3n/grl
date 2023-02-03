@@ -65,7 +65,20 @@ def mellowmax(x, axis=-1, beta=3.9):
     n = x.shape[axis]
     return (logsumexp(beta * x, axis=axis) - np.log(n)) / beta
 
-def arg_mellowmax(x, axis=-1, beta=3.9, beta_min=-10, beta_max=10):
+def arg_mellowmax(
+        x: np.ndarray,
+        axis: int = -1,
+        beta: float = 3.9,
+        beta_min: float = -10.0,
+        beta_max: float = 100.0,
+        normalize_axis: bool = True, # rescale values to between 0 and 1 before taking mellowmax
+):
+    if normalize_axis:
+        xmin = x.min(axis=axis, keepdims=True)
+        xmax = x.max(axis=axis, keepdims=True)
+        xrange = (xmax - xmin)
+        xrange[np.isclose(xrange, 0)] = 1
+        x = (x - xmin) / xrange
     axis_last = np.moveaxis(x, axis, -1)
     mm = mellowmax(axis_last, beta=beta, axis=-1)
     batch_adv = axis_last - np.broadcast_to(np.expand_dims(mm, -1), axis_last.shape)

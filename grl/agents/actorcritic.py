@@ -111,7 +111,7 @@ class ActorCritic:
             uniform_pi = np.ones_like(greedy_pi) / self.n_actions
             new_policy = (1 - eps) * greedy_pi + eps * uniform_pi
         elif argmax_type == 'mellowmax':
-            new_policy = arg_mellowmax(q_fn, axis=0, beta=self.mellowmax_beta, beta_max=100)
+            new_policy = arg_mellowmax(q_fn, axis=0, beta=self.mellowmax_beta)
         elif argmax_type == 'boltzman':
             new_policy = arg_boltzman(q_fn, axis=0)
         else:
