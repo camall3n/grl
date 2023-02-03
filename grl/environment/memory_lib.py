@@ -344,3 +344,40 @@ mem_19 = np.array([
     ],
 ])
 memory_19 = np.array([mem_19, mem_19, mem_19, mem_19]) # up, down, right, left
+
+mem_20_param = 0.1
+
+# Optimal memory for t-maze
+mem_20 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1 - mem_20_param, mem_20_param], # m0
+        [mem_20_param, 1 - mem_20_param], # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param], # m0
+        [mem_20_param, 1 - mem_20_param], # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param], # m0
+        [mem_20_param, 1 - mem_20_param], # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param], # m0
+        [mem_20_param, 1 - mem_20_param], # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param], # m0
+        [mem_20_param, 1 - mem_20_param], # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param],  # m0
+        [mem_20_param, 1 - mem_20_param],  # m1
+    ],
+    [
+        [1 - mem_20_param, mem_20_param],  # m0
+        [mem_20_param, 1 - mem_20_param],  # m1
+    ],
+])
+memory_20 = np.array([mem_20, mem_20, mem_20, mem_20]) # up, down, right, left
