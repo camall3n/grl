@@ -58,9 +58,9 @@ def get_perf(pi_obs: jnp.ndarray,
 def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
              pi_iterations: int = 10000, seed: int = 2020):
     rand_key = jax.random.PRNGKey(seed)
-    mem_params = get_memory(0,
-                            amdp.phi.shape[-1],
-                            amdp.T.shape[0],
+    mem_params = get_memory("0",
+                            n_obs=amdp.phi.shape[-1],
+                            n_actions=amdp.T.shape[0],
                             n_mem_states=2)
     pi_params = reverse_softmax(pi)
 

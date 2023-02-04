@@ -7,12 +7,13 @@ from .pomdp_file import POMDPFile
 from grl.utils.math import normalize
 from definitions import ROOT_DIR
 
-def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
+def load_spec(name, memory_id: str = None, n_mem_states: int = 2, fuzz: float = 0.1, **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:            The name of the function or .POMDP file defining the POMDP.
     :param memory_id:       ID of memory function to use.
     :param n_mem_states:    Number of memory states allowed.
+    :param fuzz:            for memory_id="f" - how much fuzz do we use for the fuzzy identity function.
 
     The following **kwargs are specified for the following specs:
     tmaze_hyperparams:
@@ -56,9 +57,10 @@ def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
 
     if memory_id is not None:
         spec['mem_params'] = get_memory(memory_id,
-                                        spec['phi'].shape[-1],
-                                        spec['T'].shape[0],
-                                        n_mem_states=n_mem_states)
+                                        n_obs=spec['phi'].shape[-1],
+                                        n_actions=spec['T'].shape[0],
+                                        n_mem_states=n_mem_states,
+                                        fuzz=fuzz)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so

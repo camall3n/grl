@@ -12,13 +12,15 @@ import numpy as np
 
 def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
             value_type: str = 'v', error_type: str = 'l2', lr: float = 1,
-            weight_discrep: bool = False):
+            weight_discrep: bool = False,
+            iterations: int = None):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
+    :param iterations:   Do we end things after `iterations`? If None, we use original break condition.
     :param error_type: 'l2' or 'max' or 'abs'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
@@ -76,10 +78,13 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
             # print()
             # print('params\n', params)
 
-        if np.allclose(old_params, params, atol=1e-10):
-            done_count += 1
-        else:
-            done_count = 0
+        if iterations is None:
+            if np.allclose(old_params, params, atol=1e-10):
+                done_count += 1
+            else:
+                done_count = 0
+        elif i >= iterations:
+            break
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')

@@ -23,6 +23,7 @@ def run_memory_iteration(spec: dict,
                          value_type: str = 'v',
                          weight_discrep: bool = False,
                          pi_params: jnp.ndarray = None,
+                         epsilon: float = 0.1
 ):
     """
     Wrapper function for the Memory Iteration algorithm.
@@ -60,7 +61,8 @@ def run_memory_iteration(spec: dict,
                             policy_optim_alg=policy_optim_alg,
                             error_type=error_type,
                             value_type=value_type,
-                            weight_discrep=weight_discrep)
+                            weight_discrep=weight_discrep,
+                            epsilon=epsilon)
 
     info, agent = memory_iteration(agent,
                                    amdp,

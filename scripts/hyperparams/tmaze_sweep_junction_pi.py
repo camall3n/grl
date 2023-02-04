@@ -8,11 +8,11 @@ hparams = {
         'spec': 'tmaze_hyperparams',
         'tmaze_corridor_length': 5,
         'tmaze_discount': 0.9,
-        'tmaze_junction_up_pi': np.linspace(0, 1, num=50),
+        'tmaze_junction_up_pi': np.linspace(0, 0.5, num=20),
         'method': 'a',
         'use_memory': 0,
         'use_grad': 'm',
         'lr': 1,
-        'seed': [2020 + i for i in range(1, 10)],
+        'seed': [2020 + i for i in range(10)],
     }]
 }

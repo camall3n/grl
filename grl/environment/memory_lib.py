@@ -1,5 +1,5 @@
-import sys
 import numpy as np
+from typing import Union
 
 from grl.utils.math import glorot_init, reverse_softmax
 """
@@ -7,20 +7,41 @@ from grl.utils.math import glorot_init, reverse_softmax
 and 2 actions: up, down
 
 Dimensions: AxZxMxM
+
+"f" - fuzzy identity memory function
 """
 
-def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2) -> np.ndarray:
+def get_memory(memory_id: str,
+               n_obs: int = None,
+               n_actions: int = None,
+               n_mem_states: int = 2,
+               fuzz: float = 0.1) -> np.ndarray:
     current_module = globals()
     mem_name = f'memory_{memory_id}'
-    if memory_id == 0:
-        mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
-    else:
-        if mem_name in current_module:
-            T_mem = current_module[mem_name]
-            # smooth out for softmax
-            mem_params = reverse_softmax(T_mem)
+    if memory_id.isdigit():
+        if int(memory_id) == 0:
+            assert (n_obs is not None) and (n_actions is not None), \
+                f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
+            mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
         else:
-            raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
+            if mem_name in current_module:
+                T_mem = current_module[mem_name]
+                # smooth out for softmax
+                mem_params = reverse_softmax(T_mem)
+            else:
+                raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
+    elif memory_id == 'f':
+        assert (n_obs is not None) and (n_actions is not None), \
+            f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
+        identity = np.eye(n_mem_states)
+        fuzzy_identity = identity - identity * fuzz + (1 - identity) * fuzz
+        # 1 x 1 x n_mem_states x n_mem_states
+        fuzzy_expanded_identity = np.expand_dims(np.expand_dims(fuzzy_identity, 0), 0)
+        mem_func = fuzzy_expanded_identity.repeat(n_actions, axis=1).repeat(n_obs, axis=0)
+
+        mem_params = reverse_softmax(mem_func)
+    else:
+        raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
 
 mem_1 = np.array([

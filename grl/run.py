@@ -33,7 +33,8 @@ def run_pe_algos(spec: dict,
                  lr: float = 1.,
                  value_type: str = 'v',
                  error_type: str = 'l2',
-                 weight_discrep: bool = False):
+                 weight_discrep: bool = False,
+                 pe_grad_iterations: int = False):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -127,6 +128,7 @@ def run_pe_algos(spec: dict,
                                                        value_type=value_type,
                                                        error_type=error_type,
                                                        weight_discrep=weight_discrep,
+                                                       iterations=pe_grad_iterations,
                                                        lr=lr)
                     info['grad_info'] = grad_info
 
@@ -412,6 +414,9 @@ if __name__ == '__main__':
                         help='if we do memory iteration, how many steps of memory improvement do we do per iteration?')
     parser.add_argument('--pi_steps', type=int, default=50000,
                         help='if we do memory iteration, how many steps of policy improvement do we do per iteration?')
+    parser.add_argument('--pe_grad_steps', type=int, default=None,
+                        help='if we do fixed policy memory improvement (pe_grad), how many iterations do we do? '
+                             'If None, use original breaking condition.')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
                         help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
                              '"dm" - discrepancy maximization')
@@ -422,8 +427,10 @@ if __name__ == '__main__':
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
-    parser.add_argument('--use_memory', default=None, type=int,
+    parser.add_argument('--use_memory', default=None, type=str,
         help='use memory function during policy eval if set')
+    parser.add_argument('--fuzz', default=0.1, type=float,
+                        help='For the fuzzy identity memory function, how much fuzz do we add?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
     parser.add_argument('--weight_discrep', action='store_true',
@@ -435,6 +442,8 @@ if __name__ == '__main__':
     parser.add_argument('--error_type', default='abs', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--lr', default=1, type=float)
+    parser.add_argument('--epsilon', default=0.1, type=float,
+                        help='(POLICY ITERATION ONLY) What epsilon do we use?')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
@@ -469,7 +478,7 @@ if __name__ == '__main__':
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
         mem_part = 'no_memory'
-        if args.use_memory is not None and args.use_memory > 0:
+        if args.use_memory is not None and args.use_memory.isdigit() and int(args.use_memory) > 0:
             mem_part = f'memory_{args.use_memory}'
         if args.run_generated:
             name = f'logs/{args.run_generated}.log'
@@ -543,7 +552,8 @@ if __name__ == '__main__':
                     lr=args.lr,
                     value_type=args.value_type,
                     error_type=args.error_type,
-                    weight_discrep=args.weight_discrep
+                    weight_discrep=args.weight_discrep,
+                    pe_grad_iterations=args.pe_grad_steps
                 )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
@@ -562,6 +572,7 @@ if __name__ == '__main__':
                                                    value_type=args.value_type,
                                                    error_type=args.error_type,
                                                    weight_discrep=args.weight_discrep,
+                                                   epsilon=args.epsilon,
                                                    pi_params=pi_params)
 
                 info = {'logs': logs, 'args': args.__dict__}

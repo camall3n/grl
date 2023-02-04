@@ -100,8 +100,8 @@ if __name__ == "__main__":
 
     discreps = np.zeros(mem_funcs.shape[0])
 
-    # optimal_mem1 = get_memory(16, 0, 0)
-    # optimal_mem2 = get_memory(18, 0, 0)
+    # optimal_mem1 = get_memory("16")
+    # optimal_mem2 = get_memory("18")
     #
     # discrep1 = calc_discrep(optimal_mem1, spec['gamma'], pi_x, spec['T'], spec['R'], spec['phi'], spec['p0'])
     # print()
