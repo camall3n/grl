@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--study_name', type=str, default='exp03-mi')
     parser.add_argument('--max_jobs', type=int, default=None)
     parser.add_argument('--load_policy', action='store_true')
+    parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=100)
     parser.add_argument('--n_memory_iterations', type=int, default=50)
@@ -130,8 +131,13 @@ def main():
                         use_existing_study=args.use_existing_study)
 
     if args.load_policy:
-        agent.set_policy(spec['Pi_phi'][0], logits=False) # policy over non-memory observations
-        converge_value_functions(agent, env)
+        policy = spec['Pi_phi'][0]
+        if args.policy_junction_up_prob is not None:
+            assert args.env == 'tmaze_5_two_thirds_up'
+            policy[3][0] = args.policy_junction_up_prob
+            policy[3][1] = 1 - args.policy_junction_up_prob
+        agent.set_policy(policy, logits=False) # policy over non-memory observations
+        converge_value_functions(agent, env, update_policy=False)
     else:
         agent.reset_policy()
 
@@ -140,6 +146,8 @@ def main():
 
     agent.add_memory()
     agent.reset_memory()
+    converge_value_functions(agent, env, update_policy=False)
+    discrep_start = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
     initial_cmaes_x0 = {str(i): x for i, x in enumerate(required_params)}
@@ -150,7 +158,7 @@ def main():
 
         print(f"Memory iteration {n_mem_iterations}")
 
-        agent.optimize_memory(
+        study = agent.optimize_memory(
             n_jobs=get_n_workers(args.n_memory_trials),
             n_trials=args.n_memory_trials,
         )
@@ -185,6 +193,13 @@ def main():
     np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
+    info = {
+        'final_params': agent.memory_logits,
+        'initial_discrep': discrep_start,
+        'final_discrep': study.best_value,
+        'policy_up_prob': args.policy_junction_up_prob,
+    }
+    np.save(agent.study_dir + '/info.npy', info)
 
 if __name__ == '__main__':
     main()
