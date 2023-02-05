@@ -137,7 +137,6 @@ def main():
             policy[3][0] = args.policy_junction_up_prob
             policy[3][1] = 1 - args.policy_junction_up_prob
         agent.set_policy(policy, logits=False) # policy over non-memory observations
-        converge_value_functions(agent, env, update_policy=False)
     else:
         agent.reset_policy()
 
