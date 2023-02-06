@@ -1,11 +1,11 @@
-import numpy as np
-from jax import jit, value_and_grad
-from functools import partial
+from jax import value_and_grad
 
 from grl.utils.loss import *
 
 class PolicyEval:
-    def __init__(self, amdp, verbose=True, error_type: str = 'l2', value_type: str = 'q',
+    def __init__(self, amdp, verbose: bool = True,
+                 discrep_type: str = 'ground_truth',
+                 error_type: str = 'l2', value_type: str = 'q',
                  weight_discrep: bool = False):
         """
         :param amdp:     AMDP
@@ -13,6 +13,7 @@ class PolicyEval:
         """
         self.amdp = amdp
         self.verbose = verbose
+        self.discrep_type = discrep_type
         self.error_type = error_type
         self.value_type = value_type
         self.weight_discrep = weight_discrep
@@ -21,6 +22,11 @@ class PolicyEval:
                                            value_type=self.value_type,
                                            error_type=self.error_type,
                                            weight_discrep=self.weight_discrep)
+        if self.discrep_type == 'abs_td':
+            partial_mem_discrep_loss = partial(mem_abs_td_loss,
+                                               value_type=self.value_type,
+                                               error_type=self.error_type,
+                                               weight_discrep=self.weight_discrep)
         self.fn_mem_loss = jit(partial_mem_discrep_loss, static_argnames=['gamma'])
 
         # policy

@@ -9,14 +9,6 @@ from grl.memory import functional_memory_cross_product
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
 
-def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
-             T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    T_mem = nn.softmax(mem_params, axis=-1)
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-    _, mc_vals, td_vals, _ = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
-    diff = mc_vals[value_type] - td_vals[value_type]
-    return diff, mc_vals, td_vals
-
 def weighted_mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
              T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     """
@@ -57,14 +49,14 @@ def discrep_loss(value_type: str, error_type: str, weight_discrep_by_count: bool
 
     # TODO: CHANGE THIS
     loss = (weight * unweighted_err).mean()
-    return loss
+    return loss, mc_vals, td_vals
 
 def mem_discrep_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,  # input non-static arrays
                      phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
                      value_type: str, error_type: str, weight_discrep: bool):  # initialize with partial
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-    loss = discrep_loss(value_type, error_type, weight_discrep, gamma,
+    loss, _, _ = discrep_loss(value_type, error_type, weight_discrep, gamma,
                         pi, phi_x, T_x, R_x, p0_x)
     return loss
 
@@ -76,9 +68,9 @@ def policy_discrep_loss(pi_params: jnp.ndarray, gamma: float,
                         phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
                         value_type: str, error_type: str, weight_discrep: bool):  # args initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
-    loss = discrep_loss(value_type, error_type, weight_discrep, gamma,
+    loss, mc_vals, td_vals = discrep_loss(value_type, error_type, weight_discrep, gamma,
                         pi, phi, T, R, p0)
-    return loss
+    return loss, (mc_vals, td_vals)
 
 def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi: jnp.ndarray,
                       p0: jnp.ndarray, R: jnp.ndarray):
@@ -96,7 +88,8 @@ def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi:
     p_init_obs = p0 @ phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
-def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
+def mem_abs_td_loss(value_type: str, error_type: str, weight_discrep_by_count: bool, gamma: float,
+                    mem_params: jnp.ndarray, pi: jnp.ndarray, T: jnp.ndarray,
                     R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     """
     Absolute TD error loss.
@@ -105,20 +98,25 @@ def mem_abs_td_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: j
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
 
-    # observation policy, but expanded over states
-    pi_state = phi_x @ pi
-    occupancy = functional_get_occupancy(pi_state, T_x, p0_x, gamma)
+    _, mc_vals, td_vals, info = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
+    vals = td_vals[value_type]
 
-    p_pi_of_s_given_o = get_p_s_given_o(phi_x, occupancy)
+    weight = pi.T if value_type == 'q' else jnp.ones_like(vals)
+    if weight_discrep_by_count:
+        c_s = info['occupancy']
+        c_o = c_s @ phi
+        p_o = c_o / c_o.sum()
+        weight = lax.stop_gradient(pi * p_o[:, None]).T
+        if value_type == 'v':
+            weight = weight.sum(axis=0)
 
-    # TD
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi_x, T_x, R_x)
-    td_v_vals, td_q_vals = functional_solve_mdp(pi, T_obs_obs, R_obs_obs, gamma)
-    td_vals = {'v': td_v_vals, 'q': td_q_vals}
+    if error_type == 'l2':
+        unweighted_err = (vals**2)
+    elif error_type == 'abs':
+        unweighted_err = jnp.abs(vals)
+    else:
+        raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
-    # Get starting obs distribution
-    obs_p0_x = phi_x * p0_x
-    # based on our TD model, get our observation occupancy
-    obs_occupancy = functional_get_occupancy(pi, T_obs_obs, obs_p0_x, gamma)
-
-    raise NotImplementedError
+    # TODO: CHANGE THIS
+    loss = (weight * unweighted_err).mean()
+    return loss, mc_vals, td_vals

@@ -31,8 +31,9 @@ def run_pe_algos(spec: dict,
                  use_grad: bool = False,
                  n_episodes: int = 500,
                  lr: float = 1.,
-                 value_type: str = 'v',
-                 error_type: str = 'l2',
+                 discrep_type: str = 'ground_truth',
+                 value_type: str = 'q',
+                 error_type: str = 'abs',
                  weight_discrep: bool = False,
                  pe_grad_iterations: int = False):
     """
@@ -49,7 +50,11 @@ def run_pe_algos(spec: dict,
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
-    pe = PolicyEval(amdp)
+    pe = PolicyEval(amdp,
+                    discrep_type=discrep_type,
+                    value_type=value_type,
+                    error_type=error_type,
+                    weight_discrep=weight_discrep)
     discrepancies = [] # the discrepancy dict for each policy
     discrepancy_ids = [] # Pi_phi indices (policies) where there was a discrepancy
 
