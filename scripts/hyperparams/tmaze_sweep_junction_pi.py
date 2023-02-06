@@ -12,6 +12,7 @@ hparams = {
         'method': 'a',
         'use_memory': 0,
         'use_grad': 'm',
+        'pe_grad_steps': 50000,
         'lr': 1,
         'seed': [2020 + i for i in range(10)],
     }]

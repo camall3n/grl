@@ -81,4 +81,3 @@ def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
 
 def get_perf(info: dict):
     return (info['state_vals_v'] * info['p0']).sum()
-

@@ -17,20 +17,11 @@ class PolicyEval:
         self.value_type = value_type
         self.weight_discrep = weight_discrep
 
-        # memory
-        if self.value_type == 'v':
-            if self.error_type == 'l2':
-                self.fn_mem_loss = mem_v_l2_loss
-            elif self.error_type == 'abs':
-                self.fn_mem_loss = mem_v_abs_loss
-        elif self.value_type == 'q':
-            if self.error_type == 'l2':
-                self.fn_mem_loss = mem_q_l2_loss
-            elif self.error_type == 'abs':
-                if self.weight_discrep:
-                    self.fn_mem_loss = weighted_mem_q_abs_loss
-                else:
-                    self.fn_mem_loss = mem_q_abs_loss
+        partial_mem_discrep_loss = partial(mem_discrep_loss,
+                                           value_type=self.value_type,
+                                           error_type=self.error_type,
+                                           weight_discrep=self.weight_discrep)
+        self.fn_mem_loss = jit(partial_mem_discrep_loss, static_argnames=['gamma'])
 
         # policy
         self.functional_loss_fn = self.functional_mse_loss
@@ -82,15 +73,15 @@ class PolicyEval:
 
     def memory_update(self, mem_params: jnp.ndarray, value_type: str, lr: float, pi: jnp.ndarray):
         assert value_type == self.value_type
-        return self.functional_memory_update(mem_params, self.amdp.gamma, lr, pi, self.amdp.T,
-                                             self.amdp.R, self.amdp.phi, self.amdp.p0)
+        return self.functional_memory_update(mem_params, self.amdp.gamma, lr, pi, self.amdp.phi, self.amdp.T,
+                                             self.amdp.R, self.amdp.p0)
 
     @partial(jit, static_argnames=['self', 'gamma', 'lr'])
     def functional_memory_update(self, params: jnp.ndarray, gamma: float, lr: float,
-                                 pi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray,
+                                 pi: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray,
                                  p0: jnp.ndarray):
-        loss, params_grad = value_and_grad(self.fn_mem_loss, argnums=0)(params, gamma, pi, T, R,
-                                                                        phi, p0)
+        loss, params_grad = value_and_grad(self.fn_mem_loss, argnums=0)(params, gamma, pi,
+                                                                        phi, T, R, p0)
         params -= lr * params_grad
 
         return loss, params

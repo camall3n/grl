@@ -1,5 +1,6 @@
 import jax.numpy as jnp
-from jax import nn, lax
+from jax import nn, lax, jit
+from functools import partial
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, functional_solve_mdp
@@ -16,10 +17,10 @@ def mem_diff(value_type: str, mem_params: jnp.ndarray, gamma: float, pi: jnp.nda
     diff = mc_vals[value_type] - td_vals[value_type]
     return diff, mc_vals, td_vals
 
-def weighted_q_mem_diff(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
+def weighted_mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
              T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
     """
-    TODO: this might be wrong.
+    TODO: Test this?
     """
     T_mem = nn.softmax(mem_params, axis=-1)
     T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
@@ -27,72 +28,57 @@ def weighted_q_mem_diff(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
     c_s = info['occupancy']
     c_o = c_s @ phi_x
     p_o = c_o / c_o.sum()
-    weight = (pi * p_o[:, None])
-    diff = (mc_vals[value_type] - td_vals[value_type]) * occupancy
-    return diff, mc_vals, td_vals
+    weight = lax.stop_gradient(pi * p_o[:, None]).T
+    diff = jnp.abs(mc_vals['q'] - td_vals['q'])
+    loss = diff * weight
+    return loss.sum()
 
-def mem_v_l2_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                  R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
-    return (diff**2).mean()
+@partial(jit, static_argnames=['value_type', 'error_type', 'weight_discrep_by_count', 'gamma'])
+def discrep_loss(value_type: str, error_type: str, weight_discrep_by_count: bool, gamma: float, # initialize static args
+                 pi: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray):  # non-state args
+    _, mc_vals, td_vals, info = analytical_pe(pi, phi, T, R, p0, gamma)
+    diff = mc_vals[value_type] - td_vals[value_type]
 
-def mem_q_l2_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                  R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
-    diff = diff * pi.T
-    return (diff**2).mean()
+    weight = pi.T if value_type == 'q' else jnp.ones_like(diff)
+    if weight_discrep_by_count:
+        c_s = info['occupancy']
+        c_o = c_s @ phi
+        p_o = c_o / c_o.sum()
+        weight = lax.stop_gradient(pi * p_o[:, None]).T
+        if value_type == 'v':
+            weight = weight.sum(axis=0)
 
-def mem_v_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                   R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, _, _ = mem_diff('v', mem_params, gamma, pi, T, R, phi, p0)
-    return jnp.abs(diff).mean()
+    if error_type == 'l2':
+        unweighted_err = (diff**2)
+    elif error_type == 'abs':
+        unweighted_err = jnp.abs(diff)
+    else:
+        raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
-def mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                   R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, _, _ = mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
-    # diff = diff * pi.T
-    # return jnp.abs(diff).mean()
-    diff = jnp.abs(diff) * pi.T
-    return diff.mean()
+    # TODO: CHANGE THIS
+    loss = (weight * unweighted_err).mean()
+    return loss
 
-def weighted_mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                   R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, _, _ = weighted_mem_diff('q', mem_params, gamma, pi, T, R, phi, p0)
-    diff = diff * pi.T
-    return jnp.abs(diff).mean()
+def mem_discrep_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,  # input non-static arrays
+                     phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+                     value_type: str, error_type: str, weight_discrep: bool):  # initialize with partial
+    T_mem = nn.softmax(mem_params, axis=-1)
+    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
+    loss = discrep_loss(value_type, error_type, weight_discrep, gamma,
+                        pi, phi_x, T_x, R_x, p0_x)
+    return loss
 
 """
 The following few functions are loss function w.r.t. policy parameters, pi_params.
 """
 
-def policy_calc_discrep(value_type: str, pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray,
-                        R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
+def policy_discrep_loss(pi_params: jnp.ndarray, gamma: float,
+                        phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+                        value_type: str, error_type: str, weight_discrep: bool):  # args initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
-    _, mc_vals, td_vals, _ = analytical_pe(pi, phi, T, R, p0, gamma)
-    diff = mc_vals[value_type] - td_vals[value_type]
-    return diff, mc_vals, td_vals, pi
-
-def policy_discrep_v_l2_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                             phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, _ = policy_calc_discrep('v', pi_params, gamma, T, R, phi, p0)
-    return (diff**2).mean(), (mc_vals, td_vals)
-
-def policy_discrep_q_l2_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                             phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, pi = policy_calc_discrep('q', pi_params, gamma, T, R, phi, p0)
-    diff = diff * pi.T
-    return (diff**2).mean(), (mc_vals, td_vals)
-
-def policy_discrep_v_abs_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                              phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, _ = policy_calc_discrep('v', pi_params, gamma, T, R, phi, p0)
-    return jnp.abs(diff).mean(), (mc_vals, td_vals)
-
-def policy_discrep_q_abs_loss(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, R: jnp.ndarray,
-                              phi: jnp.ndarray, p0: jnp.ndarray):
-    diff, mc_vals, td_vals, pi = policy_calc_discrep('q', pi_params, gamma, T, R, phi, p0)
-    diff = diff * pi.T
-    return jnp.abs(diff).mean(), (mc_vals, td_vals)
+    loss = discrep_loss(value_type, error_type, weight_discrep, gamma,
+                        pi, phi, T, R, p0)
+    return loss
 
 def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi: jnp.ndarray,
                       p0: jnp.ndarray, R: jnp.ndarray):

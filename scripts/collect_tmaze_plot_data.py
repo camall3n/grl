@@ -16,7 +16,7 @@ from grl.environment.memory_lib import get_memory
 from grl.utils.lambda_discrep import calc_discrep_from_values
 from grl.policy_eval import analytical_pe
 from grl.utils.math import reverse_softmax
-from grl.utils.loss import mem_q_abs_loss
+from grl.utils.loss import mem_discrep_loss
 from definitions import ROOT_DIR
 
 # @partial(jit, static_argnames=['gamma'])
@@ -55,7 +55,8 @@ if __name__ == "__main__":
     @partial(jit, static_argnames=['gamma'])
     def calc_discrep(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
                      R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-        return mem_q_abs_loss(mem_params, gamma, pi, T, R, phi, p0)
+        return mem_discrep_loss(mem_params, gamma, pi, T, R, phi, p0,
+                                value_type='q', error_type='abs', weight_discrep=False)
 
     # corridor values
     ps = np.linspace(0., 1., num=args.n)
