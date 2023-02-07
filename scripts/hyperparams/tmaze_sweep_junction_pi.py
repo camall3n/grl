@@ -11,6 +11,8 @@ hparams = {
         'tmaze_junction_up_pi': np.linspace(0, 0.5, num=20),
         'method': 'a',
         'use_memory': 0,
+        'value_type': 'q',
+        'error_type': 'l2',
         'use_grad': 'm',
         'pe_grad_steps': 50000,
         'lr': 1,

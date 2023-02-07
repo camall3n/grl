@@ -63,6 +63,7 @@ def generate_onager_runs(run_dicts: List[dict],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment_name', default=None, type=str)
     parser.add_argument('--hparam', default='', type=str)
     parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
@@ -78,4 +79,7 @@ if __name__ == "__main__":
     if 'pairs' in hparams:
         pairs = hparams['pairs']
 
-    generate_onager_runs(hparams['args'], args.hparam, main_fname=main_fname)
+    exp_name = args.hparam
+    if args.experiment_name is not None:
+        exp_name = args.experiment_name
+    generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname)

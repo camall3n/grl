@@ -117,6 +117,8 @@ def mem_abs_td_loss(value_type: str, error_type: str, weight_discrep_by_count: b
     else:
         raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
-    # TODO: CHANGE THIS
-    loss = (weight * unweighted_err).mean()
+    weighted_discrep = (weight * unweighted_err)
+    if value_type == 'q':
+        weighted_discrep = weighted_discrep.sum(axis=0)
+    loss = weighted_discrep.mean()
     return loss, mc_vals, td_vals

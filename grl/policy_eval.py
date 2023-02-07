@@ -1,6 +1,9 @@
-from jax import value_and_grad
+import jax.numpy as jnp
+from jax import value_and_grad, jit, nn
+from functools import partial
 
-from grl.utils.loss import *
+from grl.utils.policy_eval import analytical_pe
+from grl.utils.loss import mem_discrep_loss, mem_abs_td_loss
 
 class PolicyEval:
     def __init__(self, amdp, verbose: bool = True,
