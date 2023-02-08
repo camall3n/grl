@@ -37,3 +37,15 @@ def softmax(arr: np.ndarray) -> np.ndarray:
     assert len(arr.shape) == 2
     exps = np.exp(arr - np.max(arr, axis=1, keepdims=True))
     return exps / np.sum(exps, axis=1, keepdims=True)
+
+def softmax_derivative(arr: np.ndarray) -> np.ndarray:
+    #TODO: vectorize
+    jacobian = np.diag(arr)
+    for i in range(len(jacobian)):
+        for j in range(len(jacobian[0])):
+            if i == j:
+                jacobian[i,j] = arr[i] * (1 - arr[i])
+            else:
+                jacobian[i,j] = -arr[i] * arr[j]
+
+    return jacobian
