@@ -43,9 +43,9 @@ class AnalyticalAgent:
         self.pi_params = pi_params
         self.og_n_obs = self.pi_params.shape[0]
 
-        self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
+        self.pg_objective_func = jit(pg_objective_func)
 
-        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
         self.epsilon = epsilon
 
         self.val_type = value_type
@@ -56,12 +56,12 @@ class AnalyticalAgent:
                                               value_type=self.val_type,
                                               error_type=self.error_type,
                                               weight_discrep=self.weight_discrep)
-        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss, static_argnames=['gamma'])
+        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
         partial_mem_discrep_loss = partial(mem_discrep_loss,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
                                            weight_discrep=self.weight_discrep)
-        self.memory_objective_func = jit(partial_mem_discrep_loss, static_argnames=['gamma'])
+        self.memory_objective_func = jit(partial_mem_discrep_loss)
 
         self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi
@@ -101,20 +101,17 @@ class AnalyticalAgent:
             new_mem_params = glorot_init(old_pi_params_shape)
             self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
-    @partial(jit, static_argnames=['self', 'gamma', 'lr'])
-    def functional_pg_update(self, params: jnp.ndarray, gamma: float, lr: float, T: jnp.ndarray,
-                             R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-        outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, gamma, T,
-                                                                                 phi, p0, R)
+    @partial(jit, static_argnames=['self', 'lr'])
+    def functional_pg_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP):
+        outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, amdp)
         v_0, (td_v_vals, td_q_vals) = outs
         params += lr * params_grad
         return v_0, td_v_vals, td_q_vals, params
 
-    @partial(jit, static_argnames=['self', 'gamma', 'lr'])
-    def functional_dm_update(self, params: jnp.ndarray, gamma: float, lr: float,
-                             phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray):
+    @partial(jit, static_argnames=['self', 'lr'])
+    def functional_dm_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
-                                           has_aux=True)(params, gamma, phi, T, R, p0)
+                                           has_aux=True)(params, amdp)
         loss, (mc_vals, td_vals) = outs
         params += lr * params_grad
         return loss, mc_vals, td_vals, params
@@ -130,32 +127,29 @@ class AnalyticalAgent:
             }
         elif self.policy_optim_alg == 'pi':
             new_pi_params, prev_td_v_vals, prev_td_q_vals = self.policy_iteration_update(
-                self.pi_params, amdp.T, amdp.R, amdp.phi, amdp.p0, amdp.gamma, eps=self.epsilon)
+                self.pi_params, amdp, eps=self.epsilon)
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'dm':
-            loss, mc_vals, td_vals, new_pi_params = self.functional_dm_update(
-                self.pi_params, amdp.gamma, lr, amdp.phi, amdp.T, amdp.R, amdp.p0)
+            loss, mc_vals, td_vals, new_pi_params = self.functional_dm_update(self.pi_params, lr, amdp)
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError
         self.pi_params = new_pi_params
         return output
 
-    @partial(jit, static_argnames=['self', 'gamma', 'lr'])
-    def functional_memory_update(self, params: jnp.ndarray, gamma: float, lr: float,
-                                 pi_params: jnp.ndarray,
-                                 phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray):
+    @partial(jit, static_argnames=['self', 'lr'])
+    def functional_memory_update(self, params: jnp.ndarray, lr: float,
+                                 pi_params: jnp.ndarray, amdp: AbstractMDP):
         pi = softmax(pi_params / self.pi_softmax_temp, axis=-1)
         loss, params_grad = value_and_grad(self.memory_objective_func,
-                                           argnums=0)(params, gamma, pi, phi, T, R, p0)
+                                           argnums=0)(params, pi, amdp)
         params -= lr * params_grad
 
         return loss, params
 
     def memory_improvement(self, amdp: AbstractMDP, lr: float):
         assert self.mem_params is not None, 'I have no memory params'
-        loss, new_mem_params = self.functional_memory_update(self.mem_params, amdp.gamma, lr,
-                                                             self.pi_params, amdp.phi, amdp.T, amdp.R, amdp.p0)
+        loss, new_mem_params = self.functional_memory_update(self.mem_params, lr, self.pi_params, amdp)
         self.mem_params = new_mem_params
         return loss
 
@@ -177,8 +171,8 @@ class AnalyticalAgent:
         self.__dict__.update(state)
 
         # restore jitted functions
-        self.pg_objective_func = jit(pg_objective_func, static_argnames='gamma')
-        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+        self.pg_objective_func = jit(pg_objective_func)
+        self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
 
         if not hasattr(self, 'val_type'):
             self.val_type = 'v'
@@ -188,9 +182,9 @@ class AnalyticalAgent:
                                               value_type=self.val_type,
                                               error_type=self.error_type,
                                               weight_discrep=self.weight_discrep)
-        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss, static_argnames=['gamma'])
+        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
         partial_mem_discrep_loss = partial(mem_discrep_loss,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
                                            weight_discrep=self.weight_discrep)
-        self.memory_objective_func = jit(partial_mem_discrep_loss, static_argnames=['gamma'])
+        self.memory_objective_func = jit(partial_mem_discrep_loss)

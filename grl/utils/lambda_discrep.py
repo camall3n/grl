@@ -25,7 +25,7 @@ def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray):
     pi_ground = amdp.phi @ pi
 
     state_vals, mc_vals, td_vals, _ = amdp_pe.run(pi)
-    pi_occupancy = functional_get_occupancy(pi_ground, amdp.T, amdp.p0, amdp.gamma)
+    pi_occupancy = functional_get_occupancy(pi_ground, amdp)
     pr_oa = (pi_occupancy @ amdp.phi * pi.T)
     discrep = {
         'v': (mc_vals['v'] - td_vals['v'])**2,

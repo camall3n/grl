@@ -78,7 +78,7 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                                log_every=mem_iterations,
                                progress_bar=False)
 
-    amdp_mem = memory_cross_product(amdp, agent.mem_params)
+    amdp_mem = memory_cross_product(agent.mem_params, amdp)
 
     agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
 
@@ -89,7 +89,7 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                                    iterations=pi_iterations,
                                    log_every=pi_iterations,
                                    progress_bar=False)
-    amdp_mem = memory_cross_product(amdp, agent.mem_params)
+    amdp_mem = memory_cross_product(agent.mem_params, amdp)
     return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, amdp_mem.gamma)
 
 

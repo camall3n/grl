@@ -46,7 +46,7 @@ def run_pe_algos(spec: dict,
 
     policies = spec['Pi_phi']
     if 'mem_params' in spec.keys() and spec['mem_params'] is not None:
-        amdp = memory_cross_product(amdp, spec['mem_params'])
+        amdp = memory_cross_product(spec['mem_params'], amdp)
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)

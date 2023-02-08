@@ -6,26 +6,27 @@ from functools import partial
 
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
+from grl.mdp import MDP, AbstractMDP
 from grl.utils import functional_solve_mdp
 
-@partial(jit, static_argnames=['gamma'])
-def value_iteration_step(vp: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, gamma: float):
+@jit
+def value_iteration_step(vp: jnp.ndarray, mdp: MDP):
     # we repeat values over S x A
     repeated_vp = vp[None, ...]
-    repeated_vp = repeated_vp.repeat(R.shape[0] * R.shape[1], axis=0)
-    repeated_vp_reshaped = repeated_vp.reshape(R.shape[0], R.shape[1], -1)
+    repeated_vp = repeated_vp.repeat(mdp.R.shape[0] * mdp.R.shape[1], axis=0)
+    repeated_vp_reshaped = repeated_vp.reshape(mdp.R.shape[0], mdp.R.shape[1], -1)
 
     # g = r + gamma * v(s')
-    g = R + gamma * repeated_vp_reshaped
+    g = mdp.R + mdp.gamma * repeated_vp_reshaped
 
     # g * p(s' | s, a)
-    new_v = (T * g).sum(axis=-1)
+    new_v = (mdp.T * g).sum(axis=-1)
 
     # Take max over actions
     max_new_v = new_v.max(axis=0)
     return max_new_v
 
-def value_iteration(T: jnp.ndarray, R: jnp.ndarray, gamma: float, tol: float = 1e-10)\
+def value_iteration(mdp: MDP, tol: float = 1e-10)\
         -> jnp.ndarray:
     """
     Value iteration.
@@ -40,7 +41,7 @@ def value_iteration(T: jnp.ndarray, R: jnp.ndarray, gamma: float, tol: float = 1
 
     while True:
         # value iteration step
-        new_v = value_iteration_step(v, T, R, gamma)
+        new_v = value_iteration_step(v, mdp)
 
         deltas = jnp.abs(v - new_v)
 
@@ -60,14 +61,14 @@ def value_iteration(T: jnp.ndarray, R: jnp.ndarray, gamma: float, tol: float = 1
 #     Get our policy over
 #     """
 
-def td_pe(pi_phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray,
-          gamma: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    pi_ground = phi @ pi_phi
-    occupancy = functional_get_occupancy(pi_ground, T, p0, gamma)
+def td_pe(pi_phi: jnp.ndarray, amdp: AbstractMDP) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    pi_ground = amdp.phi @ pi_phi
+    occupancy = functional_get_occupancy(pi_ground, amdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(phi, occupancy)
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi, T, R)
-    td_v_vals, td_q_vals = functional_solve_mdp(pi_phi, T_obs_obs, R_obs_obs, gamma)
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp)
+    td_model = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    td_v_vals, td_q_vals = functional_solve_mdp(pi_phi, td_model)
     return td_v_vals, td_q_vals
 
 def get_eps_greedy_pi(q_vals: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
@@ -80,16 +81,10 @@ def get_eps_greedy_pi(q_vals: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
     new_phi_pi = new_phi_pi.at[jnp.arange(new_phi_pi.shape[0]), max_a].add(1 - eps)
     return new_phi_pi
 
-def policy_iteration_step(pi_params: jnp.ndarray,
-                          T: jnp.ndarray,
-                          R: jnp.ndarray,
-                          phi: jnp.ndarray,
-                          p0: jnp.ndarray,
-                          gamma: float,
-                          eps: float = 0.1):
+def policy_iteration_step(pi_params: jnp.ndarray, amdp: AbstractMDP, eps: float = 0.1):
     pi_phi = nn.softmax(pi_params, axis=-1)
     # now we calculate our TD model and values
-    td_v_vals, td_q_vals = td_pe(pi_phi, T, R, phi, p0, gamma)
+    td_v_vals, td_q_vals = td_pe(pi_phi, amdp)
 
     # greedification step
     new_pi_phi = get_eps_greedy_pi(td_q_vals, eps)
@@ -99,26 +94,18 @@ def policy_iteration_step(pi_params: jnp.ndarray,
 
     return new_pi_params, td_v_vals, td_q_vals
 
-def po_policy_iteration(T: jnp.ndarray,
-                        R: jnp.ndarray,
-                        phi: jnp.ndarray,
-                        gamma: float,
-                        p0: jnp.ndarray,
-                        eps: float = 0.1) -> jnp.ndarray:
+def po_policy_iteration(amdp: AbstractMDP, eps: float = 0.1) -> jnp.ndarray:
     """
     Value iteration over observations.
-    :param T: A x S x S
-    :param R: A x S x S
-    :param phi:
-    :param gamma: discount rate
+    :param amdp: AbstractMDP
     :param tol: tolerance for error
     :return Value function for optimal policy.
     """
     # TODO: epsilon scheduler?
-    jitted_policy_iteration_step = jit(policy_iteration_step, static_argnames=['gamma', 'eps'])
+    jitted_policy_iteration_step = jit(policy_iteration_step, static_argnames=['eps'])
 
     # first initialize our random policy |O| x |A|
-    pi_phi = nn.softmax(glorot_init((phi.shape[-1], T.shape[0])), axis=-1)
+    pi_phi = nn.softmax(glorot_init((amdp.phi.shape[-1], amdp.T.shape[0])), axis=-1)
 
     # Now we
     iterations = 0
@@ -128,13 +115,7 @@ def po_policy_iteration(T: jnp.ndarray,
 
         # now we calculate our TD model and values
         # along with a greedification step
-        new_pi_phi, td_v_vals, td_q_vals = jitted_policy_iteration_step(pi_phi,
-                                                                        T,
-                                                                        R,
-                                                                        phi,
-                                                                        p0,
-                                                                        gamma,
-                                                                        eps=eps)
+        new_pi_phi, td_v_vals, td_q_vals = jitted_policy_iteration_step(pi_phi, amdp, eps=eps)
 
         if np.allclose(pi_phi, new_pi_phi):
             break

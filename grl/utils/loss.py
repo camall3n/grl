@@ -4,37 +4,22 @@ from functools import partial
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, functional_solve_mdp
-from grl.memory import functional_memory_cross_product
+from grl.memory import memory_cross_product
+from grl.mdp import MDP, AbstractMDP
 """
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
 
-def weighted_mem_q_abs_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,
-             T: jnp.ndarray, R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-    """
-    TODO: Test this?
-    """
-    T_mem = nn.softmax(mem_params, axis=-1)
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-    _, mc_vals, td_vals, info = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
-    c_s = info['occupancy']
-    c_o = c_s @ phi_x
-    p_o = c_o / c_o.sum()
-    weight = lax.stop_gradient(pi * p_o[:, None]).T
-    diff = jnp.abs(mc_vals['q'] - td_vals['q'])
-    loss = diff * weight
-    return loss.sum()
-
-@partial(jit, static_argnames=['value_type', 'error_type', 'weight_discrep_by_count', 'gamma'])
-def discrep_loss(value_type: str, error_type: str, weight_discrep_by_count: bool, gamma: float, # initialize static args
-                 pi: jnp.ndarray, phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray):  # non-state args
-    _, mc_vals, td_vals, info = analytical_pe(pi, phi, T, R, p0, gamma)
+@partial(jit, static_argnames=['value_type', 'error_type', 'weight_discrep_by_count'])
+def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
+                 value_type: str, error_type: str, weight_discrep_by_count: bool): # initialize static args
+    _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
     diff = mc_vals[value_type] - td_vals[value_type]
 
     weight = pi.T if value_type == 'q' else jnp.ones_like(diff)
     if weight_discrep_by_count:
         c_s = info['occupancy']
-        c_o = c_s @ phi
+        c_o = c_s @ amdp.phi
         p_o = c_o / c_o.sum()
         weight = lax.stop_gradient(pi * p_o[:, None]).T
         if value_type == 'v':
@@ -47,64 +32,60 @@ def discrep_loss(value_type: str, error_type: str, weight_discrep_by_count: bool
     else:
         raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
-    # TODO: CHANGE THIS
-    loss = (weight * unweighted_err).mean()
+    weighted_err = weight * unweighted_err
+    if value_type == 'q':
+        weighted_err = unweighted_err.sum(axis=0)
+
+    if weight_discrep_by_count:
+        loss = weighted_err.sum()
+    else:
+        loss = weighted_err.mean()
+
     return loss, mc_vals, td_vals
 
-def mem_discrep_loss(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray,  # input non-static arrays
-                     phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+def mem_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
                      value_type: str, error_type: str, weight_discrep: bool):  # initialize with partial
-    T_mem = nn.softmax(mem_params, axis=-1)
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-    loss, _, _ = discrep_loss(value_type, error_type, weight_discrep, gamma,
-                        pi, phi_x, T_x, R_x, p0_x)
+    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, weight_discrep)
     return loss
 
-"""
-The following few functions are loss function w.r.t. policy parameters, pi_params.
-"""
-
-def policy_discrep_loss(pi_params: jnp.ndarray, gamma: float,
-                        phi: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+def policy_discrep_loss(pi_params: jnp.ndarray, amdp: AbstractMDP,
                         value_type: str, error_type: str, weight_discrep: bool):  # args initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
-    loss, mc_vals, td_vals = discrep_loss(value_type, error_type, weight_discrep, gamma,
-                        pi, phi, T, R, p0)
+    loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, weight_discrep)
     return loss, (mc_vals, td_vals)
 
-def pg_objective_func(pi_params: jnp.ndarray, gamma: float, T: jnp.ndarray, phi: jnp.ndarray,
-                      p0: jnp.ndarray, R: jnp.ndarray):
+def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
     """
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
     pi_abs = nn.softmax(pi_params, axis=-1)
-    pi_ground = phi @ pi_abs
-    occupancy = functional_get_occupancy(pi_ground, T, p0, gamma)
+    pi_ground = amdp.phi @ pi_abs
+    occupancy = functional_get_occupancy(pi_ground, amdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(phi, occupancy)
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, phi, T, R)
-    td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, T_obs_obs, R_obs_obs, gamma)
-    p_init_obs = p0 @ phi
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp)
+    td_model = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, td_model)
+    p_init_obs = amdp.p0 @ amdp.phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
-def mem_abs_td_loss(value_type: str, error_type: str, weight_discrep_by_count: bool, gamma: float,
-                    mem_params: jnp.ndarray, pi: jnp.ndarray, T: jnp.ndarray,
-                    R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
+def mem_abs_td_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
+                    value_type: str, error_type: str, weight_discrep_by_count: bool):  # initialize with partial
     """
     Absolute TD error loss.
     This is an upper bound on absolute lambda discrepancy.
     """
-    T_mem = nn.softmax(mem_params, axis=-1)
-    T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
+    mem_aug_amdp = memory_cross_product(mem_params, amdp)
 
-    _, mc_vals, td_vals, info = analytical_pe(pi, phi_x, T_x, R_x, p0_x, gamma)
+    _, mc_vals, td_vals, info = analytical_pe(pi, mem_aug_amdp)
     vals = td_vals[value_type]
 
     weight = pi.T if value_type == 'q' else jnp.ones_like(vals)
     if weight_discrep_by_count:
         c_s = info['occupancy']
-        c_o = c_s @ phi
+        c_o = c_s @ amdp.phi
         p_o = c_o / c_o.sum()
         weight = lax.stop_gradient(pi * p_o[:, None]).T
         if value_type == 'v':
@@ -117,8 +98,13 @@ def mem_abs_td_loss(value_type: str, error_type: str, weight_discrep_by_count: b
     else:
         raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
-    weighted_discrep = (weight * unweighted_err)
+    weighted_err = weight * unweighted_err
     if value_type == 'q':
-        weighted_discrep = weighted_discrep.sum(axis=0)
-    loss = weighted_discrep.mean()
+        weighted_err = unweighted_err.sum(axis=0)
+
+    if weight_discrep_by_count:
+        loss = weighted_err.sum()
+    else:
+        loss = weighted_err.mean()
+
     return loss, mc_vals, td_vals

@@ -89,12 +89,12 @@ def run_memory_iteration(spec: dict,
 
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
-        init_mem_amdp = memory_cross_product(amdp, info['initial_mem_params'])
+        init_mem_amdp = memory_cross_product(info['initial_mem_params'], amdp)
         info['initial_mem_stats'] = lambda_discrep_measures(
             init_mem_amdp, info['initial_expanded_improvement_policy'])
 
     # Final memory w/ final policy discrep
-    final_mem_amdp = memory_cross_product(amdp, agent.mem_params)
+    final_mem_amdp = memory_cross_product(agent.mem_params, amdp)
     info['final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, agent.policy)
     greedy_final_policy = greedify(agent.policy)
     info['greedy_final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, greedy_final_policy)
@@ -192,7 +192,7 @@ def memory_iteration(
               f"{agent.memory}")
 
         # Make a NEW memory AMDP
-        amdp_mem = memory_cross_product(init_amdp, agent.mem_params)
+        amdp_mem = memory_cross_product(agent.mem_params, init_amdp)
 
         # reset our policy parameters
         agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
