@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--replay_buffer_size', type=int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
+    parser.add_argument('--discrep_loss', type=str, default='abs', choices=['abs', 'mse'])
     # parser.add_argument('--sigma0', type=float, default=1 / 6)
     # yapf: enable
     return parser.parse_args()
@@ -121,14 +122,17 @@ def main():
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
-    agent = ActorCritic(n_obs=env.n_obs,
-                        n_actions=env.n_actions,
-                        gamma=env.gamma,
-                        n_mem_entries=0,
-                        replay_buffer_size=args.replay_buffer_size,
-                        mellowmax_beta=args.mellowmax_beta,
-                        study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
-                        use_existing_study=args.use_existing_study)
+    agent = ActorCritic(
+        n_obs=env.n_obs,
+        n_actions=env.n_actions,
+        gamma=env.gamma,
+        n_mem_entries=0,
+        replay_buffer_size=args.replay_buffer_size,
+        mellowmax_beta=args.mellowmax_beta,
+        study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
+        use_existing_study=args.use_existing_study,
+        discrep_loss=args.discrep_loss,
+    )
 
     if args.load_policy:
         policy = spec['Pi_phi'][0]

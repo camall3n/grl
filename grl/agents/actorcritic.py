@@ -37,6 +37,7 @@ class ActorCritic:
         replay_buffer_size: int = 1000000,
         study_name='default_study',
         use_existing_study=False,
+        discrep_loss='abs',
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -48,6 +49,7 @@ class ActorCritic:
         self.study_name = study_name
         self.study_dir = f'./results/sample_based/{study_name}'
         self.build_study(use_existing=use_existing_study)
+        self.discrep_loss = discrep_loss
 
         self.reset_policy()
         self.reset_memory()
@@ -295,7 +297,12 @@ class ActorCritic:
                 self.update_critic(e)
                 if experience['terminal']:
                     self.reset_memory_state()
-        abs_lambda_discrepancy = np.abs(self.q_mc.q - self.q_td.q)
+        if self.discrep_loss == 'mse':
+            abs_lambda_discrepancy = (self.q_mc.q - self.q_td.q)**2
+        elif self.discrep_loss == 'abs':
+            abs_lambda_discrepancy = np.abs(self.q_mc.q - self.q_td.q)
+        else:
+            raise RuntimeError('Invalid discrep_loss')
         obs, actions = self.replay.retrieve(fields=['obs', 'action'])
         observed_lambda_discrepancies = abs_lambda_discrepancy[actions, obs]
         return observed_lambda_discrepancies.mean()
