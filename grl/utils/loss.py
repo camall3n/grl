@@ -34,7 +34,7 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
 
     weighted_err = weight * unweighted_err
     if value_type == 'q':
-        weighted_err = unweighted_err.sum(axis=0)
+        weighted_err = weighted_err.mean(axis=0)
 
     if weight_discrep_by_count:
         loss = weighted_err.sum()
