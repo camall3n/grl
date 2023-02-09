@@ -129,10 +129,6 @@ def plot_sweep(data: pd.DataFrame, ax=None, title=None, add_colorbar=False):
     x_high = max(data['policy_up_prob'])
     x_low = min(data['policy_up_prob'])
 
-    np.set_printoptions(precision=4)
-    plt.rcParams['axes.facecolor'] = 'white'
-    plt.rcParams.update({'font.size': 14})
-
     if ax is None:
         fig, ax = plt.subplots(figsize=(7, 5))
     data_seed_avg = data.groupby('policy_up_prob', as_index=False).mean()
@@ -179,6 +175,10 @@ learning_data = load_sampled_results(
     'results/sample_based/junction-sweep-sampled-3/tmaze_5_two_thirds_up/*')
 
 #%%
+np.set_printoptions(precision=4)
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams.update({'font.size': 14})
+
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], title='Planning Agent', add_colorbar=False)
 plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
