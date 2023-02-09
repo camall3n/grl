@@ -118,8 +118,7 @@ class AnalyticalAgent:
 
     def policy_improvement(self, amdp: AbstractMDP, lr: float = None):
         if self.policy_optim_alg == 'pg':
-            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = self.functional_pg_update(
-                self.pi_params, amdp.gamma, lr, amdp.T, amdp.R, amdp.phi, amdp.p0)
+            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = self.functional_pg_update(self.pi_params, lr, amdp)
             output = {
                 'v_0': v_0,
                 'prev_td_q_vals': prev_td_q_vals,

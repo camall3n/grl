@@ -36,7 +36,7 @@ def value_iteration(mdp: MDP, tol: float = 1e-10)\
     :param tol: tolerance for error
     :return Value function for optimal policy.
     """
-    v = jnp.zeros(T.shape[-1])
+    v = jnp.zeros(mdp.n_states)
     iterations = 0
 
     while True:

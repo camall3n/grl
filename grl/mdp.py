@@ -125,7 +125,7 @@ class MDP:
         return state_distr
 
     def step(self, s, a, gamma):
-        pr_next_s = self.T[a, s, :]
+        pr_next_s = self.T[a, s]
         sp = np.random.choice(self.n_states, p=pr_next_s)
         r = self.R[a][s][sp]
         # Check if sp is terminal state

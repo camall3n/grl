@@ -136,8 +136,7 @@ def memory_iteration(
     :param log_every:           How often do we log stats?
     """
     info = {'policy_improvement_outputs': [], 'mem_loss': []}
-    td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp.T, init_amdp.R, init_amdp.phi,
-                                 init_amdp.p0, init_amdp.gamma)
+    td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp)
     info['initial_values'] = {'v': td_v_vals, 'q': td_q_vals}
 
     if agent.policy_optim_alg == 'dm' or not init_pi_improvement:
@@ -232,8 +231,7 @@ def memory_iteration(
 
     # here we calculate our value function for our final policy and final memory
     eval_policy = info['initial_improvement_policy'] if amdp_mem is None else agent.policy
-    td_v_vals, td_q_vals = td_pe(eval_policy, final_amdp.T, final_amdp.R, final_amdp.phi,
-                                 final_amdp.p0, final_amdp.gamma)
+    td_v_vals, td_q_vals = td_pe(eval_policy, final_amdp)
     info['final_outputs'] = {'v': td_v_vals, 'q': td_q_vals}
 
     return info, agent
