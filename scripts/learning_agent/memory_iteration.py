@@ -1,16 +1,12 @@
 import argparse
-import copy
 import os
-import sys
 
 import numpy as np
 from tqdm import tqdm
-import optuna
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
-from grl.environment.memory_lib import get_memory
 
 def parse_args():
     # yapf: disable
@@ -20,6 +16,7 @@ def parse_args():
     parser.add_argument('--max_jobs', type=int, default=None)
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
+    parser.add_argument('--policy_epsilon', type=float, default=None)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=100)
     parser.add_argument('--n_memory_iterations', type=int, default=50)
@@ -31,7 +28,6 @@ def parse_args():
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     parser.add_argument('--discrep_loss', type=str, default='abs', choices=['abs', 'mse'])
-    # parser.add_argument('--sigma0', type=float, default=1 / 6)
     # yapf: enable
     return parser.parse_args()
 
@@ -133,13 +129,15 @@ def main():
         use_existing_study=args.use_existing_study,
         discrep_loss=args.discrep_loss,
     )
-
     if args.load_policy:
         policy = spec['Pi_phi'][0]
         if args.policy_junction_up_prob is not None:
             assert args.env == 'tmaze_5_two_thirds_up'
             policy[3][0] = args.policy_junction_up_prob
             policy[3][1] = 1 - args.policy_junction_up_prob
+        if args.policy_epsilon is not None:
+            uniform = np.ones_like(policy, dtype=float) / policy.shape[-1]
+            policy = (1 - args.policy_epsilon) * policy + args.policy_epsilon * uniform
         agent.set_policy(policy, logits=False) # policy over non-memory observations
     else:
         agent.reset_policy()
@@ -201,6 +199,7 @@ def main():
         'initial_discrep': discrep_start,
         'final_discrep': study.best_value,
         'policy_up_prob': args.policy_junction_up_prob,
+        'policy_epsilon': args.policy_epsilon,
     }
     np.save(agent.study_dir + '/info.npy', info)
 
