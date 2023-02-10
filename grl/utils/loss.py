@@ -16,15 +16,16 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
     _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
     diff = mc_vals[value_type] - td_vals[value_type]
 
-    weight = pi.T if value_type == 'q' else jnp.ones_like(diff)
+    c_s = info['occupancy']
     if weight_discrep_by_count:
-        c_s = info['occupancy']
         c_o = c_s @ amdp.phi
-        p_o = c_o / c_o.sum()
-        weight = (pi * p_o[:, None]).T
-        if value_type == 'v':
-            weight = weight.sum(axis=0)
-        weight = lax.stop_gradient(weight)
+    else:
+        c_o = jnp.ones_like(pi[0])
+    p_o = c_o / c_o.sum()
+    weight = (pi * p_o[:, None]).T
+    if value_type == 'v':
+        weight = weight.sum(axis=0)
+    weight = lax.stop_gradient(weight)
 
     if error_type == 'l2':
         unweighted_err = (diff**2)
@@ -35,12 +36,9 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
 
     weighted_err = weight * unweighted_err
     if value_type == 'q':
-        weighted_err = weighted_err.mean(axis=0)
+        weighted_err = weighted_err.sum(axis=0)
 
-    if weight_discrep_by_count:
-        loss = weighted_err.sum()
-    else:
-        loss = weighted_err.mean()
+    loss = weighted_err.sum()
 
     return loss, mc_vals, td_vals
 
