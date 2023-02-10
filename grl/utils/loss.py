@@ -18,9 +18,10 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
 
     c_s = info['occupancy']
     if weight_discrep_by_count:
+        # c_s = c_s.at[-2:].set(0)
         c_o = c_s @ amdp.phi
     else:
-        c_o = jnp.ones_like(pi[0])
+        c_o = jnp.ones(pi.shape[0])
     p_o = c_o / c_o.sum()
     weight = (pi * p_o[:, None]).T
     if value_type == 'v':
