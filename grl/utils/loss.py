@@ -21,9 +21,10 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
         c_s = info['occupancy']
         c_o = c_s @ amdp.phi
         p_o = c_o / c_o.sum()
-        weight = lax.stop_gradient(pi * p_o[:, None]).T
+        weight = (pi * p_o[:, None]).T
         if value_type == 'v':
             weight = weight.sum(axis=0)
+        weight = lax.stop_gradient(weight)
 
     if error_type == 'l2':
         unweighted_err = (diff**2)
