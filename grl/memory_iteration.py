@@ -3,12 +3,14 @@ import jax
 import jax.numpy as jnp
 from jax.nn import softmax
 from tqdm import trange
+from functools import partial
 
 from grl.analytical_agent import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.math import glorot_init, greedify
+from grl.utils.loss import discrep_loss
 from grl.vi import td_pe
 
 def run_memory_iteration(spec: dict,
@@ -49,6 +51,8 @@ def run_memory_iteration(spec: dict,
     else:
         pi_phi_shape = spec['Pi_phi'][0].shape
 
+    # If pi_params is initialized, we start with some given
+    # policy params and don't do the first policy improvement step.
     init_pi_improvement = False
     if pi_params is None:
         init_pi_improvement = True
@@ -73,31 +77,33 @@ def run_memory_iteration(spec: dict,
                                    mi_per_step=mi_steps,
                                    init_pi_improvement=init_pi_improvement)
 
+    discrep_loss_fn = partial(discrep_loss, value_type=value_type, error_type=error_type, weight_discrep_by_count=weight_discrep)
+    get_measures = partial(lambda_discrep_measures, discrep_loss_fn=discrep_loss_fn)
+
     info['initial_policy'] = initial_policy
     # we get lambda discrepancies here
     # initial policy lambda-discrepancy
-    info['initial_policy_stats'] = lambda_discrep_measures(amdp, initial_policy)
-    info['initial_improvement_stats'] = lambda_discrep_measures(amdp,
-                                                                info['initial_improvement_policy'])
+    info['initial_policy_stats'] = get_measures(amdp, initial_policy)
+    info['initial_improvement_stats'] = get_measures(amdp, info['initial_improvement_policy'])
     greedy_initial_improvement_policy = greedify(info['initial_improvement_policy'])
-    info['greedy_initial_improvement_stats'] = lambda_discrep_measures(
-        amdp, greedy_initial_improvement_policy)
+    info['greedy_initial_improvement_stats'] = get_measures(amdp, greedy_initial_improvement_policy)
+
 
     if policy_optim_alg == 'dm' or not init_pi_improvement:
-        info['td_optimal_policy_stats'] = lambda_discrep_measures(amdp, info['td_optimal_memoryless_policy'])
-        info['greedy_td_optimal_policy_stats'] = lambda_discrep_measures(amdp, greedify(info['td_optimal_memoryless_policy']))
+        info['td_optimal_policy_stats'] = get_measures(amdp, info['td_optimal_memoryless_policy'])
+        info['greedy_td_optimal_policy_stats'] = get_measures(amdp, greedify(info['td_optimal_memoryless_policy']))
 
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
         init_mem_amdp = memory_cross_product(info['initial_mem_params'], amdp)
-        info['initial_mem_stats'] = lambda_discrep_measures(
+        info['initial_mem_stats'] = get_measures(
             init_mem_amdp, info['initial_expanded_improvement_policy'])
 
     # Final memory w/ final policy discrep
     final_mem_amdp = memory_cross_product(agent.mem_params, amdp)
-    info['final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, agent.policy)
+    info['final_mem_stats'] = get_measures(final_mem_amdp, agent.policy)
     greedy_final_policy = greedify(agent.policy)
-    info['greedy_final_mem_stats'] = lambda_discrep_measures(final_mem_amdp, greedy_final_policy)
+    info['greedy_final_mem_stats'] = get_measures(final_mem_amdp, greedy_final_policy)
 
     def perf_from_stats(stats: dict) -> float:
         return np.dot(stats['state_vals_v'], stats['p0']).item()
@@ -146,7 +152,7 @@ def memory_iteration(
 
         # Change modes, run policy iteration
         agent.policy_optim_alg = 'pi'
-        print("Calculating TD-optimal memoryless policy")
+        print("Calculating TD-optimal memoryless policy for logs")
         pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
         info['td_optimal_memoryless_policy'] = agent.policy.copy()
 
@@ -166,19 +172,19 @@ def memory_iteration(
 
     info['initial_improvement_policy'] = agent.policy.copy()
     info['initial_mem_params'] = agent.mem_params
-    print(f"Starting (unexpanded) policy: \n{agent.policy}")
+    print(f"Starting (unexpanded) policy: \n{agent.policy}\n")
 
     # we have to set our policy over our memory MDP now
     # we do so with a random/copied policy given new memory bit
     agent.new_pi_over_mem()
     info['initial_expanded_improvement_policy'] = agent.policy.copy()
-    print(f"Starting (expanded) policy: \n{agent.policy}")
-    print(f"Starting memory: \n{agent.memory}")
+    print(f"Starting (expanded) policy: \n{agent.policy}\n")
+    print(f"Starting memory: \n{agent.memory}\n")
 
     amdp_mem = None
 
     for mem_it in range(mi_iterations):
-        print(f"Start MI iteration {mem_it}")
+        print(f"Start MI {mem_it}")
         mem_loss = mem_improvement(agent,
                                    init_amdp,
                                    lr=mi_lr,
@@ -193,20 +199,21 @@ def memory_iteration(
         # Make a NEW memory AMDP
         amdp_mem = memory_cross_product(agent.mem_params, init_amdp)
 
-        # reset our policy parameters
-        agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
+        if pi_per_step > 0:
+            # reset our policy parameters
+            agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
 
-        # Now we improve our policy again
-        policy_output = pi_improvement(agent,
-                                       amdp_mem,
-                                       lr=pi_lr,
-                                       iterations=pi_per_step,
-                                       log_every=log_every)
-        info['policy_improvement_outputs'].append(policy_output)
+            # Now we improve our policy again
+            policy_output = pi_improvement(agent,
+                                           amdp_mem,
+                                           lr=pi_lr,
+                                           iterations=pi_per_step,
+                                           log_every=log_every)
+            info['policy_improvement_outputs'].append(policy_output)
 
-        # Plotting for policy improvement
-        print(f"Learnt policy for iteration {mem_it}: \n"
-              f"{agent.policy}")
+            # Plotting for policy improvement
+            print(f"Learnt policy for iteration {mem_it}: \n"
+                  f"{agent.policy}")
 
     final_amdp = init_amdp if amdp_mem is None else amdp_mem
 

@@ -427,7 +427,8 @@ if __name__ == '__main__':
                              '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
-    parser.add_argument('--start_pi_name', default=None, type=str)
+    parser.add_argument('--init_pi', default=None, type=str,
+                        help='')
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
@@ -448,7 +449,7 @@ if __name__ == '__main__':
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
-                        help='(POLICY ITERATION ONLY) What epsilon do we use?')
+                        help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
@@ -525,7 +526,8 @@ if __name__ == '__main__':
                          n_mem_states=args.n_mem_states,
                          corridor_length=args.tmaze_corridor_length,
                          discount=args.tmaze_discount,
-                         junction_up_pi=args.tmaze_junction_up_pi)
+                         junction_up_pi=args.tmaze_junction_up_pi,
+                         epsilon=args.epsilon)
         logging.info(f'spec:\n {args.spec}\n')
         logging.info(f'T:\n {spec["T"]}')
         logging.info(f'R:\n {spec["R"]}')
@@ -563,8 +565,8 @@ if __name__ == '__main__':
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
                 pi_params = None
-                if args.start_pi_name is not None:
-                    pi_params = get_start_pi(args.start_pi_name)
+                if args.init_pi is not None:
+                    pi_params = get_start_pi(args.init_pi, spec=spec)
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec,
                                                    pi_lr=args.lr,
