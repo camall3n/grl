@@ -21,7 +21,7 @@ class AnalyticalAgent:
                  mem_params: jnp.ndarray = None,
                  value_type: str = 'v',
                  error_type: str = 'l2',
-                 weight_discrep: bool = False,
+                 alpha: float = 1.,
                  pi_softmax_temp: float = 1,
                  policy_optim_alg: str = 'pi',
                  new_mem_pi: str = 'copy',
@@ -50,17 +50,17 @@ class AnalyticalAgent:
 
         self.val_type = value_type
         self.error_type = error_type
-        self.weight_discrep = weight_discrep
+        self.alpha = alpha
 
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.val_type,
                                               error_type=self.error_type,
-                                              weight_discrep=self.weight_discrep)
+                                              alpha=self.alpha)
         self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
         partial_mem_discrep_loss = partial(mem_discrep_loss,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
-                                           weight_discrep=self.weight_discrep)
+                                           alpha=self.alpha)
         self.memory_objective_func = jit(partial_mem_discrep_loss)
 
         self.mem_params = mem_params

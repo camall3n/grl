@@ -10,7 +10,7 @@ class PolicyEval:
     def __init__(self, amdp: AbstractMDP, verbose: bool = True,
                  discrep_type: str = 'ground_truth',
                  error_type: str = 'l2', value_type: str = 'q',
-                 weight_discrep: bool = False):
+                 alpha: float = 1):
         """
         :param amdp:     AMDP
         :param verbose:  log everything
@@ -20,23 +20,23 @@ class PolicyEval:
         self.discrep_type = discrep_type
         self.error_type = error_type
         self.value_type = value_type
-        self.weight_discrep = weight_discrep
+        self.alpha = alpha
 
         partial_mem_discrep_loss = partial(mem_discrep_loss,
                                            value_type=self.value_type,
                                            error_type=self.error_type,
-                                           weight_discrep=self.weight_discrep)
+                                           alpha=self.alpha)
         if self.discrep_type == 'abs_td':
             partial_mem_discrep_loss = partial(mem_abs_td_loss,
                                                value_type=self.value_type,
                                                error_type=self.error_type,
-                                               weight_discrep=self.weight_discrep)
+                                               alpha=self.alpha)
         self.fn_mem_loss = jit(partial_mem_discrep_loss)
 
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.value_type,
                                               error_type=self.error_type,
-                                              weight_discrep=self.weight_discrep)
+                                              alpha=self.alpha)
         self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
 
     def run(self, pi_abs):

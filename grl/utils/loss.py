@@ -10,19 +10,25 @@ from grl.mdp import MDP, AbstractMDP
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
 
-@partial(jit, static_argnames=['value_type', 'error_type', 'weight_discrep_by_count'])
+@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_counts'])
 def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
-                 value_type: str, error_type: str, weight_discrep_by_count: bool): # initialize static args
+                 value_type: str, error_type: str, alpha: float, flip_count_prob: bool = False): # initialize static args
     _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
     diff = mc_vals[value_type] - td_vals[value_type]
 
     c_s = info['occupancy']
-    if weight_discrep_by_count:
-        # c_s = c_s.at[-2:].set(0)
-        c_o = c_s @ amdp.phi
-    else:
-        c_o = jnp.ones(pi.shape[0])
-    p_o = c_o / c_o.sum()
+    # set terminal counts to 0
+    c_s = c_s.at[-2:].set(0)
+    c_o = c_s @ amdp.phi
+    count_o = c_o / c_o.sum()
+
+    if flip_count_prob:
+        count_o = nn.softmax(-count_o)
+
+    uniform_o = jnp.ones(pi.shape[0]) / pi.shape[0]
+
+    p_o = alpha * uniform_o + (1 - alpha) * count_o
+
     weight = (pi * p_o[:, None]).T
     if value_type == 'v':
         weight = weight.sum(axis=0)
@@ -44,15 +50,15 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
     return loss, mc_vals, td_vals
 
 def mem_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
-                     value_type: str, error_type: str, weight_discrep: bool):  # initialize with partial
+                     value_type: str, error_type: str, alpha: float):  # initialize with partial
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, weight_discrep)
+    loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, alpha)
     return loss
 
 def policy_discrep_loss(pi_params: jnp.ndarray, amdp: AbstractMDP,
-                        value_type: str, error_type: str, weight_discrep: bool):  # args initialize with partial
+                        value_type: str, error_type: str, alpha: float):  # args initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
-    loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, weight_discrep)
+    loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, alpha)
     return loss, (mc_vals, td_vals)
 
 def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):

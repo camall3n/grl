@@ -439,8 +439,8 @@ if __name__ == '__main__':
                         help='For the fuzzy identity memory function, how much fuzz do we add?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
-    parser.add_argument('--weight_discrep', action='store_true',
-                        help='Weight our lambda discrepancy with observation occupancies.')
+    parser.add_argument('--alpha', default=1., type=float,
+                        help='Temperature parameter, for how uniform our lambda-discrep weighting is')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--value_type', default='q', type=str,
@@ -559,7 +559,7 @@ if __name__ == '__main__':
                     lr=args.lr,
                     value_type=args.value_type,
                     error_type=args.error_type,
-                    weight_discrep=args.weight_discrep,
+                    alpha=args.alpha,
                     pe_grad_iterations=args.pe_grad_steps
                 )
                 info['args'] = args.__dict__
@@ -578,7 +578,7 @@ if __name__ == '__main__':
                                                    pi_steps=args.pi_steps,
                                                    value_type=args.value_type,
                                                    error_type=args.error_type,
-                                                   weight_discrep=args.weight_discrep,
+                                                   alpha=args.alpha,
                                                    epsilon=args.epsilon,
                                                    pi_params=pi_params)
 

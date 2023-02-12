@@ -23,7 +23,7 @@ def run_memory_iteration(spec: dict,
                          rand_key: jax.random.PRNGKey = None,
                          error_type: str = 'l2',
                          value_type: str = 'v',
-                         weight_discrep: bool = False,
+                         alpha: float = 1.,
                          pi_params: jnp.ndarray = None,
                          epsilon: float = 0.1
 ):
@@ -65,7 +65,7 @@ def run_memory_iteration(spec: dict,
                             policy_optim_alg=policy_optim_alg,
                             error_type=error_type,
                             value_type=value_type,
-                            weight_discrep=weight_discrep,
+                            alpha=alpha,
                             epsilon=epsilon)
 
     info, agent = memory_iteration(agent,
@@ -77,7 +77,7 @@ def run_memory_iteration(spec: dict,
                                    mi_per_step=mi_steps,
                                    init_pi_improvement=init_pi_improvement)
 
-    discrep_loss_fn = partial(discrep_loss, value_type=value_type, error_type=error_type, weight_discrep_by_count=weight_discrep)
+    discrep_loss_fn = partial(discrep_loss, value_type=value_type, error_type=error_type, alpha=alpha)
     get_measures = partial(lambda_discrep_measures, discrep_loss_fn=discrep_loss_fn)
 
     info['initial_policy'] = initial_policy
