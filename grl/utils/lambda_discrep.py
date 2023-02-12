@@ -28,9 +28,10 @@ def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray, discrep_loss_fn:
         discrep_loss_fn = partial(discrep_loss, value_type='q', error_type='l2', weight_discrep_by_count=False)
 
     state_vals, mc_vals, td_vals, _ = analytical_pe(pi, amdp)
+    discrep, _, _ = discrep_loss_fn(pi, amdp)
 
     measures = {
-        'discrep': discrep_loss_fn(pi, amdp),
+        'discrep': discrep,
         'mc_vals_q': mc_vals['q'],
         'td_vals_q': td_vals['q'],
         'mc_vals_v': mc_vals['v'],

@@ -152,9 +152,10 @@ def memory_iteration(
 
         # Change modes, run policy iteration
         agent.policy_optim_alg = 'pi'
-        print("Calculating TD-optimal memoryless policy for logs")
+        print(f"Calculating TD-optimal memoryless policy over {pi_per_step} steps")
         pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
         info['td_optimal_memoryless_policy'] = agent.policy.copy()
+        print(f"Converged to TD-optimal memoryless policy: \n{agent.policy}\n")
 
         # reset our policy again
         agent.pi_params = initial_pi_params
