@@ -17,7 +17,7 @@ from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi_q_abs')
+results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_l2')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -32,11 +32,11 @@ compare_to = 'belief'
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
 spec_plot_order = [
-    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt', 'paint.95', 'cheese.95', 'network',
+    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
     'shuttle.95', '4x3.95'
 ]
 
-spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze'}
+spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
 # %%
 
@@ -180,7 +180,7 @@ def maybe_spec_map(id: str):
         'shuttle.95': 'shuttle',
         'example_7': 'ex. 7',
         'tmaze_5_two_thirds_up': 'tmaze',
-        'tiger-alt': 'tiger'
+        'tiger-alt-start': 'tiger'
     }
     if id not in spec_map:
         return id
