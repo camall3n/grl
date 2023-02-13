@@ -25,7 +25,8 @@ class AnalyticalAgent:
                  pi_softmax_temp: float = 1,
                  policy_optim_alg: str = 'pi',
                  new_mem_pi: str = 'copy',
-                 epsilon: float = 0.1):
+                 epsilon: float = 0.1,
+                 flip_count_prob: bool = False):
         """
         :param pi_params: Policy parameters
         :param rand_key: Initialized jax PRNG key
@@ -38,6 +39,7 @@ class AnalyticalAgent:
         :param new_mem_pi: When we do memory iteration and add memory states, how do we initialize the new policy params
                            over the new memory states? (copy | random)
         :param epsilon: (POLICY ITERATION ONLY) When we perform policy iteration, what epsilon do we use?
+        :param flip_count_prob: For our memory loss, do we flip our count probabilities??
         """
         self.policy_optim_alg = policy_optim_alg
         self.pi_params = pi_params
@@ -60,7 +62,8 @@ class AnalyticalAgent:
         partial_mem_discrep_loss = partial(mem_discrep_loss,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
-                                           alpha=self.alpha)
+                                           alpha=self.alpha,
+                                           flip_count_prob=flip_count_prob)
         self.memory_objective_func = jit(partial_mem_discrep_loss)
 
         self.mem_params = mem_params

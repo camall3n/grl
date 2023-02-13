@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+import inspect
 
 from . import examples_lib
 from .memory_lib import get_memory
@@ -27,8 +28,10 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, fuzz: float = 
     # then from pomdp_files
     spec = None
     try:
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
-        spec = getattr(examples_lib, name)(**kwargs)
+        spec_fn = getattr(examples_lib, name)
+        arg_names = inspect.signature(spec_fn).parameters
+        kwargs = {k: v for k, v in kwargs.items() if v is not None and v in arg_names}
+        spec = spec_fn(**kwargs)
 
     except AttributeError as _:
         pass

@@ -25,7 +25,8 @@ def run_memory_iteration(spec: dict,
                          value_type: str = 'v',
                          alpha: float = 1.,
                          pi_params: jnp.ndarray = None,
-                         epsilon: float = 0.1
+                         epsilon: float = 0.1,
+                         flip_count_prob: bool = False
 ):
     """
     Wrapper function for the Memory Iteration algorithm.
@@ -36,8 +37,9 @@ def run_memory_iteration(spec: dict,
     :param policy_optim_alg:    Which policy improvement algorithm do we use?
         (dm: discrepancy maximization | pi: policy iteration | pg: policy gradient)
     :param mi_iterations:       How many memory iterations do we do?
-    :param mi_steps:         Number of memory improvement steps PER memory iteration step.
-    :param pi_steps:         Number of policy improvement steps PER memory iteration step.
+    :param mi_steps:            Number of memory improvement steps PER memory iteration step.
+    :param pi_steps:            Number of policy improvement steps PER memory iteration step.
+    :param flip_count_prob:     Do we flip our count probabilities over observations for memory loss?.
     """
     assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
     mem_params = spec['mem_params']
@@ -66,7 +68,8 @@ def run_memory_iteration(spec: dict,
                             error_type=error_type,
                             value_type=value_type,
                             alpha=alpha,
-                            epsilon=epsilon)
+                            epsilon=epsilon,
+                            flip_count_prob=flip_count_prob)
 
     info, agent = memory_iteration(agent,
                                    amdp,
@@ -109,10 +112,10 @@ def run_memory_iteration(spec: dict,
         return np.dot(stats['state_vals_v'], stats['p0']).item()
 
     print("Finished Memory Iteration.")
-    print(f"Initial policy performance: {perf_from_stats(info['initial_policy_stats'])}")
+    print(f"Initial policy performance: {perf_from_stats(info['initial_policy_stats']):.4f}")
     if 'greedy_td_optimal_policy_stats' in info:
-        print(f"TD-optimal policy performance: {perf_from_stats(info['greedy_td_optimal_policy_stats'])}")
-    print(f"Final performance after MI: {perf_from_stats(info['greedy_final_mem_stats'])}")
+        print(f"TD-optimal policy performance: {perf_from_stats(info['greedy_td_optimal_policy_stats']):.4f}")
+    print(f"Final performance after MI: {perf_from_stats(info['greedy_final_mem_stats']):.4f}")
 
     return info, agent
 

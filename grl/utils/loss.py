@@ -10,9 +10,10 @@ from grl.mdp import MDP, AbstractMDP
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
 
-@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_counts'])
+@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
 def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
-                 value_type: str, error_type: str, alpha: float, flip_count_prob: bool = False): # initialize static args
+                 value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.,
+                 flip_count_prob: bool = False): # initialize static args
     _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
     diff = mc_vals[value_type] - td_vals[value_type]
 
@@ -50,13 +51,14 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
     return loss, mc_vals, td_vals
 
 def mem_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
-                     value_type: str, error_type: str, alpha: float):  # initialize with partial
+                     value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.,
+                     flip_count_prob: bool = False):  # initialize with partial
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, alpha)
+    loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, alpha, flip_count_prob=flip_count_prob)
     return loss
 
 def policy_discrep_loss(pi_params: jnp.ndarray, amdp: AbstractMDP,
-                        value_type: str, error_type: str, alpha: float):  # args initialize with partial
+                        value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.):
     pi = nn.softmax(pi_params, axis=-1)
     loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, alpha)
     return loss, (mc_vals, td_vals)

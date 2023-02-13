@@ -441,6 +441,8 @@ if __name__ == '__main__':
                         help='for memory_id = 0, how many memory states do we have?')
     parser.add_argument('--alpha', default=1., type=float,
                         help='Temperature parameter, for how uniform our lambda-discrep weighting is')
+    parser.add_argument('--flip_count_prob', action='store_true',
+                        help='Do we "invert" our count probabilities for our memory loss?')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--value_type', default='q', type=str,
@@ -580,7 +582,8 @@ if __name__ == '__main__':
                                                    error_type=args.error_type,
                                                    alpha=args.alpha,
                                                    epsilon=args.epsilon,
-                                                   pi_params=pi_params)
+                                                   pi_params=pi_params,
+                                                   flip_count_prob=args.flip_count_prob)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'
