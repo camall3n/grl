@@ -30,7 +30,6 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: str,
     info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    # TODO: refactor this to be more functional
     policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, weight_discrep=weight_discrep)
 
     if grad_type == 'p':

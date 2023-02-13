@@ -2,7 +2,7 @@ cd ../../
 
 onager launch \
     --backend gridengine \
-    --jobname tmaze_pe_sweep_eps \
+    --jobname all_pomdps_mi_pi_flip_count \
     --mem 1 \
     --cpus 2 \
     --duration 0-03:00:00 \

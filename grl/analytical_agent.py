@@ -53,18 +53,12 @@ class AnalyticalAgent:
         self.val_type = value_type
         self.error_type = error_type
         self.alpha = alpha
+        self.flip_count_prob = flip_count_prob
 
-        partial_policy_discrep_loss = partial(policy_discrep_loss,
-                                              value_type=self.val_type,
-                                              error_type=self.error_type,
-                                              alpha=self.alpha)
-        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
-        partial_mem_discrep_loss = partial(mem_discrep_loss,
-                                           value_type=self.val_type,
-                                           error_type=self.error_type,
-                                           alpha=self.alpha,
-                                           flip_count_prob=flip_count_prob)
-        self.memory_objective_func = jit(partial_mem_discrep_loss)
+        self.policy_discrep_objective_func = None
+        self.memory_objective_func = None
+
+        self.init_and_jit_objectives()
 
         self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi
@@ -72,6 +66,20 @@ class AnalyticalAgent:
         self.pi_softmax_temp = pi_softmax_temp
 
         self.rand_key = rand_key
+
+    def init_and_jit_objectives(self):
+        partial_policy_discrep_loss = partial(policy_discrep_loss,
+                                              value_type=self.val_type,
+                                              error_type=self.error_type,
+                                              alpha=self.alpha,
+                                              flip_count_prob=self.flip_count_prob)
+        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
+        partial_mem_discrep_loss = partial(mem_discrep_loss,
+                                           value_type=self.val_type,
+                                           error_type=self.error_type,
+                                           alpha=self.alpha,
+                                           flip_count_prob=self.flip_count_prob)
+        self.memory_objective_func = jit(partial_mem_discrep_loss)
 
     @property
     def policy(self) -> jnp.ndarray:
@@ -180,13 +188,4 @@ class AnalyticalAgent:
             self.val_type = 'v'
             self.error_type = 'l2'
 
-        partial_policy_discrep_loss = partial(policy_discrep_loss,
-                                              value_type=self.val_type,
-                                              error_type=self.error_type,
-                                              weight_discrep=self.weight_discrep)
-        self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
-        partial_mem_discrep_loss = partial(mem_discrep_loss,
-                                           value_type=self.val_type,
-                                           error_type=self.error_type,
-                                           weight_discrep=self.weight_discrep)
-        self.memory_objective_func = jit(partial_mem_discrep_loss)
+        self.init_and_jit_objectives()

@@ -15,7 +15,8 @@ from definitions import ROOT_DIR
 
 
 # %%
-results_dir = Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_q_l2')
+# results_dir = Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_q_l2')
+results_dir = Path(ROOT_DIR, 'results', 'tmaze_pe_sweep_eps')
 
 split_by = ['spec', 'algo', 'tmaze_corridor_length', 'tmaze_junction_up_pi']
 Args = namedtuple('args', split_by)
@@ -222,6 +223,6 @@ ax.set_xlim([x_low, x_high])
 # fig.text(0.52, 0.0, 'π(up | junction)', ha='center', va='center')
 plt.legend()
 plt.tight_layout()
-fig_path = Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_q_l2.pdf')
-fig.savefig(fig_path)
+# fig_path = Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_q_l2.pdf')
+# fig.savefig(fig_path)
 # %%

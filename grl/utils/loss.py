@@ -58,9 +58,10 @@ def mem_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP
     return loss
 
 def policy_discrep_loss(pi_params: jnp.ndarray, amdp: AbstractMDP,
-                        value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.):
+                        value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.,
+                        flip_count_prob: bool = False):  # initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
-    loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, alpha)
+    loss, mc_vals, td_vals = discrep_loss(pi, amdp, value_type, error_type, alpha, flip_count_prob=flip_count_prob)
     return loss, (mc_vals, td_vals)
 
 def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
