@@ -68,6 +68,8 @@ class AnalyticalAgent:
         self.rand_key = rand_key
 
     def init_and_jit_objectives(self):
+        if not hasattr(self, 'flip_count_prob'):
+            self.flip_count_prob = False
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.val_type,
                                               error_type=self.error_type,
