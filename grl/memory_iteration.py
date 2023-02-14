@@ -113,6 +113,7 @@ def run_memory_iteration(spec: dict,
 
     print("Finished Memory Iteration.")
     print(f"Initial policy performance: {perf_from_stats(info['initial_policy_stats']):.4f}")
+    print(f"Initial improvement performance: {perf_from_stats(info['initial_improvement_stats']):.4f}")
     if 'greedy_td_optimal_policy_stats' in info:
         print(f"TD-optimal policy performance: {perf_from_stats(info['greedy_td_optimal_policy_stats']):.4f}")
     print(f"Final performance after MI: {perf_from_stats(info['greedy_final_mem_stats']):.4f}")
