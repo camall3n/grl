@@ -25,7 +25,7 @@ def calc_discrep_from_values(td_vals: dict, mc_vals: dict, error_type: str = 'l2
 
 def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
     if discrep_loss_fn is None:
-        discrep_loss_fn = partial(discrep_loss, value_type='q', error_type='l2', weight_discrep_by_count=False)
+        discrep_loss_fn = partial(discrep_loss, value_type='q', error_type='l2', alpha=1.)
 
     state_vals, mc_vals, td_vals, _ = analytical_pe(pi, amdp)
     discrep, _, _ = discrep_loss_fn(pi, amdp)

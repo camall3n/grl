@@ -48,7 +48,10 @@ def generate_onager_runs(run_dicts: List[dict],
                 else:
                     command += f" --{k} {v}"
             else:
-                arg_string = f"+arg --{k} {' '.join(map(str, v))}"
+                if all([isinstance(el, bool) for el in v]):
+                    arg_string = f"+flag --{k}"
+                else:
+                    arg_string = f"+arg --{k} {' '.join(map(str, v))}"
                 arg_list.append(arg_string)
 
         command += f" --experiment_name {experiment_name}"
