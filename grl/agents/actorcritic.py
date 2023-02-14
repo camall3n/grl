@@ -4,6 +4,7 @@ from itertools import repeat
 from multiprocessing import Pool, freeze_support
 import os
 import shutil
+from typing import Union
 import warnings
 
 # from jax.nn import softmax
@@ -63,7 +64,8 @@ class ActorCritic:
         }
         self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
         self.q_mc = TDLambdaQFunction(lambda_=0.9, **q_fn_kwargs)
-        self.replay = ReplayMemory(capacity=replay_buffer_size)
+        self.replay = ReplayMemory(capacity=replay_buffer_size,
+                                   on_retrieve={'*': lambda x: np.asarray(x)})
         self.reset_memory_state()
 
     def mem_summary(self, precision=3):
@@ -278,41 +280,50 @@ class ActorCritic:
 
         return study
 
-    def evaluate_memory(self, n_epochs=1):
-        for epoch in range(n_epochs):
-            assert len(self.replay.memory) > 0
-            self.reset_memory_state()
-            self.reset_value_functions()
-
-            first_episode = True
-            for experience in self.replay.memory:
-                e = experience.copy()
-                del e['_index_']
-                # Skip the first episode since it might be partial
-                if first_episode:
-                    if e['terminal']:
-                        first_episode = False
-                    continue
-                self.step_memory(e['obs'], e['action'])
-                self.update_critic(e)
-                if experience['terminal']:
-                    self.reset_memory_state()
+    def compute_discrepancy_loss(self, obs, actions, memories, importance_sampling=False):
         if self.discrep_loss == 'mse':
-            abs_lambda_discrepancy = (self.q_mc.q - self.q_td.q)**2
+            discrepancies = (self.q_mc.q - self.q_td.q)**2
         elif self.discrep_loss == 'abs':
-            abs_lambda_discrepancy = np.abs(self.q_mc.q - self.q_td.q)
+            discrepancies = np.abs(self.q_mc.q - self.q_td.q)
         else:
             raise RuntimeError('Invalid discrep_loss')
-        obs, actions = self.replay.retrieve(fields=['obs', 'action'])
-        observed_lambda_discrepancies = abs_lambda_discrepancy[actions, obs]
-        return observed_lambda_discrepancies.mean()
 
-    def augment_obs(self, obs: int, memory: int = None) -> int:
+        obs_aug = self.augment_obs(obs, memories)
+        if not importance_sampling:
+            observed_lambda_discrepancies = discrepancies[actions, obs_aug]
+            return observed_lambda_discrepancies.mean()
+        else:
+            raise NotImplementedError
+
+    def evaluate_memory(self):
+        assert len(self.replay.memory) > 0
+        self.reset_memory_state()
+        self.reset_value_functions()
+
+        memories = np.zeros(len(self.replay.memory), dtype=int)
+        first_episode = True
+        for i, experience in enumerate(self.replay.memory):
+            e = experience.copy()
+            del e['_index_']
+            self.step_memory(e['obs'], e['action'])
+            memories[i] = self.memory
+            if experience['terminal']:
+                self.reset_memory_state()
+                first_episode = False
+            if not first_episode:
+                # Don't update for first episode since it might be partial
+                self.update_critic(e)
+        obs, actions = self.replay.retrieve(fields=['obs', 'action'])
+        return self.compute_discrepancy_loss(obs, actions, memories)
+
+    def augment_obs(self,
+                    obs: Union[int, np.ndarray],
+                    memory: Union[int, np.ndarray] = None) -> Union[int, np.ndarray]:
         if memory is None:
             memory = self.memory
         # augment last dim with mem states
-        ob_augmented = self.n_mem_states * obs + memory
-        return ob_augmented
+        obs_augmented = self.n_mem_states * obs + memory
+        return obs_augmented
 
     def augment_experience(self, experience: dict) -> dict:
         augmented_experience = copy.deepcopy(experience)
