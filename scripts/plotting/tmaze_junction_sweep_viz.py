@@ -87,7 +87,6 @@ def load_analytical_results(pathname: str, use_epsilon=False):
 
         diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
         initial_q_discrep, initial_v_discrep = info['initial_discrep']['q'], info[ 'initial_discrep']['v']
-
         final_mc_vals, final_td_vals = grad_info['final_vals']['mc'], grad_info['final_vals']['td']
         final_v_discrep = (final_mc_vals['v'] - final_td_vals['v'])**2
         final_q_discrep = (final_mc_vals['q'] - final_td_vals['q'])**2
@@ -195,3 +194,15 @@ sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='initial_discrep',
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='--')
 sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='-')
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--')
+
+#%%
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_old')
+learning_data = load_sampled_results(
+    'results/sample_based/junction-sweep-sampled-4/tmaze_5_two_thirds_up/*')
+
+fig, ax = plt.subplots()
+plt.plot()
+sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='-')
+sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='--')
+sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='-')
+sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='--')
