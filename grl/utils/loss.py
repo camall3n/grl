@@ -94,7 +94,16 @@ def magnitude_td_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
                  flip_count_prob: bool = False): # initialize static args
     # TODO: this is wrong! we're missing the one-step reward.
     _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
-    diff = info['R_obs_obs'].mean(axis=-1) + amdp.gamma * td_vals[value_type]
+    assert value_type == 'q'
+    expected_R = (info['R_obs_obs'] * info['T_obs_obs']).sum(axis=-1)
+
+    # repeat the Q-function over A x O
+    # Multiply that with p(O', A' | o, a) and sum over O' and A' dimensions.
+    # P(O' | o, a) = T_obs_obs, P(A', O' | o, a) = T_obs_obs * pi (over new dimension)
+    pr_o_expanded = jnp.expand_dims(info['T_obs_obs'], -1).repeat(pi.shape[-1], -1)
+    pr_oa = jnp.einsum('ijkl,kl->ijkl', pr_o_expanded, pi)
+    expected_next_Q = jnp.einsum('ijkl,kl->ij', pr_oa, td_vals['q'].T)
+    diff = expected_R + amdp.gamma * expected_next_Q
 
     c_s = info['occupancy']
     # set terminal counts to 0
