@@ -26,7 +26,7 @@ def analytical_pe(pi_obs: jnp.ndarray, amdp: AbstractMDP):
     td_v_vals, td_q_vals = functional_solve_mdp(pi_obs, td_model)
     td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
-    return state_vals, mc_vals, td_vals, {'occupancy': occupancy}
+    return state_vals, mc_vals, td_vals, {'occupancy': occupancy, 'R_obs_obs': R_obs_obs, 'T_obs_obs': T_obs_obs}
 
 @jit
 def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):

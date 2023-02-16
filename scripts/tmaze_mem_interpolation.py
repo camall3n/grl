@@ -16,9 +16,9 @@ from definitions import ROOT_DIR
 if __name__ == "__main__":
     config.update('jax_platform_name', 'cpu')
 
-    mem_id = 18
+    mem_id = 16
     spec_name = 'tmaze_5_two_thirds_up'
-    mem_idx = (0, 0, 0)
+    mem_idx = (2, 2, 0)
     save_path = Path(ROOT_DIR, 'results', 'tmaze_mem_interpolation_data.npy')
     # TODO: maybe add discrep_loss_fn variants?
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     all_res = []
 
-    for fuzz in tqdm(jnp.linspace(0, 1, num=100)):
+    for fuzz in tqdm(jnp.linspace(0, 1, num=200)):
         og_mem_dist = og_mem[mem_idx].at[1 - argmax_idx].add(fuzz)
         mem_dist = og_mem_dist.at[argmax_idx].add(-fuzz)
         mem = og_mem.at[mem_idx].set(mem_dist)

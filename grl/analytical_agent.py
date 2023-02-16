@@ -5,7 +5,7 @@ from jax.nn import softmax
 from functools import partial
 from typing import Sequence
 
-from grl.utils.loss import policy_discrep_loss, mem_discrep_loss, pg_objective_func
+from grl.utils.loss import policy_discrep_loss, mem_discrep_loss, pg_objective_func, mem_magnitude_td_loss
 from grl.mdp import AbstractMDP
 from grl.utils.math import glorot_init
 from grl.vi import policy_iteration_step
@@ -21,6 +21,7 @@ class AnalyticalAgent:
                  mem_params: jnp.ndarray = None,
                  value_type: str = 'v',
                  error_type: str = 'l2',
+                 objective: str = 'discrep',
                  alpha: float = 1.,
                  pi_softmax_temp: float = 1,
                  policy_optim_alg: str = 'pi',
@@ -33,6 +34,7 @@ class AnalyticalAgent:
         :param mem_params: Memory parameters (optional)
         :param value_type: If we optimize lambda discrepancy, what type of lambda discrepancy do we optimize? (v | q)
         :param error_type: lambda discrepancy error type (l2 | abs)
+        :param objective: What objective are we trying to minimize? (discrep | magnitude)
         :param pi_softmax_temp: When we take the softmax over pi_params, what is the softmax temperature?
         :param policy_optim_alg: What type of policy optimization do we do? (pi | pg)
             (dm: discrepancy maximization | pi: policy iteration | pg: policy gradient)
@@ -52,6 +54,7 @@ class AnalyticalAgent:
 
         self.val_type = value_type
         self.error_type = error_type
+        self.objective = objective
         self.alpha = alpha
         self.flip_count_prob = flip_count_prob
 
@@ -68,15 +71,19 @@ class AnalyticalAgent:
         self.rand_key = rand_key
 
     def init_and_jit_objectives(self):
-        if not hasattr(self, 'flip_count_prob'):
-            self.flip_count_prob = False
+        # TODO: set objective switch here as well?
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.val_type,
                                               error_type=self.error_type,
                                               alpha=self.alpha,
                                               flip_count_prob=self.flip_count_prob)
         self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
-        partial_mem_discrep_loss = partial(mem_discrep_loss,
+
+        mem_loss_fn = mem_discrep_loss
+        if hasattr(self, 'objective') and self.objective == 'magnitude':
+            mem_loss_fn = mem_magnitude_td_loss
+
+        partial_mem_discrep_loss = partial(mem_loss_fn,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
                                            alpha=self.alpha,

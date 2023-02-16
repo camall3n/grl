@@ -449,6 +449,8 @@ if __name__ == '__main__':
                         help='Do we use (v | q) for our discrepancies?')
     parser.add_argument('--error_type', default='l2', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
+    parser.add_argument('--objective', default='discrep', type=str,
+                        help='What objective are we trying to optimize? (discrep | magnitude)')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
@@ -580,6 +582,7 @@ if __name__ == '__main__':
                                                    pi_steps=args.pi_steps,
                                                    value_type=args.value_type,
                                                    error_type=args.error_type,
+                                                   objective=args.objective,
                                                    alpha=args.alpha,
                                                    epsilon=args.epsilon,
                                                    pi_params=pi_params,

@@ -3,7 +3,7 @@ from jax import value_and_grad, jit, nn
 from functools import partial
 
 from grl.utils.policy_eval import analytical_pe
-from grl.utils.loss import mem_discrep_loss, mem_abs_td_loss, policy_discrep_loss
+from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, policy_discrep_loss
 from grl.mdp import AbstractMDP
 
 class PolicyEval:
@@ -27,7 +27,7 @@ class PolicyEval:
                                            error_type=self.error_type,
                                            alpha=self.alpha)
         if self.discrep_type == 'abs_td':
-            partial_mem_discrep_loss = partial(mem_abs_td_loss,
+            partial_mem_discrep_loss = partial(mem_magnitude_td_loss,
                                                value_type=self.value_type,
                                                error_type=self.error_type,
                                                alpha=self.alpha)

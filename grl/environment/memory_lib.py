@@ -256,7 +256,7 @@ memory_15 = np.stack([mem_15_solid, mem_15_dashed])
 
 # Optimal memory for t-maze
 mem_16 = np.array([
-    [ # we see the goal as UP
+    [
         # Pr(m'| m, o)
         # m0', m1'
         [1., 0], # m0
