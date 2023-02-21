@@ -30,7 +30,7 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, fuzz: float = 
     try:
         spec_fn = getattr(examples_lib, name)
         arg_names = inspect.signature(spec_fn).parameters
-        kwargs = {k: v for k, v in kwargs.items() if v is not None and v in arg_names}
+        kwargs = {k: v for k, v in kwargs.items() if v is not None and k in arg_names}
         spec = spec_fn(**kwargs)
 
     except AttributeError as _:

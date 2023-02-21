@@ -71,6 +71,15 @@ class AnalyticalAgent:
         self.rand_key = rand_key
 
     def init_and_jit_objectives(self):
+        # TODO: delete this?
+        if hasattr(self, 'weight_discrep'):
+            if self.weight_discrep:
+                self.alpha = 0.
+            else:
+                self.alpha = 1.
+            self.flip_count_prob = False
+            del self.weight_discrep
+
         # TODO: set objective switch here as well?
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.val_type,
