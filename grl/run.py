@@ -11,6 +11,7 @@ from jax.config import config
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
+from functools import partial
 
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
@@ -21,9 +22,10 @@ from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.pe_grad import pe_grad
 from grl.utils import pformat_vals, results_path, numpyify_and_save, amdp_get_occupancy
-from grl.utils.lambda_discrep import calc_discrep_from_values
+from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.memory_iteration import run_memory_iteration
 from grl.vi import value_iteration
+from grl.utils.loss import discrep_loss
 
 def run_pe_algos(spec: dict,
                  method: str = 'a',
@@ -34,6 +36,7 @@ def run_pe_algos(spec: dict,
                  discrep_type: str = 'ground_truth',
                  value_type: str = 'q',
                  error_type: str = 'abs',
+                 alpha: float = 1.,
                  weight_discrep: bool = False,
                  pe_grad_iterations: int = False):
     """
@@ -54,7 +57,7 @@ def run_pe_algos(spec: dict,
                     discrep_type=discrep_type,
                     value_type=value_type,
                     error_type=error_type,
-                    weight_discrep=weight_discrep)
+                    alpha=alpha)
     discrepancies = [] # the discrepancy dict for each policy
     discrepancy_ids = [] # Pi_phi indices (policies) where there was a discrepancy
 
@@ -69,58 +72,55 @@ def run_pe_algos(spec: dict,
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a, _ = pe.run(pi)
-            occupancy = amdp_get_occupancy(pi, amdp)
-            pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
 
-            discrep = calc_discrep_from_values(td_vals_a, mc_vals_a, error_type=error_type,
-                                               weight_discrep=weight_discrep)
-            discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
-            info['initial_discrep'] = discrep
+            reactive_discrep_loss = partial(discrep_loss, value_type=value_type, error_type=error_type, alpha=alpha)
+            info['initial_stats'] = lambda_discrep_measures(amdp, pi, reactive_discrep_loss)
+            info['initial_discrep'] = info['initial_stats']['discrep']
 
-            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(info["initial_discrep"])}')
 
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
-            if 'mem_params' in spec.keys():
-                occupancy_x = amdp_get_occupancy(pi, amdp)
-                n_mem_states = spec['mem_params'].shape[-1]
-                n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
-
-                # These operations are within the cross producted space
-                ob_counts_x = amdp.phi.T @ occupancy_x
-                ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
-                w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
-
-                logging.info('\n--- Cross product info')
-                logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
-                logging.info(f'ob-mem weights:\n {w_x}')
-
-                logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
-                n_actions = mc_vals_a['q'].shape[0]
-                mc_vals_x = {}
-                td_vals_x = {}
-
-                mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
-                mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
-                                                                n_mem_states).sum(2)
-                td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
-                td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
-                                                                n_mem_states).sum(2)
-                # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-                logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
-                logging.info(f'td:\n {pformat_vals(td_vals_x)}')
-
-                discrep = calc_discrep_from_values(td_vals_x, mc_vals_x, error_type=error_type)
-                occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
-                pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
-                pr_oa = (occ_obs * pi_obs.T)
-
-                discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
-
-                logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+            # if 'mem_params' in spec.keys():
+            #     occupancy_x = amdp_get_occupancy(pi, amdp)
+            #     n_mem_states = spec['mem_params'].shape[-1]
+            #     n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
+            #
+            #     # These operations are within the cross producted space
+            #     ob_counts_x = amdp.phi.T @ occupancy_x
+            #     ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
+            #     w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
+            #
+            #     logging.info('\n--- Cross product info')
+            #     logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
+            #     logging.info(f'ob-mem weights:\n {w_x}')
+            #
+            #     logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
+            #     n_actions = mc_vals_a['q'].shape[0]
+            #     mc_vals_x = {}
+            #     td_vals_x = {}
+            #
+            #     mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+            #     mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+            #                                                     n_mem_states).sum(2)
+            #     td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+            #     td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+            #                                                     n_mem_states).sum(2)
+            #     # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
+            #     logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
+            #     logging.info(f'td:\n {pformat_vals(td_vals_x)}')
+            #
+            #     discrep = calc_discrep_from_values(td_vals_x, mc_vals_x, error_type=error_type)
+            #     occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
+            #     pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
+            #     pr_oa = (occ_obs * pi_obs.T)
+            #
+            #     discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+            #
+            #     logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             discrepancies.append(discrep)
 

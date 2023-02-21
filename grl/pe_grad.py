@@ -12,7 +12,7 @@ import numpy as np
 
 def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: str,
             value_type: str = 'v', error_type: str = 'l2', lr: float = 1,
-            weight_discrep: bool = False,
+            alpha: float = 1.,
             iterations: int = None):
     """
     :param spec:         spec
@@ -30,13 +30,13 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: str,
     info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, weight_discrep=weight_discrep)
+    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, alpha=alpha)
 
     if grad_type == 'p':
         params = pi_abs
         if 'mem_params' in spec.keys():
             amdp = memory_cross_product(spec['mem_params'], amdp)
-            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, weight_discrep=weight_discrep)
+            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, alpha=alpha)
 
         update = policy_eval.policy_update
 

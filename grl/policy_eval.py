@@ -26,12 +26,12 @@ class PolicyEval:
                                            value_type=self.value_type,
                                            error_type=self.error_type,
                                            alpha=self.alpha)
-        if self.discrep_type == 'abs_td':
-            partial_mem_discrep_loss = partial(mem_magnitude_td_loss,
-                                               value_type=self.value_type,
-                                               error_type=self.error_type,
-                                               alpha=self.alpha)
-        self.fn_mem_loss = jit(partial_mem_discrep_loss)
+        # if self.discrep_type == 'abs_td':
+        #     partial_mem_discrep_loss = partial(mem_magnitude_td_loss,
+        #                                        value_type=self.value_type,
+        #                                        error_type=self.error_type,
+        #                                        alpha=self.alpha)
+        self.mem_discrep_objective_func = jit(partial_mem_discrep_loss)
 
         partial_policy_discrep_loss = partial(policy_discrep_loss,
                                               value_type=self.value_type,
@@ -61,7 +61,7 @@ class PolicyEval:
     @partial(jit, static_argnames=['self', 'lr'])
     def functional_memory_update(self, params: jnp.ndarray, lr: float,
                                  pi: jnp.ndarray, amdp: AbstractMDP):
-        loss, params_grad = value_and_grad(self.fn_mem_loss, argnums=0)(params, pi, amdp)
+        loss, params_grad = value_and_grad(self.mem_discrep_objective_func , argnums=0)(params, pi, amdp)
         params -= lr * params_grad
 
         return loss, params

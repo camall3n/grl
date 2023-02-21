@@ -3,6 +3,7 @@ from jax.nn import softmax
 from jax.config import config
 from pathlib import Path
 from tqdm import tqdm
+from functools import partial
 
 from grl.environment.memory_lib import get_memory
 from grl.environment import load_spec
@@ -11,6 +12,7 @@ from grl.memory import memory_cross_product
 from grl.utils.math import reverse_softmax
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.utils.file_system import numpyify_and_save
+from grl.utils.loss import discrep_loss, magnitude_td_loss
 from definitions import ROOT_DIR
 
 if __name__ == "__main__":
@@ -21,6 +23,7 @@ if __name__ == "__main__":
     mem_idx = (2, 2, 0)
     save_path = Path(ROOT_DIR, 'results', 'tmaze_mem_interpolation_data.npy')
     # TODO: maybe add discrep_loss_fn variants?
+    loss = partial(discrep_loss, value_type='q', error_type='l2', alpha=1.)
 
     spec = load_spec(spec_name)
 
@@ -44,7 +47,7 @@ if __name__ == "__main__":
             'fuzz': fuzz,
             'mem': mem
         }
-        indv_res.update(lambda_discrep_measures(mem_aug_amdp, pi))
+        indv_res.update(lambda_discrep_measures(mem_aug_amdp, pi, discrep_loss_fn=loss))
         all_res.append(indv_res)
 
     numpyify_and_save(save_path, all_res)
