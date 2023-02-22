@@ -81,40 +81,54 @@ def load_analytical_results(pathname: str, use_epsilon=False):
         if results_path.suffix != '.npy':
             continue
         info = load_info(results_path)
-        grad_info = info['grad_info']
-        args = info['args']
-        final_mem_params = grad_info['final_params']
+        if 'grad_info' in info:
+            grad_info = info['grad_info']
+            args = info['args']
+            final_mem_params = grad_info['final_params']
 
-        diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
-        initial_q_discrep, initial_v_discrep = info['initial_discrep']['q'], info[ 'initial_discrep']['v']
-        final_mc_vals, final_td_vals = grad_info['final_vals']['mc'], grad_info['final_vals']['td']
-        final_v_discrep = (final_mc_vals['v'] - final_td_vals['v'])**2
-        final_q_discrep = (final_mc_vals['q'] - final_td_vals['q'])**2
+            diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
+            initial_q_discrep, initial_v_discrep = info['initial_discrep']['q'], info[ 'initial_discrep']['v']
+            final_mc_vals, final_td_vals = grad_info['final_vals']['mc'], grad_info['final_vals']['td']
+            final_v_discrep = (final_mc_vals['v'] - final_td_vals['v'])**2
+            final_q_discrep = (final_mc_vals['q'] - final_td_vals['q'])**2
 
-        policy_up_prob = args['tmaze_junction_up_pi']
-        policy_epsilon = args['epsilon'] if 'epsilon' in args else np.nan
+            policy_up_prob = args['tmaze_junction_up_pi']
+            policy_epsilon = args['epsilon'] if 'epsilon' in args else np.nan
 
-        p = policy_up_prob
-        p_up_policy = np.array([
-            [0., 0., 1., 0.],
-            [0., 0., 1., 0.],
-            [0., 0., 1., 0.],
-            [0., 0., 1., 0.],
-            [0., 0., 1., 0.],
-            [0., 0., 1., 0.],
-            [p, (1 - p), 0., 0.],
-            [p, (1 - p), 0., 0.],
-            [1., 0., 0., 0.],
-            [1., 0., 0., 0.],
-        ])
+            p = policy_up_prob
+            p_up_policy = np.array([
+                [0., 0., 1., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 1., 0.],
+                [p, (1 - p), 0., 0.],
+                [p, (1 - p), 0., 0.],
+                [1., 0., 0., 0.],
+                [1., 0., 0., 0.],
+            ])
 
-        uniform = np.ones_like(policy_up_prob, dtype=float) / p_up_policy.shape[-1]
-        eps_policy = (1 - policy_epsilon) * p_up_policy + policy_epsilon * uniform
+            uniform = np.ones_like(policy_up_prob, dtype=float) / p_up_policy.shape[-1]
+            eps_policy = (1 - policy_epsilon) * p_up_policy + policy_epsilon * uniform
 
-        policy = eps_policy if use_epsilon else p_up_policy
+            policy = eps_policy if use_epsilon else p_up_policy
 
-        def aggregate_q_discrep(q_discrep, policy):
-            return (q_discrep.T * policy).sum(-1).mean()
+            def aggregate_q_discrep(q_discrep, policy):
+                return (q_discrep.T * policy).sum(-1).mean()
+
+            initial_aggregated_q_discrep = aggregate_q_discrep(initial_q_discrep, policy=policy)
+            final_aggregated_q_discrep = aggregate_q_discrep(final_q_discrep, policy=policy)
+        else:
+            grad_info = info['logs']
+            args = info['args']
+            agent_info = load_info(results_path.parent/'agents'/f'{results_path.stem}.pkl.npy')
+            final_mem_params = agent_info.mem_params
+            diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
+            initial_q_discrep = grad_info['initial_mem_stats']['discrep'].item()
+            final_q_discrep = grad_info['final_mem_stats']['discrep'].item()
+            initial_aggregated_q_discrep = initial_q_discrep
+            final_aggregated_q_discrep = final_q_discrep
 
         result = {
             'policy_up_prob': policy_up_prob,
@@ -122,8 +136,8 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             'trial_id': os.path.basename(results_path).split('_s(')[-1].split(')_')[0],
             # 'initial_discrep': initial_v_discrep.mean(),
             # 'final_discrep': final_v_discrep.mean(),
-            'initial_discrep': aggregate_q_discrep(initial_q_discrep, policy=policy),
-            'final_discrep': aggregate_q_discrep(final_q_discrep, policy=policy),
+            'initial_discrep': initial_aggregated_q_discrep,
+            'final_discrep': final_aggregated_q_discrep,
             'is_optimal': diff_start_bits_set and (is_toggle or is_hold),
         }
         all_results.append(result)
@@ -164,9 +178,9 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
     plt.gcf().subplots_adjust(right=0.75)
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_old')
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-17')
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-sampled-4/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-sweep-up-prob-5/tmaze_5_two_thirds_up/*')
 
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
@@ -177,11 +191,11 @@ plot_sweep(planning_data, ax=axes[0], title='Planning Agent', add_colorbar=False
 plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 
 #%%
-planning_data = load_analytical_results(pathname='results/analytical/tmaze_pe_sweep_eps', use_epsilon=True)
-sns.histplot(data=planning_data, x='policy_epsilon', bins=20)
-sns.histplot(data=learning_data, x='policy_epsilon', bins=33)
+planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_eps_2023-02-17', use_epsilon=True)
+# sns.histplot(data=planning_data, x='policy_epsilon', bins=26)
+# sns.histplot(data=learning_data, x='policy_epsilon', bins=26)
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-eps/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-sweep-eps-02/tmaze_5_two_thirds_up/*')
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], x='policy_epsilon', title='Planning Agent', add_colorbar=False)
@@ -196,9 +210,9 @@ sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', c
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--')
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_old')
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2022-02-17')
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-sampled-4/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-sweep-up-prob-5/tmaze_5_two_thirds_up/*')
 
 fig, ax = plt.subplots()
 plt.plot()
