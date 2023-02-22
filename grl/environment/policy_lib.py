@@ -26,7 +26,12 @@ def tiger_alt_start_uniform(**kwargs) -> jnp.ndarray:
     pi_params = reverse_softmax(pi_phi)
     return pi_params
 
-def get_start_pi(pi_name: str, **kwargs):
+def get_start_pi(pi_name: str, spec: dict = None, **kwargs):
+    # if we pass in a digit for get_start_pi, that means we look into
+    # the corresponding index in Pi_phi in spec.
+    if pi_name.isdigit() and spec is not None:
+        return reverse_softmax(spec['Pi_phi'][int(pi_name)])
+
     try:
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         pi_params = globals()[pi_name](**kwargs)

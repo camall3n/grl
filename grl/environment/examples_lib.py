@@ -634,7 +634,8 @@ def simple_chain(n: int = 10):
 
 def tmaze_hyperparams(corridor_length: int = 5,
                       discount: float = 0.9,
-                      junction_up_pi: float = 2 / 3):
+                      junction_up_pi: float = 2 / 3,
+                      **kwargs):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
     policy is still go right everywhere except for junction.
@@ -652,7 +653,8 @@ def tmaze_hyperparams(corridor_length: int = 5,
 def tmaze_eps_hyperparams(corridor_length: int = 5,
                           discount: float = 0.9,
                           junction_up_pi: float = 2 / 3,
-                          epsilon: float = 0.1):
+                          epsilon: float = 0.1,
+                          **kwargs):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
     policy is still go right everywhere except for junction.

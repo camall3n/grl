@@ -10,15 +10,17 @@ from grl.utils.lambda_discrep import lambda_discrep_measures
 
 import numpy as np
 
-def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
+def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: str,
             value_type: str = 'v', error_type: str = 'l2', lr: float = 1,
-            weight_discrep: bool = False):
+            alpha: float = 1.,
+            iterations: int = None):
     """
     :param spec:         spec
     :param pi_abs:       pi_abs
     :param lr:           learning rate
     :param grad_type:    'p'olicy or 'm'emory
     :param value_type:   'v' or 'q'
+    :param iterations:   Do we end things after `iterations`? If None, we use original break condition.
     :param error_type: 'l2' or 'max' or 'abs'
         - 'l2' uses MSE over all obs(/actions)
         - 'max' uses the highest individual absolute difference across obs(/actions) 
@@ -28,14 +30,13 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
     info = {}
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    # TODO: refactor this to be more functional
-    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, weight_discrep=weight_discrep)
+    policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, alpha=alpha)
 
     if grad_type == 'p':
         params = pi_abs
         if 'mem_params' in spec.keys():
-            amdp = memory_cross_product(amdp, spec['mem_params'])
-            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type)
+            amdp = memory_cross_product(spec['mem_params'], amdp)
+            policy_eval = PolicyEval(amdp, error_type=error_type, value_type=value_type, alpha=alpha)
 
         update = policy_eval.policy_update
 
@@ -50,7 +51,7 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
 
     policy_eval.verbose = False
     if grad_type == 'm':
-        info['initial_params_stats'] = lambda_discrep_measures(memory_cross_product(amdp, params),
+        info['initial_params_stats'] = lambda_discrep_measures(memory_cross_product(params, amdp),
                                                                pi_abs)
     else:
         info['initial_params_stats'] = lambda_discrep_measures(amdp, pi_abs)
@@ -65,7 +66,7 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
         i += 1
 
         old_params = params
-        loss, new_params = update(params, value_type, lr, pi_abs)
+        loss, new_params = update(params, lr, pi_abs)
         params = new_params
 
         if i % 100 == 0:
@@ -76,10 +77,13 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
             # print()
             # print('params\n', params)
 
-        if np.allclose(old_params, params, atol=1e-10):
-            done_count += 1
-        else:
-            done_count = 0
+        if iterations is None:
+            if np.allclose(old_params, params, atol=1e-10):
+                done_count += 1
+            else:
+                done_count = 0
+        elif i >= iterations:
+            break
 
     # Log results
     logging.info(f'\n\n---- GRAD RESULTS ----\n')
@@ -89,7 +93,7 @@ def pe_grad(spec: dict, pi_abs: jnp.ndarray, grad_type: bool,
 
     old_amdp = policy_eval.amdp
     if grad_type == 'm':
-        policy_eval.amdp = memory_cross_product(amdp, params)
+        policy_eval.amdp = memory_cross_product(params, amdp)
     policy_eval.verbose = True
     mdp_vals, amdp_vals, td_vals, _ = policy_eval.run(pi_abs)
     logging.info(f'\n-Final vals using grad_type {grad_type} on value_type {value_type}')

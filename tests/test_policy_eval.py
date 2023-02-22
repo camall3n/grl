@@ -11,7 +11,7 @@ def assert_pe_results(spec, answers, use_memory=False):
     policies = spec['Pi_phi']
 
     if use_memory:
-        amdp = memory_cross_product(amdp, spec['mem_params'])
+        amdp = memory_cross_product(spec['mem_params'], amdp)
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):
@@ -76,7 +76,7 @@ def test_example_7():
     assert_pe_results(spec, answers)
 
 def test_example_7_memory():
-    spec = load_spec('example_7', memory_id=4)
+    spec = load_spec('example_7', memory_id=str(4))
     spec['Pi_phi_x'] = [
         np.array([
             [0., 1], # Optimal policy with memory

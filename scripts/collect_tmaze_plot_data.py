@@ -1,34 +1,18 @@
 import argparse
-import jax.numpy as jnp
+from jax import jit
 import numpy as np
 import pandas as pd
 
 from jax.nn import softmax
 from jax.config import config
-from jax import jit
 from tqdm import tqdm
-from functools import partial
 from pathlib import Path
 
-from grl.memory import functional_memory_cross_product
 from grl.environment import load_spec
-from grl.environment.memory_lib import get_memory
-from grl.utils.lambda_discrep import calc_discrep_from_values
-from grl.policy_eval import analytical_pe
 from grl.utils.math import reverse_softmax
-from grl.utils.loss import mem_q_abs_loss
+from grl.utils.loss import mem_discrep_loss
+from grl.mdp import MDP, AbstractMDP
 from definitions import ROOT_DIR
-
-# @partial(jit, static_argnames=['gamma'])
-# def calc_discrep(
-#         pi_x: jnp.ndarray,
-#         T: jnp.ndarray, T_mem: jnp.ndarray, phi: jnp.ndarray,
-#         R: jnp.ndarray, p0: jnp.ndarray, gamma: float):
-#     # T_x, R_x, p0_x, phi_x = functional_memory_cross_product(T, T_mem, phi, R, p0)
-#     # state_vals, mc_vals, td_vals, _ = analytical_pe(pi_x, phi_x, T_x, R_x, p0_x, gamma)
-#     # discreps = calc_discrep_from_values(td_vals, mc_vals, error_type='abs')
-#     # return discreps['q'].sum()
-#     return mem_q_abs_loss()
 
 def calc_init_obs_dist(mem_fns: np.ndarray, action_idx: int = 2):
     ab = np.stack((mem_fns[:, action_idx, 0, 0, 0], mem_fns[:, action_idx, 1, 0, 0]), axis=-1)
@@ -49,13 +33,11 @@ if __name__ == "__main__":
     df_path = Path(ROOT_DIR, 'results', 'analytical_tmaze_plot_data.pkl')
 
     spec = load_spec('tmaze_5_two_thirds_up',
-                     memory_id=0,
+                     memory_id='0',
                      n_mem_states=2)
 
-    @partial(jit, static_argnames=['gamma'])
-    def calc_discrep(mem_params: jnp.ndarray, gamma: float, pi: jnp.ndarray, T: jnp.ndarray,
-                     R: jnp.ndarray, phi: jnp.ndarray, p0: jnp.ndarray):
-        return mem_q_abs_loss(mem_params, gamma, pi, T, R, phi, p0)
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
 
     # corridor values
     ps = np.linspace(0., 1., num=args.n)
@@ -100,14 +82,14 @@ if __name__ == "__main__":
 
     discreps = np.zeros(mem_funcs.shape[0])
 
-    # optimal_mem1 = get_memory(16, 0, 0)
-    # optimal_mem2 = get_memory(18, 0, 0)
+    # optimal_mem1 = get_memory("16")
+    # optimal_mem2 = get_memory("18")
     #
     # discrep1 = calc_discrep(optimal_mem1, spec['gamma'], pi_x, spec['T'], spec['R'], spec['phi'], spec['p0'])
     # print()
     # discrep2 = calc_discrep(optimal_mem2, spec['gamma'], pi_x, spec['T'], spec['R'], spec['phi'], spec['p0'])
 
-
+    calc_discrep = jit(mem_discrep_loss)
     for i, mem_func in enumerate(tqdm(mem_funcs)):
         discreps[i] = calc_discrep(reverse_softmax(mem_func), spec['gamma'], pi_x, spec['T'], spec['R'], spec['phi'], spec['p0'])
 

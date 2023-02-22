@@ -2,6 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import pandas as pd
+
 from jax.nn import softmax
 from jax.config import config
 from pathlib import Path
@@ -17,13 +19,14 @@ from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi_q_abs')
+results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_flip_count')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
-split_by = ['spec', 'algo', 'n_mem_states']
-Args = namedtuple('args', split_by)
+args_to_keep = ['spec', 'algo', 'n_mem_states', 'seed']
+split_by = [arg for arg in args_to_keep if arg != 'seed']
+
 # this option allows us to compare to either the optimal belief state soln
 # or optimal state soln. ('belief' | 'state')
 compare_to = 'belief'
@@ -32,15 +35,51 @@ compare_to = 'belief'
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
 spec_plot_order = [
-    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt', 'paint.95', 'cheese.95', 'network',
+    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
     'shuttle.95', '4x3.95'
 ]
 
-spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze'}
+spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
 # %%
 
-all_results = {}
+compare_to_list = []
+
+if compare_to == 'belief':
+    for fname in pomdp_files_dir.iterdir():
+        if 'pomdp-solver-results' in fname.stem:
+            for spec in spec_plot_order:
+                if (fname.stem ==
+                        f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
+                    ):
+                    belief_info = load_info(fname)
+                    coeffs = belief_info['coeffs']
+                    max_start_vals = coeffs[belief_info['max_start_idx']]
+                    spec_compare_indv = {
+                        'spec': spec,
+                        'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+                    }
+                    compare_to_list.append(spec_compare_indv)
+                    # print(f"loaded results for {hparams.spec} from {fname}")
+
+elif compare_to == 'state':
+    for vi_path in vi_results_dir.iterdir():
+        for spec in spec_plot_order:
+            if spec_to_belief_state.get(spec, spec) in vi_path.name:
+                vi_info = load_info(vi_path)
+                spec_compare_indv = {
+                    'spec': spec,
+                    'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+                }
+                compare_to_list.append(spec_compare_indv)
+else:
+    raise NotImplementedError
+
+compare_to_df = pd.DataFrame(compare_to_list)
+
+# %%
+
+all_results = []
 
 for results_path in results_dir.iterdir():
     if results_path.is_dir() or results_path.suffix != '.npy':
@@ -48,8 +87,7 @@ for results_path in results_dir.iterdir():
     info = load_info(results_path)
 
     args = info['args']
-    if 'n_mem_states' not in args:
-        args['n_mem_states'] = 2
+
     # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
     init_improvement_info = info['logs']['greedy_initial_improvement_stats']
@@ -57,61 +95,32 @@ for results_path in results_dir.iterdir():
 
     def get_perf(info: dict):
         return (info['state_vals_v'] * info['p0']).sum()
+    single_res = {k: args[k] for k in args_to_keep}
 
-    single_res = {
+    single_res.update({
         'init_policy_perf': get_perf(init_policy_info),
         'init_improvement_perf': get_perf(init_improvement_info),
         'final_mem_perf': get_perf(final_mem_info),
-        'init_policy': info['logs']['initial_policy'],
-        'init_improvement_policy': info['logs']['initial_improvement_policy'],
+        # 'init_policy': info['logs']['initial_policy'],
+        # 'init_improvement_policy': info['logs']['initial_improvement_policy'],
         # 'final_mem': np.array(agent.memory),
         # 'final_policy': np.array(agent.policy)
-    }
+    })
+    all_results.append(single_res)
 
-    hparams = Args(*tuple(args[s] for s in split_by))
 
-    if hparams not in all_results:
-        all_results[hparams] = {}
+all_res_df = pd.DataFrame(all_results)
 
-    for k, v in single_res.items():
-        if k not in all_results[hparams]:
-            all_results[hparams][k] = []
-        all_results[hparams][k].append(v)
-    all_results[hparams]['args'] = args
-
-for hparams, res_dict in all_results.items():
-    for k, v in res_dict.items():
-        if k != 'args':
-            all_results[hparams][k] = np.stack(v)
 
 # %%
-# Get vi performance
-if compare_to == 'belief':
-    for fname in pomdp_files_dir.iterdir():
-        if 'pomdp-solver-results' in fname.stem:
-            for hparams in all_results.keys():
-                if (fname.stem ==
-                        f"{spec_to_belief_state.get(hparams.spec, hparams.spec)}-pomdp-solver-results"
-                    ):
-                    belief_info = load_info(fname)
-                    coeffs = belief_info['coeffs']
-                    max_start_vals = coeffs[belief_info['max_start_idx']]
-                    all_results[hparams]['compare_perf'] = np.array(
-                        [np.dot(max_start_vals, belief_info['p0'])])
-                    # print(f"loaded results for {hparams.spec} from {fname}")
+cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
+min_col = 
+merged_df = all_res_df.merge(compare_to_df, on='spec')
 
-elif compare_to == 'state':
-    for hparams, res_dict in all_results.items():
-        for vi_path in vi_results_dir.iterdir():
-            if hparams.spec in vi_path.name:
-                vi_info = load_info(vi_path)
-                all_results[hparams]['compare_perf'] = np.array([
-                    (vi_info['optimal_vs'] * vi_info['p0']).sum()
-                ])
-else:
-    raise NotImplementedError
+for col_name in cols_to_normalize:
 
-# %%
+
+
 # all_normalized_perf_results = {}
 for hparams, res in all_results.items():
     max_key = 'compare_perf'
@@ -180,7 +189,7 @@ def maybe_spec_map(id: str):
         'shuttle.95': 'shuttle',
         'example_7': 'ex. 7',
         'tmaze_5_two_thirds_up': 'tmaze',
-        'tiger-alt': 'tiger'
+        'tiger-alt-start': 'tiger'
     }
     if id not in spec_map:
         return id
@@ -209,3 +218,4 @@ ax.set_title("Performance of Memory Iteration in POMDPs")
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
 fig.savefig(fig_path)
+args

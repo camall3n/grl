@@ -4,8 +4,9 @@ hparams = {
     'args': [{
         'algo': 'mi',
         'spec': [
-            'tmaze_5_two_thirds_up', 'example_7', 'tiger-alt', '4x3.95', 'cheese.95', 'network',
-            'shuttle.95', 'paint.95'
+            # 'tmaze_5_two_thirds_up', 'example_7',  '4x3.95', 'cheese.95', 'network',
+            # 'shuttle.95', 'paint.95',
+            'tiger-alt-start'
 
             # 'bridge-repair',
             # 'hallway'
@@ -20,6 +21,6 @@ hparams = {
         # 'n_mem_states': [2, 3],
         'n_mem_states': 2,
         'mi_iterations': 2,
-        'seed': [2020 + i for i in range(10, 30)],
+        'seed': [2020 + i for i in range(30)],
     }]
 }

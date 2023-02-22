@@ -159,3 +159,6 @@ def test_tmaze_obs(tmaze):
             assert tmaze.observe(s) == i
 
     print("All tests passed for T-maze")
+
+if __name__ == "__main__":
+    test_slippery_tmaze()

@@ -84,7 +84,7 @@ def indv_spec_jaxify_pe_funcs(spec):
     amdp = AbstractMDP(mdp, spec['phi'])
     # MC*
     pi_ground = amdp.get_ground_policy(pi)
-    mdp_v, mdp_q = functional_solve_mdp(pi_ground, mdp.T, mdp.R, mdp.gamma)
+    mdp_v, mdp_q = functional_solve_mdp(pi_ground, mdp)
     occupancy = amdp_get_occupancy(pi, amdp)
     p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
     func_mc_vals = functional_solve_amdp(mdp_q, p_pi_of_s_given_o, pi)
@@ -95,7 +95,7 @@ def indv_spec_jaxify_pe_funcs(spec):
         np.isclose(mc_vals['q'], func_mc_vals['q']))
 
     # TD
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp.phi, amdp.T, amdp.R)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp)
 
     func_td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 
@@ -110,3 +110,6 @@ def test_jaxify_pe_funcs():
     for spec_str in spec_strings:
         spec = environment.load_spec(spec_str, memory_id=None)
         indv_spec_jaxify_pe_funcs(spec)
+
+if __name__ == "__main__":
+    test_jaxify_pe_funcs()

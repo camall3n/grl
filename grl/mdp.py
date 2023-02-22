@@ -2,6 +2,7 @@ import copy
 from gmpy2 import mpz
 import numpy as np
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -63,23 +64,33 @@ def random_observation_fn(n_states, n_obs_per_block):
 def one_hot(x, n):
     return jnp.eye(n)[x]
 
+@register_pytree_node_class
 class MDP:
     def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        if isinstance(T, np.ndarray):
-            self.T = np.stack(T).copy().astype(float)
-            self.R = np.stack(R).copy().astype(float)
-        else:
-            self.T = jnp.stack(T).copy().astype(float)
-            self.R = jnp.stack(R).copy().astype(float)
+        # if isinstance(T, np.ndarray):
+        #     self.T = np.stack(T).copy().astype(float)
+        #     self.R = np.stack(R).copy().astype(float)
+        # else:
+        self.T = jnp.stack(T).copy().astype(float)
+        self.R = jnp.stack(R).copy().astype(float)
 
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
         self.p0 = p0
         self.current_state = None
+
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*children)
 
     def __repr__(self):
         return repr(self.T) + '\n' + repr(self.R)
@@ -204,20 +215,23 @@ class BlockMDP(MDP):
         self.R = jnp.stack(self.R)
         self.obs_fn = obs_fn
 
+@register_pytree_node_class
 class AbstractMDP(MDP):
-    def __init__(self, base_mdp, phi, pi=None, t=200):
+    def __init__(self, base_mdp, phi):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
 
-        # self.belief = self.B(pi, t=t)
-        # self.T = [self.compute_Tz(self.belief,T_a)
-        #             for T_a in base_mdp.T]
-        # self.R = [self.compute_Rz(self.belief,Rx_a,Tx_a,Tz_a)
-        #             for (Rx_a, Tx_a, Tz_a) in zip(base_mdp.R, base_mdp.T, self.T)]
-        # self.T = jnp.stack(self.T)
-        # self.R = jnp.stack(self.R)
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma, self.phi)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        mdp = MDP(*children[:-1])
+        return cls(mdp, children[-1])
 
     def __repr__(self):
         base_str = super().__repr__()

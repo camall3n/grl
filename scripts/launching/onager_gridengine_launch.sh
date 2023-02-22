@@ -1,8 +1,10 @@
+cd ../../
+
 onager launch \
     --backend gridengine \
-    --jobname pomdps_mi_pi_q_abs \
+    --jobname tmaze_sweep_eps \
     --mem 1 \
     --cpus 2 \
     --duration 0-03:00:00 \
-    --venv ../venv \
+    --venv venv \
     -q '*@@mblade12'\

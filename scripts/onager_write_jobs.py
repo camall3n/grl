@@ -48,7 +48,10 @@ def generate_onager_runs(run_dicts: List[dict],
                 else:
                     command += f" --{k} {v}"
             else:
-                arg_string = f"+arg --{k} {' '.join(map(str, v))}"
+                if all([isinstance(el, bool) for el in v]):
+                    arg_string = f"+flag --{k}"
+                else:
+                    arg_string = f"+arg --{k} {' '.join(map(str, v))}"
                 arg_list.append(arg_string)
 
         command += f" --experiment_name {experiment_name}"
@@ -58,10 +61,12 @@ def generate_onager_runs(run_dicts: List[dict],
 
         prelaunch_string = ' '.join(prelaunch_list)
         print(f"Launching prelaunch script: {prelaunch_string}")
+        os.chdir(ROOT_DIR)
         os.system(prelaunch_string)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment_name', default=None, type=str)
     parser.add_argument('--hparam', default='', type=str)
     parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
@@ -77,4 +82,7 @@ if __name__ == "__main__":
     if 'pairs' in hparams:
         pairs = hparams['pairs']
 
-    generate_onager_runs(hparams['args'], args.hparam, main_fname=main_fname)
+    exp_name = args.hparam
+    if args.experiment_name is not None:
+        exp_name = args.experiment_name
+    generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname)

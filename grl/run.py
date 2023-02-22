@@ -11,6 +11,7 @@ from jax.config import config
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
+from functools import partial
 
 from grl.environment import load_spec
 from grl.environment.pomdp_file import POMDPFile
@@ -21,9 +22,10 @@ from grl.policy_eval import PolicyEval
 from grl.memory import memory_cross_product, generate_1bit_mem_fns, generate_mem_fn
 from grl.pe_grad import pe_grad
 from grl.utils import pformat_vals, results_path, numpyify_and_save, amdp_get_occupancy
-from grl.utils.lambda_discrep import calc_discrep_from_values
+from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.memory_iteration import run_memory_iteration
 from grl.vi import value_iteration
+from grl.utils.loss import discrep_loss
 
 def run_pe_algos(spec: dict,
                  method: str = 'a',
@@ -31,9 +33,12 @@ def run_pe_algos(spec: dict,
                  use_grad: bool = False,
                  n_episodes: int = 500,
                  lr: float = 1.,
-                 value_type: str = 'v',
-                 error_type: str = 'l2',
-                 weight_discrep: bool = False):
+                 discrep_type: str = 'ground_truth',
+                 value_type: str = 'q',
+                 error_type: str = 'abs',
+                 alpha: float = 1.,
+                 weight_discrep: bool = False,
+                 pe_grad_iterations: int = False):
     """
     Runs MDP, POMDP TD, and POMDP MC evaluations on given spec using given method.
     See args in __main__ function for param details.
@@ -44,11 +49,15 @@ def run_pe_algos(spec: dict,
 
     policies = spec['Pi_phi']
     if 'mem_params' in spec.keys() and spec['mem_params'] is not None:
-        amdp = memory_cross_product(amdp, spec['mem_params'])
+        amdp = memory_cross_product(spec['mem_params'], amdp)
         policies = spec['Pi_phi_x']
     if n_random_policies > 0:
         policies = amdp.generate_random_policies(n_random_policies)
-    pe = PolicyEval(amdp)
+    pe = PolicyEval(amdp,
+                    discrep_type=discrep_type,
+                    value_type=value_type,
+                    error_type=error_type,
+                    alpha=alpha)
     discrepancies = [] # the discrepancy dict for each policy
     discrepancy_ids = [] # Pi_phi indices (policies) where there was a discrepancy
 
@@ -63,58 +72,55 @@ def run_pe_algos(spec: dict,
         if method == 'a' or method == 'b':
             logging.info('\n--- Analytical ---')
             mdp_vals_a, mc_vals_a, td_vals_a, _ = pe.run(pi)
-            occupancy = amdp_get_occupancy(pi, amdp)
-            pr_oa = (occupancy @ amdp.phi * pi.T)
             logging.info(f'\nmdp:\n {pformat_vals(mdp_vals_a)}')
             logging.info(f'mc*:\n {pformat_vals(mc_vals_a)}')
             logging.info(f'td:\n {pformat_vals(td_vals_a)}')
 
-            discrep = calc_discrep_from_values(td_vals_a, mc_vals_a, error_type=error_type,
-                                               weight_discrep=weight_discrep)
-            discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
-            info['initial_discrep'] = discrep
+            reactive_discrep_loss = partial(discrep_loss, value_type=value_type, error_type=error_type, alpha=alpha)
+            info['initial_stats'] = lambda_discrep_measures(amdp, pi, reactive_discrep_loss)
+            info['initial_discrep'] = info['initial_stats']['discrep']
 
-            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+            logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(info["initial_discrep"])}')
 
             # If using memory, for mc and td, also aggregate obs-mem values into
             # obs values according to visitation ratios
-            if 'mem_params' in spec.keys():
-                occupancy_x = amdp_get_occupancy(pi, amdp)
-                n_mem_states = spec['mem_params'].shape[-1]
-                n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
-
-                # These operations are within the cross producted space
-                ob_counts_x = amdp.phi.T @ occupancy_x
-                ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
-                w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
-
-                logging.info('\n--- Cross product info')
-                logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
-                logging.info(f'ob-mem weights:\n {w_x}')
-
-                logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
-                n_actions = mc_vals_a['q'].shape[0]
-                mc_vals_x = {}
-                td_vals_x = {}
-
-                mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
-                mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
-                                                                n_mem_states).sum(2)
-                td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
-                td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
-                                                                n_mem_states).sum(2)
-                # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
-                logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
-                logging.info(f'td:\n {pformat_vals(td_vals_x)}')
-
-                discrep = calc_discrep_from_values(td_vals_x, mc_vals_x, error_type=error_type)
-                occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
-                pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
-                pr_oa = (occ_obs * pi_obs.T)
-
-                discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
-
-                logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
+            # if 'mem_params' in spec.keys():
+            #     occupancy_x = amdp_get_occupancy(pi, amdp)
+            #     n_mem_states = spec['mem_params'].shape[-1]
+            #     n_og_obs = amdp.n_obs // n_mem_states # number of obs in the original (non cross product) amdp
+            #
+            #     # These operations are within the cross producted space
+            #     ob_counts_x = amdp.phi.T @ occupancy_x
+            #     ob_sums_x = ob_counts_x.reshape(n_og_obs, n_mem_states).sum(1)
+            #     w_x = ob_counts_x / ob_sums_x.repeat(n_mem_states)
+            #
+            #     logging.info('\n--- Cross product info')
+            #     logging.info(f'ob-mem occupancy:\n {ob_counts_x}')
+            #     logging.info(f'ob-mem weights:\n {w_x}')
+            #
+            #     logging.info('\n--- Aggregation from obs-mem values (above) to obs values (below)')
+            #     n_actions = mc_vals_a['q'].shape[0]
+            #     mc_vals_x = {}
+            #     td_vals_x = {}
+            #
+            #     mc_vals_x['v'] = (mc_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+            #     mc_vals_x['q'] = (mc_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+            #                                                     n_mem_states).sum(2)
+            #     td_vals_x['v'] = (td_vals_a['v'] * w_x).reshape(n_og_obs, n_mem_states).sum(1)
+            #     td_vals_x['q'] = (td_vals_a['q'] * w_x).reshape(n_actions, n_og_obs,
+            #                                                     n_mem_states).sum(2)
+            #     # logging.info(f'\nmdp:\n {pformat_vals(mdp_vals)}')
+            #     logging.info(f'mc*:\n {pformat_vals(mc_vals_x)}')
+            #     logging.info(f'td:\n {pformat_vals(td_vals_x)}')
+            #
+            #     discrep = calc_discrep_from_values(td_vals_x, mc_vals_x, error_type=error_type)
+            #     occ_obs = (occupancy_x @ amdp.phi).reshape(n_og_obs, n_mem_states).sum(-1)
+            #     pi_obs = (pi.T * w_x).reshape(n_actions, n_og_obs, n_mem_states).sum(-1).T
+            #     pr_oa = (occ_obs * pi_obs.T)
+            #
+            #     discrep['q_sum'] = (discrep['q'] * pr_oa).sum()
+            #
+            #     logging.info(f'\ntd-mc* discrepancy:\n {pformat_vals(discrep)}')
 
             discrepancies.append(discrep)
 
@@ -127,6 +133,7 @@ def run_pe_algos(spec: dict,
                                                        value_type=value_type,
                                                        error_type=error_type,
                                                        weight_discrep=weight_discrep,
+                                                       iterations=pe_grad_iterations,
                                                        lr=lr)
                     info['grad_info'] = grad_info
 
@@ -412,29 +419,41 @@ if __name__ == '__main__':
                         help='if we do memory iteration, how many steps of memory improvement do we do per iteration?')
     parser.add_argument('--pi_steps', type=int, default=50000,
                         help='if we do memory iteration, how many steps of policy improvement do we do per iteration?')
+    parser.add_argument('--pe_grad_steps', type=int, default=None,
+                        help='if we do fixed policy memory improvement (pe_grad), how many iterations do we do? '
+                             'If None, use original breaking condition.')
     parser.add_argument('--policy_optim_alg', type=str, default='pi',
                         help='policy improvement algorithm to use. "pi" - policy iteration, "pg" - policy gradient, '
                              '"dm" - discrepancy maximization')
     parser.add_argument('--pomdp_id', default=None, type=int)
     parser.add_argument('--mem_fn_id', default=None, type=int)
-    parser.add_argument('--start_pi_name', default=None, type=str)
+    parser.add_argument('--init_pi', default=None, type=str,
+                        help='')
     parser.add_argument('--method', default='a', type=str,
         help='"a"-analytical, "s"-sampling, "b"-both')
     parser.add_argument('--n_random_policies', default=0, type=int,
         help='number of random policies to eval; if set (>0), overrides Pi_phi')
-    parser.add_argument('--use_memory', default=None, type=int,
+    parser.add_argument('--use_memory', default=None, type=str,
         help='use memory function during policy eval if set')
+    parser.add_argument('--fuzz', default=0.1, type=float,
+                        help='For the fuzzy identity memory function, how much fuzz do we add?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
-    parser.add_argument('--weight_discrep', action='store_true',
-                        help='Weight our lambda discrepancy with observation occupancies.')
+    parser.add_argument('--alpha', default=1., type=float,
+                        help='Temperature parameter, for how uniform our lambda-discrep weighting is')
+    parser.add_argument('--flip_count_prob', action='store_true',
+                        help='Do we "invert" our count probabilities for our memory loss?')
     parser.add_argument('--use_grad', default=None, type=str,
         help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--value_type', default='q', type=str,
                         help='Do we use (v | q) for our discrepancies?')
-    parser.add_argument('--error_type', default='abs', type=str,
+    parser.add_argument('--error_type', default='l2', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
+    parser.add_argument('--objective', default='discrep', type=str,
+                        help='What objective are we trying to optimize? (discrep | magnitude)')
     parser.add_argument('--lr', default=1, type=float)
+    parser.add_argument('--epsilon', default=0.1, type=float,
+                        help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--heatmap', action='store_true',
         help='generate a policy-discrepancy heatmap for the given POMDP')
     parser.add_argument('--n_episodes', default=500, type=int,
@@ -469,7 +488,7 @@ if __name__ == '__main__':
         pathlib.Path('logs').mkdir(exist_ok=True)
         rootLogger = logging.getLogger()
         mem_part = 'no_memory'
-        if args.use_memory is not None and args.use_memory > 0:
+        if args.use_memory is not None and args.use_memory.isdigit() and int(args.use_memory) > 0:
             mem_part = f'memory_{args.use_memory}'
         if args.run_generated:
             name = f'logs/{args.run_generated}.log'
@@ -511,7 +530,8 @@ if __name__ == '__main__':
                          n_mem_states=args.n_mem_states,
                          corridor_length=args.tmaze_corridor_length,
                          discount=args.tmaze_discount,
-                         junction_up_pi=args.tmaze_junction_up_pi)
+                         junction_up_pi=args.tmaze_junction_up_pi,
+                         epsilon=args.epsilon)
         logging.info(f'spec:\n {args.spec}\n')
         logging.info(f'T:\n {spec["T"]}')
         logging.info(f'R:\n {spec["R"]}')
@@ -543,13 +563,14 @@ if __name__ == '__main__':
                     lr=args.lr,
                     value_type=args.value_type,
                     error_type=args.error_type,
-                    weight_discrep=args.weight_discrep
+                    alpha=args.alpha,
+                    pe_grad_iterations=args.pe_grad_steps
                 )
                 info['args'] = args.__dict__
             elif args.algo == 'mi':
                 pi_params = None
-                if args.start_pi_name is not None:
-                    pi_params = get_start_pi(args.start_pi_name)
+                if args.init_pi is not None:
+                    pi_params = get_start_pi(args.init_pi, spec=spec)
                 assert args.method == 'a'
                 logs, agent = run_memory_iteration(spec,
                                                    pi_lr=args.lr,
@@ -561,8 +582,11 @@ if __name__ == '__main__':
                                                    pi_steps=args.pi_steps,
                                                    value_type=args.value_type,
                                                    error_type=args.error_type,
-                                                   weight_discrep=args.weight_discrep,
-                                                   pi_params=pi_params)
+                                                   objective=args.objective,
+                                                   alpha=args.alpha,
+                                                   epsilon=args.epsilon,
+                                                   pi_params=pi_params,
+                                                   flip_count_prob=args.flip_count_prob)
 
                 info = {'logs': logs, 'args': args.__dict__}
                 agents_dir = results_path.parent / 'agents'
