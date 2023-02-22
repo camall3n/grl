@@ -47,6 +47,8 @@ def run_memory_iteration(spec: dict,
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
+    assert amdp.current_state is None, \
+        f"AbstractMDP should be stateless and current_state should be None, got {amdp.current_state} instead"
 
     # initialize policy params
     if 'Pi_phi' not in spec or spec['Pi_phi'] is None:
