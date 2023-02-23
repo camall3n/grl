@@ -5,7 +5,7 @@ from jax.nn import softmax
 from tqdm import trange
 from functools import partial
 
-from grl.analytical_agent import AnalyticalAgent
+from grl.agents.analytical import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
@@ -153,13 +153,13 @@ def memory_iteration(
     td_v_vals, td_q_vals = td_pe(agent.policy, init_amdp)
     info['initial_values'] = {'v': td_v_vals, 'q': td_q_vals}
 
-    if agent.policy_optim_alg == 'dm' or not init_pi_improvement:
+    if agent.policy_optim_alg in ['discrep_max', 'discrep_min'] and not init_pi_improvement:
         initial_pi_params = agent.pi_params.copy()
 
         og_policy_optim_algo = agent.policy_optim_alg
 
         # Change modes, run policy iteration
-        agent.policy_optim_alg = 'pi'
+        agent.policy_optim_alg = 'policy_iter'
         print(f"Calculating TD-optimal memoryless policy over {pi_per_step} steps")
         pi_improvement(agent, init_amdp, lr=pi_lr, iterations=pi_per_step, log_every=log_every)
         info['td_optimal_memoryless_policy'] = agent.policy.copy()

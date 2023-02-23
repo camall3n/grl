@@ -5,8 +5,8 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import load_spec, pe_grad, RTOL, MDP, AbstractMDP
-from grl.analytical_agent import AnalyticalAgent
+from grl import load_spec, pe_grad, MDP, AbstractMDP
+from grl.agents.analytical import AnalyticalAgent
 from grl.memory_iteration import mem_improvement
 
 def test_example_7_mi():

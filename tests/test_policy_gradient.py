@@ -8,7 +8,7 @@ config.update('jax_platform_name', 'cpu')
 
 from grl import MDP, AbstractMDP
 from grl.environment import load_spec
-from grl.analytical_agent import AnalyticalAgent
+from grl.agents.analytical import AnalyticalAgent
 from grl.utils.math import glorot_init
 
 def test_pg_fully_observable_tmaze():

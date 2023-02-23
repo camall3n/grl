@@ -24,7 +24,7 @@ class AnalyticalAgent:
                  objective: str = 'discrep',
                  alpha: float = 1.,
                  pi_softmax_temp: float = 1,
-                 policy_optim_alg: str = 'pi',
+                 policy_optim_alg: str = 'policy_iter',
                  new_mem_pi: str = 'copy',
                  epsilon: float = 0.1,
                  flip_count_prob: bool = False):
@@ -37,7 +37,8 @@ class AnalyticalAgent:
         :param objective: What objective are we trying to minimize? (discrep | magnitude)
         :param pi_softmax_temp: When we take the softmax over pi_params, what is the softmax temperature?
         :param policy_optim_alg: What type of policy optimization do we do? (pi | pg)
-            (dm: discrepancy maximization | pi: policy iteration | pg: policy gradient)
+            (discrep_max: discrepancy maximization | discrep_min: discrepancy minimization
+            | policy_iter: policy iteration | policy_grad: policy gradient)
         :param new_mem_pi: When we do memory iteration and add memory states, how do we initialize the new policy params
                            over the new memory states? (copy | random)
         :param epsilon: (POLICY ITERATION ONLY) When we perform policy iteration, what epsilon do we use?
@@ -137,28 +138,34 @@ class AnalyticalAgent:
         params += lr * params_grad
         return v_0, td_v_vals, td_q_vals, params
 
-    @partial(jit, static_argnames=['self', 'lr'])
-    def policy_discrep_maximization_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP):
+    @partial(jit, static_argnames=['self', 'lr', 'sign'])
+    def policy_discrep_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP, sign: bool = True):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
                                            has_aux=True)(params, amdp)
         loss, (mc_vals, td_vals) = outs
-        params += lr * params_grad
+        if sign:
+            params += lr * params_grad
+        else:
+            params -= lr * params_grad
         return loss, mc_vals, td_vals, params
 
     def policy_improvement(self, amdp: AbstractMDP, lr: float = None):
-        if self.policy_optim_alg == 'pg':
+        if self.policy_optim_alg == 'policy_grad':
             v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = self.policy_gradient_update(self.pi_params, lr, amdp)
             output = {
                 'v_0': v_0,
                 'prev_td_q_vals': prev_td_q_vals,
                 'prev_td_v_vals': prev_td_v_vals
             }
-        elif self.policy_optim_alg == 'pi':
+        elif self.policy_optim_alg == 'policy_iter':
             new_pi_params, prev_td_v_vals, prev_td_q_vals = self.policy_iteration_update(
                 self.pi_params, amdp, eps=self.epsilon)
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
-        elif self.policy_optim_alg == 'dm':
-            loss, mc_vals, td_vals, new_pi_params = self.policy_discrep_maximization_update(self.pi_params, lr, amdp)
+        elif self.policy_optim_alg == 'discrep_max' or self.policy_optim_alg == 'discrep_min':
+            loss, mc_vals, td_vals, new_pi_params = self.policy_discrep_update(
+                self.pi_params, lr, amdp,
+                sign=(self.policy_optim_alg == 'discrep_max')
+            )
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError

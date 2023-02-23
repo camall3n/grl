@@ -17,7 +17,7 @@ def results_path(args: Namespace):
     if args.experiment_name is not None:
         results_dir /= args.experiment_name
     results_dir.mkdir(exist_ok=True)
-    results_path = results_dir / f"{args.spec}_algo({args.algo})_seed({args.seed})_time({time_str})_{args_hash}.npy"
+    results_path = results_dir / f"{args.spec}_seed({args.seed})_time({time_str})_{args_hash}.npy"
     return results_path
 
 def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
