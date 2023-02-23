@@ -39,7 +39,6 @@ if __name__ == "__main__":
     env = AbstractMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
 
-    analytical_state_vals, analytical_mc_vals, analytical_td_vals, info = analytical_pe(pi, env)
 
     agent = ActorCritic(
         n_obs=env.n_obs,
@@ -66,7 +65,7 @@ if __name__ == "__main__":
     converge_value_functions(agent, env, update_policy=False)
 
     print("Sample-based Q-TD values:")
-    print(agent.q_td)
+    print(agent.q_td.q)
 
     print("Analytical Q-TD values:")
     print(analytical_td_vals['q'])
