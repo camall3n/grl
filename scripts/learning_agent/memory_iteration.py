@@ -2,7 +2,7 @@ import argparse
 import os
 
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
@@ -38,7 +38,7 @@ args = parse_args()
 def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=False):
     if not update_policy:
         agent.reset_value_functions()
-    for i in range(args.n_episodes_per_policy):
+    for i in trange(args.n_episodes_per_policy):
         agent.reset_memory_state()
         obs, _ = env.reset()
         action = agent.act(obs)
