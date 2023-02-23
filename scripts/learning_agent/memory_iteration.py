@@ -34,7 +34,7 @@ def parse_args():
 global args
 args = parse_args()
 
-def converge_value_functions(agent, env, mode='td', update_policy=False):
+def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=False):
     if not update_policy:
         agent.reset_value_functions()
     for i in range(args.n_episodes_per_policy):
@@ -43,7 +43,8 @@ def converge_value_functions(agent, env, mode='td', update_policy=False):
         action = agent.act(obs)
         terminal = False
         while not terminal:
-            next_obs, reward, terminal, _, info = env.step(action)
+            agent.step_memory(obs, action)
+            next_obs, reward, terminal, _, _ = env.step(action)
             next_action = agent.act(next_obs)
 
             experience = {

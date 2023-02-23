@@ -85,7 +85,6 @@ class ActorCritic:
     def act(self, obs):
         obs_aug = self.augment_obs(obs)
         action = np.random.choice(self.n_actions, p=self.policy_probs[obs_aug])
-        self.step_memory(obs, action)
         return action
 
     def step_memory(self, obs, action):
@@ -305,8 +304,8 @@ class ActorCritic:
         for i, experience in enumerate(self.replay.memory):
             e = experience.copy()
             del e['_index_']
-            self.step_memory(e['obs'], e['action'])
             memories[i] = self.memory
+            self.step_memory(e['obs'], e['action'])
             if experience['terminal']:
                 self.reset_memory_state()
                 first_episode = False
