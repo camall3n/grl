@@ -95,10 +95,7 @@ if __name__ == '__main__':
         mem_part = 'no_memory'
         if args.use_memory is not None and args.use_memory.isdigit() and int(args.use_memory) > 0:
             mem_part = f'memory_{args.use_memory}'
-        if args.run_generated:
-            name = f'logs/{args.run_generated}.log'
-        else:
-            name = f'logs/{args.spec}-{mem_part}-{time()}.log'
+        name = f'logs/{args.spec}-{mem_part}-{time()}.log'
         rootLogger.addHandler(logging.FileHandler(name))
 
     rand_key = None

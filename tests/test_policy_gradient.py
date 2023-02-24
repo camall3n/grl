@@ -11,7 +11,7 @@ from grl.environment import load_spec
 from grl.agents.analytical import AnalyticalAgent
 from grl.utils.math import glorot_init
 
-def test_pg_fully_observable_tmaze():
+def test_policy_grad_fully_observable_tmaze():
     iterations = 20000
     lr = 1
     spec = load_spec('tmaze_5_two_thirds_up_fully_observable')
@@ -24,7 +24,7 @@ def test_pg_fully_observable_tmaze():
     rand_key = jax.random.PRNGKey(2020)
     pi_params = glorot_init((spec['Pi_phi'][0].shape))
 
-    agent = AnalyticalAgent(pi_params, rand_key, policy_optim_alg='pg')
+    agent = AnalyticalAgent(pi_params, rand_key, policy_optim_alg='policy_grad')
 
     for it in trange(iterations):
         v_0 = agent.policy_improvement(amdp, lr)
@@ -39,7 +39,7 @@ def test_pg_fully_observable_tmaze():
     print(f"Learnt policy gradient policy: \n"
           f"{learnt_pi}")
 
-def test_pg_tmaze():
+def test_policy_grad_tmaze():
     iterations = 20000
     lr = 1
     spec = load_spec('tmaze_5_two_thirds_up')
@@ -52,7 +52,7 @@ def test_pg_tmaze():
     rand_key = jax.random.PRNGKey(2020)
     pi_params = glorot_init((spec['Pi_phi'][0].shape))
 
-    agent = AnalyticalAgent(pi_params, rand_key, policy_optim_alg='pg')
+    agent = AnalyticalAgent(pi_params, rand_key, policy_optim_alg='policy_grad')
 
     for it in trange(iterations):
         v_0 = agent.policy_improvement(amdp, lr)
@@ -67,5 +67,5 @@ def test_pg_tmaze():
           f"{learnt_pi}")
 
 if __name__ == "__main__":
-    test_pg_fully_observable_tmaze()
-    test_pg_tmaze()
+    test_policy_grad_fully_observable_tmaze()
+    test_policy_grad_tmaze()

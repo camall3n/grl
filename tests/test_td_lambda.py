@@ -3,8 +3,9 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import MDP, AbstractMDP, PolicyEval, environment
+from grl import MDP, AbstractMDP, environment
 from grl.agents.td_lambda import run_td_lambda_on_mdp
+from grl.utils.policy_eval import analytical_pe
 
 def test_td_lambda():
     chain_length = 10
@@ -31,10 +32,9 @@ def test_td_lambda():
 
     print(f"Testing analytical solutions on Simple Chain")
     amdp = AbstractMDP(mdp, spec['phi'])
-    pe = PolicyEval(amdp)
     pi = spec['Pi_phi'][0]
 
-    mdp_vals, mc_vals, td_vals, _ = pe.run(pi)
+    mdp_vals, mc_vals, td_vals, _ = analytical_pe(pi, amdp)
 
     assert np.all(np.isclose(mdp_vals['v'][:-1], ground_truth_vals)) and np.all(
         np.isclose(mdp_vals['q'][0][:-1], ground_truth_vals))

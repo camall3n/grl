@@ -4,7 +4,7 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import environment, MDP, AbstractMDP, PolicyEval
+from grl import environment, MDP, AbstractMDP
 from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, amdp_get_occupancy
 from grl.utils.policy_eval import functional_solve_amdp, functional_solve_mdp
 
@@ -76,7 +76,7 @@ def create_td_model(amdp, occupancy):
     return MDP(T_obs_obs, R_obs_obs, amdp.p0, amdp.gamma)
 
 # Given an environment specification, compare serial functions we were using (defined above)
-# and functional jax-based functions defined now in PolicyEval.
+# and functional jax-based functions defined now in utils/policy_eval.
 def indv_spec_jaxify_pe_funcs(spec):
     pi = spec['Pi_phi'][0]
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
