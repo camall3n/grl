@@ -122,6 +122,8 @@ def load_analytical_results(pathname: str, use_epsilon=False):
         else:
             grad_info = info['logs']
             args = info['args']
+            policy_up_prob = args['tmaze_junction_up_pi']
+            policy_epsilon = args['epsilon']
             agent_info = load_info(results_path.parent/'agents'/f'{results_path.stem}.pkl.npy')
             final_mem_params = agent_info.mem_params
             diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
@@ -180,7 +182,7 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
 #%%
 planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-17')
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-up-prob-5/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
 
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
@@ -195,7 +197,7 @@ planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep
 # sns.histplot(data=planning_data, x='policy_epsilon', bins=26)
 # sns.histplot(data=learning_data, x='policy_epsilon', bins=26)
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-eps-02/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-sweep-eps-lambda999-03/tmaze_5_two_thirds_up/*')
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], x='policy_epsilon', title='Planning Agent', add_colorbar=False)
@@ -210,9 +212,9 @@ sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', c
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--')
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2022-02-17')
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-17')
 learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-up-prob-5/tmaze_5_two_thirds_up/*')
+    'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
 
 fig, ax = plt.subplots()
 plt.plot()
