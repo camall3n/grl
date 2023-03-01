@@ -57,8 +57,6 @@ if __name__ == '__main__':
                         help='Temperature parameter, for how uniform our lambda-discrep weighting is')
     parser.add_argument('--flip_count_prob', action='store_true',
                         help='Do we "invert" our count probabilities for our memory loss?')
-    # parser.add_argument('--use_grad', default=None, type=str,
-    #     help='find policy ("p") or memory ("m") that minimizes any discrepancies by following gradient (currently using analytical discrepancy)')
     parser.add_argument('--value_type', default='q', type=str,
                         help='Do we use (v | q) for our discrepancies?')
     parser.add_argument('--error_type', default='l2', type=str,
@@ -129,7 +127,6 @@ if __name__ == '__main__':
         logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
     if 'Pi_phi' in spec and spec['Pi_phi'] is not None:
         logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
-
 
     results_path = results_path(args)
 

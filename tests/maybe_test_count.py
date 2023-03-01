@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jax import random, jit, lax
 from jax.config import config
 import numpy as np
-import pytest
+import time
 from tqdm import trange
 from functools import partial
 
@@ -22,7 +22,7 @@ def act(pi: jnp.ndarray, rand_key: random.PRNGKey):
 def step(mdp: MDP, current_state: int, action: int, rand_key: random.PRNGKey):
     pr_next_s = mdp.T[action, current_state, :]
     rand_key, choice_key, terminal_key = random.split(rand_key, 3)
-    next_state = random.choice(choice_key, mdp.n_states, p=pr_next_s)
+    next_state = random.choice(choice_key, mdp.n_states, p=pr_next_s).astype(int)
     reward = mdp.R[action][current_state][next_state]
 
     # Check if next_state is absorbing state
@@ -37,10 +37,67 @@ def step(mdp: MDP, current_state: int, action: int, rand_key: random.PRNGKey):
     # Conform to new-style Gym API
     return observation, reward, terminal, truncated, info
 
-# @pytest.mark.slow
+def measure_step_speed():
+    seed = 2020
+    samples = int(1e6)
+    spec_name = 'tmaze_eps_hyperparams'
+
+    rand_key = random.PRNGKey(seed)
+    spec = load_spec(spec_name,
+                     memory_id=str(0),
+                     corridor_length=5,
+                     discount=0.9,
+                     junction_up_pi=2/3,
+                     epsilon=0.1)
+
+    jax_mdp = MDP(jnp.array(spec['T']), jnp.array(spec['R']), jnp.array(spec['p0']), jnp.array(spec['gamma']))
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    pi_ground = (spec['phi'] @ spec['Pi_phi'][0])
+
+    print(f"About to start timing jitted step function for {samples} steps")
+    jitted_step_start = time.time()
+    obs, info = jax_mdp.reset()
+    obs = jnp.array(obs)
+
+    for i in trange(samples):
+
+        action, rand_key = act(pi_ground[obs], rand_key)
+
+        obs, reward, terminal, truncated, info = step(jax_mdp, obs.item(), action.item(), rand_key)
+        rand_key = info['rand_key']
+
+        if terminal:
+            obs, info = jax_mdp.reset()
+            obs = jnp.array(obs)
+
+    jitted_step_end = time.time()
+    jitted_elapsed = jitted_step_end - jitted_step_start
+    print(f"Elapsed time for jitted steps: {jitted_elapsed}s")
+
+    print(f"About to start timing non-jitted step function for {samples} steps")
+    non_jitted_step_start = time.time()
+    obs, info = mdp.reset()
+    obs = jnp.array(obs)
+
+    for i in trange(samples):
+
+        action, rand_key = act(pi_ground[obs], rand_key)
+
+        obs, reward, terminal, truncated, info = mdp.step(action)
+
+        if terminal:
+            obs, info = mdp.reset()
+            obs = jnp.array(obs)
+
+    non_jitted_step_end = time.time()
+    non_jitted_elapsed = non_jitted_step_end - non_jitted_step_start
+    print(f"Elapsed time for non-jitted steps: {non_jitted_elapsed}s")
+    print("test_count test passed.")
+
+
 def test_count():
     seed = 2020
-    samples = int(1e5)
+    samples = int(5e5)
     spec_name = 'tmaze_eps_hyperparams'
 
     rand_key = random.PRNGKey(seed)
@@ -97,11 +154,6 @@ def test_count():
 
     assert jnp.allclose(sampled_count_dist, analytical_count_dist, atol=1e-3)
 
-
-
-
-
-
-
 if __name__ == "__main__":
+    # measure_step_speed()
     test_count()
