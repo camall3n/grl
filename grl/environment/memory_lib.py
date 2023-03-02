@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union
+from itertools import product
 
 from grl.utils.math import glorot_init, reverse_softmax
 """
@@ -43,6 +43,13 @@ def get_memory(memory_id: str,
     else:
         raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
+
+def all_n_state_deterministic_memory(n_mem_states: int):
+    id = np.eye(n_mem_states)
+    idxes = [list(range(n_mem_states))]
+    all_idxes = list(product(*(n_mem_states * idxes)))
+    all_mem_funcs = id[all_idxes]
+    return all_mem_funcs
 
 mem_1 = np.array([
     [ # red

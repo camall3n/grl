@@ -35,7 +35,7 @@ def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
 
     return info
 
-def numpyify_and_save(path: Path, info: dict):
+def numpyify_and_save(path: Path, info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
     numpy_dict = numpyify_dict(info)
     np.save(path, numpy_dict)
 

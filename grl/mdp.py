@@ -132,7 +132,7 @@ class MDP:
         info = {'state': self.current_state}
         return self.observe(self.current_state), info
 
-    def step(self, action):
+    def step(self, action: int, gamma_terminal: bool = True):
         pr_next_s = self.T[action, self.current_state, :]
         next_state = np.random.choice(self.n_states, p=pr_next_s)
         reward = self.R[action][self.current_state][next_state]
@@ -140,7 +140,7 @@ class MDP:
         is_absorbing = (self.T[:, next_state, next_state] == 1)
         terminal = is_absorbing.all() # absorbing for all actions
         # Discounting: end episode with probability 1-gamma
-        if np.random.uniform() < (1 - self.gamma):
+        if gamma_terminal and np.random.uniform() < (1 - self.gamma):
             terminal = True
         truncated = False
         observation = self.observe(next_state)

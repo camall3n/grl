@@ -807,3 +807,31 @@ def tiger_fixed_pi():
 
     return spec
 
+def count_by_n(n: int = 5):
+    T_right = np.zeros((n + 1, n + 1))
+    T_right[np.arange(n - 1), np.arange(1, n)] = 1
+    T_right[[-2, -1], -1] = 1
+
+    T_up = np.zeros_like(T_right)
+    T_up[:, -1] = 1
+
+    T = np.array([T_up, T_right])
+
+    R_right = np.zeros_like(T_right)
+    R_right[-2, -1] = -1
+
+    R_up = np.zeros_like(T_up)
+    # R_up[np.arange(n), -1] = -1
+    R_up[-2, -1] = 1
+    R = np.array([R_up, R_right])
+
+    phi = np.zeros((n + 1, 2))
+    phi[:n, 0] = 1
+    phi[-1, -1] = 1
+
+    p0 = np.zeros(n + 1)
+    p0[0] = 1
+
+    pi_phi = None
+
+    return to_dict(T, R, 0.9, p0, phi, pi_phi)
