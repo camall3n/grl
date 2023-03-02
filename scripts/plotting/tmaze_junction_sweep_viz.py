@@ -180,7 +180,7 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
     plt.gcf().subplots_adjust(right=0.75)
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-17')
+planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_junction_pi_2023-02-21')
 learning_data = load_sampled_results(
     'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
 
@@ -193,7 +193,7 @@ plot_sweep(planning_data, ax=axes[0], title='Planning Agent', add_colorbar=False
 plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 
 #%%
-planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_eps_2023-02-17', use_epsilon=True)
+planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_eps_2023-02-21', use_epsilon=True)
 # sns.histplot(data=planning_data, x='policy_epsilon', bins=26)
 # sns.histplot(data=learning_data, x='policy_epsilon', bins=26)
 learning_data = load_sampled_results(
@@ -206,19 +206,20 @@ plot_sweep(learning_data, ax=axes[1], x='policy_epsilon', title='Learning Agent'
 #%%
 fig, ax = plt.subplots()
 plt.plot()
-sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='-')
-sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='--')
-sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='-')
-sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--')
+sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='-', label='Initial, Planning')
+sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='--', label='Initial, Learning')
+sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='-', label='Final, Planning')
+sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-17')
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-21')
 learning_data = load_sampled_results(
     'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
 
 fig, ax = plt.subplots()
 plt.plot()
-sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='-')
-sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='--')
-sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='-')
-sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='--')
+sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='-', label='Initial, Planning')
+sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='--', label='Initial, Learning')
+sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='-', label='Final, Planning')
+sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
+plt.legend()
