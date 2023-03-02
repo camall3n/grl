@@ -47,7 +47,7 @@ def reverse_softmax(dists: jnp.ndarray, eps: float = 1e-20) -> jnp.ndarray:
     params = jnp.log(dists + eps)
     return params
 
-def one_hot(x, n, axis=-1):
+def one_hot(x: np.ndarray, n: int, axis: int = -1) -> np.ndarray:
     output = np.eye(n)[x]
     return np.moveaxis(output, -1, axis)
 

@@ -16,12 +16,9 @@ from tqdm import tqdm
 
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
-from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman
+from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful
-
-def one_hot(x, n):
-    return np.eye(n)[x]
 
 class ActorCritic:
     def __init__(
@@ -39,6 +36,7 @@ class ActorCritic:
         study_name='default_study',
         use_existing_study=False,
         discrep_loss='abs',
+        disable_importance_sampling=False,
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -51,6 +49,7 @@ class ActorCritic:
         self.study_dir = f'./results/sample_based/{study_name}'
         self.build_study(use_existing=use_existing_study)
         self.discrep_loss = discrep_loss
+        self.disable_importance_sampling = disable_importance_sampling
 
         self.reset_policy()
         self.reset_memory()
@@ -279,7 +278,7 @@ class ActorCritic:
 
         return study
 
-    def compute_discrepancy_loss(self, obs, actions, memories, importance_sampling=False):
+    def compute_discrepancy_loss(self, obs, actions, memories):
         if self.discrep_loss == 'mse':
             discrepancies = (self.q_mc.q - self.q_td.q)**2
         elif self.discrep_loss == 'abs':
@@ -288,11 +287,17 @@ class ActorCritic:
             raise RuntimeError('Invalid discrep_loss')
 
         obs_aug = self.augment_obs(obs, memories)
-        if not importance_sampling:
+        if self.disable_importance_sampling:
             observed_lambda_discrepancies = discrepancies[actions, obs_aug]
             return observed_lambda_discrepancies.mean()
         else:
-            raise NotImplementedError
+            obs_counts = one_hot(obs_aug, self.n_obs * self.n_mem_states).sum(axis=0)
+            obs_freq = obs_counts / obs_counts.sum()
+            n_unique_obs = (obs_counts > 0).sum()
+            importance_weights = (1 / n_unique_obs) / (obs_freq + 1e-12) * (obs_counts > 0)
+            observed_lambda_discreps = discrepancies[actions, obs_aug]
+            weighted_discreps = observed_lambda_discreps * importance_weights[obs_aug]
+            return weighted_discreps.mean()
 
     def evaluate_memory(self):
         assert len(self.replay.memory) > 0
