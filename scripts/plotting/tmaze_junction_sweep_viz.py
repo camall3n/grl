@@ -13,6 +13,20 @@ from grl.utils import load_info
 from definitions import ROOT_DIR
 
 #%%
+# count-based weighting results
+planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2023-02-21'
+learning_up_prob_filename = 'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*'
+planning_eps_filename = 'results/analytical/tmaze_sweep_eps_2023-02-21'
+learning_eps_filename = 'results/sample_based/junction-sweep-eps-lambda999-03/tmaze_5_two_thirds_up/*'
+
+#%%
+# importance sampling results
+# planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2022-11-04'
+# learning_up_prob_filename = 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'
+# planning_eps_filename = 'results/analytical/tmaze_sweep_eps_2023-02-10'
+# learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
+
+#%%
 def test_mem_matrix(mem_params: jnp.ndarray):
     """
     Tests the memory matrix for t-maze.
@@ -180,9 +194,8 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
     plt.gcf().subplots_adjust(right=0.75)
 
 #%%
-planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_junction_pi_2023-02-21')
-learning_data = load_sampled_results(
-    'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
+planning_data = load_analytical_results(pathname=planning_up_prob_filename)
+learning_data = load_sampled_results(learning_up_prob_filename)
 
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
@@ -190,14 +203,14 @@ plt.rcParams.update({'font.size': 14})
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], title='Planning Agent', add_colorbar=False)
+axes[0].set_xlim(0,0.5)
 plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 
 #%%
-planning_data = load_analytical_results(pathname='results/analytical/tmaze_sweep_eps_2023-02-21', use_epsilon=True)
+planning_data = load_analytical_results(pathname=planning_eps_filename, use_epsilon=True)
 # sns.histplot(data=planning_data, x='policy_epsilon', bins=26)
 # sns.histplot(data=learning_data, x='policy_epsilon', bins=26)
-learning_data = load_sampled_results(
-    'results/sample_based/junction-sweep-eps-lambda999-03/tmaze_5_two_thirds_up/*')
+learning_data = load_sampled_results(learning_eps_filename)
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], x='policy_epsilon', title='Planning Agent', add_colorbar=False)
@@ -212,9 +225,8 @@ sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', c
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
 
 #%%
-planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2023-02-21')
-learning_data = load_sampled_results(
-    'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*')
+planning_data = load_analytical_results(planning_up_prob_filename)
+learning_data = load_sampled_results(learning_up_prob_filename)
 
 fig, ax = plt.subplots()
 plt.plot()
