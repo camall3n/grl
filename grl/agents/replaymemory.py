@@ -64,6 +64,8 @@ class ReplayMemory:
 
         We need to dump the contents of any lambdas into byte strings
         We also need on_retrieve to be a normal dict, not a defaultdict
+
+        For more info, see: https://stackoverflow.com/a/11878430/2577640
         """
         state = self.__dict__.copy()
         state['on_retrieve'] = {
@@ -77,6 +79,8 @@ class ReplayMemory:
 
         We need to load the code from any lambda byte strings, and construct new lambdas
         We also need on_retrieve to be a defaultdict, not a normal dict
+
+        For more info, see: https://stackoverflow.com/a/11878430/2577640
         """
         for key in state['on_retrieve']:
             new_lambda_code = marshal.loads(state['on_retrieve'][key])
