@@ -142,6 +142,8 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             policy_up_prob = args['tmaze_junction_up_pi']
             policy_epsilon = args['epsilon']
             agent_info = load_info(results_path.parent/'agents'/f'{results_path.stem}.pkl.npy')
+            policy_up_prob = args['tmaze_junction_up_pi']
+            policy_epsilon = args['epsilon']
             final_mem_params = agent_info.mem_params
             diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
             initial_q_discrep = grad_info['initial_mem_stats']['discrep'].item()
@@ -153,6 +155,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             'policy_up_prob': policy_up_prob,
             'policy_epsilon': policy_epsilon,
             'trial_id': os.path.basename(results_path).split('_s(')[-1].split(')_')[0],
+            'seed': args['seed'],
             # 'initial_discrep': initial_v_discrep.mean(),
             # 'final_discrep': final_v_discrep.mean(),
             'initial_discrep': initial_aggregated_q_discrep,
@@ -197,9 +200,12 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
     plt.gcf().subplots_adjust(right=0.75)
 
 #%%
-planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi')))
+# planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi')))
+# learning_data = load_sampled_results(
+#     str(Path(ROOT_DIR, 'results', 'junction-up-prob-lambda999-6', 'tmaze_5_two_thirds_up/*')))
+planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi_uniform')))
 learning_data = load_sampled_results(
-    str(Path(ROOT_DIR, 'results', 'junction-sweep-up-prob-5', 'tmaze_5_two_thirds_up/*')))
+    str(Path(ROOT_DIR, 'results', 'sweep-up-prob-imp-samp-7', 'tmaze_5_two_thirds_up/*')))
 
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
@@ -209,13 +215,15 @@ fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], title='Planning Agent', add_colorbar=False)
 axes[0].set_xlim(0,0.5)
 plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
+# learning_data[learning_data['policy_up_prob'] == 0]
 
 #%%
-planning_data = load_analytical_results(pathname=str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps')), use_epsilon=True)
-# sns.histplot(data=planning_data, x='policy_epsilon', bins=26)
-# sns.histplot(data=learning_data, x='policy_epsilon', bins=26)
+# planning_data = load_analytical_results(pathname=str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps')), use_epsilon=True)
+# learning_data = load_sampled_results(
+#     str(Path(ROOT_DIR, 'results', 'junction-sweep-eps-lambda999-03', 'tmaze_5_two_thirds_up/*')))
+planning_data = load_analytical_results(pathname=str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_uniform')), use_epsilon=True)
 learning_data = load_sampled_results(
-    str(Path(ROOT_DIR, 'results', 'junction-sweep-eps-02', 'tmaze_5_two_thirds_up/*')))
+    str(Path(ROOT_DIR, 'results', 'sweep-eps-imp-samp-04', 'tmaze_5_two_thirds_up/*')))
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data, ax=axes[0], x='policy_epsilon', title='Planning Agent', add_colorbar=False)
@@ -230,8 +238,9 @@ sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', c
 sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
 
 #%%
-planning_data = load_analytical_results(planning_up_prob_filename)
-learning_data = load_sampled_results(learning_up_prob_filename)
+planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2022-02-17')
+learning_data = load_sampled_results(
+    'results/sample_based/junction-sweep-up-prob-5/tmaze_5_two_thirds_up/*')
 
 fig, ax = plt.subplots()
 plt.plot()
