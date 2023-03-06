@@ -1,7 +1,9 @@
 from collections import defaultdict
 import json
+import marshal
 import os
 import pickle
+import types
 
 import numpy as np
 
@@ -58,13 +60,29 @@ class ReplayMemory:
         return len(self.memory)
 
     def __getstate__(self):
+        """Prepare the buffer for pickling
+
+        We need to dump the contents of any lambdas into byte strings
+        We also need on_retrieve to be a normal dict, not a defaultdict
+        """
         state = self.__dict__.copy()
-        del state['on_retrieve']
+        state['on_retrieve'] = {
+            key: marshal.dumps(state['on_retrieve'][key].__code__)
+            for key in state['on_retrieve']
+        }
         return state
 
     def __setstate__(self, state):
+        """Restore the buffer after pickling
+
+        We need to load the code from any lambda byte strings, and construct new lambdas
+        We also need on_retrieve to be a defaultdict, not a normal dict
+        """
+        for key in state['on_retrieve']:
+            new_lambda_code = marshal.loads(state['on_retrieve'][key])
+            state['on_retrieve'][key] = types.FunctionType(new_lambda_code, globals())
+        state['on_retrieve'] = defaultdict(**state['on_retrieve'])
         self.__dict__.update(state)
-        self.on_retrieve = defaultdict(lambda: (lambda items: items))
 
     def _extract_array(self, experiences, key):
         items = [experience[key] for experience in experiences]
