@@ -18,18 +18,12 @@ from grl.utils.policy_eval import functional_solve_mdp
 from scripts.learning_agent.optuna_to_pandas import load_study
 
 #%%
-experiment_name = 'exp15-tmaze5-mi'
+experiment_name = 'exp22-tmaze5'
 env_name = 'tmaze_5_two_thirds_up'
-seed = '3'
 
-@partial(jit, static_argnames=['gamma'])
-def get_perf(pi_obs: jnp.ndarray,
-                   T: jnp.ndarray,
-                   R: jnp.ndarray,
-                   p0: jnp.ndarray,
-                   phi: jnp.ndarray, gamma: float):
-    pi_state = phi @ pi_obs
-    state_v, state_q = functional_solve_mdp(pi_state, T, R, gamma)
+def get_perf(pi_obs: jnp.ndarray, env: AbstractMDP):
+    pi_state = env.phi @ pi_obs
+    state_v, state_q = functional_solve_mdp(pi_state, env)
     return jnp.dot(p0, state_v)
 
 results = {}
@@ -46,15 +40,15 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
         print(f'File not found for seed {seed}')
         continue
 
-    study = load_study(experiment_name, env_name, seed)
-    params = [
-        study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)
-    ]
+    # study = load_study(experiment_name, env_name, seed)
+    # params = [
+    #     study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)
+    # ]
     spec = environment.load_spec(env_name, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
     mem_logits = jnp.log(memory+1e-20)
-    amdp_mem = memory_cross_product(env, mem_logits)
+    amdp_mem = memory_cross_product(mem_logits, env)
 
     def expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc):
         c_s = amdp_get_occupancy(greedify(policy), amdp_mem)
@@ -63,9 +57,8 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
         p_oa = (policy * p_o[:,None]).T
         return (abs(td - mc) * p_oa).sum()
     expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc)
-    study.best_value
 
-    performance = get_perf(greedify(policy), amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, amdp_mem.gamma)
+    performance = get_perf(greedify(policy), amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, float(amdp_mem.gamma))
     results[seed] = performance
 
 for seed, performance in sorted(results.items(), key=lambda x: x[-1]):
