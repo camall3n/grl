@@ -109,7 +109,7 @@ class ActorCritic:
             eps = self.policy_epsilon
 
         if argmax_type == 'hardmax':
-            greedy_pi = arg_hardmax(q_fn, axis=0)
+            greedy_pi = arg_hardmax(q_fn, axis=0, tie_breaking_eps=1e-4)
             uniform_pi = np.ones_like(greedy_pi) / self.n_actions
             new_policy = (1 - eps) * greedy_pi + eps * uniform_pi
         elif argmax_type == 'mellowmax':

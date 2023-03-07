@@ -64,7 +64,7 @@ def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=F
             action = next_action
 
         if update_policy:
-            agent.update_actor(mode=mode, argmax_type='mellowmax')
+            agent.update_actor(mode=mode, argmax_type='hardmax')
 
     td_v0s = []
     mc_v0s = []

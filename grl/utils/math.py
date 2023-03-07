@@ -51,7 +51,9 @@ def one_hot(x: np.ndarray, n: int, axis: int = -1) -> np.ndarray:
     output = np.eye(n)[x]
     return np.moveaxis(output, -1, axis)
 
-def arg_hardmax(x, axis=-1):
+def arg_hardmax(x, axis=-1, tie_breaking_eps=0.):
+    if tie_breaking_eps > 0:
+        x += (np.random.random(x.shape) * tie_breaking_eps)
     best_a = np.argmax(x, axis=axis)
     greedy_pi = one_hot(best_a, x.shape[axis], axis=axis)
     return greedy_pi
