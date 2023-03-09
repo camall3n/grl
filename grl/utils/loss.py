@@ -26,8 +26,8 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
     if flip_count_prob:
         count_o = nn.softmax(-count_o)
 
-    uniform_o_less_terminal = jnp.ones(pi.shape[0]) / (pi.shape[0] - 2)
-    uniform_o = uniform_o_less_terminal.at[-2:].set(0)
+    count_mask = (count_o > 0).astype(float)
+    uniform_o = (jnp.ones(pi.shape[0]) / count_mask.sum()) * count_mask
 
     p_o = alpha * uniform_o + (1 - alpha) * count_o
 
