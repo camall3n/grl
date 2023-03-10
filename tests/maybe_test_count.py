@@ -11,7 +11,6 @@ from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
 from grl.memory import memory_cross_product
 from grl.utils.mdp import functional_get_occupancy
-from grl.agents.actorcritic import ActorCritic
 
 @jit
 def act(pi: jnp.ndarray, rand_key: random.PRNGKey):
@@ -103,11 +102,11 @@ def test_count():
 
     rand_key = random.PRNGKey(seed)
     spec = load_spec(spec_name,
-                     memory_id=str(0),
+                     memory_id=str(16),
                      corridor_length=5,
                      discount=0.9,
-                     junction_up_pi=2/3,
-                     epsilon=0.1)
+                     junction_up_pi=1.,
+                     epsilon=0.2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
@@ -127,6 +126,11 @@ def test_count():
     mem_aug_mdp = MDP(mem_aug_amdp.T, mem_aug_amdp.R, mem_aug_amdp.p0, mem_aug_amdp.gamma)
     pi_ground = (spec['phi'] @ spec['Pi_phi'][0]).repeat(n_mem_states, 0)
 
+    print("Calculating analytical occupancy")
+    c_s = functional_get_occupancy(pi_ground, mem_aug_mdp)
+    c_s = c_s.at[-2:].set(0)
+    analytical_count_dist = c_s / c_s.sum(axis=-1, keepdims=True)
+
     state_counts = np.zeros(mem_aug_mdp.n_states, dtype=int)
     print(f"Collecting {samples} samples from {spec_name} spec")
     obs, info = mem_aug_mdp.reset()
@@ -144,78 +148,12 @@ def test_count():
             obs, info = mem_aug_mdp.reset()
             obs = jnp.array(obs)
 
-
     sampled_count_dist = state_counts / state_counts.sum(axis=-1, keepdims=True)
     print("Done collecting samples.")
 
-    print("Calculating analytical occupancy")
-    c_s = functional_get_occupancy(pi_ground, mem_aug_mdp)
-    c_s = c_s.at[-2:].set(0)
-    analytical_count_dist = c_s / c_s.sum(axis=-1, keepdims=True)
+
 
     assert jnp.allclose(sampled_count_dist, analytical_count_dist, atol=1e-3)
-
-def test_discrepancy_loss():
-    seed = 2020
-    samples = int(5e5)
-    spec_name = 'tmaze_eps_hyperparams'
-    loss_type = 'mse'
-    epsilon = 0.1
-
-    rand_key = random.PRNGKey(seed)
-    spec = load_spec(spec_name,
-                     memory_id=str(0),
-                     corridor_length=5,
-                     discount=0.9,
-                     junction_up_pi=2/3,
-                     epsilon=0.1)
-
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
-    n_mem_states = spec['mem_params'].shape[-1]
-
-    mem_aug_amdp = memory_cross_product(spec['mem_params'], amdp)
-
-    # Make the last two memory-augmented states absorbing as well
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -2:].set(0)
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -2, -2].set(1)
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -1, -1].set(1)
-
-    mem_aug_mdp = MDP(mem_aug_amdp.T, mem_aug_amdp.R, mem_aug_amdp.p0, mem_aug_amdp.gamma)
-
-    agent = ActorCritic(
-        n_obs=amdp.n_obs,
-        n_actions=amdp.n_actions,
-        gamma=amdp.gamma,
-        n_mem_entries=0,
-        replay_buffer_size=samples,
-        study_name=f'test_uniform_impt_sampling',
-        discrep_loss=loss_type,
-        disable_importance_sampling=True,
-    )
-
-    policy = spec['Pi_phi'][0]
-    if epsilon > 0:
-        uniform = np.ones_like(policy, dtype=float) / policy.shape[-1]
-        policy = (1 - epsilon) * policy + epsilon * uniform
-    agent.set_policy(policy, logits=False) # policy over non-memory observations
-
-    # TODO: instantiate and set memory
-
-    print(f"Collecting {samples} samples from {spec_name} spec")
-    obs, info = mem_aug_mdp.reset()
-    obs = jnp.array(obs)
-
-    for i in trange(samples):
-
-        action, rand_key = act(pi_ground[obs], rand_key)
-
-        obs, reward, terminal, truncated, info = step(mem_aug_mdp, obs.item(), action.item(), rand_key)
-        rand_key = info['rand_key']
-
-        if terminal:
-            obs, info = mem_aug_mdp.reset()
-            obs = jnp.array(obs)
 
 if __name__ == "__main__":
     # measure_step_speed()

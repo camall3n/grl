@@ -1,6 +1,5 @@
 from jax import jit
 import jax.numpy as jnp
-from functools import partial
 from typing import Union
 from grl.mdp import MDP, AbstractMDP
 
