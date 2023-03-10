@@ -125,6 +125,7 @@ def main():
         n_actions=env.n_actions,
         gamma=env.gamma,
         n_mem_entries=0,
+        policy_epsilon=args.policy_epsilon,
         replay_buffer_size=args.replay_buffer_size,
         mellowmax_beta=args.mellowmax_beta,
         study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
@@ -154,7 +155,6 @@ def main():
     discrep_start = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
-    initial_cmaes_x0 = {str(i): x for i, x in enumerate(required_params)}
 
     for n_mem_iterations in range(args.n_memory_iterations):
         while len(agent.replay) < args.min_mem_opt_replay_size:
