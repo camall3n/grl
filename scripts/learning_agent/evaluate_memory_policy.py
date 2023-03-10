@@ -24,7 +24,7 @@ env_name = 'tmaze_5_two_thirds_up'
 def get_perf(pi_obs: jnp.ndarray, env: AbstractMDP):
     pi_state = env.phi @ pi_obs
     state_v, state_q = functional_solve_mdp(pi_state, env)
-    return jnp.dot(p0, state_v)
+    return jnp.dot(env.p0, state_v)
 
 results = {}
 for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_name}/*/')):
@@ -35,7 +35,10 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
         policy = np.load(results_dir + 'policy.npy')
         td = np.load(results_dir + 'q_td.npy')
         mc = np.load(results_dir + 'q_mc.npy')
-        mc
+        policy.round(3)
+        memory.round(3)
+        mc.round(2)
+        td.round(2)
     except:
         print(f'File not found for seed {seed}')
         continue
@@ -58,7 +61,7 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
         return (abs(td - mc) * p_oa).sum()
     expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc)
 
-    performance = get_perf(greedify(policy), amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, float(amdp_mem.gamma))
+    performance = get_perf(greedify(policy), amdp_mem)
     results[seed] = performance
 
 for seed, performance in sorted(results.items(), key=lambda x: x[-1]):
