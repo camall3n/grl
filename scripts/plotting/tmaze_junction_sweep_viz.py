@@ -15,21 +15,7 @@ from definitions import ROOT_DIR
 config.update('jax_platform_name', 'cpu')
 
 #%%
-# count-based weighting results
-planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2023-02-21'
-learning_up_prob_filename = 'results/sample_based/junction-up-prob-lambda999-6/tmaze_5_two_thirds_up/*'
-planning_eps_filename = 'results/analytical/tmaze_sweep_eps_2023-02-21'
-learning_eps_filename = 'results/sample_based/junction-sweep-eps-lambda999-03/tmaze_5_two_thirds_up/*'
-
-#%%
-# importance sampling results
-# planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2022-11-04'
-# learning_up_prob_filename = 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'
-# planning_eps_filename = 'results/analytical/tmaze_sweep_eps_2023-02-10'
-# learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
-
-#%%
-def test_mem_matrix(mem_params: jnp.ndarray):
+def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True):
     """
     Tests the memory matrix for t-maze.
     our tolerance is set to 1e-1, which seems high, but should be fine for
@@ -61,11 +47,32 @@ def test_mem_matrix(mem_params: jnp.ndarray):
         is_hold = np.allclose(right_corridor, np.eye(2), atol=1e-1)
         return is_toggle, is_hold
 
+    def test_memory_preserving(mem: np.ndarray):
+        # everything that's not part of the optimal policy
+        # ie. check for memory preserving functions
+        corridor_bumps = mem[[NORTH, SOUTH], CORRIDOR]
+        corridor_left = mem[[WEST], CORRIDOR]
+
+        junction_bumps = mem[[EAST], JUNCTION]
+        junction_left = mem[[WEST], JUNCTION]
+        all_checks = {'corridor_bumps': corridor_bumps, 'corridor_left': corridor_left, 'junction_bumps': junction_bumps, 'junction_left': junction_left}
+        is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0), np.eye(2), atol=1e-2)
+        return is_preserving, all_checks
+
     is_toggle, is_hold = test_corridor_hold_or_toggle(right_corridor)
-    return diff_start_bits_set, is_toggle, is_hold
+
+    is_optimal = diff_start_bits_set and (is_toggle or is_hold)
+    additional_info = {'diff_start_bits_set': diff_start_bits_set, 'is_toggle': is_toggle, 'is_hold': is_hold}
+    if test_preserving:
+        is_preserving, all_preserving_checks = test_memory_preserving(mem_func)
+
+        is_optimal = is_optimal and is_preserving
+        additional_info.update(all_preserving_checks)
+
+    return is_optimal, additional_info
 
 #%%
-def load_sampled_results(pathname: str):
+def load_sampled_results(pathname: str, use_epsilon: bool = False):
     all_results = []
     results_dirs = glob.glob(pathname)
     for results_dir in results_dirs:
@@ -74,8 +81,7 @@ def load_sampled_results(pathname: str):
             continue
         info = load_info(results_file)
         final_mem_params = info['final_params']
-        diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
-        is_optimal = diff_start_bits_set and (is_toggle or is_hold)
+        is_optimal, mem_info = test_mem_matrix(final_mem_params, test_preserving=use_epsilon)
         result = {
             'policy_up_prob': info['policy_up_prob'],
             'policy_epsilon': info['policy_epsilon'] if 'policy_epsilon' in info else np.nan,
@@ -100,19 +106,20 @@ def load_analytical_results(pathname: str, use_epsilon=False):
         if results_path.suffix != '.npy':
             continue
         info = load_info(results_path)
+        args = info['args']
+
+        policy_up_prob = args['tmaze_junction_up_pi']
+        policy_epsilon = args['epsilon'] if 'epsilon' in args else np.nan
         if 'grad_info' in info:
             grad_info = info['grad_info']
-            args = info['args']
             final_mem_params = grad_info['final_params']
 
-            diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
+            is_optimal, additional_checks = test_mem_matrix(final_mem_params, test_preserving=use_epsilon)
             initial_q_discrep, initial_v_discrep = info['initial_discrep']['q'], info[ 'initial_discrep']['v']
             final_mc_vals, final_td_vals = grad_info['final_vals']['mc'], grad_info['final_vals']['td']
             final_v_discrep = (final_mc_vals['v'] - final_td_vals['v'])**2
             final_q_discrep = (final_mc_vals['q'] - final_td_vals['q'])**2
 
-            policy_up_prob = args['tmaze_junction_up_pi']
-            policy_epsilon = args['epsilon'] if 'epsilon' in args else np.nan
 
             p = policy_up_prob
             p_up_policy = np.array([
@@ -145,7 +152,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             policy_up_prob = args['tmaze_junction_up_pi']
             policy_epsilon = args['epsilon']
             final_mem_params = agent_info.mem_params
-            diff_start_bits_set, is_toggle, is_hold = test_mem_matrix(final_mem_params)
+            is_optimal, additional_checks = test_mem_matrix(final_mem_params, test_preserving=use_epsilon)
             initial_q_discrep = grad_info['initial_mem_stats']['discrep'].item()
             final_q_discrep = grad_info['final_mem_stats']['discrep'].item()
             initial_aggregated_q_discrep = initial_q_discrep
@@ -160,7 +167,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             # 'final_discrep': final_v_discrep.mean(),
             'initial_discrep': initial_aggregated_q_discrep,
             'final_discrep': final_aggregated_q_discrep,
-            'is_optimal': diff_start_bits_set and (is_toggle or is_hold),
+            'is_optimal': is_optimal,
         }
         all_results.append(result)
     data = pd.DataFrame(all_results)
