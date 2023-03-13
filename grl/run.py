@@ -49,8 +49,8 @@ if __name__ == '__main__':
                         help='Do we initialize our policy to something?')
     parser.add_argument('--use_memory', default=None, type=str,
         help='use memory function during policy eval if set')
-    parser.add_argument('--mem_fuzz', default=0.1, type=float,
-                        help='For the fuzzy identity memory function, how much fuzz do we add?')
+    parser.add_argument('--mem_leakiness', default=0.1, type=float,
+                        help='For the leaky identity memory function, how leaky is it?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
     parser.add_argument('--alpha', default=1., type=float,
@@ -112,7 +112,7 @@ if __name__ == '__main__':
                      discount=args.tmaze_discount,
                      junction_up_pi=args.tmaze_junction_up_pi,
                      epsilon=args.epsilon,
-                     fuzz=args.mem_fuzz)
+                     mem_leakiness=args.mem_leakiness)
 
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
