@@ -2,7 +2,7 @@ cd ../../
 
 onager launch \
     --backend slurm \
-    --jobname tmaze_sweep_junction_pi_leaky \
+    --jobname tmaze_sweep_eps_leaky \
     --tasks-per-node 4 \
     --mem 3 \
     --cpus 5 \
