@@ -235,10 +235,7 @@ class ActorCritic:
             required_params.append(x)
 
         self.set_memory(self.fill_in_params(required_params), logits=False)
-        if self.override_mem_eval_with_analytical_env is not None:
-            result = self.evaluate_memory_analytical()
-        else:
-            result = self.evaluate_memory()
+        result = self.evaluate_memory()
 
         with open(os.path.join(self.study_dir, 'output.txt'), 'a') as file:
             file.write(f'Trial: {trial.number}\n')
@@ -310,6 +307,9 @@ class ActorCritic:
                                 self.override_mem_eval_with_analytical_env)
 
     def evaluate_memory(self):
+        if self.override_mem_eval_with_analytical_env is not None:
+            return self.evaluate_memory_analytical()
+
         assert len(self.replay.memory) > 0
         self.reset_memory_state()
         self.reset_value_functions()
