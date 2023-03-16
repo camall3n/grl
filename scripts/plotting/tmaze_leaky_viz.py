@@ -15,7 +15,7 @@ from definitions import ROOT_DIR
 config.update('jax_platform_name', 'cpu')
 
 #%%
-def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True):
+def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: bool = False):
     """
     Tests the memory matrix for t-maze.
     our tolerance is set to 1e-1, which seems high, but should be fine for
@@ -36,7 +36,11 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True):
 
     # we test whether start bits set to different memory states
     def test_start_bits_set(right_up_start: np.ndarray, right_down_start: np.ndarray):
-        return np.isclose(np.abs(right_up_start - right_down_start).sum() / 2, 1, atol=1e-1)
+        res = np.abs(right_up_start - right_down_start).sum() / 2
+        if mse:
+            return (res - 1) ** 2
+        else:
+            return np.isclose(res, 1, atol=1e-1)
 
     diff_start_bits_set = test_start_bits_set(right_up_start, right_down_start)
 
@@ -44,9 +48,14 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True):
     right_corridor = right_mem_func[CORRIDOR]
 
     def test_corridor_hold_or_toggle(right_corridor: np.ndarray):
-        is_toggle = np.allclose(right_corridor, np.eye(2)[:, ::-1], atol=1e-1)
-        is_hold = np.allclose(right_corridor, np.eye(2), atol=1e-1)
-        return is_toggle, is_hold
+        if mse:
+            is_toggle = ((right_corridor - np.eye(2)[:, ::-1]) ** 2).mean()
+            is_hold = ((right_corridor - np.eye(2)) ** 2).mean()
+            return is_toggle, is_hold
+        else:
+            is_toggle = np.allclose(right_corridor, np.eye(2)[:, ::-1], atol=1e-1)
+            is_hold = np.allclose(right_corridor, np.eye(2), atol=1e-1)
+            return is_toggle, is_hold
 
     def test_memory_preserving(mem: np.ndarray):
         # everything that's not part of the optimal policy
@@ -56,21 +65,36 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True):
 
         junction_bumps = mem[[EAST], JUNCTION]
         junction_left = mem[[WEST], JUNCTION]
-        all_checks = {'corridor_bumps': corridor_bumps, 'corridor_left': corridor_left, 'junction_bumps': junction_bumps, 'junction_left': junction_left}
-        is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0), np.eye(2), atol=1e-2)
-        return is_preserving, all_checks
+        all_checks = {'corridor_bumps': corridor_bumps, 'corridor_left': corridor_left,
+                      'junction_bumps': junction_bumps, 'junction_left': junction_left}
+        if mse:
+            mses = []
+            for check in all_checks.values():
+                mses.append(((check - np.eye(2)) ** 2).mean())
+            return sum(mses) / len(mses), all_checks
+        else:
+            is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0), np.eye(2), atol=1e-2)
+            return is_preserving, all_checks
 
     is_toggle, is_hold = test_corridor_hold_or_toggle(right_corridor)
 
-    is_optimal = diff_start_bits_set and (is_toggle or is_hold)
+    if mse:
+        is_optimal = 0.5 * diff_start_bits_set + 0.5 * min(is_toggle, is_hold)
+    else:
+        is_optimal = diff_start_bits_set and (is_toggle or is_hold)
+
     additional_info = {'diff_start_bits_set': diff_start_bits_set, 'is_toggle': is_toggle, 'is_hold': is_hold}
     if test_preserving:
         is_preserving, all_preserving_checks = test_memory_preserving(mem_func)
 
-        is_optimal = is_optimal and is_preserving
+        if mse:
+            is_optimal = 1 / 3 * (diff_start_bits_set + min(is_toggle, is_hold) + is_preserving)
+        else:
+            is_optimal = is_optimal and is_preserving
         additional_info.update(all_preserving_checks)
 
     return is_optimal, additional_info
+
 
 #%%
 def load_sampled_results(pathname: str, use_epsilon: bool = False):
