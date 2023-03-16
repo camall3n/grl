@@ -19,7 +19,7 @@ from grl.environment import load_spec
 from grl.mdp import AbstractMDP, MDP
 from grl.utils.math import reverse_softmax
 from grl.utils.policy_eval import functional_solve_mdp
-from grl.analytical_agent import AnalyticalAgent
+from grl.agents.analytical import AnalyticalAgent
 from grl.environment.memory_lib import get_memory
 from grl.memory import memory_cross_product
 from grl.memory_iteration import mem_improvement, pi_improvement

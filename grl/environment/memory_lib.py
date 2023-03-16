@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union
+from itertools import product
 
 from grl.utils.math import glorot_init, reverse_softmax
 """
@@ -15,7 +15,7 @@ def get_memory(memory_id: str,
                n_obs: int = None,
                n_actions: int = None,
                n_mem_states: int = 2,
-               fuzz: float = 0.1) -> np.ndarray:
+               leakiness: float = 0.1) -> np.ndarray:
     current_module = globals()
     mem_name = f'memory_{memory_id}'
     if memory_id.isdigit():
@@ -34,15 +34,22 @@ def get_memory(memory_id: str,
         assert (n_obs is not None) and (n_actions is not None), \
             f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
         identity = np.eye(n_mem_states)
-        fuzzy_identity = identity - identity * fuzz + (1 - identity) * fuzz
+        fuzzy_identity = identity - identity * leakiness + (1 - identity) * leakiness
         # 1 x 1 x n_mem_states x n_mem_states
         fuzzy_expanded_identity = np.expand_dims(np.expand_dims(fuzzy_identity, 0), 0)
-        mem_func = fuzzy_expanded_identity.repeat(n_actions, axis=1).repeat(n_obs, axis=0)
+        mem_func = fuzzy_expanded_identity.repeat(n_obs, axis=1).repeat(n_actions, axis=0)
 
         mem_params = reverse_softmax(mem_func)
     else:
         raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
+
+def all_n_state_deterministic_memory(n_mem_states: int):
+    id = np.eye(n_mem_states)
+    idxes = [list(range(n_mem_states))]
+    all_idxes = list(product(*(n_mem_states * idxes)))
+    all_mem_funcs = id[all_idxes]
+    return all_mem_funcs
 
 mem_1 = np.array([
     [ # red

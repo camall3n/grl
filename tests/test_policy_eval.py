@@ -3,7 +3,8 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import PolicyEval, load_spec, MDP, AbstractMDP, memory_cross_product
+from grl import load_spec, MDP, AbstractMDP, memory_cross_product
+from grl.utils.policy_eval import analytical_pe
 
 def assert_pe_results(spec, answers, use_memory=False):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
@@ -15,8 +16,7 @@ def assert_pe_results(spec, answers, use_memory=False):
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):
-        pe = PolicyEval(amdp)
-        results = pe.run(pi)
+        results = analytical_pe(pi, amdp)
 
         for k in answers.keys():
             for j, res in enumerate(results):

@@ -45,35 +45,35 @@ spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
 compare_to_list = []
 
-if compare_to == 'belief':
-    for fname in pomdp_files_dir.iterdir():
-        if 'pomdp-solver-results' in fname.stem:
-            for spec in spec_plot_order:
-                if (fname.stem ==
-                        f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
-                    ):
-                    belief_info = load_info(fname)
-                    coeffs = belief_info['coeffs']
-                    max_start_vals = coeffs[belief_info['max_start_idx']]
-                    spec_compare_indv = {
-                        'spec': spec,
-                        'compare_perf': np.dot(max_start_vals, belief_info['p0'])
-                    }
-                    compare_to_list.append(spec_compare_indv)
-                    # print(f"loaded results for {hparams.spec} from {fname}")
-
-elif compare_to == 'state':
-    for vi_path in vi_results_dir.iterdir():
+# if compare_to == 'belief':
+for fname in pomdp_files_dir.iterdir():
+    if 'pomdp-solver-results' in fname.stem:
         for spec in spec_plot_order:
-            if spec_to_belief_state.get(spec, spec) in vi_path.name:
-                vi_info = load_info(vi_path)
+            if (fname.stem ==
+                    f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
+                ):
+                belief_info = load_info(fname)
+                coeffs = belief_info['coeffs']
+                max_start_vals = coeffs[belief_info['max_start_idx']]
                 spec_compare_indv = {
                     'spec': spec,
                     'compare_perf': np.dot(max_start_vals, belief_info['p0'])
                 }
                 compare_to_list.append(spec_compare_indv)
-else:
-    raise NotImplementedError
+                # print(f"loaded results for {hparams.spec} from {fname}")
+
+# elif compare_to == 'state':
+#     for vi_path in vi_results_dir.iterdir():
+#         for spec in spec_plot_order:
+#             if spec_to_belief_state.get(spec, spec) in vi_path.name:
+#                 vi_info = load_info(vi_path)
+#                 spec_compare_indv = {
+#                     'spec': spec,
+#                     'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+#                 }
+#                 compare_to_list.append(spec_compare_indv)
+# else:
+#     raise NotImplementedError
 
 compare_to_df = pd.DataFrame(compare_to_list)
 
@@ -114,10 +114,9 @@ all_res_df = pd.DataFrame(all_results)
 
 # %%
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
-min_col = 
 merged_df = all_res_df.merge(compare_to_df, on='spec')
 
-for col_name in cols_to_normalize:
+# for col_name in cols_to_normalize:
 
 
 
