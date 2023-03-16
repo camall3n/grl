@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument('--use_existing_study', action='store_true')
     parser.add_argument('--discrep_loss', type=str, default='mse', choices=['abs', 'mse'])
     parser.add_argument('--disable_importance_sampling', action='store_true')
+    parser.add_argument('--analytical_mem_eval', action='store_true')
     # yapf: enable
     return parser.parse_args()
 
@@ -132,6 +133,7 @@ def main():
         use_existing_study=args.use_existing_study,
         discrep_loss=args.discrep_loss,
         disable_importance_sampling=args.disable_importance_sampling,
+        override_mem_eval_with_analytical_env=env if args.analytical_mem_eval else None,
     )
     if args.load_policy:
         policy = spec['Pi_phi'][0]

@@ -19,6 +19,7 @@ from grl.agents.replaymemory import ReplayMemory
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful
+from grl.utils.loss import mem_discrep_loss
 
 class ActorCritic:
     def __init__(
@@ -37,6 +38,7 @@ class ActorCritic:
         use_existing_study=False,
         discrep_loss='abs',
         disable_importance_sampling=False,
+        override_mem_eval_with_analytical_env=None,
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -50,6 +52,7 @@ class ActorCritic:
         self.build_study(use_existing=use_existing_study)
         self.discrep_loss = discrep_loss
         self.disable_importance_sampling = disable_importance_sampling
+        self.override_mem_eval_with_analytical_env = override_mem_eval_with_analytical_env
 
         self.reset_policy()
         self.reset_memory()
@@ -232,7 +235,10 @@ class ActorCritic:
             required_params.append(x)
 
         self.set_memory(self.fill_in_params(required_params), logits=False)
-        result = self.evaluate_memory()
+        if self.override_mem_eval_with_analytical_env is not None:
+            result = self.evaluate_memory_analytical()
+        else:
+            result = self.evaluate_memory()
 
         with open(os.path.join(self.study_dir, 'output.txt'), 'a') as file:
             file.write(f'Trial: {trial.number}\n')
@@ -298,6 +304,10 @@ class ActorCritic:
             observed_lambda_discreps = discrepancies[actions, obs_aug]
             weighted_discreps = observed_lambda_discreps * importance_weights[obs_aug]
             return weighted_discreps.mean()
+
+    def evaluate_memory_analytical(self):
+        return mem_discrep_loss(self.memory_logits, self.policy_probs,
+                                self.override_mem_eval_with_analytical_env)
 
     def evaluate_memory(self):
         assert len(self.replay.memory) > 0
