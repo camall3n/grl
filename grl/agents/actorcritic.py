@@ -27,6 +27,8 @@ class ActorCritic:
         n_obs: int,
         n_actions: int,
         gamma: float,
+        lambda_0: float = 0,
+        lambda_1: float = 0.99999,
         n_mem_entries: int = 0,
         n_mem_values: int = 2,
         learning_rate: float = 0.001,
@@ -42,6 +44,8 @@ class ActorCritic:
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
+        self.lambda_0 = lambda_0
+        self.lambda_1 = lambda_1
         self.n_mem_values = n_mem_values
         self.n_mem_entries = n_mem_entries
         self.n_mem_states = n_mem_values**n_mem_entries
@@ -64,8 +68,8 @@ class ActorCritic:
             'learning_rate': learning_rate,
             'trace_type': trace_type
         }
-        self.q_td = TDLambdaQFunction(lambda_=0, **q_fn_kwargs)
-        self.q_mc = TDLambdaQFunction(lambda_=0.99999, **q_fn_kwargs)
+        self.q_td = TDLambdaQFunction(lambda_=self.lambda_0, **q_fn_kwargs)
+        self.q_mc = TDLambdaQFunction(lambda_=self.lambda_1, **q_fn_kwargs)
         self.replay = ReplayMemory(capacity=replay_buffer_size,
                                    on_retrieve={'*': lambda x: np.asarray(x)})
         self.reset_memory_state()

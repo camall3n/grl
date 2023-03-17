@@ -8,6 +8,8 @@ from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
 
+cast_as_int = lambda x: int(float(x))
+
 def parse_args():
     # yapf: disable
     parser = argparse.ArgumentParser()
@@ -17,26 +19,26 @@ def parse_args():
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--policy_epsilon', type=float, default=None)
+    parser.add_argument('--lambda0', type=float, default=0.0)
+    parser.add_argument('--lambda1', type=float, default=0.99999)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
-    parser.add_argument('--n_policy_iterations', type=int, default=200)
-    parser.add_argument('--n_episodes_per_policy', type=int, default=1000)
+    parser.add_argument('--n_policy_iterations', type=int, default=10)
+    parser.add_argument('--n_episodes_per_policy', type=int, default=200000)
     parser.add_argument('--min_mem_opt_replay_size', type=int, default=1e5,
         help="Minimum number of experiences in replay buffer for memory optimization")
-    parser.add_argument('--replay_buffer_size', type=int, default=4e6)
+    parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     parser.add_argument('--discrep_loss', type=str, default='mse', choices=['abs', 'mse'])
     parser.add_argument('--disable_importance_sampling', action='store_true')
     parser.add_argument('--analytical_mem_eval', action='store_true')
+    parser.add_argument('-f', help='fool ipython')
     # yapf: enable
     return parser.parse_args()
 
-global args
-args = parse_args()
-
-def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=False):
+def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=False, args=parse_args()):
     if not update_policy:
         agent.reset_value_functions()
     for i in trange(args.n_episodes_per_policy):
@@ -80,7 +82,7 @@ def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=F
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
 
-def optimize_policy(agent: ActorCritic, env, mode='td'):
+def optimize_policy(agent: ActorCritic, env, mode='td', args=parse_args()):
     for i in tqdm(range(args.n_policy_iterations)):
         print(f'Policy iteration: {i}')
         print('Policy:\n', agent.policy_probs.round(4))
@@ -106,7 +108,7 @@ def cpu_count():
     except AttributeError:
         return os.cpu_count()
 
-def get_n_workers(n_tasks):
+def get_n_workers(n_tasks, args):
     workers_available = max(1, cpu_count())
     workers_needed = n_tasks
     n_workers = min(workers_needed, workers_available)
@@ -117,7 +119,7 @@ def get_n_workers(n_tasks):
 def main():
     np.set_printoptions(suppress=True)
 
-    parse_args()
+    args = parse_args()
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
@@ -149,23 +151,23 @@ def main():
         agent.reset_policy()
 
     if not args.load_policy:
-        optimize_policy(agent, env)
+        optimize_policy(agent, env, args)
 
     agent.add_memory()
     agent.reset_memory()
-    converge_value_functions(agent, env, update_policy=False)
+    converge_value_functions(agent, env, update_policy=False, args=args)
     discrep_start = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
     for n_mem_iterations in range(args.n_memory_iterations):
         while len(agent.replay) < args.min_mem_opt_replay_size:
-            converge_value_functions(agent, env, update_policy=False)
+            converge_value_functions(agent, env, update_policy=False, args=args)
 
         print(f"Memory iteration {n_mem_iterations}")
 
         study = agent.optimize_memory(
-            n_jobs=get_n_workers(args.n_memory_trials),
+            n_jobs=get_n_workers(args.n_memory_trials, args),
             n_trials=args.n_memory_trials,
         )
         np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
@@ -178,7 +180,7 @@ def main():
 
         if not args.load_policy:
             agent.reset_policy()
-            optimize_policy(agent, env)
+            optimize_policy(agent, env, args)
 
         print('Memory:')
         print(agent.memory_probs.round(3))
@@ -188,7 +190,7 @@ def main():
 
     # if not args.load_policy:
     #     agent.reset_policy()
-    #     optimize_policy(agent, env, mode='mc')
+    #     optimize_policy(agent, env, mode='mc', args=args)
 
     print('Final memory:')
     print(agent.memory_probs.round(3))
