@@ -26,8 +26,9 @@ config.update('jax_platform_name', 'cpu')
 # importance sampling results
 planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2022-11-04'
 learning_up_prob_filename = 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'
-planning_eps_filename = 'results/analytical/tmaze_sweep_eps_2023-02-10'
-learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
+planning_eps_filename = 'results/analytical/tmaze_sweep_eps_uniform_2023-03-07'
+# learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
+learning_eps_filename = 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'
 
 #%%
 def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: bool = False):
@@ -134,8 +135,8 @@ def load_sampled_results(pathname: str, use_epsilon: bool = False):
             'policy_up_prob': info['policy_up_prob'],
             'policy_epsilon': info['policy_epsilon'] if 'policy_epsilon' in info else np.nan,
             'trial_id': os.path.basename(results_dir).split('__')[0].split('_')[-1],
-            'initial_discrep': info['initial_discrep'],
-            'final_discrep': info['final_discrep'],
+            'initial_discrep': float(info['initial_discrep']),
+            'final_discrep': float(info['final_discrep']),
             'is_optimal': is_optimal
         }
         all_results.append(result)
