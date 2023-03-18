@@ -28,16 +28,16 @@ for results_dir in sorted(glob.glob('results/sample_based/compare_sample_and_pla
             'value_error': value_error_0,
         })
 
-        # lambda1 = info['args']['lambda0'] + 0.05
-        # lstd_q1 = info['lstd_q1']
-        # samp_q1 = info['samp_q1']
-        # value_error_1 = np.array((lstd_q1 - samp_q1)**2).sum() + noise()
-        # data.append({
-        #     'n_samples': n_samples,
-        #     'trial_id': trial_id,
-        #     'lambda': lambda1,
-        #     'value_error': value_error_1,
-        # })
+        lambda1 = info['args']['lambda1']
+        lstd_q1 = info['lstd_q1']
+        samp_q1 = info['samp_q1']
+        value_error_1 = np.array((lstd_q1 - samp_q1)**2).sum() + noise()
+        data.append({
+            'n_samples': n_samples,
+            'trial_id': trial_id,
+            'lambda': lambda1,
+            'value_error': value_error_1,
+        })
 df = pd.DataFrame(data)
 
 #%%
