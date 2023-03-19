@@ -50,7 +50,7 @@ agent = ActorCritic(
     replay_buffer_size=args.replay_buffer_size,
     mellowmax_beta=10.,
     discrep_loss=error_type,
-    study_name='compare_sample_and_plan_02/' + args.study_name,
+    study_name='compare_sample_and_plan_03/' + args.study_name,
 )
 
 agent.set_policy(pi, logits=False)
@@ -68,11 +68,11 @@ lstd_v0, lstd_q0 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.
 lstd_v1, lstd_q1 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda1)
 
 while len(agent.replay) < args.min_mem_opt_replay_size:
-    converge_value_functions(agent, env, update_policy=False)
+    converge_value_functions(agent, env, args.n_episodes_per_policy)
 samp_q0 = agent.q_td.q
 samp_q1 = agent.q_mc.q
 
-print("Lambda = 0")
+print(f"Lambda = {args.lambda0}")
 print("Sample-based:")
 print(samp_q0)
 
@@ -80,7 +80,7 @@ print("Analytical:")
 print(lstd_q0)
 
 print('---------------------------')
-print("Lambda = 0.99999")
+print(f"Lambda = {args.lambda1}")
 print("Sample-based:")
 print(samp_q1)
 

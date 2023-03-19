@@ -40,12 +40,13 @@ def parse_args():
 
 def converge_value_functions(agent: ActorCritic,
                              env,
+                             n_episodes,
                              mode='td',
-                             update_policy=False,
-                             args=parse_args()):
-    if not update_policy:
+                             reset_before_converging=False,
+                             update_policy=False):
+    if reset_before_converging:
         agent.reset_value_functions()
-    for i in trange(args.n_episodes_per_policy):
+    for i in trange(n_episodes):
         agent.reset_memory_state()
         obs, _ = env.reset()
         action = agent.act(obs)
@@ -92,7 +93,12 @@ def optimize_policy(agent: ActorCritic, env, mode='td', args=parse_args()):
         print('Policy:\n', agent.policy_probs.round(4))
         print('Q(TD):\n', agent.q_td.q.T.round(5))
         print('Q(MC):\n', agent.q_mc.q.T.round(5))
-        converge_value_functions(agent, env, mode=mode, update_policy=True)
+        converge_value_functions(agent,
+                                 env,
+                                 args.n_episodes_per_policy,
+                                 mode=mode,
+                                 reset_before_converging=True,
+                                 update_policy=True)
         np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
         # did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
@@ -159,14 +165,14 @@ def main():
 
     agent.add_memory()
     agent.reset_memory()
-    converge_value_functions(agent, env, update_policy=False, args=args)
+    converge_value_functions(agent, env, args.n_episodes_per_policy)
     discrep_start = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
     for n_mem_iterations in range(args.n_memory_iterations):
         while len(agent.replay) < args.min_mem_opt_replay_size:
-            converge_value_functions(agent, env, update_policy=False, args=args)
+            converge_value_functions(agent, env, args.n_episodes_per_policy)
 
         print(f"Memory iteration {n_mem_iterations}")
 
