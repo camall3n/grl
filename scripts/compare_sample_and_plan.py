@@ -67,7 +67,8 @@ mem_aug_mdp = memory_cross_product(mem_params, env)
 lstd_v0, lstd_q0 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=0)
 lstd_v1, lstd_q1 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=0.99999)
 
-converge_value_functions(agent, env, update_policy=False)
+while len(agent.replay) < args.min_mem_opt_replay_size:
+    converge_value_functions(agent, env, update_policy=False)
 samp_q0 = agent.q_td.q
 samp_q1 = agent.q_mc.q
 
