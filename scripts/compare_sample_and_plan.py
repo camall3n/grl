@@ -17,14 +17,14 @@ config.update('jax_platform_name', 'cpu')
 
 args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
-args.lambda1 = args.lamba0 + 0.05
+args.lambda1 = args.lambda0 + 0.05
 del args.f
 
 spec_name = "tmaze_eps_hyperparams"
 # spec_name = "simple_chain"
 corridor_length = 5
 discount = 0.9
-junction_up_pi = 2/3
+junction_up_pi = 2 / 3
 epsilon = 0.2
 error_type = 'mse'
 
@@ -39,7 +39,6 @@ spec = load_spec(spec_name,
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])
 pi = spec['Pi_phi'][0]
-
 
 agent = ActorCritic(
     n_obs=env.n_obs,
