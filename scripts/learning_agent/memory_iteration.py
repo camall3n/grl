@@ -38,7 +38,11 @@ def parse_args():
     # yapf: enable
     return parser.parse_args()
 
-def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=False, args=parse_args()):
+def converge_value_functions(agent: ActorCritic,
+                             env,
+                             mode='td',
+                             update_policy=False,
+                             args=parse_args()):
     if not update_policy:
         agent.reset_value_functions()
     for i in trange(args.n_episodes_per_policy):
@@ -69,16 +73,16 @@ def converge_value_functions(agent: ActorCritic, env, mode='td', update_policy=F
         if update_policy:
             agent.update_actor(mode=mode, argmax_type='hardmax')
 
-    td_v0s = []
-    mc_v0s = []
-    for i in range(100):
-        obs, _ = env.reset()
-        td_v0s.append(np.dot(agent.q_td.q[:, obs], agent.policy_probs[obs, :]))
-        mc_v0s.append(np.dot(agent.q_mc.q[:, obs], agent.policy_probs[obs, :]))
-    td_v0 = np.mean(td_v0s)
-    mc_v0 = np.mean(mc_v0s)
-    print(f"td_v0: {td_v0}")
-    print(f"mc_v0: {mc_v0}")
+    # td_v0s = []
+    # mc_v0s = []
+    # for i in range(100):
+    #     obs, _ = env.reset()
+    #     td_v0s.append(np.dot(agent.q_td.q[:, obs], agent.policy_probs[obs, :]))
+    #     mc_v0s.append(np.dot(agent.q_mc.q[:, obs], agent.policy_probs[obs, :]))
+    # td_v0 = np.mean(td_v0s)
+    # mc_v0 = np.mean(mc_v0s)
+    # print(f"td_v0: {td_v0}")
+    # print(f"mc_v0: {mc_v0}")
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
 
