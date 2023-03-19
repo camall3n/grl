@@ -50,7 +50,7 @@ agent = ActorCritic(
     replay_buffer_size=args.replay_buffer_size,
     mellowmax_beta=10.,
     discrep_loss=error_type,
-    study_name='compare_sample_and_plan_01/' + args.study_name,
+    study_name='compare_sample_and_plan_02/' + args.study_name,
 )
 
 agent.set_policy(pi, logits=False)
