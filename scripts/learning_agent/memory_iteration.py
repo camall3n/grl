@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--policy_epsilon', type=float, default=None)
     parser.add_argument('--lambda0', type=float, default=0.0)
-    parser.add_argument('--lambda1', type=float, default=0.99999)
+    parser.add_argument('--lambda1', type=float, default=0.9)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=500)

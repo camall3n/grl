@@ -17,7 +17,6 @@ config.update('jax_platform_name', 'cpu')
 
 args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
-args.lambda1 = args.lambda0 + 0.1
 del args.f
 
 spec_name = "tmaze_eps_hyperparams"
