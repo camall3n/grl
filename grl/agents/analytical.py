@@ -22,6 +22,8 @@ class AnalyticalAgent:
                  value_type: str = 'v',
                  error_type: str = 'l2',
                  objective: str = 'discrep',
+                 lambda_0: float = 0.,
+                 lambda_1: float = 1.,
                  alpha: float = 1.,
                  pi_softmax_temp: float = 1,
                  policy_optim_alg: str = 'policy_iter',
@@ -56,6 +58,8 @@ class AnalyticalAgent:
         self.val_type = value_type
         self.error_type = error_type
         self.objective = objective
+        self.lambda_0 = lambda_0
+        self.lambda_1 = lambda_1
         self.alpha = alpha
         self.flip_count_prob = flip_count_prob
 
@@ -96,6 +100,8 @@ class AnalyticalAgent:
         partial_mem_discrep_loss = partial(mem_loss_fn,
                                            value_type=self.val_type,
                                            error_type=self.error_type,
+                                           lambda_0=self.lambda_0,
+                                           lambda_1=self.lambda_1,
                                            alpha=self.alpha,
                                            flip_count_prob=self.flip_count_prob)
         self.memory_objective_func = jit(partial_mem_discrep_loss)
@@ -212,5 +218,8 @@ class AnalyticalAgent:
         if not hasattr(self, 'val_type'):
             self.val_type = 'v'
             self.error_type = 'l2'
+        if not hasattr(self, 'lambda_0'):
+            self.lambda_0 = 0.
+            self.lambda_1 = 1.
 
         self.init_and_jit_objectives()

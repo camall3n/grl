@@ -25,6 +25,8 @@ def run_memory_iteration(spec: dict,
                          error_type: str = 'l2',
                          value_type: str = 'q',
                          objective: str = 'discrep',
+                         lambda_0: float = 0.,
+                         lambda_1: float = 1.,
                          alpha: float = 1.,
                          pi_params: jnp.ndarray = None,
                          epsilon: float = 0.1,
@@ -43,6 +45,9 @@ def run_memory_iteration(spec: dict,
     :param mi_steps:            Number of memory improvement steps PER memory iteration step.
     :param pi_steps:            Number of policy improvement steps PER memory iteration step.
     :param flip_count_prob:     Do we flip our count probabilities over observations for memory loss?.
+    :param lambda_0:            What's our first lambda parameter for lambda discrep?
+    :param lambda_1:            What's our second lambda parameter for lambda discrep?
+    :param alpha:               How uniform do we want our lambda discrep weighting?
     """
     assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
     mem_params = spec['mem_params']
@@ -73,6 +78,8 @@ def run_memory_iteration(spec: dict,
                             error_type=error_type,
                             value_type=value_type,
                             objective=objective,
+                            lambda_0=lambda_0,
+                            lambda_1=lambda_1,
                             alpha=alpha,
                             epsilon=epsilon,
                             flip_count_prob=flip_count_prob)

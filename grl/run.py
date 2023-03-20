@@ -53,6 +53,10 @@ if __name__ == '__main__':
                         help='For the leaky identity memory function, how leaky is it?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
+    parser.add_argument('--lambda_0', default=0., type=float,
+                        help='First lambda parameter for lambda-discrep')
+    parser.add_argument('--lambda_1', default=1., type=float,
+                        help='Second lambda parameter for lambda-discrep')
     parser.add_argument('--alpha', default=1., type=float,
                         help='Temperature parameter, for how uniform our lambda-discrep weighting is')
     parser.add_argument('--flip_count_prob', action='store_true',
@@ -144,6 +148,8 @@ if __name__ == '__main__':
                                        value_type=args.value_type,
                                        error_type=args.error_type,
                                        objective=args.objective,
+                                       lambda_0=args.lambda_0,
+                                       lambda_1=args.lambda_1,
                                        alpha=args.alpha,
                                        epsilon=args.epsilon,
                                        pi_params=pi_params,

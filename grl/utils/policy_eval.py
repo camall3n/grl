@@ -80,9 +80,7 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     a, s, _ = T_ass.shape
     phi = amdp.phi if hasattr(amdp, 'phi') else jnp.eye(s)
 
-    o = phi.shape[1]
     sa = s * a
-    oa = o * a
 
     gamma = amdp.gamma
     s0 = amdp.p0
@@ -100,7 +98,7 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
 
     # Compute the state-action distribution as a diagonal matrix
     I = jnp.eye(sa)
-    occupancy_as = jnp.linalg.inv(I - gamma * P_as_as.T) @ as_0
+    occupancy_as = jnp.linalg.solve((I - gamma * P_as_as.T), as_0)
     mu = occupancy_as / jnp.sum(occupancy_as)
     D_mu = jnp.diag(mu)
 
@@ -111,11 +109,10 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     # Solve the linear system for Q(s,a), replacing the state features with state-action features
     #
     # See section 2 of https://arxiv.org/pdf/1511.08495.pdf
-    D_eps_ao = 1e-10 * jnp.eye(oa)
-    A = (phi_as_ao.T @ D_mu @ (I - gamma * P_as_as) @ jnp.linalg.inv(I - gamma * lambda_ * P_as_as)
-         @ phi_as_ao)
-    b = phi_as_ao.T @ D_mu @ jnp.linalg.inv(I - gamma * lambda_ * P_as_as) @ R_as
-    Q_LSTD_lamb_as = (phi_as_ao @ jnp.linalg.inv(A + D_eps_ao) @ b).reshape((a, s))
+    phi_D_mu = phi_as_ao.T @ D_mu
+    A = (phi_D_mu @ (I - gamma * P_as_as) @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as, phi_as_ao))
+    b = phi_D_mu @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as, R_as)
+    Q_LSTD_lamb_as = (phi_as_ao @ jnp.linalg.solve(A, b)).reshape((a, s))
 
     # Compute V(s)
     V_LSTD_lamb_s = jnp.einsum('ij,ji->j', Q_LSTD_lamb_as, pi_sa)
@@ -127,4 +124,4 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     Q_LSTD_lamb_ao = Q_LSTD_lamb_as @ p_pi_of_s_given_o
     V_LSTD_lamb_o = V_LSTD_lamb_s @ p_pi_of_s_given_o
 
-    return V_LSTD_lamb_o, Q_LSTD_lamb_ao
+    return V_LSTD_lamb_o, Q_LSTD_lamb_ao, { 'occupancy': occupancy_s }
