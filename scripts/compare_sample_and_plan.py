@@ -8,7 +8,7 @@ from pathlib import Path
 from grl.agents.actorcritic import ActorCritic
 from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.policy_eval import analytical_pe, lstdq_lambda
+from grl.utils.policy_eval import lstdq_lambda
 from grl.memory import memory_cross_product
 from scripts.learning_agent.memory_iteration import converge_value_functions, parse_args
 
@@ -46,6 +46,7 @@ agent = ActorCritic(
     gamma=env.gamma,
     lambda_0=args.lambda0,
     lambda_1=args.lambda1,
+    learning_rate=args.learning_rate,
     n_mem_entries=0,
     replay_buffer_size=args.replay_buffer_size,
     mellowmax_beta=10.,
