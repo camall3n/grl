@@ -200,9 +200,16 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
 # planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi')))
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'junction-up-prob-lambda999-6', 'tmaze_5_two_thirds_up/*')))
-planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_lambda1')), use_epsilon=True)
+# planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_lambda1')), use_epsilon=True)
+planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze2_sweep_eps')), use_epsilon=True)
+fig, axes = plt.subplots(1, 1, figsize=(12, 5))
+plot_sweep(planning_data, x='policy_epsilon', ax=axes, title='tmaze 2, epsilon sweep')
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'sweep-up-prob-imp-samp-7', 'tmaze_5_two_thirds_up/*')))
+
+planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze2_sweep_junction_pi')))
+fig, axes = plt.subplots(1, 1, figsize=(12, 5))
+plot_sweep(planning_data, x='policy_up_prob', ax=axes, title='tmaze 2, epsilon sweep')
 
 # leaks = planning_data['leak'].unique()
 # leaks.sort()
@@ -211,12 +218,12 @@ planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_swe
 #     plot_sweep(planning_data[planning_data['leak'] == leak], ax=axes, title=f'Planning Agent, leak={leak:.2f}', add_colorbar=False)
 #     axes.set_xlim(0,0.5)
 
-lambda1s = planning_data['lambda_1'].unique()
-lambda1s.sort()
-for lambda1 in lambda1s:
-    fig, axes = plt.subplots(1, 1, figsize=(12, 5))
-    plot_sweep(planning_data[planning_data['lambda_1'] == lambda1], x='policy_epsilon', ax=axes, title=f'Planning Agent, lambda1={lambda1:.6f}', add_colorbar=False)
-    # axes.set_xlim(0,0.5)
+# lambda1s = planning_data['lambda_1'].unique()
+# lambda1s.sort()
+# for lambda1 in lambda1s:
+#     fig, axes = plt.subplots(1, 1, figsize=(12, 5))
+#     plot_sweep(planning_data[planning_data['lambda_1'] == lambda1], x='policy_epsilon', ax=axes, title=f'Planning Agent, lambda1={lambda1:.6f}', add_colorbar=False)
+#     # axes.set_xlim(0,0.5)
 
 # plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 # learning_data[learning_data['policy_up_prob'] == 0]
