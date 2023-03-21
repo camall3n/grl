@@ -45,6 +45,8 @@ if __name__ == '__main__':
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         help='policy improvement algorithm to use. "policy_iter" - policy iteration, "policy_grad" - policy gradient, '
                              '"discrep_max" - discrepancy maximization, "discrep_min" - discrepancy minimization')
+    parser.add_argument('--optimizer', type=str, default='sgd',
+                        help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
                         help='Do we initialize our policy to something?')
     parser.add_argument('--use_memory', default=None, type=str,
@@ -138,11 +140,12 @@ if __name__ == '__main__':
     if args.init_pi is not None:
         pi_params = get_start_pi(args.init_pi, spec=spec)
     logs, agent = run_memory_iteration(spec,
-                                       pi_lr=args.lr,
-                                       mi_lr=args.lr,
                                        rand_key=rand_key,
                                        mi_iterations=args.mi_iterations,
                                        policy_optim_alg=args.policy_optim_alg,
+                                       optimizer_str=args.optimizer,
+                                       pi_lr=args.lr,
+                                       mi_lr=args.lr,
                                        mi_steps=args.mi_steps,
                                        pi_steps=args.pi_steps,
                                        value_type=args.value_type,

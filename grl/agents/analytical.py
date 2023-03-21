@@ -1,13 +1,16 @@
-import numpy as np
-import jax.numpy as jnp
-from jax import random, jit, value_and_grad
-from jax.nn import softmax
 from functools import partial
 from typing import Sequence
 
-from grl.utils.loss import policy_discrep_loss, mem_discrep_loss, pg_objective_func, mem_magnitude_td_loss
+import jax.numpy as jnp
+from jax import random, jit, value_and_grad
+from jax.nn import softmax
+import numpy as np
+import optax
+
 from grl.mdp import AbstractMDP
+from grl.utils.loss import policy_discrep_loss, mem_discrep_loss, pg_objective_func, mem_magnitude_td_loss
 from grl.utils.math import glorot_init
+from grl.utils.optimizer import get_optimizer
 from grl.vi import policy_iteration_step
 
 class AnalyticalAgent:
@@ -17,7 +20,10 @@ class AnalyticalAgent:
     """
     def __init__(self,
                  pi_params: jnp.ndarray,
+                 optim_str: str,
                  rand_key: random.PRNGKey,
+                 pi_lr: float = 1.,
+                 mi_lr: float = 1.,
                  mem_params: jnp.ndarray = None,
                  value_type: str = 'v',
                  error_type: str = 'l2',
@@ -68,8 +74,19 @@ class AnalyticalAgent:
 
         self.init_and_jit_objectives()
 
-        self.mem_params = mem_params
         self.new_mem_pi = new_mem_pi
+
+        self.optim_str = optim_str
+        # initialize optimizers
+        self.pi_lr = pi_lr
+        self.pi_optim = get_optimizer(optim_str, self.pi_lr)
+        self.pi_optim_state = self.pi_optim.init(self.pi_params)
+
+        if mem_params is not None:
+            self.mem_params = mem_params
+            self.mi_lr = mi_lr
+            self.mem_optim = get_optimizer(optim_str, self.mi_lr)
+            self.mem_optim_state = self.mem_optim.init(self.mem_params)
 
         self.pi_softmax_temp = pi_softmax_temp
 
@@ -137,27 +154,32 @@ class AnalyticalAgent:
             new_mem_params = glorot_init(old_pi_params_shape)
             self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
-    @partial(jit, static_argnames=['self', 'lr'])
-    def policy_gradient_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP):
+    @partial(jit, static_argnames=['self'])
+    def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, amdp: AbstractMDP):
         outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, amdp)
         v_0, (td_v_vals, td_q_vals) = outs
-        params += lr * params_grad
+        updates, optimizer_state = self.pi_optim.update(params_grad, optim_state, params)
+        params = optax.apply_updates(params, updates)
         return v_0, td_v_vals, td_q_vals, params
 
-    @partial(jit, static_argnames=['self', 'lr', 'sign'])
-    def policy_discrep_update(self, params: jnp.ndarray, lr: float, amdp: AbstractMDP, sign: bool = True):
+    @partial(jit, static_argnames=['self', 'sign'])
+    def policy_discrep_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, amdp: AbstractMDP, sign: bool = True):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
                                            has_aux=True)(params, amdp)
         loss, (mc_vals, td_vals) = outs
-        if sign:
-            params += lr * params_grad
-        else:
-            params -= lr * params_grad
+
+        # it's the flip of sign b/c the optimizer already applies the negative sign
+        params_grad *= (1 - float(sign))
+
+        updates, optimizer_state = self.pi_optim.update(params_grad, optim_state, params)
+        params = optax.apply_updates(params, updates)
+
         return loss, mc_vals, td_vals, params
 
-    def policy_improvement(self, amdp: AbstractMDP, lr: float = None):
+    def policy_improvement(self, amdp: AbstractMDP):
         if self.policy_optim_alg == 'policy_grad':
-            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = self.policy_gradient_update(self.pi_params, lr, amdp)
+            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = \
+                self.policy_gradient_update(self.pi_params, self.pi_optim_state, amdp)
             output = {
                 'v_0': v_0,
                 'prev_td_q_vals': prev_td_q_vals,
@@ -169,7 +191,7 @@ class AnalyticalAgent:
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'discrep_max' or self.policy_optim_alg == 'discrep_min':
             loss, mc_vals, td_vals, new_pi_params = self.policy_discrep_update(
-                self.pi_params, lr, amdp,
+                self.pi_params, self.pi_optim_state, amdp,
                 sign=(self.policy_optim_alg == 'discrep_max')
             )
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
@@ -178,19 +200,21 @@ class AnalyticalAgent:
         self.pi_params = new_pi_params
         return output
 
-    @partial(jit, static_argnames=['self', 'lr'])
-    def memory_update(self, params: jnp.ndarray, lr: float,
-                                 pi_params: jnp.ndarray, amdp: AbstractMDP):
+    @partial(jit, static_argnames=['self'])
+    def memory_update(self, params: jnp.ndarray, optim_state: jnp.ndarray,
+                      pi_params: jnp.ndarray, amdp: AbstractMDP):
         pi = softmax(pi_params / self.pi_softmax_temp, axis=-1)
         loss, params_grad = value_and_grad(self.memory_objective_func,
                                            argnums=0)(params, pi, amdp)
-        params -= lr * params_grad
+
+        updates, optimizer_state = self.mem_optim.update(params_grad, optim_state, params)
+        params = optax.apply_updates(params, updates)
 
         return loss, params
 
-    def memory_improvement(self, amdp: AbstractMDP, lr: float):
+    def memory_improvement(self, amdp: AbstractMDP):
         assert self.mem_params is not None, 'I have no memory params'
-        loss, new_mem_params = self.memory_update(self.mem_params, lr, self.pi_params, amdp)
+        loss, new_mem_params = self.memory_update(self.mem_params, self.mem_optim_state, self.pi_params, amdp)
         self.mem_params = new_mem_params
         return loss
 
@@ -202,9 +226,11 @@ class AnalyticalAgent:
         del state['policy_iteration_update']
         del state['policy_discrep_objective_func']
         del state['memory_objective_func']
+        del state['pi_optim']
         state['pi_params'] = np.array(state['pi_params'])
 
         if state['mem_params'] is not None:
+            del state['mem_optim']
             state['mem_params'] = np.array(state['mem_params'])
         return state
 
@@ -214,6 +240,10 @@ class AnalyticalAgent:
         # restore jitted functions
         self.pg_objective_func = jit(pg_objective_func)
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
+
+        self.pi_optim = get_optimizer(state['optim_str'], state['pi_lr'])
+        if hasattr(self, 'mem_params'):
+            self.mi_optim = get_optimizer(state['optim_str'], state['mi_lr'])
 
         if not hasattr(self, 'val_type'):
             self.val_type = 'v'

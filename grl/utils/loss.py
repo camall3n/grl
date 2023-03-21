@@ -30,7 +30,7 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
 
     c_s = info['occupancy']
     # set terminal counts to 0
-    c_s = c_s.at[-2:].set(0)
+    c_s = c_s.at[4:].set(0)
     c_o = c_s @ amdp.phi
     count_o = c_o / c_o.sum()
 
