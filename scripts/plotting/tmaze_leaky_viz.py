@@ -150,6 +150,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             'policy_epsilon': policy_epsilon,
             'mem_id': args['use_memory'],
             'leak': args['mem_leakiness'],
+            'lambda_1': args['lambda_1'],
             'trial_id': os.path.basename(results_path).split('_s(')[-1].split(')_')[0],
             'seed': args['seed'],
             # 'initial_discrep': initial_v_discrep.mean(),
@@ -199,19 +200,24 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
 # planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi')))
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'junction-up-prob-lambda999-6', 'tmaze_5_two_thirds_up/*')))
-planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_junction_pi_leaky')))
+planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_lambda1')), use_epsilon=True)
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'sweep-up-prob-imp-samp-7', 'tmaze_5_two_thirds_up/*')))
 
-np.set_printoptions(precision=4)
-plt.rcParams['axes.facecolor'] = 'white'
-plt.rcParams.update({'font.size': 14})
-leaks = planning_data['leak'].unique()
-leaks.sort()
-for leak in leaks:
+# leaks = planning_data['leak'].unique()
+# leaks.sort()
+# for leak in leaks:
+#     fig, axes = plt.subplots(1, 1, figsize=(12, 5))
+#     plot_sweep(planning_data[planning_data['leak'] == leak], ax=axes, title=f'Planning Agent, leak={leak:.2f}', add_colorbar=False)
+#     axes.set_xlim(0,0.5)
+
+lambda1s = planning_data['lambda_1'].unique()
+lambda1s.sort()
+for lambda1 in lambda1s:
     fig, axes = plt.subplots(1, 1, figsize=(12, 5))
-    plot_sweep(planning_data[planning_data['leak'] == leak], ax=axes, title=f'Planning Agent, leak={leak:.2f}', add_colorbar=False)
-    axes.set_xlim(0,0.5)
+    plot_sweep(planning_data[planning_data['lambda_1'] == lambda1], x='policy_epsilon', ax=axes, title=f'Planning Agent, lambda1={lambda1:.6f}', add_colorbar=False)
+    # axes.set_xlim(0,0.5)
+
 # plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 # learning_data[learning_data['policy_up_prob'] == 0]
 

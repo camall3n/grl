@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument('--n_episodes_per_policy', type=int, default=200000)
     parser.add_argument('--min_mem_opt_replay_size', type=int, default=1e5,
         help="Minimum number of experiences in replay buffer for memory optimization")
+    parser.add_argument('--use_min_replay_num_samples', action='store_true')
     parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
@@ -131,6 +132,8 @@ def main():
     np.set_printoptions(suppress=True)
 
     args = parse_args()
+    if args.use_min_replay_num_samples:
+        args.min_mem_opt_replay_size = args.replay_buffer_size
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
@@ -148,6 +151,7 @@ def main():
         disable_importance_sampling=args.disable_importance_sampling,
         override_mem_eval_with_analytical_env=env if args.analytical_mem_eval else None,
     )
+    info = {'args': args.__dict__}
     if args.load_policy:
         policy = spec['Pi_phi'][0]
         if args.policy_junction_up_prob is not None:
@@ -160,21 +164,24 @@ def main():
         agent.set_policy(policy, logits=False) # policy over non-memory observations
     else:
         agent.reset_policy()
+    info['initial_policy'] = agent.policy_probs.copy()
 
     if not args.load_policy:
         optimize_policy(agent, env, args)
 
     agent.add_memory()
     agent.reset_memory()
-    converge_value_functions(agent, env, args.n_episodes_per_policy)
-    discrep_start = agent.evaluate_memory()
+    info['initial_memory'] = agent.memory_probs.copy()
+
+    while len(agent.replay) < args.min_mem_opt_replay_size:
+        converge_value_functions(agent, env, args.n_episodes_per_policy)
+    info['initial_memory_value_functions'] = {'0': agent.q_td.q.copy(), '1': agent.q_mc.q.copy()}
+
+    info['initial_discrep'] = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
     for n_mem_iterations in range(args.n_memory_iterations):
-        while len(agent.replay) < args.min_mem_opt_replay_size:
-            converge_value_functions(agent, env, args.n_episodes_per_policy)
-
         print(f"Memory iteration {n_mem_iterations}")
 
         study = agent.optimize_memory(
@@ -199,6 +206,10 @@ def main():
         print('Policy:')
         print(agent.policy_probs)
 
+        while len(agent.replay) < args.min_mem_opt_replay_size:
+            converge_value_functions(agent, env, args.n_episodes_per_policy)
+
+
     # if not args.load_policy:
     #     agent.reset_policy()
     #     optimize_policy(agent, env, mode='mc', args=args)
@@ -212,13 +223,13 @@ def main():
     np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
-    info = {
+    info.update({
         'final_params': agent.memory_logits,
-        'initial_discrep': discrep_start,
         'final_discrep': study.best_value,
         'policy_up_prob': args.policy_junction_up_prob,
+        'final_memory_value_function': {'0': agent.q_td.q.copy(), '1': agent.q_mc.q.copy()},
         'policy_epsilon': args.policy_epsilon,
-    }
+    })
     np.save(agent.study_dir + '/info.npy', info)
 
 if __name__ == '__main__':
