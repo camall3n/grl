@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         help='policy improvement algorithm to use. "policy_iter" - policy iteration, "policy_grad" - policy gradient, '
                              '"discrep_max" - discrepancy maximization, "discrep_min" - discrepancy minimization')
-    parser.add_argument('--optimizer', type=str, default='sgd',
+    parser.add_argument('--optimizer', type=str, default='adam',
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
                         help='Do we initialize our policy to something?')
