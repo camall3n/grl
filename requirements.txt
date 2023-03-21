@@ -1,6 +1,7 @@
 numpy
 gmpy2
 jax[cpu]
+optax
 seaborn
 matplotlib
 -e .
