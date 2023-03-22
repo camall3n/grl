@@ -66,12 +66,14 @@ def get_act_obs_idx(actions: np.ndarray, obs: np.ndarray, n_obs: int):
     return actions * n_obs + obs
 
 if __name__ == "__main__":
-    spec_name = "tmaze_eps_hyperparams"
+    spec_name = "tmaze_5_two_thirds_up_fully_observable"
+    spec_hparams = None
+    # spec_name = "tmaze_eps_hyperparams"
     corridor_length = 5
     discount = 0.9
     junction_up_pi = 2 / 3
     epsilon = 0
-    spec_hparams = (corridor_length, discount, junction_up_pi, epsilon)
+    # spec_hparams = (corridor_length, discount, junction_up_pi, epsilon)
 
     n_step = float('inf')
     n_episodes = int(1e4)
@@ -125,10 +127,11 @@ if __name__ == "__main__":
 
         sample_q += np.bincount(act_obs_idxes, weights=returns, minlength=n_oa)
 
-        vars = (rewards + amdp.gamma * analytical_v0_vals[next_obs] - analytical_q0_vals[actions, obs])**2
+        one_step_returns = rewards + amdp.gamma * analytical_v0_vals[next_obs]
+        vars = (one_step_returns - analytical_q0_vals[actions, obs])**2
         var_q += np.bincount(act_obs_idxes, weights=vars, minlength=n_oa)
 
-        mse = (analytical_q0_vals[actions, obs] - returns)**2
+        mse = (one_step_returns - returns)**2
         mse_q += np.bincount(act_obs_idxes, weights=mse, minlength=n_oa)
 
     denom = all_act_obs_counts + (all_act_obs_counts == 0)

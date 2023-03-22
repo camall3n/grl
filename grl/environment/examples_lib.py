@@ -704,11 +704,8 @@ def tmaze_5_two_thirds_up_fully_observable():
     T, R, discount, p0, phi = tmaze(n, discount=discount)
     phi_fully_observable = np.eye(T.shape[-1])
 
-    pi = np.zeros((T.shape[-1], 4))
-    pi[:, 2] = 1
-    pi[-2, :] = 0
-    pi[-2, 0] = 2 / 3
-    pi[-2, 1] = 1 / 3
+    pi_obs = np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    pi = phi @ pi_obs
 
     Pi_phi = [pi]
 
