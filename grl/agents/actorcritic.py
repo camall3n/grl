@@ -82,7 +82,7 @@ class ActorCritic:
 
     def reset_memory_state(self):
         self.memory = 0
-        self.prev_action = None
+        self.prev_memory = None
 
     def reset_value_functions(self):
         self.q_mc.reset()

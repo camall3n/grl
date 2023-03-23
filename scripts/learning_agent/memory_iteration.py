@@ -1,27 +1,54 @@
 import argparse
 import os
+from pathlib import Path
+from typing import Union
+from jax.config import config
 
 import numpy as np
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
+from grl.mdp import AbstractMDP, MDP
+from grl.memory import memory_cross_product
+from grl.utils.file_system import numpyify_and_save
+from grl.utils.policy_eval import lstdq_lambda
 
 cast_as_int = lambda x: int(float(x))
 
 def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
-    info = {}
-    agent_info = {'q0': agent.q_td.q, 'q1': agent.q_mc.q}
     pi = agent.policy_probs
+    info = {'lambda_0': agent.lambda_0, 'lambda_1': agent.lambda_1, 'policy_probs': pi.copy()}
+
+    sample_based_info = {'q0': agent.q_td.q, 'q1': agent.q_mc.q}
+
     if agent.n_mem_entries > 0:
         amdp = memory_cross_product(agent.memory_logits, amdp)
-    
+        info['memory_probs'] = agent.memory_probs.copy()
+
+        # save previous memory, reset and step through all obs and actions
+        all_obs, all_actions = agent.replay.retrieve(fields=['obs', 'action'])
+        agent.reset_memory_state()
+
+        memories = []
+        for obs, action in zip(all_obs, all_actions):
+            memories.append(agent.memory)
+            agent.step_memory(obs, action)
+
+        sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(all_obs, all_actions, memories)
+
     lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
     lstd_v1, lstd_q1, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
+    analytical_info = {'q0': lstd_q0, 'q1': lstd_q1}
+
+    info['sample_based'] = sample_based_info
+    info['analytical'] = analytical_info
 
     return info
 
+def log_and_save_info(agent: ActorCritic, amdp: AbstractMDP, save_path: Union[Path, str]):
+    info = log_info(agent, amdp)
+    numpyify_and_save(save_path, info)
 
 def parse_args():
     # yapf: disable
@@ -42,7 +69,7 @@ def parse_args():
     parser.add_argument('--n_samples_per_policy', type=int, default=2e6)
     parser.add_argument('--min_mem_opt_replay_size', type=int, default=2e6,
         help="Minimum number of experiences in replay buffer for memory optimization")
-    parser.add_argument('--use_min_replay_num_samples', action='store_true')
+    # parser.add_argument('--use_min_replay_num_samples', action='store_true')
     parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
@@ -149,14 +176,16 @@ def get_n_workers(n_tasks, args):
     return n_workers
 
 def main():
+    config.update('jax_platform_name', 'cpu')
     np.set_printoptions(suppress=True)
 
     args = parse_args()
-    if args.use_min_replay_num_samples:
-        args.min_mem_opt_replay_size = args.replay_buffer_size
+    # if args.use_min_replay_num_samples:
+    #     args.min_mem_opt_replay_size = args.replay_buffer_size
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
+
     agent = ActorCritic(
         n_obs=env.n_obs,
         n_actions=env.n_actions,
@@ -172,6 +201,7 @@ def main():
         override_mem_eval_with_analytical_env=env if args.analytical_mem_eval else None,
     )
     info = {'args': args.__dict__}
+
     if args.load_policy:
         policy = spec['Pi_phi'][0]
         if args.policy_junction_up_prob is not None:
@@ -184,20 +214,19 @@ def main():
         agent.set_policy(policy, logits=False) # policy over non-memory observations
     else:
         agent.reset_policy()
-    info['initial_policy'] = agent.policy_probs.copy()
 
     if not args.load_policy:
         optimize_policy(agent, env, args)
 
     agent.add_memory()
     agent.reset_memory()
-    info['initial_memory'] = agent.memory_probs.copy()
 
     while len(agent.replay) < args.min_mem_opt_replay_size:
         converge_value_functions(agent, env, args.n_samples_per_policy)
-    info['initial_memory_value_functions'] = {'0': agent.q_td.q.copy(), '1': agent.q_mc.q.copy()}
 
-    info['initial_discrep'] = agent.evaluate_memory()
+    initial_mem_info_path = agent.study_dir + '/initial_mem_info.pkl'
+    log_and_save_info(agent, env, initial_mem_info_path)
+
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
@@ -229,10 +258,9 @@ def main():
         while len(agent.replay) < args.min_mem_opt_replay_size:
             converge_value_functions(agent, env, args.n_samples_per_policy)
 
+        mem_iter_info_path = agent.study_dir + f'/mem_iter_{n_mem_iterations}_info.pkl'
+        log_and_save_info(agent, env, mem_iter_info_path)
 
-    # if not args.load_policy:
-    #     agent.reset_policy()
-    #     optimize_policy(agent, env, mode='mc', args=args)
 
     print('Final memory:')
     print(agent.memory_probs.round(3))
