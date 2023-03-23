@@ -10,6 +10,18 @@ from grl.agents.actorcritic import ActorCritic
 
 cast_as_int = lambda x: int(float(x))
 
+def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
+    info = {}
+    agent_info = {'q0': agent.q_td.q, 'q1': agent.q_mc.q}
+    pi = agent.policy_probs
+    if agent.n_mem_entries > 0:
+        amdp = memory_cross_product(agent.memory_logits, amdp)
+
+    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
+    lstd_v1, lstd_q1, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
+
+    return info
+
 def parse_args():
     # yapf: disable
     parser = argparse.ArgumentParser()
@@ -26,8 +38,8 @@ def parse_args():
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)
-    parser.add_argument('--n_episodes_per_policy', type=int, default=200000)
-    parser.add_argument('--min_mem_opt_replay_size', type=int, default=1e5,
+    parser.add_argument('--n_samples_per_policy', type=int, default=2e6)
+    parser.add_argument('--min_mem_opt_replay_size', type=int, default=2e6,
         help="Minimum number of experiences in replay buffer for memory optimization")
     parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
@@ -41,20 +53,25 @@ def parse_args():
 
 def converge_value_functions(agent: ActorCritic,
                              env,
-                             n_episodes,
+                             n_samples,
                              mode='td',
                              reset_before_converging=False,
                              update_policy=False):
     if reset_before_converging:
         agent.reset_value_functions()
-    for i in trange(n_episodes):
+
+    pbar = tqdm(total=n_samples)
+    total_samples = 0
+    while total_samples < n_samples:
         agent.reset_memory_state()
         obs, _ = env.reset()
         action = agent.act(obs)
         terminal = False
+        eps_length = 0
         while not terminal:
             agent.step_memory(obs, action)
             next_obs, reward, terminal, _, _ = env.step(action)
+            eps_length += 1
             next_action = agent.act(next_obs)
 
             experience = {
@@ -74,6 +91,8 @@ def converge_value_functions(agent: ActorCritic,
 
         if update_policy:
             agent.update_actor(mode=mode, argmax_type='hardmax')
+        pbar.update(eps_length)
+        total_samples += eps_length
 
     # td_v0s = []
     # mc_v0s = []
@@ -96,7 +115,7 @@ def optimize_policy(agent: ActorCritic, env, mode='td', args=parse_args()):
         print('Q(MC):\n', agent.q_mc.q.T.round(5))
         converge_value_functions(agent,
                                  env,
-                                 args.n_episodes_per_policy,
+                                 args.n_samples_per_policy,
                                  mode=mode,
                                  reset_before_converging=True,
                                  update_policy=True)
@@ -166,8 +185,13 @@ def main():
 
     agent.add_memory()
     agent.reset_memory()
-    converge_value_functions(agent, env, args.n_episodes_per_policy)
-    discrep_start = agent.evaluate_memory()
+    info['initial_memory'] = agent.memory_probs.copy()
+
+    while len(agent.replay) < args.min_mem_opt_replay_size:
+        converge_value_functions(agent, env, args.n_samples_per_policy)
+    info['initial_memory_value_functions'] = {'0': agent.q_td.q.copy(), '1': agent.q_mc.q.copy()}
+
+    info['initial_discrep'] = agent.evaluate_memory()
     required_params = list(agent.memory_probs[:, :, :, :-1].flatten())
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
@@ -198,6 +222,9 @@ def main():
         print()
         print('Policy:')
         print(agent.policy_probs)
+
+        while len(agent.replay) < args.min_mem_opt_replay_size:
+            converge_value_functions(agent, env, args.n_samples_per_policy)
 
     # if not args.load_policy:
     #     agent.reset_policy()
