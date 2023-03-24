@@ -216,7 +216,7 @@ def main():
         agent.reset_policy()
 
     if not args.load_policy:
-        optimize_policy(agent, env, args)
+        optimize_policy(agent, env, args=args)
 
     agent.add_memory()
     agent.reset_memory()
