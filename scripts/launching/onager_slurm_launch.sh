@@ -2,9 +2,9 @@ cd ../../
 
 onager launch \
     --backend slurm \
-    --jobname tmaze_sweep_eps_leaky \
-    --tasks-per-node 4 \
+    --jobname sample_based_tmaze_sweep_eps \
     --mem 3 \
-    --cpus 5 \
-    --duration 0-01:00:00 \
+    --cpus 3 \
+    --duration 1-00:00:00 \
     --venv venv \
+#    --tasks-per-node 4 \
