@@ -54,7 +54,7 @@ def generate_onager_runs(run_dicts: List[dict],
                     arg_string = f"+arg --{k} {' '.join(map(str, v))}"
                 arg_list.append(arg_string)
 
-        command += f" --experiment_name {experiment_name}"
+        command += f" --study_name {experiment_name}"
 
         prelaunch_list.append(f'+command "{command}"')
         prelaunch_list += arg_list

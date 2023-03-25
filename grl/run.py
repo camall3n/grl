@@ -68,7 +68,7 @@ if __name__ == '__main__':
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--log', action='store_true',
         help='save output to logs/')
-    parser.add_argument('--experiment_name', default=None, type=str,
+    parser.add_argument('--study_name', default=None, type=str,
         help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
     parser.add_argument('--platform', default='cpu', type=str,
                         help='What platform do we run things on? (cpu | gpu)')
