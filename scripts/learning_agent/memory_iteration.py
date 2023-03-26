@@ -59,9 +59,9 @@ def parse_args():
     parser.add_argument('--max_jobs', type=int, default=None)
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
-    parser.add_argument('--policy_epsilon', type=float, default=None)
+    parser.add_argument('--policy_epsilon', type=float, default=0.1)
     parser.add_argument('--lambda0', type=float, default=0.0)
-    parser.add_argument('--lambda1', type=float, default=0.99999)
+    parser.add_argument('--lambda1', type=float, default=0.99)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--n_memory_trials', type=int, default=500)
@@ -279,6 +279,10 @@ def main():
         'initial_discrep': discrep_start,
         'final_discrep': study.best_value,
         'policy_up_prob': args.policy_junction_up_prob,
+        'final_memory_value_function': {
+            '0': agent.q_td.q.copy(),
+            '1': agent.q_mc.q.copy()
+        },
         'policy_epsilon': args.policy_epsilon,
     }
     np.save(agent.study_dir + '/info.npy', info)
