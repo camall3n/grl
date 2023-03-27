@@ -28,7 +28,8 @@ planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2022-11-
 learning_up_prob_filename = 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'
 planning_eps_filename = 'results/analytical/tmaze_sweep_eps_uniform_2023-03-07'
 # learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
-learning_eps_filename = 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'
+learning_eps_oracle_filename = 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'
+learning_eps_filename = 'results/sample_based/sweep-eps-06/tmaze_5_two_thirds_up/*'
 
 #%%
 def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: bool = False):
@@ -129,13 +130,18 @@ def load_sampled_results(pathname: str, use_epsilon: bool = False):
         if not os.path.exists(results_file):
             continue
         info = load_info(results_file)
+
         final_mem_params = info['final_params']
         is_optimal, mem_info = test_mem_matrix(final_mem_params, test_preserving=use_epsilon)
+        try:
+            initial_discrep = info['initial_discrep']
+        except KeyError:
+            initial_discrep = load_info(results_dir + '/initial_mem_info.pkl.npy')['sample_based']['discrepancy_loss']
         result = {
             'policy_up_prob': info['policy_up_prob'],
             'policy_epsilon': info['policy_epsilon'] if 'policy_epsilon' in info else np.nan,
             'trial_id': os.path.basename(results_dir).split('__')[0].split('_')[-1],
-            'initial_discrep': float(info['initial_discrep']),
+            'initial_discrep': float(initial_discrep),
             'final_discrep': float(info['final_discrep']),
             'is_optimal': is_optimal
         }
@@ -267,8 +273,27 @@ plot_sweep(learning_data, ax=axes[1], title='Learning Agent', add_colorbar=True)
 
 #%%
 planning_data = load_analytical_results(pathname=planning_eps_filename, use_epsilon=True)
+learning_data_oracle = load_sampled_results(pathname=learning_eps_oracle_filename)
 learning_data = load_sampled_results(learning_eps_filename)
 
+fig, axes = plt.subplots(1, 3, figsize=(12, 5), sharey=True, sharex=True)
+plot_sweep(planning_data,
+           ax=axes[0],
+           x='policy_epsilon',
+           title='SGD (analytical)',
+           add_colorbar=False)
+plot_sweep(learning_data_oracle,
+          ax=axes[1],
+          x='policy_epsilon',
+          title='Optuna (oracle)',
+          add_colorbar=False)
+plot_sweep(learning_data,
+           ax=axes[2],
+           x='policy_epsilon',
+           title='Optuna (sampled)',
+           add_colorbar=True)
+
+#%%
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 plot_sweep(planning_data,
            ax=axes[0],
