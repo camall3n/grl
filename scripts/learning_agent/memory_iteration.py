@@ -32,11 +32,11 @@ def parse_args():
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)
-    parser.add_argument('--n_samples_per_policy', type=int, default=2e6)
-    parser.add_argument('--min_mem_opt_replay_size', type=int, default=2e6,
+    parser.add_argument('--n_samples_per_policy', type=int, default=1e7)
+    parser.add_argument('--min_mem_opt_replay_size', type=int, default=1e7,
         help="Minimum number of experiences in replay buffer for memory optimization")
     # parser.add_argument('--use_min_replay_num_samples', action='store_true')
-    parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
+    parser.add_argument('--replay_buffer_size', type=cast_as_int, default=2e7)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     parser.add_argument('--discrep_loss', type=str, default='mse', choices=['abs', 'mse'])
