@@ -137,15 +137,15 @@ def converge_value_functions(agent: ActorCritic,
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
 
-def optimize_policy(agent: ActorCritic, env, mode='td', args=parse_args()):
-    for i in tqdm(range(args.n_policy_iterations)):
+def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_policy, mode='td'):
+    for i in tqdm(range(n_policy_iterations)):
         print(f'Policy iteration: {i}')
         print('Policy:\n', agent.policy_probs.round(4))
         print('Q(TD):\n', agent.q_td.q.T.round(5))
         print('Q(MC):\n', agent.q_mc.q.T.round(5))
         converge_value_functions(agent,
                                  env,
-                                 args.n_samples_per_policy,
+                                 n_samples=n_samples_per_policy,
                                  mode=mode,
                                  reset_before_converging=True,
                                  update_policy=True)
@@ -217,7 +217,7 @@ def main():
         agent.reset_policy()
 
     if not args.load_policy:
-        optimize_policy(agent, env, args=args)
+        optimize_policy(agent, env, args.n_policy_iterations, args.n_samples_per_policy)
 
     agent.add_memory()
     agent.reset_memory()
@@ -251,7 +251,7 @@ def main():
 
         if not args.load_policy:
             agent.reset_policy()
-            optimize_policy(agent, env, args=args)
+            optimize_policy(agent, env, args.n_policy_iterations, args.n_samples_per_policy)
 
         print('Memory:')
         print(agent.memory_probs.round(3))
