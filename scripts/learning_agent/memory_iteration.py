@@ -225,6 +225,7 @@ def main():
     while len(agent.replay) < args.min_mem_opt_replay_size:
         converge_value_functions(agent, env, args.n_samples_per_policy)
 
+    discrep_start = agent.evaluate_memory()
     initial_mem_info_path = agent.study_dir + '/initial_mem_info.pkl'
     log_and_save_info(agent, env, initial_mem_info_path)
 
