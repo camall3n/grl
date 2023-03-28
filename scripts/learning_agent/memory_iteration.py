@@ -163,8 +163,8 @@ def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
         sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(
             all_obs, all_actions, memories)
 
-    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
-    lstd_v1, lstd_q1, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
+    lstd_v0, lstd_q0 = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
+    lstd_v1, lstd_q1 = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
     analytical_info = {'q0': lstd_q0, 'q1': lstd_q1}
 
     info['sample_based'] = sample_based_info
