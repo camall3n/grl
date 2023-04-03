@@ -83,6 +83,6 @@ if __name__ == "__main__":
         pairs = hparams['pairs']
 
     exp_name = args.hparam
-    if args.experiment_name is not None:
-        exp_name = args.experiment_name
+    if args.study_name is not None:
+        exp_name = args.study_name
     generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname)

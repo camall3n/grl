@@ -241,6 +241,8 @@ class AnalyticalAgent:
         self.pg_objective_func = jit(pg_objective_func)
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
 
+        if 'optim_str' not in state:
+            state['optim_str'] = 'sgd'
         self.pi_optim = get_optimizer(state['optim_str'], state['pi_lr'])
         if hasattr(self, 'mem_params'):
             self.mi_optim = get_optimizer(state['optim_str'], state['mi_lr'])

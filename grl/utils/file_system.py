@@ -14,8 +14,8 @@ def results_path(args: Namespace):
     args_hash = make_hash_md5(args.__dict__)
     time_str = time.strftime("%Y%m%d-%H%M%S")
 
-    if args.experiment_name is not None:
-        results_dir /= args.experiment_name
+    if args.study_name is not None:
+        results_dir /= args.study_name
     results_dir.mkdir(exist_ok=True)
     results_path = results_dir / f"{args.spec}_seed({args.seed})_time({time_str})_{args_hash}.npy"
     return results_path
