@@ -36,17 +36,19 @@ if __name__ == "__main__":
     mem_params = spec['mem_params']
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
-    mem_aug_mdp = memory_cross_product(mem_params, amdp)
+    mem_aug_amdp = memory_cross_product(mem_params, amdp)
 
-    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=lambda_)
-    mem_lstd_v0, mem_lstd_q0, _ = lstdq_lambda(mem_aug_pi, mem_aug_mdp, lambda_=lambda_)
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_)
 
-    undisc_mdp = MDP(amdp.T, amdp.R, amdp.p0, lambda_)
-    undisc_amdp = AbstractMDP(undisc_mdp, amdp.phi)
+    # undisc_mdp = MDP(amdp.T, amdp.R, amdp.p0, lambda_)
+    # undisc_amdp = AbstractMDP(undisc_mdp, amdp.phi)
+    # # undisc_amdp = amdp
+    #
+    # undisc_mem_aug_amdp = memory_cross_product(mem_params, undisc_amdp)
 
-    undisc_mem_aug_amdp = memory_cross_product(mem_params, undisc_amdp)
-
-    counts_mem_aug_flat_obs = amdp_get_occupancy(mem_aug_pi, undisc_mem_aug_amdp) @ undisc_mem_aug_amdp.phi
+    # counts_mem_aug_flat_obs = amdp_get_occupancy(mem_aug_pi, undisc_mem_aug_amdp) @ undisc_mem_aug_amdp.phi
+    counts_mem_aug_flat_obs = mem_lstd_info['occupancy'] @ mem_aug_amdp.phi
     counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs, mem_aug_pi).T  # A x OM
 
     counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, 2)  # A x O x M
@@ -58,7 +60,7 @@ if __name__ == "__main__":
 
     mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1])
     reformed_q0 = (mem_lstd_q0_unflat * prob_mem_given_oa).sum(axis=-1)
-    diff = reformed_q0 - lstd_q0
+    assert jnp.allclose(reformed_q0[:, :-1], lstd_q0[:, :-1])
     print("")
 
 

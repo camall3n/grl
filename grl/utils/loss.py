@@ -30,7 +30,7 @@ def discrep_loss(pi: jnp.ndarray, amdp: AbstractMDP,  # non-state args
 
     c_s = info['occupancy']
     # set terminal counts to 0
-    c_s = c_s.at[4:].set(0)
+    c_s = c_s.at[-2:].set(0)
     c_o = c_s @ amdp.phi
     count_o = c_o / c_o.sum()
 
@@ -70,6 +70,11 @@ def mem_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP
     loss, _, _ = discrep_loss(pi, mem_aug_amdp, value_type, error_type, lambda_0=lambda_0, lambda_1=lambda_1,
                               alpha=alpha, flip_count_prob=flip_count_prob)
     return loss
+
+def mem_obs_discrep_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
+                         value_type: str = 'q', error_type: str = 'l2',
+                         lambda_0: float = 0., lambda_1: float = 1., alpha: float = 1.,
+                         flip_count_prob: bool = False):
 
 def policy_discrep_loss(pi_params: jnp.ndarray, amdp: AbstractMDP,
                         value_type: str = 'q', error_type: str = 'l2',
