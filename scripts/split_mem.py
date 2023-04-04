@@ -10,9 +10,6 @@ from grl.mdp import MDP, AbstractMDP
 from grl.utils.mdp import amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
 
-def bring_back_mem_dim(arr: jnp.ndarray):
-    pass
-
 if __name__ == "__main__":
 
     config.update('jax_platform_name', 'cpu')
