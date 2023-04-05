@@ -7,8 +7,10 @@ hparams = {
         f'runs_{exp_name}.txt',
     'args': [{
         'spec': [
-            'tiger-alt-start', 'network',
-            'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95', 'network',
+            'tiger-alt-start',
+            'network',
+            'tmaze_5_two_thirds_up',
+            'example_7', '4x3.95', 'cheese.95', 'network',
             'shuttle.95',
             'paint.95'
         ],
@@ -19,7 +21,6 @@ hparams = {
         'objective': 'obs_space',
         'mi_steps': 20000,
         'pi_steps': 10000,
-        'init_pi': 0,
         'optimizer': 'adam',
         'lr': 0.01,
         'use_memory': 0,
@@ -35,7 +36,6 @@ hparams = {
         'objective': 'obs_space',
         'mi_steps': 2000,
         'pi_steps': 1000,
-        'init_pi': 0,
         'optimizer': 'adam',
         'lr': 0.01,
         'use_memory': 0,

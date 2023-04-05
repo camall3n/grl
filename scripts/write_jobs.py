@@ -64,7 +64,7 @@ def generate_runs(run_dicts: List[dict],
                     run_string += f" --{k} {v}"
 
             if experiment_name is not None:
-                run_string += f" --experiment_name {experiment_name}"
+                run_string += f" --study_name {experiment_name}"
 
             run_string += "\n"
             f.write(run_string)
