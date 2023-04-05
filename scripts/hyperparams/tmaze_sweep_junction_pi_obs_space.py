@@ -10,7 +10,7 @@ hparams = {
         'spec': 'tmaze_eps_hyperparams',
         'tmaze_corridor_length': 5,
         'tmaze_discount': 0.9,
-        'tmaze_junction_up_pi': np.linspace(0, 1, num=26),
+        'tmaze_junction_up_pi': np.linspace(0, 0.5, num=26),
         'use_memory': '0',
         'value_type': 'q',
         'lambda_0': 0.,
