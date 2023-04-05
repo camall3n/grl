@@ -7,11 +7,9 @@ import jax.numpy as jnp
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.mdp import amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
 
-if __name__ == "__main__":
-
+def test_split_mem():
     config.update('jax_platform_name', 'cpu')
 
     spec_name = "tmaze_eps_hyperparams"
@@ -61,6 +59,7 @@ if __name__ == "__main__":
     mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1])
     reformed_q0 = (mem_lstd_q0_unflat * prob_mem_given_oa).sum(axis=-1)
     assert jnp.allclose(reformed_q0[:, :-1], lstd_q0[:, :-1])
-    print("")
 
+if __name__ == "__main__":
+    test_split_mem()
 
