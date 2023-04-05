@@ -9,7 +9,7 @@ import optax
 
 from grl.mdp import AbstractMDP
 from grl.utils.loss import policy_discrep_loss, pg_objective_func
-from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, mem_obs_discrep_loss
+from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init
 from grl.utils.optimizer import get_optimizer
 from grl.vi import policy_iteration_step
@@ -115,8 +115,8 @@ class AnalyticalAgent:
         if hasattr(self, 'objective'):
             if self.objective == 'magnitude':
                 mem_loss_fn = mem_magnitude_td_loss
-            elif self.objective == 'mem_obs':
-                mem_loss_fn = mem_obs_discrep_loss
+            elif self.objective == 'obs_space':
+                mem_loss_fn = obs_space_mem_discrep_loss
 
         partial_mem_discrep_loss = partial(mem_loss_fn,
                                            value_type=self.val_type,
