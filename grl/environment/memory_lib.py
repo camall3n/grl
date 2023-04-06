@@ -343,3 +343,5 @@ mem_18 = np.array([
     ],
 ])
 memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left
+
+memory_19 = np.zeros_like(memory_18) + 1 / memory_18.shape[-1]

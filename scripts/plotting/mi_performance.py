@@ -19,12 +19,12 @@ from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_flip_count')
+results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
-vi_results_dir = Path(ROOT_DIR, 'results', 'pomdps_vi')
+vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
-args_to_keep = ['spec', 'algo', 'n_mem_states', 'seed']
+args_to_keep = ['spec', 'n_mem_states', 'seed']
 split_by = [arg for arg in args_to_keep if arg != 'seed']
 
 # this option allows us to compare to either the optimal belief state soln
@@ -36,7 +36,7 @@ compare_to = 'belief'
 #                    'network', 'shuttle.95', '4x3.95']
 spec_plot_order = [
     'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
-    'shuttle.95', '4x3.95'
+    'shuttle.95', '4x3.95', 'hallway'
 ]
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
@@ -46,9 +46,9 @@ spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 compare_to_list = []
 
 # if compare_to == 'belief':
-for fname in pomdp_files_dir.iterdir():
-    if 'pomdp-solver-results' in fname.stem:
-        for spec in spec_plot_order:
+for spec in spec_plot_order:
+    for fname in pomdp_files_dir.iterdir():
+        if 'pomdp-solver-results' in fname.stem:
             if (fname.stem ==
                     f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
                 ):
@@ -60,18 +60,20 @@ for fname in pomdp_files_dir.iterdir():
                     'compare_perf': np.dot(max_start_vals, belief_info['p0'])
                 }
                 compare_to_list.append(spec_compare_indv)
+                break
                 # print(f"loaded results for {hparams.spec} from {fname}")
+    else:
+        for vi_path in vi_results_dir.iterdir():
+            for spec in spec_plot_order:
+                if spec_to_belief_state.get(spec, spec) in vi_path.name:
+                    vi_info = load_info(vi_path)
+                    spec_compare_indv = {
+                        'spec': spec,
+                        'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+                    }
+                    compare_to_list.append(spec_compare_indv)
 
 # elif compare_to == 'state':
-#     for vi_path in vi_results_dir.iterdir():
-#         for spec in spec_plot_order:
-#             if spec_to_belief_state.get(spec, spec) in vi_path.name:
-#                 vi_info = load_info(vi_path)
-#                 spec_compare_indv = {
-#                     'spec': spec,
-#                     'compare_perf': np.dot(max_start_vals, belief_info['p0'])
-#                 }
-#                 compare_to_list.append(spec_compare_indv)
 # else:
 #     raise NotImplementedError
 
@@ -118,63 +120,70 @@ merged_df = all_res_df.merge(compare_to_df, on='spec')
 
 # for col_name in cols_to_normalize:
 
+normalized_df = merged_df.copy()
+normalized_df['init_improvement_perf'] = (normalized_df['init_improvement_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
+normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
+del normalized_df['init_policy_perf']
+del normalized_df['compare_perf']
 
 
 # all_normalized_perf_results = {}
-for hparams, res in all_results.items():
-    max_key = 'compare_perf'
-    # if max_key not in res:
-    #     max_key = 'final_mem_perf'
-    max_v = res[max_key]
-    min_v = res['init_policy_perf']
-    for k, v in res.items():
-        if '_perf' in k:
-            all_results[hparams][k] = (v - min_v) / (max_v - min_v)
+# for hparams, res in all_results.items():
+#     max_key = 'compare_perf'
+#     # if max_key not in res:
+#     #     max_key = 'final_mem_perf'
+#     max_v = res[max_key]
+#     min_v = res['init_policy_perf']
+#     for k, v in res.items():
+#         if '_perf' in k:
+#             all_results[hparams][k] = (v - min_v) / (max_v - min_v)
+# %%
+normalized_df.groupby(split_by).mean()
 # %%
 
-all_table_results = {}
-all_plot_results = {'x': [], 'xlabels': []}
-
-for i, spec in enumerate(spec_plot_order):
-    hparams = sorted([k for k in all_results.keys() if k.spec == spec],
-                     key=lambda hp: hp.n_mem_states)
-
-    first_res = all_results[hparams[0]]
-    all_plot_results['x'].append(i)
-    all_plot_results['xlabels'].append(spec)
-
-    # we first add initial and first improvement stats
-    for k, v in first_res.items():
-        if 'perf' in k and k != 'final_mem_perf':
-            mean = v.mean(axis=0)
-            std_err = v.std(axis=0) / np.sqrt(v.shape[0])
-
-            stripped_str = k.replace('_perf', '')
-            if stripped_str not in all_plot_results:
-                all_plot_results[stripped_str] = {'mean': [], 'std_err': []}
-            all_plot_results[stripped_str]['mean'].append(mean)
-            all_plot_results[stripped_str]['std_err'].append(std_err)
-
-    # now we add final memory perf, for each n_mem_states
-    for hparam in hparams:
-        res = all_results[hparam]
-        for k, v in res.items():
-            if k == 'final_mem_perf':
-                mean = v.mean(axis=0)
-                std_err = v.std(axis=0) / np.sqrt(v.shape[0])
-                stripped_str = k.replace('_perf', '')
-                mem_label = f"mem, |ms| = {hparam.n_mem_states}"
-                if mem_label not in all_plot_results:
-                    all_plot_results[mem_label] = {'mean': [], 'std_err': []}
-                all_plot_results[mem_label]['mean'].append(mean)
-                all_plot_results[mem_label]['std_err'].append(std_err)
-
-ordered_plot = []
-# ordered_plot.append(('init_policy', all_plot_results['init_policy']))
-ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
-for k in sorted(all_plot_results.keys()):
-    if 'mem' in k:
-        ordered_plot.append((k, all_plot_results[k]))
+# all_table_results = {}
+# all_plot_results = {'x': [], 'xlabels': []}
+#
+# for i, spec in enumerate(spec_plot_order):
+#     hparams = sorted([k for k in all_results.keys() if k.spec == spec],
+#                      key=lambda hp: hp.n_mem_states)
+#
+#     first_res = all_results[hparams[0]]
+#     all_plot_results['x'].append(i)
+#     all_plot_results['xlabels'].append(spec)
+#
+#     # we first add initial and first improvement stats
+#     for k, v in first_res.items():
+#         if 'perf' in k and k != 'final_mem_perf':
+#             mean = v.mean(axis=0)
+#             std_err = v.std(axis=0) / np.sqrt(v.shape[0])
+#
+#             stripped_str = k.replace('_perf', '')
+#             if stripped_str not in all_plot_results:
+#                 all_plot_results[stripped_str] = {'mean': [], 'std_err': []}
+#             all_plot_results[stripped_str]['mean'].append(mean)
+#             all_plot_results[stripped_str]['std_err'].append(std_err)
+#
+#     # now we add final memory perf, for each n_mem_states
+#     for hparam in hparams:
+#         res = all_results[hparam]
+#         for k, v in res.items():
+#             if k == 'final_mem_perf':
+#                 mean = v.mean(axis=0)
+#                 std_err = v.std(axis=0) / np.sqrt(v.shape[0])
+#                 stripped_str = k.replace('_perf', '')
+#                 mem_label = f"mem, |ms| = {hparam.n_mem_states}"
+#                 if mem_label not in all_plot_results:
+#                     all_plot_results[mem_label] = {'mean': [], 'std_err': []}
+#                 all_plot_results[mem_label]['mean'].append(mean)
+#                 all_plot_results[mem_label]['std_err'].append(std_err)
+#
+# ordered_plot = []
+# # ordered_plot.append(('init_policy', all_plot_results['init_policy']))
+# ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
+# for k in sorted(all_plot_results.keys()):
+#     if 'mem' in k:
+#         ordered_plot.append((k, all_plot_results[k]))
 # ordered_plot.append(('state_optimal', all_plot_results['vi']))
 
 # %%
@@ -194,19 +203,30 @@ def maybe_spec_map(id: str):
         return id
     return spec_map[id]
 
+groups = normalized_df.groupby(split_by, as_index=False)
+means = groups.mean()
+std_errs = groups.std()
+num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
+
 group_width = 1
-bar_width = group_width / (len(ordered_plot) + 2)
+bar_width = group_width / (len(num_n_mem) + 2)
 fig, ax = plt.subplots(figsize=(12, 6))
 
-x = np.array(all_plot_results['x'])
-xlabels = [maybe_spec_map(l) for l in all_plot_results['xlabels']]
+x = np.arange(len(means))
+xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
 
-for i, (label, plot_dict) in enumerate(ordered_plot):
-    ax.bar(x + (i + 1) * bar_width,
-           plot_dict['mean'],
+ax.bar(x + (0 + 1) * bar_width,
+       means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
+       bar_width,
+       yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
+       label='Memoryless')
+
+for i, n_mem_states in enumerate(num_n_mem):
+    ax.bar(x + (i + 2) * bar_width,
+           means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
            bar_width,
-           yerr=plot_dict['std_err'],
-           label=label)
+           yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
+           label=f"{int(np.log(n_mem_states))} Memory Bits")
 ax.set_ylim([0, 1])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
@@ -217,4 +237,3 @@ ax.set_title("Performance of Memory Iteration in POMDPs")
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
 fig.savefig(fig_path)
-args

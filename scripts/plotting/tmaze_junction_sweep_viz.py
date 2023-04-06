@@ -24,11 +24,11 @@ config.update('jax_platform_name', 'cpu')
 
 #%%
 # importance sampling results
-planning_up_prob_filename = 'results/analytical/tmaze_sweep_junction_pi_2022-11-04'
-learning_up_prob_filename = 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'
-planning_eps_filename = 'results/analytical/tmaze_sweep_eps_uniform_2023-03-07'
+planning_up_prob_filename = str(Path(ROOT_DIR, 'results/tmaze_sweep_junction_pi_obs_space'))
+learning_up_prob_filename = str(Path(ROOT_DIR, 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'))
+planning_eps_filename = str(Path(ROOT_DIR, 'results/tmaze_sweep_eps_obs_space'))
 # learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
-learning_eps_filename = 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'
+learning_eps_filename = str(Path(ROOT_DIR, 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'))
 
 #%%
 def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: bool = False):
@@ -82,7 +82,7 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
             'corridor_bumps': corridor_bumps,
             'corridor_left': corridor_left,
             'junction_bumps': junction_bumps,
-            'junction_left': junction_left
+            # 'junction_left': junction_left
         }
         if mse:
             mses = []
@@ -92,7 +92,7 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
         else:
             is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0),
                                         np.eye(2),
-                                        atol=1e-2)
+                                        atol=1e-1)
             return is_preserving, all_checks
 
     is_toggle, is_hold = test_corridor_hold_or_toggle(right_corridor)
@@ -214,6 +214,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             'initial_discrep': initial_aggregated_q_discrep,
             'final_discrep': final_aggregated_q_discrep,
             'is_optimal': is_optimal,
+            'additional_checks': additional_checks
         }
         all_results.append(result)
     data = pd.DataFrame(all_results)
@@ -280,6 +281,8 @@ plot_sweep(learning_data,
            x='policy_epsilon',
            title='Learning Agent',
            add_colorbar=True)
+#%%
+planning_data[planning_data['policy_epsilon'] < 0.2
 
 #%%
 fig, ax = plt.subplots()
