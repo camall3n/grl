@@ -1,7 +1,9 @@
 """
 In this script, we try and figure out how to calculate p(m | o, a)
 """
+import jax
 from jax.config import config
+from jax.nn import softmax
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
@@ -12,6 +14,7 @@ from grl.mdp import MDP, AbstractMDP
 from grl.utils.mdp import amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
 
+from scripts.variance_calcs import collect_episodes
 from definitions import ROOT_DIR
 
 def load_mem_params(agent_path: Path):
@@ -91,6 +94,97 @@ def test_split_mem():
         elif target_lambda == 0:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q0[:, :-1])
 
+def test_sample_based_split_mem():
+    """
+    For testing \hat{v}(o) = \sum_m p(m | h)\hat{v}(o, m)
+    """
+    config.update('jax_platform_name', 'cpu')
+
+    spec_name = "tmaze_eps_hyperparams"
+    corridor_length = 5
+    discount = 0.9
+    junction_up_pi = 1.
+    epsilon = 0.2
+    lambda_0 = 0.
+    lambda_1 = 1.
+    n_episode_samples = 100
+    seed = 2020
+
+    rand_key = jax.random.PRNGKey(seed)
+
+    # mem_funcs = [0, 16]
+    # mem_funcs = [(19, 0), (16, 1)]
+    agent_path = Path(ROOT_DIR, 'results', 'agents', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
+    learnt_mem_params, learnt_agent = load_mem_params(agent_path)
+
+    # for mem, target_lambda in mem_funcs:
+
+    spec = load_spec(spec_name,
+                     # memory_id=str(mem),
+                     memory_id=str(0),
+                     corridor_length=corridor_length,
+                     discount=discount,
+                     junction_up_pi=junction_up_pi,
+                     epsilon=epsilon)
+
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    amdp = AbstractMDP(mdp, spec['phi'])
+
+    pi = spec['Pi_phi'][0]
+    mem_params = spec['mem_params']
+    mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
+
+    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
+
+    mem_probs = softmax(mem_params)
+    learnt_mem_probs = softmax(learnt_mem_params)
+
+    n_mem_states = mem_params.shape[-1]
+
+    print(f"Sampling {n_episode_samples} episodes")
+    sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key)
+
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
+    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+
+    mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(mem_aug_pi, learnt_mem_aug_amdp)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_0)
+    mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_1)
+
+    mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
+    mem_learnt_lstd_v0_unflat = mem_learnt_lstd_v0.reshape(-1, mem_params.shape[-1])
+
+    init_mem_belief = np.zeros(n_mem_states)
+    init_mem_belief[0] = 1.
+    for episode in sampled_episodes:
+        mem_belief = init_mem_belief.copy()
+        learnt_mem_belief = init_mem_belief.copy()
+
+        for i, action in enumerate(episode['actions']):
+            obs = episode['obses'][i]
+            mem_mat = mem_probs[action, obs]
+            learnt_mem_mat = learnt_mem_probs[action, obs]
+
+            mem_belief = mem_belief @ mem_mat
+            learnt_mem_belief = learnt_mem_belief @ mem_mat
+
+            v_obs = lstd_v1[obs]
+            mem_v_obs = mem_lstd_v0_unflat[obs]
+            learnt_mem_v_obs = mem_learnt_lstd_v0_unflat[obs]
+
+            mem_belief_weighted_v_obs = np.dot(mem_v_obs, mem_belief)
+            learnt_mem_belief_weighted_v_obs = np.dot(learnt_mem_v_obs, learnt_mem_belief)
+
+            assert np.isclose(v_obs, mem_belief_weighted_v_obs, atol=1e-3)
+            assert np.isclose(v_obs, learnt_mem_belief_weighted_v_obs, atol=1e-3)
+
+
+
+
+
+
 if __name__ == "__main__":
-    test_split_mem()
+    # test_split_mem()
+    test_sample_based_split_mem()
 
