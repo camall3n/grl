@@ -95,6 +95,37 @@ def test_split_mem():
         elif target_lambda == 0:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q0[:, :-1])
 
+
+@jax.jit
+def calc_episode_vals(episode: dict, init_mem_belief: jnp.ndarray,
+                      mem_probs: jnp.ndarray, learnt_mem_probs: jnp.ndarray,
+                      mem_lstd_v: jnp.ndarray, mem_learnt_lstd_v: jnp.ndarray):
+    mem_belief = init_mem_belief.copy()
+    learnt_mem_belief = init_mem_belief.copy()
+    mem_sampled_v = jnp.zeros(mem_lstd_v.shape[0])
+    learnt_mem_sampled_v = jnp.zeros_like(mem_sampled_v)
+    obs_counts = jnp.zeros_like(mem_sampled_v, dtype=int)
+
+    for i, action in enumerate(episode['actions']):
+        obs = episode['obses'][i]
+        mem_mat = mem_probs[action, obs]
+        learnt_mem_mat = learnt_mem_probs[action, obs]
+
+        mem_belief = mem_belief @ mem_mat
+        learnt_mem_belief = learnt_mem_belief @ learnt_mem_mat
+
+        mem_v_obs = mem_lstd_v[obs]
+        learnt_mem_v_obs = mem_learnt_lstd_v[obs]
+
+        mem_belief_weighted_v_obs = jnp.dot(mem_v_obs, mem_belief)
+        learnt_mem_belief_weighted_v_obs = jnp.dot(learnt_mem_v_obs, learnt_mem_belief)
+
+        mem_sampled_v = mem_sampled_v.at[obs].add(mem_belief_weighted_v_obs)
+        learnt_mem_sampled_v = learnt_mem_sampled_v.at[obs].add(learnt_mem_belief_weighted_v_obs)
+
+        obs_counts = obs_counts.at[obs].add(1)
+    return mem_sampled_v, learnt_mem_sampled_v, obs_counts
+
 def test_sample_based_split_mem():
     """
     For testing \hat{v}(o) = \sum_m p(m | h)\hat{v}(o, m)
@@ -159,36 +190,25 @@ def test_sample_based_split_mem():
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
 
-    mem_sampled_v = np.zeros_like(lstd_v0)
-    learnt_mem_sampled_v = np.zeros_like(mem_sampled_v)
-    obs_counts = np.zeros_like(mem_sampled_v, dtype=int)
+    mem_sampled_v = jnp.zeros_like(lstd_v0)
+    learnt_mem_sampled_v = jnp.zeros_like(mem_sampled_v)
+    obs_counts = jnp.zeros_like(mem_sampled_v, dtype=int)
+
 
     for episode in tqdm(sampled_episodes):
-        mem_belief = init_mem_belief.copy()
-        learnt_mem_belief = init_mem_belief.copy()
 
-        for i, action in enumerate(episode['actions']):
-            obs = episode['obses'][i]
-            mem_mat = mem_probs[action, obs]
-            learnt_mem_mat = learnt_mem_probs[action, obs]
+        ep_mem_sampled_v, ep_learnt_mem_sampled_v, ep_obs_counts = calc_episode_vals(episode, init_mem_belief, mem_probs, learnt_mem_probs,
+                                                                            mem_lstd_v0_unflat, mem_learnt_lstd_v0_unflat)
+        mem_sampled_v += ep_mem_sampled_v
+        learnt_mem_sampled_v += ep_learnt_mem_sampled_v
+        obs_counts += ep_obs_counts
 
-            mem_belief = mem_belief @ mem_mat
-            learnt_mem_belief = learnt_mem_belief @ learnt_mem_mat
-
-            mem_v_obs = mem_lstd_v0_unflat[obs]
-            learnt_mem_v_obs = mem_learnt_lstd_v0_unflat[obs]
-
-            mem_belief_weighted_v_obs = np.dot(mem_v_obs, mem_belief)
-            learnt_mem_belief_weighted_v_obs = np.dot(learnt_mem_v_obs, learnt_mem_belief)
-
-            mem_sampled_v[obs] += mem_belief_weighted_v_obs
-            learnt_mem_sampled_v[obs] += learnt_mem_belief_weighted_v_obs
-
-            obs_counts[obs] += 1
-
-    obs_counts[obs_counts == 0] += 1
+    obs_counts = obs_counts.at[obs_counts == 0].add(1)
     mem_sampled_v /= obs_counts
     learnt_mem_sampled_v /= obs_counts
+
+    assert jnp.allclose(mem_sampled_v, lstd_v0, atol=1e-3)
+    # assert jnp.allclose(learnt_mem_sampled_v, mem_learnt_lstd_v0, atol=1e-3)
     print("hello")
 
 
