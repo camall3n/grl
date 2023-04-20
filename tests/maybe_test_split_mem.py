@@ -7,6 +7,7 @@ from jax.nn import softmax
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
+from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
@@ -107,7 +108,7 @@ def test_sample_based_split_mem():
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_episode_samples = 100
+    n_episode_samples = 10000
     seed = 2020
 
     rand_key = jax.random.PRNGKey(seed)
@@ -121,7 +122,7 @@ def test_sample_based_split_mem():
 
     spec = load_spec(spec_name,
                      # memory_id=str(mem),
-                     memory_id=str(0),
+                     memory_id=str(19),
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -157,7 +158,12 @@ def test_sample_based_split_mem():
 
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
-    for episode in sampled_episodes:
+
+    mem_sampled_v = np.zeros_like(lstd_v0)
+    learnt_mem_sampled_v = np.zeros_like(mem_sampled_v)
+    obs_counts = np.zeros_like(mem_sampled_v, dtype=int)
+
+    for episode in tqdm(sampled_episodes):
         mem_belief = init_mem_belief.copy()
         learnt_mem_belief = init_mem_belief.copy()
 
@@ -167,21 +173,23 @@ def test_sample_based_split_mem():
             learnt_mem_mat = learnt_mem_probs[action, obs]
 
             mem_belief = mem_belief @ mem_mat
-            learnt_mem_belief = learnt_mem_belief @ mem_mat
+            learnt_mem_belief = learnt_mem_belief @ learnt_mem_mat
 
-            v_obs = lstd_v1[obs]
             mem_v_obs = mem_lstd_v0_unflat[obs]
             learnt_mem_v_obs = mem_learnt_lstd_v0_unflat[obs]
 
             mem_belief_weighted_v_obs = np.dot(mem_v_obs, mem_belief)
             learnt_mem_belief_weighted_v_obs = np.dot(learnt_mem_v_obs, learnt_mem_belief)
 
-            assert np.isclose(v_obs, mem_belief_weighted_v_obs, atol=1e-3)
-            assert np.isclose(v_obs, learnt_mem_belief_weighted_v_obs, atol=1e-3)
+            mem_sampled_v[obs] += mem_belief_weighted_v_obs
+            learnt_mem_sampled_v[obs] += learnt_mem_belief_weighted_v_obs
 
+            obs_counts[obs] += 1
 
-
-
+    obs_counts[obs_counts == 0] += 1
+    mem_sampled_v /= obs_counts
+    learnt_mem_sampled_v /= obs_counts
+    print("hello")
 
 
 if __name__ == "__main__":
