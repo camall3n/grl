@@ -1,10 +1,11 @@
+from functools import partial
 import jax.numpy as jnp
-from jax import random, jit
+from jax import random, jit, nn
 from jax.config import config
 import numpy as np
 from pathlib import Path
 from tqdm import trange, tqdm
-from typing import Union
+from typing import Union, List, Tuple
 
 config.update('jax_platform_name', 'cpu')
 
@@ -20,21 +21,45 @@ def act(pi: jnp.ndarray, rand_key: random.PRNGKey):
     action = random.choice(choice_key, pi.shape[-1], p=pi)
     return action, rand_key
 
+@partial(jit, static_argnames=['prev_mems', 'action', 'obs'])
+def mem_act(mem_probses: jnp.ndarray, prev_mems: Tuple[int], action: int, obs: int, rand_key: random.PRNGKey):
+    all_keys = random.split(rand_key, num=len(mem_probses) + 1)
+    mem_keys = all_keys[:-1]
+    rand_key = all_keys[-1]
+    return tuple(random.choice(mem_key, mem_prob.shape[-1], p=mem_prob[action, obs, prev_mems[i]])
+            for i, (mem_key, mem_prob) in enumerate(zip(mem_keys, mem_probses))), rand_key
+
 def collect_episodes(mdp: Union[MDP, AbstractMDP],
                      pi: jnp.ndarray,
                      n_episodes: int,
                      rand_key: random.PRNGKey,
-                     gamma_terminal: bool = False):
+                     gamma_terminal: bool = False,
+                     mem_paramses: List[jnp.ndarray] = None):
     episode_buffer = []
+    mem_probses = None
+    if mem_paramses is not None:
+        mem_probses = [nn.softmax(mem_params, axis=-1) for mem_params in mem_paramses]
 
     for i in trange(n_episodes):
         obs, info = mdp.reset()
+        mem, mems = None, None
+
+        if mem_paramses is not None:
+            mem = tuple([0] * len(mem_paramses))
+            mems = [mem]
+
         done = False
 
         obses, actions, rewards, dones = [obs], [], [], []
         while not done:
             action, rand_key = act(pi[obs], rand_key)
             action = action.item()
+
+            if mem_paramses is not None:
+                mem, rand_key = mem_act(mem_probses, mem, action, obs, rand_key)
+                mem = tuple(m.item() for m in mem)
+                mems.append(mem)
+
             obs, reward, done, truncated, info = mdp.step(action, gamma_terminal=gamma_terminal)
 
             obses.append(obs)
@@ -48,6 +73,8 @@ def collect_episodes(mdp: Union[MDP, AbstractMDP],
             'rewards': np.array(rewards, dtype=float),
             'dones': np.array(dones, dtype=bool)
         }
+        if mem_paramses is not None:
+            episode['memses'] = np.array(mems, dtype=np.uint8)
         episode_buffer.append(episode)
 
     return episode_buffer

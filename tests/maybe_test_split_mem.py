@@ -12,7 +12,6 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.mdp import amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
 
 from scripts.variance_calcs import collect_episodes
@@ -98,16 +97,21 @@ def test_split_mem():
 
 @jax.jit
 def calc_episode_vals(episode: dict, init_mem_belief: jnp.ndarray,
-                      mem_probs: jnp.ndarray, learnt_mem_probs: jnp.ndarray,
-                      mem_lstd_v: jnp.ndarray, mem_learnt_lstd_v: jnp.ndarray):
+                      mem_params: jnp.ndarray, learnt_mem_params: jnp.ndarray,
+                      mem_lstd_v: jnp.ndarray, lstd_v1: jnp.ndarray,
+                      mem_learnt_lstd_v: jnp.ndarray):
     mem_belief = init_mem_belief.copy()
     learnt_mem_belief = init_mem_belief.copy()
     mem_sampled_v = jnp.zeros(mem_lstd_v.shape[0])
     learnt_mem_sampled_v = jnp.zeros_like(mem_sampled_v)
     obs_counts = jnp.zeros_like(mem_sampled_v, dtype=int)
 
+    mem_probs = softmax(mem_params, axis=-1)
+    learnt_mem_probs = softmax(learnt_mem_params, axis=-1)
+
     for i, action in enumerate(episode['actions']):
         obs = episode['obses'][i]
+
         mem_mat = mem_probs[action, obs]
         learnt_mem_mat = learnt_mem_probs[action, obs]
 
@@ -169,13 +173,10 @@ def test_sample_based_split_mem():
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
     learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
 
-    mem_probs = softmax(mem_params)
-    learnt_mem_probs = softmax(learnt_mem_params)
-
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key)
+    sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key, mem_paramses=[mem_params, learnt_mem_params])
 
     lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
     lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
@@ -197,8 +198,8 @@ def test_sample_based_split_mem():
 
     for episode in tqdm(sampled_episodes):
 
-        ep_mem_sampled_v, ep_learnt_mem_sampled_v, ep_obs_counts = calc_episode_vals(episode, init_mem_belief, mem_probs, learnt_mem_probs,
-                                                                            mem_lstd_v0_unflat, mem_learnt_lstd_v0_unflat)
+        ep_mem_sampled_v, ep_learnt_mem_sampled_v, ep_obs_counts = calc_episode_vals(episode, init_mem_belief, mem_params, learnt_mem_params,
+                                                                            mem_lstd_v0_unflat, lstd_v1, mem_learnt_lstd_v0_unflat)
         mem_sampled_v += ep_mem_sampled_v
         learnt_mem_sampled_v += ep_learnt_mem_sampled_v
         obs_counts += ep_obs_counts
@@ -208,6 +209,7 @@ def test_sample_based_split_mem():
     learnt_mem_sampled_v /= obs_counts
 
     assert jnp.allclose(mem_sampled_v, lstd_v0, atol=1e-3)
+    # TODO: this check. need to map mem_v1 vals to v1_vals
     # assert jnp.allclose(learnt_mem_sampled_v, mem_learnt_lstd_v0, atol=1e-3)
     print("hello")
 
