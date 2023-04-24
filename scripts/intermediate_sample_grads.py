@@ -54,15 +54,13 @@ def expected_val_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray, traj_vs:
 
 @partial(jax.jit, static_argnames='gamma')
 def calc_episode_grads(episode: dict, init_mem_belief: jnp.ndarray,
-                      mem_params: jnp.ndarray, learnt_mem_params: jnp.ndarray,
-                      mem_lstd_v: jnp.ndarray, lstd_v1: jnp.ndarray,
-                      mem_learnt_lstd_v: jnp.ndarray, gamma: float = 0.9):
+                       mem_params: jnp.ndarray,
+                       mem_lstd_v: jnp.ndarray, lstd_v1: jnp.ndarray,
+                       gamma: float = 0.9):
     episode_length = episode['actions'].shape[0]
     oamm_counts = jnp.zeros_like(mem_params, dtype=int)
-    oamm_learnt_counts = jnp.zeros_like(mem_params, dtype=int)
 
     mem_probs = softmax(mem_params, axis=-1)
-    learnt_mem_probs = softmax(learnt_mem_params, axis=-1)
 
     # we need to batchify our mem_func
     batch_mem_grad_func = jax.vmap(jax.grad(mem_func), in_axes=(None, 0, 0, 0, 0))
@@ -74,65 +72,45 @@ def calc_episode_grads(episode: dict, init_mem_belief: jnp.ndarray,
 
     # calculate mem gradients
     episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem[:, 0], next_mem[:, 0])  # ep_length x |mems| x *mem_shape
-    episode_learnt_mem_grads = batch_mem_grad_func(learnt_mem_params, obses, actions, prev_mem[:, 1], next_mem[:, 1])  # ep_length x |mems| x *mem_shape
 
     # Store our beliefs in a T x A x O x M x M tensor
     episode_mem_beliefs = jnp.zeros_like(episode_mem_grads)
-    episode_learnt_mem_beliefs = jnp.zeros_like(episode_learnt_mem_grads)
 
     # initialize things we need to track
     mem_diffs, mem_beliefs = [], [init_mem_belief]
-    learnt_mem_diffs, learnt_mem_beliefs = [], [init_mem_belief]
-
     mem_belief = init_mem_belief.copy()
-    learnt_mem_belief = init_mem_belief.copy()
 
     traj_mem_vs = []
-    traj_learnt_mem_vs = []
 
     for i, action in enumerate(episode['actions']):
         obs = episode['obses'][i]
         mem = episode['memses'][i][0]
-        learnt_mem = episode['memses'][i][1]
         episode_mem_beliefs = episode_mem_beliefs.at[i, action, obs, mem].set(mem_belief)
-        episode_learnt_mem_beliefs = episode_learnt_mem_beliefs.at[i, action, obs, mem].set(learnt_mem_belief)
 
         mem_mat = mem_probs[action, obs]
-        learnt_mem_mat = learnt_mem_probs[action, obs]
 
         # update both our memory belief states
         mem_belief = mem_belief @ mem_mat
-        learnt_mem_belief = learnt_mem_belief @ learnt_mem_mat
 
         mem_beliefs.append(mem_belief)
-        learnt_mem_beliefs.append(learnt_mem_belief)
 
         mem_v_obs = mem_lstd_v[obs]
-        learnt_mem_v_obs = mem_learnt_lstd_v[obs]
 
         traj_mem_vs.append(mem_v_obs[mem])
-        traj_learnt_mem_vs.append(learnt_mem_v_obs[learnt_mem])
 
         # get our re-composed sample of our value function.
         mem_belief_weighted_v_obs = jnp.dot(mem_v_obs, mem_belief)
-        learnt_mem_belief_weighted_v_obs = jnp.dot(learnt_mem_v_obs, learnt_mem_belief)
 
         target = lstd_v1[obs]
         mem_diff = mem_belief_weighted_v_obs - target
-        learnt_mem_diff = learnt_mem_belief_weighted_v_obs - target
 
         mem_diffs.append(mem_diff)
-        learnt_mem_diffs.append(learnt_mem_diff)
 
         oamm_counts = oamm_counts.at[action, obs, mem, episode['memses'][i + 1][0]].add(1)
-        oamm_learnt_counts = oamm_learnt_counts.at[action, obs, learnt_mem, episode['memses'][i + 1][1]].add(1)
 
     mem_beliefs = jnp.array(mem_beliefs)
-    learnt_mem_beliefs = jnp.array(learnt_mem_beliefs)
     traj_mem_vs = jnp.array(traj_mem_vs)
-    traj_learnt_mem_vs = jnp.array(traj_learnt_mem_vs)
     mem_diffs = jnp.array(mem_diffs)
-    learnt_mem_diffs = jnp.array(learnt_mem_diffs)
 
     # calculate grad statistics for mem
     traj_grad_mem_results = [expected_traj_grad(episode_mem_grads, episode_mem_beliefs, traj_mem_vs, t) for t in range(episode_length)]
@@ -143,23 +121,12 @@ def calc_episode_grads(episode: dict, init_mem_belief: jnp.ndarray,
 
     expected_episode_mem_grad = jnp.einsum('i,ijklm->jklm', mem_diffs, (weighted_mem_traj_grads + weighted_mem_val_grads))
 
-    # now for our learnt mem
-    traj_grad_learnt_mem_results = [expected_traj_grad(episode_learnt_mem_grads, episode_learnt_mem_beliefs, traj_learnt_mem_vs, t) for t in range(episode_length)]
-    weighted_learnt_mem_traj_grads, learnt_mem_traj_grads = list(jnp.array(arr) for arr in zip(*traj_grad_learnt_mem_results))
-
-    val_grad_learnt_mem_results = [expected_val_grad(episode_learnt_mem_grads, episode_learnt_mem_beliefs, traj_learnt_mem_vs, t, gamma) for t in range(episode_length)]
-    weighted_learnt_mem_val_grads, learnt_mem_val_grads = list(jnp.array(arr) for arr in zip(*val_grad_learnt_mem_results))
-
-    expected_episode_learnt_mem_grad = jnp.einsum('i,ijklm->jklm', learnt_mem_diffs, (weighted_learnt_mem_traj_grads + weighted_learnt_mem_val_grads))
-
     info = {
         'mem_traj_grads': mem_traj_grads,
         'mem_val_grads': mem_val_grads,
-        'learnt_mem_traj_grads': learnt_mem_traj_grads,
-        'learnt_mem_val_grads': learnt_mem_val_grads
     }
 
-    return expected_episode_mem_grad, expected_episode_learnt_mem_grad, info
+    return expected_episode_mem_grad, info
 
 if __name__ == "__main__":
     """
@@ -174,8 +141,8 @@ if __name__ == "__main__":
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_episode_samples = int(1e4)
-    seed = 2020
+    n_episode_samples = int(1)
+    seed = 2023
 
 
     rand_key = jax.random.PRNGKey(seed)
@@ -189,7 +156,8 @@ if __name__ == "__main__":
 
     spec = load_spec(spec_name,
                      # memory_id=str(mem),
-                     memory_id=str(19),
+                     memory_id=str('f'),
+                     mem_leakiness=0.2,
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -223,7 +191,7 @@ if __name__ == "__main__":
     mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_1)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
-    mem_learnt_lstd_v0_unflat = mem_learnt_lstd_v0.reshape(-1, mem_params.shape[-1])
+    learnt_mem_lstd_v0_unflat = mem_learnt_lstd_v0.reshape(-1, mem_params.shape[-1])
 
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
@@ -242,12 +210,17 @@ if __name__ == "__main__":
 
     for episode in tqdm(sampled_episodes):
 
-        expected_episode_mem_grad, expected_episode_learnt_mem_grad, info \
-            = calc_episode_grads(episode, init_mem_belief, mem_params, learnt_mem_params,
-                                 mem_lstd_v0_unflat, lstd_v1, mem_learnt_lstd_v0_unflat,
+        expected_episode_mem_grad, info \
+            = calc_episode_grads(episode, init_mem_belief, mem_params,
+                                 mem_lstd_v0_unflat, lstd_v1,
                                  gamma=amdp.gamma)
 
         expected_mem_grad += expected_episode_mem_grad
+
+        expected_episode_learnt_mem_grad, info \
+            = calc_episode_grads(episode, init_mem_belief, learnt_mem_params,
+                                 learnt_mem_lstd_v0_unflat, lstd_v1,
+                                 gamma=amdp.gamma)
         expected_learnt_mem_grad += expected_episode_learnt_mem_grad
         # mem_sampled_v += ep_mem_sampled_v
         # learnt_mem_sampled_v += ep_learnt_mem_sampled_v
@@ -262,6 +235,9 @@ if __name__ == "__main__":
 
     expected_mem_grad /= len(sampled_episodes)
     expected_learnt_mem_grad /= len(sampled_episodes)
+
+    avg_analytical_mem_grad = analytical_mem_grad.mean()
+    avg_analytical_learnt_mem_grad = analytical_learnt_mem_grad.mean()
 
     diff_mem_grad = expected_mem_grad - analytical_mem_grad
     diff_learnt_mem_grad = expected_learnt_mem_grad - analytical_learnt_mem_grad
