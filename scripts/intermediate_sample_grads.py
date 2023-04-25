@@ -38,18 +38,18 @@ def expected_traj_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray, traj_vs
 
     return traj_vs[t] * traj_grads, traj_grads
 
-@partial(jax.jit, static_argnames=['t', 'gamma'])
-def expected_val_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray, traj_vs: jnp.ndarray, t: int, gamma: float):
+@partial(jax.jit, static_argnames='t')
+def expected_val_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray,
+                      traj_vs: jnp.ndarray, discounts: jnp.ndarray,
+                      t: int):
     """
     :param mem_grads: T x A x O x M x M
     :param mem_beliefs: T x A x O x M x M
     :param traj_vs: (T + 1)
     :param t: time step to consider
     """
-    total_timesteps = mem_grads.shape[0]
-    discounts = gamma ** jnp.arange(1, total_timesteps - t)
-    discounted_vs = discounts * traj_vs[t + 1:]
-    value_weighted_mem_grads = jnp.einsum('i,ijklm->ijklm', discounted_vs, mem_grads[t:-1])
+    discounted_vs = discounts[t + 1:] * traj_vs[t + 1:]
+    value_weighted_mem_grads = jnp.einsum('i,ijklm->ijklm', discounted_vs, mem_grads[t:])
     val_grad = jnp.sum(value_weighted_mem_grads, axis=0)
     return mem_beliefs[t] * val_grad, val_grad
 
@@ -72,7 +72,7 @@ def calc_episode_grads(episode: dict, init_mem_belief: jnp.ndarray,
     next_mem = episode['memses'][1:]
 
     # calculate mem gradients
-    episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem[:, 0], next_mem[:, 0])  # ep_length x |mems| x *mem_shape
+    episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem[:, mem_idx], next_mem[:, mem_idx])  # ep_length x |mems| x *mem_shape
 
     # Store our beliefs in a T x A x O x M x M tensor
     episode_mem_beliefs = jnp.zeros_like(episode_mem_grads)
@@ -109,15 +109,21 @@ def calc_episode_grads(episode: dict, init_mem_belief: jnp.ndarray,
 
         oamm_counts = oamm_counts.at[action, obs, mem, episode['memses'][i + 1][0]].add(1)
 
+    # terminal value
+    traj_mem_vs.append(0)
+
     mem_beliefs = jnp.array(mem_beliefs)
     traj_mem_vs = jnp.array(traj_mem_vs)
     mem_diffs = jnp.array(mem_diffs)
 
+    discounts = amdp.gamma ** jnp.arange(traj_mem_vs.shape[0])
+    discounts = discounts.at[-1].set(0)
+
     # calculate grad statistics for mem
-    traj_grad_mem_results = [expected_traj_grad(episode_mem_grads, episode_mem_beliefs, traj_mem_vs, t) for t in range(episode_length)]
+    traj_grad_mem_results = [expected_traj_grad(episode_mem_grads, episode_mem_beliefs, traj_mem_vs, t) for t in range(1, episode_length)]
     weighted_mem_traj_grads, mem_traj_grads = list(jnp.array(arr) for arr in zip(*traj_grad_mem_results))
 
-    val_grad_mem_results = [expected_val_grad(episode_mem_grads, episode_mem_beliefs, traj_mem_vs, t, gamma) for t in range(episode_length)]
+    val_grad_mem_results = [expected_val_grad(episode_mem_grads, episode_mem_beliefs, traj_mem_vs, discounts, t) for t in range(episode_length)]
     weighted_mem_val_grads, mem_val_grads = list(jnp.array(arr) for arr in zip(*val_grad_mem_results))
 
     expected_episode_mem_grad = jnp.einsum('i,ijklm->jklm', mem_diffs, (weighted_mem_traj_grads + weighted_mem_val_grads))
