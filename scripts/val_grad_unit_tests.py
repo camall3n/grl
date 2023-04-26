@@ -31,33 +31,44 @@ def mem_prod_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
 #                  r: float, mem: int, obs: int, action: int, next_mem: int, next_obs: int):
 #     return mem_func(mem_params, obs, action, mem, next_mem) * (r + mem_obs_val_func(mem_params, amdp, pi, next_obs, next_mem))
 
-@partial(jax.jit, static_argnames=['obs', 'mem', 'unrolling_steps'])
+# @partial(jax.jit, static_argnames=['obs', 'mem', 'unrolling_steps'])
 def fixed_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
                    amdp: AbstractMDP, pi: jnp.ndarray,
                    td_T: jnp.ndarray, all_mem_grads: jnp.ndarray,
-                   unflat_v_mem: jnp.ndarray, unrolling_steps: int = 1):
+                   unflat_v_mem: jnp.ndarray, all_om_grads: jnp.ndarray,
+                   unrolling_steps: int = 1):
     if unrolling_steps == 0:
-        return jax.grad(mem_obs_val_func)(mem_params, amdp, pi, obs, mem)
+        return all_om_grads[obs, mem]
 
     cumulative_mem_grads = jnp.zeros_like(mem_params)
     mem_probs = softmax(mem_params, axis=-1)
     for a in range(amdp.n_actions):
         pi_a_o = pi[obs, a]
+
+        if pi_a_o == 0:
+            continue
+
         all_next_obs = jnp.zeros_like(mem_params)
 
         for next_obs in range(amdp.n_obs):
             p_op_o_a = td_T[a, obs, next_obs]
 
+            if p_op_o_a == 0:
+                continue
+
             all_next_mems = jnp.zeros_like(mem_params)
 
             for next_mem in range(mem_params.shape[-1]):
                 cum = unflat_v_mem[next_obs, next_mem] * all_mem_grads[mem, obs, a, next_mem]
-                recur = mem_probs[a, obs, mem, next_mem] * \
-                        fixed_val_grad(next_obs, next_mem, mem_params, amdp, pi, td_T, all_mem_grads, unflat_v_mem,
-                                       unrolling_steps - 1)
+
+                recur = 0
+                if mem_probs[a, obs, mem, next_mem] > 0:
+                    recur = mem_probs[a, obs, mem, next_mem] * \
+                            fixed_val_grad(next_obs, next_mem, mem_params, amdp, pi, td_T, all_mem_grads, unflat_v_mem,
+                                           all_om_grads, unrolling_steps - 1)
+
                 all_next_mems += (cum + recur)
             all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
-
 
         cumulative_mem_grads += (pi_a_o * all_next_obs)
 
@@ -108,14 +119,14 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     print("Calculating base \grad v(o, m)'s")
     all_om_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
-        all_om_grads = all_om_grads.at[o, m].set(fixed_val_grad(o, m, mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat,
-                                                                    unrolling_steps=0))
-    n_unrolls = 1
+        all_om_grads = all_om_grads.at[o, m].set(jax.grad(mem_obs_val_func)(mem_params, amdp, pi, o, m))
+
+    n_unrolls = 4
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
     all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
         all_om_n_grads = all_om_n_grads.at[o, m].set(fixed_val_grad(o, m, mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat,
-                                                                     unrolling_steps=n_unrolls))
+                                                                    all_om_grads, unrolling_steps=n_unrolls))
     print("are they the same???")
 
 def test_product_grad(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
