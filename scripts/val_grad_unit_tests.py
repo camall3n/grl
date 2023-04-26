@@ -10,9 +10,10 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
+from grl.utils.math import normalize
 from grl.utils.mdp import functional_create_td_model, get_p_s_given_o, functional_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
-from scripts.check_val_and_traj_grads import mem_obs_val_func
+from scripts.check_val_grads import mem_obs_val_func
 from scripts.intermediate_sample_grads import mem_func
 
 @jax.jit
@@ -27,11 +28,6 @@ def mem_prod_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
                  mem: int, obs: int, action: int, next_mem: int, next_obs: int):
     return mem_func(mem_params, obs, action, mem, next_mem) * mem_obs_val_func(mem_params, amdp, pi, next_obs, next_mem)
 
-# def mem_prod_one_step_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
-#                  r: float, mem: int, obs: int, action: int, next_mem: int, next_obs: int):
-#     return mem_func(mem_params, obs, action, mem, next_mem) * (r + mem_obs_val_func(mem_params, amdp, pi, next_obs, next_mem))
-
-# @partial(jax.jit, static_argnames=['obs', 'mem', 'unrolling_steps'])
 def fixed_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
                    amdp: AbstractMDP, pi: jnp.ndarray,
                    td_T: jnp.ndarray, all_mem_grads: jnp.ndarray,
@@ -74,7 +70,6 @@ def fixed_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
 
     return cumulative_mem_grads
 
-@partial(jax.jit, static_argnames=['obs', 'mem'])
 def prod_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
                    amdp: AbstractMDP, pi: jnp.ndarray,
                    td_T: jnp.ndarray):
@@ -83,10 +78,16 @@ def prod_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
     cumulative_mem_grads = jnp.zeros_like(mem_params)
     for a in range(amdp.n_actions):
         pi_a_o = pi[obs, a]
+        if pi_a_o == 0:
+            continue
+
         all_next_obs = jnp.zeros_like(mem_params)
 
         for next_obs in range(amdp.n_obs):
             p_op_o_a = td_T[a, obs, next_obs]
+
+            if p_op_o_a == 0:
+                continue
 
             all_next_mems = jnp.zeros_like(mem_params)
             for next_mem in range(mem_params.shape[-1]):
@@ -101,11 +102,14 @@ def prod_val_grad(obs: int, mem: int, mem_params: jnp.ndarray,
 def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     grad_fn = jax.grad(mem_func)
+
     T_td, R_td = get_td_model(amdp, pi)
+    T_td = normalize(T_td, axis=-1)
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp)
+
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=0.)
     mem_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
     all_grads = jnp.zeros((n_mem, amdp.n_obs, amdp.n_actions, n_mem) + mem_params.shape)
@@ -121,7 +125,7 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
         all_om_grads = all_om_grads.at[o, m].set(jax.grad(mem_obs_val_func)(mem_params, amdp, pi, o, m))
 
-    n_unrolls = 4
+    n_unrolls = 2
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
     all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
