@@ -10,8 +10,9 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.loss import obs_space_mem_discrep_loss
-from grl.utils.policy_eval import lstdq_lambda
+from grl.utils.mdp import get_td_model
+# from grl.utils.loss import obs_space_mem_discrep_loss
+from grl.utils.policy_eval import lstdq_lambda, functional_solve_mdp
 
 from definitions import ROOT_DIR
 from scripts.variance_calcs import collect_episodes
@@ -19,6 +20,10 @@ from scripts.intermediate_sample_grads import expected_val_grad, mem_func, load_
 
 def mem_obs_val_func(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
                      obs: int, mem: int):
+
+    # T_td, R_td = get_td_model(amdp, pi)
+    # td_model = MDP(T_td, R_td, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    # v0, q0 = functional_solve_mdp(pi, td_model)
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
@@ -43,12 +48,12 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
     obses = episode['obses'][:-1]
     memses = episode['memses'][:, mem_idx]
     actions = episode['actions']
-    prev_mem = episode['memses'][:-1]
-    next_mem = episode['memses'][1:]
+    prev_mem = episode['memses'][:-1, mem_idx]
+    next_mem = episode['memses'][1:, mem_idx]
 
 
     # calculate mem gradients, indices are from t = (0, 1) ... (T - 1, T)
-    episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem[:, mem_idx], next_mem[:, mem_idx])  # ep_length x |mems| x *mem_shape
+    episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem, next_mem)  # ep_length x |mems| x *mem_shape
 
     # store mem beliefs over this (o, m) episode
     episode_mem_beliefs = []
@@ -76,8 +81,6 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
 
         traj_mem_vs.append(mem_v_obs[mem])
 
-        discounts.append(t)
-
         # update both our memory belief states for t + 1
         mem_mat = mem_probs[action, obs]
         mem_belief = mem_belief @ mem_mat
@@ -94,8 +97,6 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
         mem_v_obs = mem_lstd_v[obs]
 
         traj_mem_vs.append(mem_v_obs[mem])
-
-        discounts.append(t + 1)
 
     mem_beliefs = jnp.array(mem_beliefs)
     episode_mem_beliefs = jnp.array(episode_mem_beliefs)
@@ -131,17 +132,13 @@ if __name__ == "__main__":
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_episode_samples = int(10000)
+    n_episode_samples = int(1)
     seed = 2022
 
     rand_key = jax.random.PRNGKey(seed)
 
-    # mem_funcs = [0, 16]
-    # mem_funcs = [(19, 0), (16, 1)]
     agent_path = Path(ROOT_DIR, 'results', 'agents', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
-
-    # for mem, target_lambda in mem_funcs:
 
     spec = load_spec(spec_name,
                      # memory_id=str(mem),

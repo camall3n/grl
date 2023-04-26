@@ -11,18 +11,11 @@ from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.math import normalize
-from grl.utils.mdp import functional_create_td_model, get_p_s_given_o, functional_get_occupancy
+from grl.utils.mdp import get_td_model
 from grl.utils.policy_eval import lstdq_lambda
 from scripts.check_val_grads import mem_obs_val_func
 from scripts.intermediate_sample_grads import mem_func
 
-@jax.jit
-def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
-    pi_state = amdp.phi @ pi
-    occupancy = functional_get_occupancy(pi_state, amdp)
-
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    return functional_create_td_model(p_pi_of_s_given_o, amdp)
 
 def mem_prod_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
                  mem: int, obs: int, action: int, next_mem: int, next_obs: int):

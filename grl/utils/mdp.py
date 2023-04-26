@@ -66,6 +66,14 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: AbstractMDP
 
     return T_obs_obs, R_obs_obs
 
+@jit
+def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
+    pi_state = amdp.phi @ pi
+    occupancy = functional_get_occupancy(pi_state, amdp)
+
+    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
+    return functional_create_td_model(p_pi_of_s_given_o, amdp)
+
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
     return {
         'T': T,
