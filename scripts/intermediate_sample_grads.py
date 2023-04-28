@@ -50,8 +50,8 @@ def expected_val_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray,
     :param t: time step to consider
     """
     T = discounts.shape[0]
-    discounted_vs = discounts[1:T - t] * traj_vs[t + 1:]
-    value_weighted_mem_grads = jnp.einsum('i,ijklm->ijklm', discounted_vs, mem_grads[t:])
+    discounted_vs = discounts[1:T - t + 1] * traj_vs[t:]
+    value_weighted_mem_grads = jnp.einsum('i,ijklm->ijklm', discounted_vs, mem_grads[t - 1:])
     val_grad = jnp.sum(value_weighted_mem_grads, axis=0)
     return mem_beliefs[t] * val_grad, val_grad
 

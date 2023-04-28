@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     T_td, R_td = get_td_model(amdp, pi)
 
-    n_step = 3
+    n_step = 4
     new_v = jnp.zeros_like(v0)
     for o in range(amdp.n_obs):
         new_v_o = n_step_bellman_update(o, T_td, R_td, v0, pi, gamma=amdp.gamma, depth=n_step)

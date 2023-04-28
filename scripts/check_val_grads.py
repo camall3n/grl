@@ -10,9 +10,7 @@ from tqdm import tqdm
 from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.mdp import get_td_model
-# from grl.utils.loss import obs_space_mem_discrep_loss
-from grl.utils.policy_eval import lstdq_lambda, functional_solve_mdp
+from grl.utils.policy_eval import lstdq_lambda
 
 from definitions import ROOT_DIR
 from scripts.variance_calcs import collect_episodes
@@ -32,6 +30,50 @@ def mem_obs_val_func(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray
     return v0_unflat[obs, mem]
 
 @partial(jax.jit, static_argnames=['gamma', 'mem_idx'])
+def seq_calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
+                               mem_params: jnp.ndarray,
+                               mem_lstd_v: jnp.ndarray, mem_idx: int = 0):
+    T = episode['obses'].shape[0]
+    n_obs = mem_params.shape[1]
+    n_mem = mem_params.shape[-1]
+
+    obses = episode['obses']
+    memses = episode['memses'][:, mem_idx]
+    actions = episode['actions']
+    prev_mem = episode['memses'][:-1, mem_idx]
+    next_mem = episode['memses'][1:, mem_idx]
+
+    batch_mem_grad_func = jax.vmap(jax.grad(mem_func), in_axes=(None, 0, 0, 0, 0))
+
+    # calculate mem gradients, indices are from t = (0, 1) ... (T - 1, T)
+    episode_mem_grads = batch_mem_grad_func(mem_params, obses[:-1], actions, prev_mem, next_mem)  # ep_length x |mems| x *mem_shape
+
+    discounts = amdp.gamma ** jnp.arange(T)
+    discounts = discounts.at[-1].set(0)
+
+    om_counts = jnp.zeros((n_obs, n_mem))
+    val_grad_buffer = jnp.zeros((n_obs, n_mem) + mem_params.shape)
+
+    for t in range(1, T - 1):
+        action = episode['actions'][t]
+        obs = episode['obses'][t]
+        mem = episode['memses'][t][mem_idx]
+        om_counts = om_counts.at[obs, mem].add(1)
+
+        t_discounts = discounts[1:T - t + 1]
+        t_vals = mem_lstd_v[episode['obses'][t:], episode['memses'][t:, mem_idx]]
+        t_discounted_vals = t_vals * t_discounts
+        t_mem_grads = episode_mem_grads[t - 1:]
+
+        t_grads = jnp.einsum('i,ijklm->jklm', t_discounted_vals, t_mem_grads)
+        val_grad_buffer = val_grad_buffer.at[obs, mem].add(t_grads)
+
+    om_counts += (om_counts == 0)
+    val_grad_buffer = jnp.einsum('ij,ijklmn->ijklmn', 1/om_counts, val_grad_buffer)
+    return val_grad_buffer
+
+
+@partial(jax.jit, static_argnames=['gamma', 'mem_idx'])
 def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
                            mem_params: jnp.ndarray,
                            mem_lstd_v: jnp.ndarray, mem_idx: int = 0):
@@ -45,7 +87,7 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
     # we need to batchify our mem_func
     batch_mem_grad_func = jax.vmap(jax.grad(mem_func), in_axes=(None, 0, 0, 0, 0))
 
-    obses = episode['obses'][:-1]
+    obses = episode['obses']
     memses = episode['memses'][:, mem_idx]
     actions = episode['actions']
     prev_mem = episode['memses'][:-1, mem_idx]
@@ -53,11 +95,10 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
 
 
     # calculate mem gradients, indices are from t = (0, 1) ... (T - 1, T)
-    episode_mem_grads = batch_mem_grad_func(mem_params, obses, actions, prev_mem, next_mem)  # ep_length x |mems| x *mem_shape
+    episode_mem_grads = batch_mem_grad_func(mem_params, obses[:-1], actions, prev_mem, next_mem)  # ep_length x |mems| x *mem_shape
 
     # store mem beliefs over this (o, m) episode
     episode_mem_beliefs = []
-    discounts = []
 
     # initialize things we need to track
     mem_diffs, mem_beliefs = [], []
@@ -116,6 +157,7 @@ def calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
     om_counts += (om_counts == 0)
     val_grad_buffer = jnp.einsum('ij,ijklmn->ijklmn', 1/om_counts, val_grad_buffer)
 
+    seq_val_grad = seq_calc_episode_val_grads(episode, init_mem_belief, mem_params, mem_lstd_v, mem_idx=mem_idx)
     return val_grad_buffer
 
 
@@ -132,7 +174,7 @@ if __name__ == "__main__":
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_episode_samples = int(1)
+    n_episode_samples = int(5)
     seed = 2022
 
     rand_key = jax.random.PRNGKey(seed)
@@ -170,21 +212,15 @@ if __name__ == "__main__":
     sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key, mem_paramses=[mem_params, learnt_mem_params])
 
     lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
 
     mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(mem_aug_pi, learnt_mem_aug_amdp)
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_0)
-    mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_1)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
     learnt_mem_lstd_v0_unflat = mem_learnt_lstd_v0.reshape(-1, mem_params.shape[-1])
 
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
-
-    mem_sampled_v = jnp.zeros_like(lstd_v0)
-    learnt_mem_sampled_v = jnp.zeros_like(mem_sampled_v)
-    obs_counts = jnp.zeros_like(mem_sampled_v, dtype=int)
 
     expected_mem_val_grads = jnp.zeros((amdp.n_obs, n_mem_states) + mem_params.shape)
     expected_learnt_mem_val_grads = jnp.zeros((amdp.n_obs, n_mem_states) + mem_params.shape)
@@ -201,7 +237,7 @@ if __name__ == "__main__":
 
         # with jax.disable_jit():
         episode_mem_val_grads \
-            = calc_episode_val_grads(episode, init_mem_belief, mem_params,
+            = seq_calc_episode_val_grads(episode, init_mem_belief, mem_params,
                                      mem_lstd_v0_unflat, mem_idx=0)
 
         expected_mem_val_grads += episode_mem_val_grads
