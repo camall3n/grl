@@ -1,3 +1,4 @@
+from functools import partial
 import jax
 from jax.config import config
 from jax.nn import softmax
@@ -29,6 +30,45 @@ def mem_traj_prob(mem_params: jnp.ndarray, init_mem_belief: jnp.ndarray, mem: in
         mem_belief = mem_belief @ mem_mat
 
     return mem_belief[mem]
+
+@partial(jax.jit, static_argnames=['mem_idx'])
+def calc_episode_traj_grads(episode: dict, init_mem_belief: jnp.ndarray,
+                            mem_params: jnp.ndarray, mem_idx: int = 0):
+    T = episode['obses'].shape[0]
+
+    mem_probs = softmax(mem_params, axis=-1)
+
+    obses = episode['obses']
+    actions = episode['actions']
+    prev_mem = episode['memses'][:-1, mem_idx]
+    next_mem = episode['memses'][1:, mem_idx]
+
+    batch_mem_grad_func = jax.vmap(jax.grad(mem_func), in_axes=(None, 0, 0, 0, 0))
+
+    # calculate mem gradients, indices are from t = (0, 1) ... (T - 1, T)
+    episode_mem_grads = batch_mem_grad_func(mem_params, obses[:-1], actions, prev_mem, next_mem)  # ep_length x |mems| x *mem_shape
+
+    mem_belief = init_mem_belief.copy()
+
+    all_grad_steps = jnp.zeros_like(episode_mem_grads)
+    prev_t_traj_grad = jnp.zeros_like(mem_params)
+
+    # t is i - 1 in 3.2.2
+    for t in range(0, T - 1):
+        action = episode['actions'][t]
+        obs = episode['obses'][t]
+        mem = episode['memses'][t][mem_idx]
+
+        mem_mat = mem_probs[action, obs]
+        mem_belief = mem_belief @ mem_mat
+
+        t_mem_belief = mem_belief[mem]
+        t_traj_grad = t_mem_belief * episode_mem_grads[t]
+        all_grad_steps = all_grad_steps.at[t].set(prev_t_traj_grad + t_traj_grad)
+
+        prev_t_traj_grad = t_traj_grad
+
+    return all_grad_steps
 
 if __name__ == "__main__":
     """
@@ -90,20 +130,24 @@ if __name__ == "__main__":
 
     init_mem_belief = jnp.zeros(n_mem_states)
     init_mem_belief = init_mem_belief.at[0].set(1.)
-    all_mem_beliefs = 
+
+    mem_idx = 0
 
     all_episode_grads = []
     for ep in sampled_episodes:
         episode_grads = []
         for t in range(ep['actions'].shape[0]):
-            mem_grads = []
-            for m in range(n_mem_states):
-                t_traj_grads = traj_grad_fn(mem_params, init_mem_belief, m, ep, t)
-                mem_grads.append(t_traj_grads)
-            episode_grads.append(jnp.array(mem_grads))
+            all_mem_grads = []
+
+            # for m in range(n_mem_states):
+            t_traj_grads = traj_grad_fn(mem_params, init_mem_belief, ep['memses'][t + 1, mem_idx], ep, T=t)
+            all_mem_grads.append(t_traj_grads)
 
         all_episode_grads.append(jnp.array(episode_grads))
 
     # each element is episode_length x n_mems x *mem_params_shape
+    all_expected_episode_grads = []
+    for ep in sampled_episodes:
+        expected_eps_traj_grad = calc_episode_traj_grads(ep, init_mem_belief, mem_params, mem_idx=mem_idx)
 
     print("done")

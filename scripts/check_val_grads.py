@@ -54,6 +54,7 @@ def seq_calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
     om_counts = jnp.zeros((n_obs, n_mem))
     val_grad_buffer = jnp.zeros((n_obs, n_mem) + mem_params.shape)
 
+    # t is i in eq. 10
     for t in range(1, T - 1):
         action = episode['actions'][t]
         obs = episode['obses'][t]
@@ -69,7 +70,7 @@ def seq_calc_episode_val_grads(episode: dict, init_mem_belief: jnp.ndarray,
         val_grad_buffer = val_grad_buffer.at[obs, mem].add(t_grads)
 
     om_counts += (om_counts == 0)
-    val_grad_buffer = jnp.einsum('ij,ijklmn->ijklmn', 1/om_counts, val_grad_buffer)
+    # val_grad_buffer = jnp.einsum('ij,ijklmn->ijklmn', 1/om_counts, val_grad_buffer)
     return val_grad_buffer
 
 
@@ -174,7 +175,7 @@ if __name__ == "__main__":
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_episode_samples = int(5)
+    n_episode_samples = int(10000)
     seed = 2022
 
     rand_key = jax.random.PRNGKey(seed)
