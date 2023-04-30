@@ -12,7 +12,7 @@ from grl.environment import load_spec
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.math import normalize
-from grl.utils.mdp import get_td_model
+from grl.utils.mdp import get_td_model, get_p_s_given_o, amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
 from scripts.check_val_grads import mem_obs_val_func
 from scripts.intermediate_sample_grads import mem_func
@@ -20,6 +20,9 @@ from scripts.intermediate_sample_grads import mem_func
 
 ValGradInputs = namedtuple('ValGradInputs', ['mem_params', 'amdp', 'pi', 'T_td', 'all_mem_grads', 'unflat_v_mem',
                                              'all_om_grads', 'all_prod_grads'])
+def get_init_belief(amdp: AbstractMDP, pi: jnp.ndarray):
+    amdp_occupancy = amdp_get_occupancy(pi, amdp)
+    return get_p_s_given_o(amdp.phi, amdp_occupancy)
 
 def mem_prod_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
                  mem: int, obs: int, action: int, next_mem: int, next_obs: int):
@@ -34,7 +37,14 @@ def q_mem_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
     q0_unflat = q0.reshape(amdp.n_actions, -1, mem_params.shape[-1])
     return q0_unflat[action, obs, mem]
 
-def fixed_val_grad(obs: int, mem: int,
+@partial(jax.jit, static_argnames='a')
+def belief_update(prev_belief: jnp.ndarray, amdp: AbstractMDP, a: int):
+    next_belief = amdp.T[a] @ prev_belief
+    prob_next_o = next_belief @ amdp.phi
+    return next_belief, prob_next_o
+
+
+def fixed_val_grad(obs: int, mem: int, belief: jnp.ndarray,
                    val_grad_inputs: ValGradInputs,
                    unrolling_steps: int = 1):
     if unrolling_steps == 0:
@@ -46,6 +56,7 @@ def fixed_val_grad(obs: int, mem: int,
 
     cumulative_mem_grads = jnp.zeros_like(mem_params)
     mem_probs = softmax(mem_params, axis=-1)
+
     for a in range(amdp.n_actions):
         pi_a_o = pi[obs, a]
 
@@ -54,8 +65,12 @@ def fixed_val_grad(obs: int, mem: int,
 
         all_next_obs = jnp.zeros_like(mem_params)
 
+        # next_belief, prob_next_o = belief_update(belief, amdp, a)
+
         for next_obs in range(amdp.n_obs):
+            next_belief = belief
             p_op_o_a = val_grad_inputs.T_td[a, obs, next_obs]
+            # p_op_o_a = prob_next_o[next_obs]
 
             if p_op_o_a == 0:
                 continue
@@ -72,8 +87,10 @@ def fixed_val_grad(obs: int, mem: int,
 
                 recur = 0
                 if mem_probs[a, obs, mem, next_mem] > 0:
+                    # recur = mem_probs[a, obs, mem, next_mem] * \
+                    #         fixed_val_grad(next_obs, next_mem, val_grad_inputs, unrolling_steps - 1)
                     recur = mem_probs[a, obs, mem, next_mem] * \
-                            fixed_val_grad(next_obs, next_mem, val_grad_inputs, unrolling_steps - 1)
+                            fixed_val_grad(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
 
                 all_next_mems += (cum + recur)
             all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
@@ -149,12 +166,15 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
 
     val_grad_inputs = ValGradInputs(mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat, all_om_grads, all_prod_grads)
 
-    with jax.disable_jit():
-        n_unrolls = 2
-        print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
-        all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
-        for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
-            all_om_n_grads = all_om_n_grads.at[o, m].set(fixed_val_grad(o, m, val_grad_inputs, unrolling_steps=n_unrolls))
+    init_beliefs = get_init_belief(amdp, pi)
+
+    # with jax.disable_jit():
+    n_unrolls = 2
+    print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
+    all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
+    for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
+        all_om_n_grads = all_om_n_grads.at[o, m].set(fixed_val_grad(o, m, init_beliefs[:, o],
+                                                                        val_grad_inputs, unrolling_steps=n_unrolls))
     print("are they the same???")
 
 def test_product_grad(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):

@@ -71,12 +71,14 @@ class MDP:
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        if isinstance(T, np.ndarray):
-            self.T = np.stack(T).copy().astype(float)
-            self.R = np.stack(R).copy().astype(float)
-        else:
-            self.T = jnp.stack(T).copy().astype(float)
-            self.R = jnp.stack(R).copy().astype(float)
+        self.T = T
+        self.R = R
+        # if isinstance(T, np.ndarray):
+        #     self.T = np.stack(T).copy().astype(float)
+        #     self.R = np.stack(R).copy().astype(float)
+        # else:
+        #     self.T = jnp.stack(T).copy().astype(float)
+        #     self.R = jnp.stack(R).copy().astype(float)
 
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
