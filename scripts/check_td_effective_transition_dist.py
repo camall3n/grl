@@ -24,8 +24,9 @@ def gather_counts(amdp: AbstractMDP, pi: jnp.ndarray,
 
     for i in trange(n_samples):
 
-        action_key, rand_key = random.split(rand_key)
-        a = random.choice(action_key, amdp.n_actions, p=pi[obs]).item()
+        # action_key, rand_key = random.split(rand_key)
+        # a = random.choice(action_key, amdp.n_actions, p=pi[obs]).item()
+        a = np.random.choice(amdp.n_actions, p=pi[obs])
         obs, reward, terminal, truncated, info = amdp.step(a)
         amdp_obs_count[obs] += 1
         if terminal:
@@ -44,10 +45,11 @@ if __name__ == "__main__":
     epsilon = 0.2
     lambda_0 = 0.
     lambda_1 = 1.
-    n_samples = int(1e5)
+    n_samples = int(1e6)
     seed = 2023
 
     rand_key = jax.random.PRNGKey(seed)
+    np.random.seed(seed)
 
     spec = load_spec(spec_name,
                      # memory_id=str(mem),
