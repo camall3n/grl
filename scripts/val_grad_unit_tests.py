@@ -44,9 +44,9 @@ def belief_update(prev_belief: jnp.ndarray, amdp: AbstractMDP, a: int):
     return next_belief, prob_next_o
 
 
-def fixed_val_grad(obs: int, mem: int, belief: jnp.ndarray,
-                   val_grad_inputs: ValGradInputs,
-                   unrolling_steps: int = 1):
+def val_grad_unroll(obs: int, mem: int, belief: jnp.ndarray,
+                    val_grad_inputs: ValGradInputs,
+                    unrolling_steps: int = 1):
     if unrolling_steps == 0:
         return val_grad_inputs.all_om_grads[obs, mem]
 
@@ -90,7 +90,7 @@ def fixed_val_grad(obs: int, mem: int, belief: jnp.ndarray,
                     # recur = mem_probs[a, obs, mem, next_mem] * \
                     #         fixed_val_grad(next_obs, next_mem, val_grad_inputs, unrolling_steps - 1)
                     recur = mem_probs[a, obs, mem, next_mem] * \
-                            fixed_val_grad(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
+                            val_grad_unroll(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
 
                 all_next_mems += (cum + recur)
             all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
@@ -173,8 +173,8 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
     all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
-        all_om_n_grads = all_om_n_grads.at[o, m].set(fixed_val_grad(o, m, init_beliefs[:, o],
-                                                                        val_grad_inputs, unrolling_steps=n_unrolls))
+        all_om_n_grads = all_om_n_grads.at[o, m].set(val_grad_unroll(o, m, init_beliefs[:, o],
+                                                                     val_grad_inputs, unrolling_steps=n_unrolls))
     print("are they the same???")
 
 def test_product_grad(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
