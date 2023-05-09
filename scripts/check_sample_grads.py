@@ -21,6 +21,7 @@ from scripts.check_traj_grads import mem_traj_prob
 from scripts.variance_calcs import collect_episodes
 from scripts.val_grad_unit_tests import val_grad_unroll, mem_obs_val_func
 
+@jax.jit
 def mem_packed_v(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray, obs: int):
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
 
@@ -132,6 +133,7 @@ def check_samples(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP, r
 
             mem_belief = init_mem_belief
             for t in range(ep['actions'].shape[0]):
+
                 action = ep['actions'][t]
                 obs = ep['obses'][t]
 
@@ -156,6 +158,7 @@ def check_samples(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP, r
 
                 mem_mat = mem_probs[action, obs]
                 mem_belief = mem_belief @ mem_mat
+
 
         sampled_grads *= (1 / (2 * n_episodes_per_update))
         val_grads *= (1 / n_episodes_per_update)
