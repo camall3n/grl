@@ -24,21 +24,6 @@ def mem_func(mem_params: jnp.ndarray, obs: int, action: int, prev_mem: int, next
     mem_probs = softmax(mem_params, axis=-1)
     return mem_probs[action, obs, prev_mem, next_mem]
 
-
-@partial(jax.jit, static_argnames=['t', 'mem'])
-def expected_traj_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray, traj_vs: jnp.ndarray,
-                       t: int):
-    """
-    :param mem_grads: T x A x O x M x M
-    :param mem_beliefs: T x A x O x M x M
-    :param traj_vs: (T + 1)
-    :param t: time step to consider
-    """
-    # traj_grads_over_t = jnp.einsum('ijklm,i->', mem_grads[:t], mem_beliefs[1:t + 1]
-    traj_grads = traj_grads_over_t.sum(axis=0)
-
-    return traj_vs[t] * traj_grads, traj_grads
-
 @partial(jax.jit, static_argnames='t')
 def expected_val_grad(mem_grads: jnp.ndarray, mem_beliefs: jnp.ndarray,
                       traj_vs: jnp.ndarray, discounts: jnp.ndarray,

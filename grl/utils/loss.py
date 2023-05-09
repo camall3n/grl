@@ -146,7 +146,6 @@ def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
     p_init_obs = amdp.p0 @ amdp.phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
-
 def mem_magnitude_td_loss(mem_params: jnp.ndarray, pi: jnp.ndarray, amdp: AbstractMDP,  # input non-static arrays
                           value_type: str = 'q', error_type: str = 'l2', alpha: float = 1.,
                           flip_count_prob: bool = False):

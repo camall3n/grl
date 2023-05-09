@@ -34,6 +34,7 @@ def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
     mem_aug_mdp = MDP(T_x, R_x, p0_x, gamma=amdp.gamma)
     return AbstractMDP(mem_aug_mdp, phi_x)
 
+
 def generate_1bit_mem_fns(n_obs, n_actions):
     """
     Generates all possible deterministic 1 bit memory functions with given number of obs and actions.

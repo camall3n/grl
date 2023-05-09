@@ -20,6 +20,7 @@ from scripts.intermediate_sample_grads import mem_func
 
 ValGradInputs = namedtuple('ValGradInputs', ['mem_params', 'amdp', 'pi', 'T_td', 'all_mem_grads', 'unflat_v_mem',
                                              'all_om_grads', 'all_prod_grads'])
+
 def get_init_belief(amdp: AbstractMDP, pi: jnp.ndarray):
     amdp_occupancy = amdp_get_occupancy(pi, amdp)
     return get_p_s_given_o(amdp.phi, amdp_occupancy)
