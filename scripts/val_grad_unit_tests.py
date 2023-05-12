@@ -1,5 +1,7 @@
+from argparse import Namespace
 from functools import partial
 from itertools import product
+from typing import Union
 
 import jax
 from jax.config import config
@@ -45,8 +47,8 @@ def belief_update(prev_belief: jnp.ndarray, amdp: AbstractMDP, a: int):
     return next_belief, prob_next_o
 
 
-def val_grad_unroll(obs: int, mem: int, belief: jnp.ndarray,
-                    val_grad_inputs: ValGradInputs,
+def val_grad_unroll(obs: int, mem: int,
+                    val_grad_inputs: Union[ValGradInputs, Namespace],
                     unrolling_steps: int = 1):
     if unrolling_steps == 0:
         return val_grad_inputs.all_om_grads[obs, mem]
@@ -69,7 +71,7 @@ def val_grad_unroll(obs: int, mem: int, belief: jnp.ndarray,
         # next_belief, prob_next_o = belief_update(belief, amdp, a)
 
         for next_obs in range(amdp.n_obs):
-            next_belief = belief
+            # next_belief = belief
             p_op_o_a = val_grad_inputs.T_td[a, obs, next_obs]
             # p_op_o_a = prob_next_o[next_obs]
 
@@ -88,10 +90,10 @@ def val_grad_unroll(obs: int, mem: int, belief: jnp.ndarray,
 
                 recur = 0
                 if mem_probs[a, obs, mem, next_mem] > 0:
-                    # recur = mem_probs[a, obs, mem, next_mem] * \
-                    #         fixed_val_grad(next_obs, next_mem, val_grad_inputs, unrolling_steps - 1)
                     recur = mem_probs[a, obs, mem, next_mem] * \
-                            val_grad_unroll(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
+                            val_grad_unroll(next_obs, next_mem, val_grad_inputs, unrolling_steps - 1)
+                    # recur = mem_probs[a, obs, mem, next_mem] * \
+                    #         val_grad_unroll(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
 
                 all_next_mems += (cum + recur)
             all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
@@ -131,6 +133,27 @@ def prod_val_grad(obs: int, mem: int,
 
     return cumulative_mem_grads
 
+def calc_all_unrolled_val_grads(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray,
+                                T_td: jnp.ndarray, unflat_v_mem: jnp.ndarray, all_mem_grads: jnp.ndarray,
+                                all_om_grads: jnp.ndarray, n_unrolls: int = 0):
+    n_mem = mem_params.shape[-1]
+    print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
+    all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
+    val_grad_inputs = {
+        'mem_params': mem_params,
+        'amdp': amdp,
+        'pi': pi,
+        'T_td': T_td,
+        'unflat_v_mem': unflat_v_mem,
+        'all_mem_grads': all_mem_grads,
+        'all_om_grads': all_om_grads
+    }
+    val_grad_inputs = Namespace(**val_grad_inputs)
+    for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
+        all_om_n_grads = all_om_n_grads.at[o, m].set(val_grad_unroll(o, m, val_grad_inputs, unrolling_steps=n_unrolls))
+
+    return all_om_n_grads
+
 def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     mem_grad_fn = jax.grad(mem_func)
@@ -167,14 +190,12 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
 
     val_grad_inputs = ValGradInputs(mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat, all_om_grads, all_prod_grads)
 
-    init_beliefs = get_init_belief(amdp, pi)
-
     # with jax.disable_jit():
     n_unrolls = 2
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
     all_om_n_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
     for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
-        all_om_n_grads = all_om_n_grads.at[o, m].set(val_grad_unroll(o, m, init_beliefs[:, o],
+        all_om_n_grads = all_om_n_grads.at[o, m].set(val_grad_unroll(o, m,
                                                                      val_grad_inputs, unrolling_steps=n_unrolls))
     print("are they the same???")
 
