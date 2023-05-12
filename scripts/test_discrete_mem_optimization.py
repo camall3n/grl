@@ -73,7 +73,7 @@ lstd_v1, lstd_q1 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda1)
 def get_start_obs_value(value_fn, mdp):
     return (value_fn @ (mdp.p0 @ mdp.phi)).item()
 
-start_value = get_start_obs_value(lstd_v0, mem_aug_mdp)
+start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
 discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
@@ -168,7 +168,7 @@ learning_agent.set_policy(planning_agent.pi_params, logits=True)
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
 
-end_value = get_start_obs_value(lstd_v0, mem_aug_mdp)
+end_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
 print(f'Start value: {start_value}')
 print(f'End value: {end_value}')
 
