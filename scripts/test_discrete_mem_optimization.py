@@ -1,11 +1,8 @@
 from collections import deque
-from definitions import ROOT_DIR
 import hashlib
-import pickle
 
 import numpy as np
 from jax.config import config
-from pathlib import Path
 
 from grl.agents.actorcritic import ActorCritic
 from grl.agents.analytical import AnalyticalAgent
@@ -15,7 +12,7 @@ from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.loss import discrep_loss
 from grl.memory import memory_cross_product
-from scripts.learning_agent.memory_iteration import converge_value_functions, parse_args
+from scripts.learning_agent.memory_iteration import parse_args
 
 np.set_printoptions(precision=3, suppress=True)
 config.update('jax_platform_name', 'cpu')
@@ -24,24 +21,10 @@ args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
-spec_name = "tmaze_eps_hyperparams"
-# spec_name = "simple_chain"
-corridor_length = 5
-discount = 0.9
-junction_up_pi = 1.0 #2 / 3
-epsilon = 0.2
-error_type = 'mse'
-
-spec = load_spec(spec_name,
-                 memory_id=str(16),
-                 corridor_length=corridor_length,
-                 discount=discount,
-                 junction_up_pi=junction_up_pi,
-                 epsilon=epsilon)
-
+# Env stuff
+spec = load_spec(args.env, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])
-pi = spec['Pi_phi'][0]
 
 learning_agent = ActorCritic(
     n_obs=env.n_obs,
@@ -56,9 +39,15 @@ learning_agent = ActorCritic(
     discrep_loss=error_type,
     study_name='compare_sample_and_plan_04/' + args.study_name,
 )
-learning_agent.set_policy(pi, logits=False)
-learning_agent.add_memory()
 
+planning_agent = AnalyticalAgent(
+    pi_params=learning_agent.policy_probs,
+    rand_key=None,
+    mem_params=learning_agent.memory_probs,
+    value_type='q',
+)
+
+# Memory stuff
 HOLD = np.eye(learning_agent.n_mem_states)
 TOGGLE = 1 - HOLD
 SET = np.concatenate((np.zeros(
@@ -69,14 +58,20 @@ mem_probs = np.tile(HOLD[None, None, :, :], (learning_agent.n_actions, learning_
 learning_agent.set_memory(mem_probs, logits=False)
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 
-lstd_v0, lstd_q0 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda0)
-lstd_v1, lstd_q1 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda1)
+# Policy stuff
+learning_agent.reset_policy()
+learning_agent.add_memory()
+pi_improvement(planning_agent, mem_aug_mdp, lr=0.1)
+learning_agent.set_policy(planning_agent.pi_params, logits=True)
+pi_aug = learning_agent.policy_probs.repeat(2, axis=0)
 
+# Value stuff
+lstd_v0, lstd_q0 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda0)
+lstd_v1, lstd_q1 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda1)
 start_value = lstd_v0[0]
+discrep_loss(pi_aug, mem_aug_mdp)
 
-aug_policy = learning_agent.policy_probs
-discrep_loss(aug_policy, mem_aug_mdp)
-
+# Search stuff
 class SearchNode:
     def __init__(self, mem_probs=None):
         if mem_probs is None:
@@ -113,28 +108,38 @@ class SearchNode:
         mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
         return discrep_loss(learning_agent.policy_probs, mem_aug_mdp)
 
-s = SearchNode(mem_probs)
+def optimize_memory(mem_probs):
+    s = SearchNode(mem_probs)
 
-visited = set()
-frontier = deque([s])
-best_discrep = np.inf
-best_node = None
-n_evals = 0
+    visited = set()
+    frontier = deque([s])
+    best_discrep = np.inf
+    best_node = None
+    n_evals = 0
 
-while frontier:
-    node = frontier.popleft()
-    discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.04)
-    n_evals += 1
-    print(f'discrep = {discrep}')
-    visited.add(node.mem_hash)
+    while frontier:
+        node = frontier.popleft()
+        discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.04)
+        n_evals += 1
+        print(f'discrep = {discrep}')
+        visited.add(node.mem_hash)
 
-    if discrep < best_discrep:
-        print(f'New best discrep: {discrep}')
-        best_discrep = discrep
-        best_node = node
-        successors = node.get_successors(skip_hashes=visited)
-        frontier.extend(successors)
+        if discrep < best_discrep:
+            print(f'New best discrep: {discrep}')
+            best_discrep = discrep
+            best_node = node
+            successors = node.get_successors(skip_hashes=visited)
+            frontier.extend(successors)
 
+    info = {
+        'n_evals': n_evals,
+        'best_discrep': best_discrep,
+    }
+    return best_node, info
+
+best_node, info = optimize_memory(mem_probs)
+
+# Search results stuff
 print()
 print(f'Best node: \n'
       f'{best_node.mem_probs}\n')
@@ -143,25 +148,17 @@ O = learning_agent.n_obs
 A = learning_agent.n_actions
 n_mem_fns = M**(M * O * A)
 print(f'Total memory functions: {n_mem_fns}')
-print(f'Number evaluated: {n_evals}')
-print(f'Best discrep: {best_discrep}')
+print(f'Number evaluated: {info["n_evals"]}')
+print(f'Best discrep: {info["best_discrep"]}')
 
-discrep, mc, td = s.evaluate()
-(mc['q'] - td['q']).round(2)
-
+# Final performance stuff
 learning_agent.set_memory(best_node.mem_probs, logits=False)
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
-lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
-lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
 
-planning_agent = AnalyticalAgent(learning_agent.policy_probs,
-                                 None,
-                                 mem_params=mem_probs,
-                                 value_type='q')
+learning_agent.reset_policy()
+planning_agent.pi_params = learning_agent.policy_logits
 pi_improvement(planning_agent, mem_aug_mdp, lr=0.1)
-planning_agent.pi_params
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
-learning_agent.policy_probs
 
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
