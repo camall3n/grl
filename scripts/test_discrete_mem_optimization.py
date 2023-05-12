@@ -1,5 +1,7 @@
 from collections import deque
 import hashlib
+import json
+import os
 
 import numpy as np
 from jax.config import config
@@ -36,7 +38,7 @@ learning_agent = ActorCritic(
     n_mem_entries=0,
     replay_buffer_size=args.replay_buffer_size,
     mellowmax_beta=10.,
-    discrep_loss=error_type,
+    discrep_loss='mse',
     study_name='compare_sample_and_plan_04/' + args.study_name,
 )
 
@@ -46,6 +48,12 @@ planning_agent = AnalyticalAgent(
     mem_params=learning_agent.memory_probs,
     value_type='q',
 )
+
+# Policy stuff
+pi_improvement(planning_agent, env, lr=0.1)
+learning_agent.set_policy(planning_agent.pi_params, logits=True)
+learning_agent.add_memory()
+pi_aug = learning_agent.policy_probs
 
 # Memory stuff
 HOLD = np.eye(learning_agent.n_mem_states)
@@ -57,13 +65,6 @@ RESET = 1 - SET
 mem_probs = np.tile(HOLD[None, None, :, :], (learning_agent.n_actions, learning_agent.n_obs, 1, 1))
 learning_agent.set_memory(mem_probs, logits=False)
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
-
-# Policy stuff
-learning_agent.reset_policy()
-learning_agent.add_memory()
-pi_improvement(planning_agent, mem_aug_mdp, lr=0.1)
-learning_agent.set_policy(planning_agent.pi_params, logits=True)
-pi_aug = learning_agent.policy_probs.repeat(2, axis=0)
 
 # Value stuff
 lstd_v0, lstd_q0 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda0)
@@ -133,7 +134,7 @@ def optimize_memory(mem_probs):
 
     info = {
         'n_evals': n_evals,
-        'best_discrep': best_discrep,
+        'best_discrep': best_discrep.item(),
     }
     return best_node, info
 
@@ -166,3 +167,19 @@ lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda
 end_value = lstd_v0[0]
 print(f'Start value: {start_value}')
 print(f'End value: {end_value}')
+
+# Save stuff
+results = {
+    'start_value': start_value.item(),
+    'end_value': end_value.item(),
+}
+results.update(info)
+
+dirname = f'results/discrete/{args.env}/{args.trial_id:03d}'
+json_filename = dirname + '/discrete_oracle.json'
+npy_filename = dirname + '/memory.npy'
+os.makedirs(dirname, exist_ok=True)
+with open(json_filename, 'w') as f:
+    json.dump(results, f)
+
+np.save(npy_filename, best_node.mem_probs)
