@@ -69,7 +69,11 @@ mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 # Value stuff
 lstd_v0, lstd_q0 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda1)
-start_value = lstd_v0[0]
+
+def get_start_obs_value(value_fn, mdp):
+    return (value_fn @ (mdp.p0 @ mdp.phi)).item()
+
+start_value = get_start_obs_value(lstd_v0, mem_aug_mdp)
 discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
@@ -120,7 +124,7 @@ def optimize_memory(mem_probs):
 
     while frontier:
         node = frontier.popleft()
-        discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.04)
+        discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.00)
         n_evals += 1
         print(f'discrep = {discrep}')
         visited.add(node.mem_hash)
@@ -164,14 +168,14 @@ learning_agent.set_policy(planning_agent.pi_params, logits=True)
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
 
-end_value = lstd_v0[0]
+end_value = get_start_obs_value(lstd_v0, mem_aug_mdp)
 print(f'Start value: {start_value}')
 print(f'End value: {end_value}')
 
 # Save stuff
 results = {
-    'start_value': start_value.item(),
-    'end_value': end_value.item(),
+    'start_value': start_value,
+    'end_value': end_value,
 }
 results.update(info)
 
