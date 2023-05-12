@@ -53,7 +53,7 @@ class ActorCritic:
         self.mellowmax_beta = mellowmax_beta
         self.study_name = study_name
         self.study_dir = f'./results/sample_based/{study_name}'
-        self.build_study(use_existing=use_existing_study)
+        # self.build_study(use_existing=use_existing_study)
         self.discrep_loss = discrep_loss
         self.disable_importance_sampling = disable_importance_sampling
         self.override_mem_eval_with_analytical_env = override_mem_eval_with_analytical_env
