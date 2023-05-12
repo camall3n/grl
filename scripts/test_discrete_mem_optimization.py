@@ -28,7 +28,7 @@ spec_name = "tmaze_eps_hyperparams"
 # spec_name = "simple_chain"
 corridor_length = 5
 discount = 0.9
-junction_up_pi = 2 / 3
+junction_up_pi = 1.0 #2 / 3
 epsilon = 0.2
 error_type = 'mse'
 
@@ -61,7 +61,8 @@ learning_agent.add_memory()
 
 HOLD = np.eye(learning_agent.n_mem_states)
 TOGGLE = 1 - HOLD
-SET = np.concatenate((np.zeros((learning_agent.n_mem_states, 1)), np.ones((learning_agent.n_mem_states, 1))), -1)
+SET = np.concatenate((np.zeros(
+    (learning_agent.n_mem_states, 1)), np.ones((learning_agent.n_mem_states, 1))), -1)
 RESET = 1 - SET
 
 mem_probs = np.tile(HOLD[None, None, :, :], (learning_agent.n_actions, learning_agent.n_obs, 1, 1))
@@ -71,13 +72,16 @@ mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 lstd_v0, lstd_q0 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda1)
 
+start_value = lstd_v0[0]
+
 aug_policy = learning_agent.policy_probs
 discrep_loss(aug_policy, mem_aug_mdp)
 
 class SearchNode:
     def __init__(self, mem_probs=None):
         if mem_probs is None:
-            mem_probs = np.tile(HOLD[None, None, :, :], (learning_agent.n_actions, learning_agent.n_obs, 1, 1))
+            mem_probs = np.tile(HOLD[None, None, :, :],
+                                (learning_agent.n_actions, learning_agent.n_obs, 1, 1))
 
         self.mem_probs = mem_probs
         self.mem_hash = self.round_and_hash(mem_probs)
@@ -115,10 +119,12 @@ visited = set()
 frontier = deque([s])
 best_discrep = np.inf
 best_node = None
+n_evals = 0
 
 while frontier:
     node = frontier.popleft()
-    discrep = node.evaluate()[0]
+    discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.04)
+    n_evals += 1
     print(f'discrep = {discrep}')
     visited.add(node.mem_hash)
 
@@ -129,10 +135,16 @@ while frontier:
         successors = node.get_successors(skip_hashes=visited)
         frontier.extend(successors)
 
-print(f'Best discrep: {best_discrep}')
+print()
 print(f'Best node: \n'
-      f'{best_node.mem_probs}\n'
-      f'{best_node.evaluate()}')
+      f'{best_node.mem_probs}\n')
+M = learning_agent.n_mem_states
+O = learning_agent.n_obs
+A = learning_agent.n_actions
+n_mem_fns = M**(M * O * A)
+print(f'Total memory functions: {n_mem_fns}')
+print(f'Number evaluated: {n_evals}')
+print(f'Best discrep: {best_discrep}')
 
 discrep, mc, td = s.evaluate()
 (mc['q'] - td['q']).round(2)
@@ -142,7 +154,10 @@ mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
 
-planning_agent = AnalyticalAgent(learning_agent.policy_probs, None, mem_params=mem_probs, value_type='q')
+planning_agent = AnalyticalAgent(learning_agent.policy_probs,
+                                 None,
+                                 mem_params=mem_probs,
+                                 value_type='q')
 pi_improvement(planning_agent, mem_aug_mdp, lr=0.1)
 planning_agent.pi_params
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
@@ -150,3 +165,7 @@ learning_agent.policy_probs
 
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
+
+end_value = lstd_v0[0]
+print(f'Start value: {start_value}')
+print(f'End value: {end_value}')
