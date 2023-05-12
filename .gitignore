@@ -4,9 +4,11 @@
 data/
 env/
 venv/
+venv
 images/
 videos/
 results/
+results
 **__pycache__
 **.pyc
 .onager

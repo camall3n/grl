@@ -2,6 +2,7 @@ import copy
 from gmpy2 import mpz
 import numpy as np
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -63,6 +64,7 @@ def random_observation_fn(n_states, n_obs_per_block):
 def one_hot(x, n):
     return jnp.eye(n)[x]
 
+@register_pytree_node_class
 class MDP:
     def __init__(self, T, R, p0, gamma=0.9):
         self.n_states = len(T[0])
@@ -79,6 +81,16 @@ class MDP:
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
         self.p0 = p0
+        self.current_state = None
+
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*children)
 
     def __repr__(self):
         return repr(self.T) + '\n' + repr(self.R)
@@ -113,19 +125,29 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a, gamma):
-        pr_next_s = self.T[a, s, :]
-        sp = np.random.choice(self.n_states, p=pr_next_s)
-        r = self.R[a][s][sp]
-        # Check if sp is terminal state
-        sp_is_absorbing = (self.T[:, sp, sp] == 1)
-        done = sp_is_absorbing.all()
-        # Discounting
-        # End episode with probability 1-gamma
-        if np.random.uniform() < (1 - gamma):
-            done = True
+    def reset(self, state=None):
+        if state is None:
+            state = np.random.choice(self.n_states, p=self.p0)
+        self.current_state = state
+        info = {'state': self.current_state}
+        return self.observe(self.current_state), info
 
-        return sp, r, done
+    def step(self, action: int, gamma_terminal: bool = True):
+        pr_next_s = self.T[action, self.current_state, :]
+        next_state = np.random.choice(self.n_states, p=pr_next_s)
+        reward = self.R[action][self.current_state][next_state]
+        # Check if next_state is absorbing state
+        is_absorbing = (self.T[:, next_state, next_state] == 1)
+        terminal = is_absorbing.all() # absorbing for all actions
+        # Discounting: end episode with probability 1-gamma
+        if gamma_terminal and np.random.uniform() < (1 - self.gamma):
+            terminal = True
+        truncated = False
+        observation = self.observe(next_state)
+        info = {'state': next_state}
+        self.current_state = next_state
+        # Conform to new-style Gym API
+        return observation, reward, terminal, truncated, info
 
     def observe(self, s):
         return s
@@ -193,20 +215,23 @@ class BlockMDP(MDP):
         self.R = jnp.stack(self.R)
         self.obs_fn = obs_fn
 
+@register_pytree_node_class
 class AbstractMDP(MDP):
-    def __init__(self, base_mdp, phi, pi=None, t=200):
+    def __init__(self, base_mdp, phi):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
 
-        # self.belief = self.B(pi, t=t)
-        # self.T = [self.compute_Tz(self.belief,T_a)
-        #             for T_a in base_mdp.T]
-        # self.R = [self.compute_Rz(self.belief,Rx_a,Tx_a,Tz_a)
-        #             for (Rx_a, Tx_a, Tz_a) in zip(base_mdp.R, base_mdp.T, self.T)]
-        # self.T = jnp.stack(self.T)
-        # self.R = jnp.stack(self.R)
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma, self.phi)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        mdp = MDP(*children[:-1])
+        return cls(mdp, children[-1])
 
     def __repr__(self):
         base_str = super().__repr__()

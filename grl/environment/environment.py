@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+import inspect
 
 from . import examples_lib
 from .memory_lib import get_memory
@@ -7,12 +8,13 @@ from .pomdp_file import POMDPFile
 from grl.utils.math import normalize
 from definitions import ROOT_DIR
 
-def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
+def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness: float = 0.1, **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:            The name of the function or .POMDP file defining the POMDP.
     :param memory_id:       ID of memory function to use.
     :param n_mem_states:    Number of memory states allowed.
+    :param mem_leakiness:   for memory_id="f" - how leaky do is out leaky identity function.
 
     The following **kwargs are specified for the following specs:
     tmaze_hyperparams:
@@ -26,8 +28,10 @@ def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
     # then from pomdp_files
     spec = None
     try:
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
-        spec = getattr(examples_lib, name)(**kwargs)
+        spec_fn = getattr(examples_lib, name)
+        arg_names = inspect.signature(spec_fn).parameters
+        kwargs = {k: v for k, v in kwargs.items() if v is not None and k in arg_names}
+        spec = spec_fn(**kwargs)
 
     except AttributeError as _:
         pass
@@ -56,9 +60,10 @@ def load_spec(name, memory_id: int = None, n_mem_states: int = 2, **kwargs):
 
     if memory_id is not None:
         spec['mem_params'] = get_memory(memory_id,
-                                        spec['phi'].shape[-1],
-                                        spec['T'].shape[0],
-                                        n_mem_states=n_mem_states)
+                                        n_obs=spec['phi'].shape[-1],
+                                        n_actions=spec['T'].shape[0],
+                                        n_mem_states=n_mem_states,
+                                        leakiness=mem_leakiness)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
