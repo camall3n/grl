@@ -113,7 +113,7 @@ results = {
 }
 results.update(info)
 
-dirname = f'results/discrete/{args.env}/{args.trial_id}'
+dirname = f'results/discrete/{args.study_name}/{args.env}/{args.trial_id}'
 json_filename = dirname + '/discrete_oracle.json'
 npy_filename = dirname + '/memory.npy'
 os.makedirs(dirname, exist_ok=True)
