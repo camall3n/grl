@@ -115,12 +115,12 @@ def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_
                                  n_samples=n_samples_per_policy,
                                  mode=mode,
                                  reset_before_converging=True,
-                                 update_policy=True)
+                                 update_policy=False)
         np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
-        # did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
-        # if not did_change:
-        #     break
+        did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
+        if not did_change:
+            break
 
 def cpu_count():
     # os.cpu_count()
