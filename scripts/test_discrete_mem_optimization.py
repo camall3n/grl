@@ -43,6 +43,7 @@ learning_agent = ActorCritic(
     mellowmax_beta=10.,
     discrep_loss='mse',
     study_name='compare_sample_and_plan_04/' + args.study_name,
+    override_mem_eval_with_analytical_env=env,
 )
 
 planning_agent = AnalyticalAgent(
@@ -80,37 +81,6 @@ def evaluate(search_node: SearchNode):
     memory_logits = np.log(search_node.mem_probs + 1e-20)
     mem_aug_mdp = memory_cross_product(memory_logits, env)
     return discrep_loss(learning_agent.policy_probs, mem_aug_mdp)
-
-def queue_search(mem_probs):
-    s = SearchNode(mem_probs)
-
-    visited = set()
-    frontier = deque([s])
-    best_discrep = np.inf
-    best_node = None
-    n_evals = 0
-    discreps = []
-
-    while frontier:
-        node = frontier.popleft()
-        discrep = evaluate(node)[0] + np.random.normal(loc=0, scale=0.00)
-        discreps.append(discrep)
-        n_evals += 1
-        # print(f'discrep = {discrep}')
-        visited.add(node.mem_hash)
-
-        if discrep < best_discrep:
-            # print(f'New best discrep: {discrep}')
-            best_discrep = discrep
-            best_node = node
-            successors = node.get_successors(skip_hashes=visited)
-            frontier.extend(successors)
-
-    info = {
-        'n_evals': n_evals,
-        'best_discrep': best_discrep.item(),
-    }
-    return best_node, info, discreps
 
 def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
     # simulated annealing
@@ -154,7 +124,8 @@ mode = "queue"
 assert mode in ["queue", "sa"], "invalid mode"
 
 if mode == "queue":
-    best_node, info, discreps = queue_search(mem_probs)
+    learning_agent.set_memory(mem_probs, logits=False)
+    best_node, info, discreps = learning_agent.optimize_memory_fifo_queue()
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
     A = learning_agent.n_actions

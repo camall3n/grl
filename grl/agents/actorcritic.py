@@ -1,3 +1,4 @@
+from collections import deque
 import copy
 from functools import partial
 from itertools import repeat
@@ -16,10 +17,11 @@ from tqdm import tqdm
 
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
+from grl.utils.discrete_search import SearchNode
+from grl.utils.loss import mem_discrep_loss
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful
-from grl.utils.loss import mem_discrep_loss
 
 class ActorCritic:
     def __init__(
@@ -43,6 +45,7 @@ class ActorCritic:
         discrep_loss='abs',
         disable_importance_sampling=False,
         override_mem_eval_with_analytical_env=None,
+        analytical_lambda_discrep_noise=0.0,
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -66,6 +69,7 @@ class ActorCritic:
         self.discrep_loss = discrep_loss
         self.disable_importance_sampling = disable_importance_sampling
         self.override_mem_eval_with_analytical_env = override_mem_eval_with_analytical_env
+        self.analytical_lambda_discrep_noise = analytical_lambda_discrep_noise
 
         self.reset_policy()
         self.reset_memory()
@@ -294,8 +298,37 @@ class ActorCritic:
 
         return study
 
-    def optimize_memory_fifo_queue(self, n_trials):
-        pass
+    def optimize_memory_fifo_queue(self):
+        s = SearchNode(self.memory_probs)
+
+        visited = set()
+        frontier = deque([s])
+        best_discrep = np.inf
+        best_node = None
+        n_evals = 0
+        discreps = []
+
+        while frontier:
+            node = frontier.popleft()
+            self.set_memory(node.mem_probs, logits=False)
+            discrep = self.evaluate_memory()
+            discreps.append(discrep)
+            n_evals += 1
+            # print(f'discrep = {discrep}')
+            visited.add(node.mem_hash)
+
+            if discrep < best_discrep:
+                # print(f'New best discrep: {discrep}')
+                best_discrep = discrep
+                best_node = node
+                successors = node.get_successors(skip_hashes=visited)
+                frontier.extend(successors)
+
+        info = {
+            'n_evals': n_evals,
+            'best_discrep': best_discrep.item(),
+        }
+        return best_node, info, discreps
 
     def optimize_memory(self, n_trials):
         study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
@@ -324,8 +357,12 @@ class ActorCritic:
             return weighted_discreps.mean()
 
     def evaluate_memory_analytical(self):
-        return mem_discrep_loss(self.memory_logits, self.policy_probs,
-                                self.override_mem_eval_with_analytical_env)
+        noise = 0
+        if self.analytical_lambda_discrep_noise > 0:
+            noise = np.random.normal(loc=0, scale=self.analytical_lambda_discrep_noise)
+        discrep = mem_discrep_loss(self.memory_logits, self.policy_probs,
+                                   self.override_mem_eval_with_analytical_env)
+        return discrep + noise
 
     def evaluate_memory(self):
         if self.override_mem_eval_with_analytical_env is not None:
