@@ -58,9 +58,9 @@ class ActorCritic:
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
         self.mem_optimizer = mem_optimizer
+        self.study_dir = f'./results/sample_based/{study_name}'
         if mem_optimizer == 'optuna':
             self.study_name = study_name
-            self.study_dir = f'./results/sample_based/{study_name}'
             self.n_optuna_workers = n_optuna_workers
             self.build_study(use_existing=use_existing_study)
         elif mem_optimizer in ['fifo-queue', 'annealing']:
