@@ -148,10 +148,12 @@ def queue_search(mem_probs):
     best_discrep = np.inf
     best_node = None
     n_evals = 0
+    discreps = []
 
     while frontier:
         node = frontier.popleft()
         discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.00)
+        discreps.append(discrep)
         n_evals += 1
         # print(f'discrep = {discrep}')
         visited.add(node.mem_hash)
@@ -167,7 +169,7 @@ def queue_search(mem_probs):
         'n_evals': n_evals,
         'best_discrep': best_discrep.item(),
     }
-    return best_node, info
+    return best_node, info, discreps
 
 def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
     # simulated annealing
@@ -180,7 +182,7 @@ def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
     best_p = p
     for i in range(n):
         successor = node.get_random_successor()
-        p2 = successor.evaluate()[0]
+        p2 = successor.evaluate()[0] + np.random.normal(loc=0, scale=0.00)
         de = p2 - p
         if p2 == p:
             accept = 0
@@ -211,7 +213,7 @@ mode = "queue"
 assert mode in ["queue", "sa"], "invalid mode"
 
 if mode == "queue":
-    best_node, info = queue_search(mem_probs)
+    best_node, info, discreps = queue_search(mem_probs)
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
     A = learning_agent.n_actions
@@ -224,8 +226,9 @@ elif mode == "sa":
     cooling_rate = 0.99
     n = 200
     best_node, info, discreps = simulated_annealing(mem_probs, beta, cooling_rate, n)
-    plt.plot(range(len(discreps)), discreps)
-    plt.show()
+
+plt.plot(range(len(discreps)), discreps)
+plt.show()
 
 # Search results stuff
 print()
