@@ -39,7 +39,7 @@ learning_agent = ActorCritic(
     n_mem_entries=0,
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
-    prune_if_parent_suboptimal=True,
+    prune_if_parent_suboptimal=False,
     mellowmax_beta=10.,
     discrep_loss='mse',
     study_name='compare_sample_and_plan_04/' + args.study_name,
@@ -77,7 +77,7 @@ discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
 info = learning_agent.optimize_memory(args.n_memory_trials)
-if learning_agent.mem_optimizer == "fifo-queue":
+if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
     A = learning_agent.n_actions

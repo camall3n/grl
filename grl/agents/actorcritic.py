@@ -1,4 +1,3 @@
-from collections import deque
 import copy
 from functools import partial
 from itertools import repeat
@@ -23,6 +22,7 @@ from grl.utils.loss import mem_discrep_loss
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful
+from grl.utils.priorityqueue import PriorityQueue
 
 class ActorCritic:
     def __init__(
@@ -39,8 +39,9 @@ class ActorCritic:
         policy_epsilon: float = 0.10,
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
-        mem_optimizer='fifo-queue', # [fifo-queue, prio-queue, annealing, optuna]
+        mem_optimizer='queue', # [queue, annealing, optuna]
         prune_if_parent_suboptimal=False, # search queue pruning
+        ignore_queue_priority=False, # search queue priority
         study_name='default_study',
         use_existing_study=False,
         n_optuna_workers=1,
@@ -60,13 +61,14 @@ class ActorCritic:
         self.mellowmax_beta = mellowmax_beta
         self.mem_optimizer = mem_optimizer
         self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
+        self.ignore_queue_priority = ignore_queue_priority
         self.study_dir = f'./results/sample_based/{study_name}'
         os.makedirs(self.study_dir, exist_ok=True)
         if mem_optimizer == 'optuna':
             self.study_name = study_name
             self.n_optuna_workers = n_optuna_workers
             self.build_study(use_existing=use_existing_study)
-        elif mem_optimizer in ['fifo-queue', 'annealing']:
+        elif mem_optimizer in ['queue', 'annealing']:
             pass
         else:
             raise NotImplementedError(f'Unknown mem_optimizer: {mem_optimizer}')
@@ -302,12 +304,19 @@ class ActorCritic:
 
         return study
 
-    def optimize_memory_fifo_queue(self, max_iterations=None):
+    def optimize_memory_prio_queue(self, max_iterations=None):
         s = SearchNode(self.memory_probs)
 
         visited = set()
         best_discrep = np.inf
-        frontier = deque([(s, best_discrep)])
+        frontier = PriorityQueue(highest_priority_first=False)
+
+        def maybe_filter(discrep):
+            if self.ignore_queue_priority:
+                return 0
+            return discrep
+
+        frontier.push(s, maybe_filter(best_discrep))
         best_node = None
         n_evals = 0
         discreps = []
@@ -316,12 +325,12 @@ class ActorCritic:
         while frontier:
             if max_iterations is not None and n_evals >= max_iterations:
                 break
-            node, parent_discrep = frontier.popleft()
+            node, parent_discrep = frontier.pop(return_priority=True)
             if self.prune_if_parent_suboptimal and parent_discrep > best_discrep:
                 continue
             self.set_memory(node.mem_probs, logits=False)
-            discrep = self.evaluate_memory()
-            discreps.append(discrep.item())
+            discrep = self.evaluate_memory().item()
+            discreps.append(discrep)
             n_evals += 1
             # print(f'discrep = {discrep}')
             visited.add(node.mem_hash)
@@ -330,8 +339,9 @@ class ActorCritic:
                 # print(f'New best discrep: {discrep}')
                 best_discrep = discrep
                 best_node = node
-                successors = [(s, discrep) for s in node.get_successors(skip_hashes=visited)]
-                frontier.extend(successors)
+                successors = node.get_successors(skip_hashes=visited)
+                for s in successors:
+                    frontier.push(s, maybe_filter(discrep))
             pbar.update(1)
         if max_iterations is not None and n_evals < max_iterations:
             pbar.update(max_iterations - n_evals)
@@ -340,7 +350,7 @@ class ActorCritic:
         info = {
             'n_evals': n_evals,
             'discreps': discreps,
-            'best_discrep': best_discrep.item(),
+            'best_discrep': best_discrep,
         }
         return best_node, info
 
@@ -357,7 +367,7 @@ class ActorCritic:
         for i in tqdm(range(n_iter)):
             successor = node.get_random_successor()
             self.set_memory(successor.mem_probs, logits=False)
-            next_discrep = self.evaluate_memory()
+            next_discrep = self.evaluate_memory().item()
             delta = next_discrep - discrep
             if next_discrep == discrep:
                 accept = 0
@@ -376,7 +386,7 @@ class ActorCritic:
                 node = successor
                 discrep = next_discrep
             if i % 1 == 0:
-                discreps.append(discrep.item())
+                discreps.append(discrep)
             beta /= cooling_rate
 
         self.set_memory(best_node.mem_probs, logits=False)
@@ -393,8 +403,8 @@ class ActorCritic:
         if self.mem_optimizer == 'optuna':
             study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
             info = {'best_discrep': study.best_value}
-        elif self.mem_optimizer == 'fifo-queue':
-            _, info = self.optimize_memory_fifo_queue(max_iterations=n_trials)
+        elif self.mem_optimizer == 'queue':
+            _, info = self.optimize_memory_prio_queue(max_iterations=n_trials)
         elif self.mem_optimizer == 'annealing':
             _, info = self.optimize_memory_annealing(n_iter=n_trials)
         else:
