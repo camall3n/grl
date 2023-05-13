@@ -39,10 +39,12 @@ learning_agent = ActorCritic(
     n_mem_entries=0,
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
+    prune_if_parent_suboptimal=True,
     mellowmax_beta=10.,
     discrep_loss='mse',
     study_name='compare_sample_and_plan_04/' + args.study_name,
     override_mem_eval_with_analytical_env=env,
+    analytical_lambda_discrep_noise=0.01,
 )
 
 planning_agent = AnalyticalAgent(

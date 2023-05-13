@@ -40,6 +40,7 @@ class ActorCritic:
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
         mem_optimizer='fifo-queue', # [fifo-queue, prio-queue, annealing, optuna]
+        prune_if_parent_suboptimal=False, # search queue pruning
         study_name='default_study',
         use_existing_study=False,
         n_optuna_workers=1,
@@ -58,6 +59,7 @@ class ActorCritic:
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
         self.mem_optimizer = mem_optimizer
+        self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
         self.study_dir = f'./results/sample_based/{study_name}'
         os.makedirs(self.study_dir, exist_ok=True)
         if mem_optimizer == 'optuna':
@@ -304,8 +306,8 @@ class ActorCritic:
         s = SearchNode(self.memory_probs)
 
         visited = set()
-        frontier = deque([s])
         best_discrep = np.inf
+        frontier = deque([(s, best_discrep)])
         best_node = None
         n_evals = 0
         discreps = []
@@ -314,7 +316,9 @@ class ActorCritic:
         while frontier:
             if max_iterations is not None and n_evals >= max_iterations:
                 break
-            node = frontier.popleft()
+            node, parent_discrep = frontier.popleft()
+            if self.prune_if_parent_suboptimal and parent_discrep > best_discrep:
+                continue
             self.set_memory(node.mem_probs, logits=False)
             discrep = self.evaluate_memory()
             discreps.append(discrep.item())
@@ -326,7 +330,7 @@ class ActorCritic:
                 # print(f'New best discrep: {discrep}')
                 best_discrep = discrep
                 best_node = node
-                successors = node.get_successors(skip_hashes=visited)
+                successors = [(s, discrep) for s in node.get_successors(skip_hashes=visited)]
                 frontier.extend(successors)
             pbar.update(1)
         if max_iterations is not None and n_evals < max_iterations:
