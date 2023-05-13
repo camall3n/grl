@@ -118,7 +118,7 @@ def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_
                                  update_policy=False)
         np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
-        did_change = agent.update_actor(mode=mode, argmax_type='mellowmax')
+        did_change = agent.update_actor(mode=mode, argmax_type='hardmax')
         if not did_change:
             break
 
