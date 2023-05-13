@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--mem_optimizer', type=str, default='queue',
                         choices=['queue', 'annealing', 'optuna'])
+    parser.add_argument('--enable_priority_queue', action='store_true')
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)
@@ -196,6 +197,8 @@ def main():
         n_mem_entries=0,
         policy_epsilon=args.policy_epsilon,
         replay_buffer_size=args.replay_buffer_size,
+        mem_optimizer=args.mem_optimizer,
+        ignore_queue_priority=(not args.enable_priority_queue),
         mellowmax_beta=args.mellowmax_beta,
         study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
         use_existing_study=args.use_existing_study,

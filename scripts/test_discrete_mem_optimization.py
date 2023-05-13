@@ -39,6 +39,7 @@ learning_agent = ActorCritic(
     n_mem_entries=0,
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
+    ignore_queue_priority=(not args.enable_priority_queue),
     prune_if_parent_suboptimal=False,
     mellowmax_beta=10.,
     discrep_loss='mse',
