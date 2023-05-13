@@ -197,6 +197,7 @@ def main():
         mellowmax_beta=args.mellowmax_beta,
         study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
         use_existing_study=args.use_existing_study,
+        n_optuna_workers=get_n_workers(args.n_memory_trials, args),
         discrep_loss=args.discrep_loss,
         disable_importance_sampling=args.disable_importance_sampling,
         override_mem_eval_with_analytical_env=env if args.analytical_mem_eval else None,
@@ -238,10 +239,7 @@ def main():
 
         print(f"Memory iteration {n_mem_iterations}")
 
-        study = agent.optimize_memory(
-            n_jobs=get_n_workers(args.n_memory_trials, args),
-            n_trials=args.n_memory_trials,
-        )
+        optim_results = agent.optimize_memory(n_trials=args.n_memory_trials)
         np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
 
         print('Memory:')
@@ -278,7 +276,7 @@ def main():
     info = {
         'final_params': agent.memory_logits,
         'initial_discrep': discrep_start,
-        'final_discrep': study.best_value,
+        'final_discrep': optim_results['best_discrep'],
         'policy_up_prob': args.policy_junction_up_prob,
         'final_memory_value_function': {
             '0': agent.q_td.q.copy(),

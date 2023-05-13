@@ -36,8 +36,10 @@ class ActorCritic:
         policy_epsilon: float = 0.10,
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
+        mem_optimizer='optuna', # [fifo-queue, prio-queue, annealing, optuna]
         study_name='default_study',
         use_existing_study=False,
+        n_optuna_workers=1,
         discrep_loss='abs',
         disable_importance_sampling=False,
         override_mem_eval_with_analytical_env=None,
@@ -51,9 +53,14 @@ class ActorCritic:
         self.n_mem_states = n_mem_values**n_mem_entries
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
-        self.study_name = study_name
-        self.study_dir = f'./results/sample_based/{study_name}'
-        # self.build_study(use_existing=use_existing_study)
+        self.mem_optimizer = mem_optimizer
+        if mem_optimizer == 'optuna':
+            self.study_name = study_name
+            self.study_dir = f'./results/sample_based/{study_name}'
+            self.n_optuna_workers = n_optuna_workers
+            self.build_study(use_existing=use_existing_study)
+        else:
+            raise NotImplementedError(f'Unknown mem_optimizer: {mem_optimizer}')
         self.discrep_loss = discrep_loss
         self.disable_importance_sampling = disable_importance_sampling
         self.override_mem_eval_with_analytical_env = override_mem_eval_with_analytical_env
@@ -252,7 +259,7 @@ class ActorCritic:
         study = self.build_study(seed)
         study.optimize(self.objective, n_trials=n_trials, callbacks=[self.on_trial_end_callback])
 
-    def optimize_memory(
+    def optimize_memory_optuna(
         self,
         n_trials=500,
         n_jobs=1,
@@ -284,6 +291,11 @@ class ActorCritic:
         self.set_memory(params, logits=False)
 
         return study
+
+    def optimize_memory(self, n_trials):
+        study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
+        info = {'best_discrep': study.best_value}
+        return info
 
     def compute_discrepancy_loss(self, obs, actions, memories):
         if self.discrep_loss == 'mse':
