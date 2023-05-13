@@ -2,6 +2,7 @@ from collections import deque
 import copy
 from functools import partial
 from itertools import repeat
+import math
 from multiprocessing import Pool, freeze_support
 import os
 import shutil
@@ -327,6 +328,46 @@ class ActorCritic:
         info = {
             'n_evals': n_evals,
             'best_discrep': best_discrep.item(),
+        }
+        return best_node, info, discreps
+
+    def optimize_memory_annealing(self, beta=1e3, cooling_rate=0.99, n_iter=200):
+        # simulated annealing
+        # beta = 1/temp
+        discreps = []
+        s = SearchNode(self.memory_probs)
+        node = s
+        self.set_memory(node.mem_probs, logits=False)
+        discrep = self.evaluate_memory()
+        best_node = s
+        best_discrep = discrep
+        for i in range(n_iter):
+            successor = node.get_random_successor()
+            self.set_memory(successor.mem_probs, logits=False)
+            next_discrep = self.evaluate_memory()
+            delta = next_discrep - discrep
+            if next_discrep == discrep:
+                accept = 0
+            else:
+                accept = math.exp(-delta * beta)
+            # decide whether to accept the transition
+            if delta <= 0:
+                node = successor
+                discrep = next_discrep
+                if discrep < best_discrep:
+                    best_discrep = discrep
+                    best_node = node
+            elif np.random.random() < accept:
+                node = successor
+                discrep = next_discrep
+            if i % 1 == 0:
+                discreps.append(discrep)
+            beta /= cooling_rate
+        info = {
+            'best_discrep': discreps[-1].tolist(),
+            'beta': beta,
+            'cooling_rate': cooling_rate,
+            'n': n_iter,
         }
         return best_node, info, discreps
 

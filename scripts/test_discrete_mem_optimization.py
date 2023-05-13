@@ -1,4 +1,3 @@
-from collections import deque
 import json
 import os
 
@@ -16,7 +15,6 @@ from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
 from grl.memory import memory_cross_product
 from scripts.learning_agent.memory_iteration import parse_args
 
-import math
 import matplotlib.pyplot as plt
 
 np.set_printoptions(precision=3, suppress=True)
@@ -82,49 +80,11 @@ def evaluate(search_node: SearchNode):
     mem_aug_mdp = memory_cross_product(memory_logits, env)
     return discrep_loss(learning_agent.policy_probs, mem_aug_mdp)
 
-def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
-    # simulated annealing
-    # beta = 1/temp
-    discreps = []
-    s = SearchNode(mem_probs)
-    node = s
-    p = evaluate(node)[0]
-    best_node = s
-    best_p = p
-    for i in range(n):
-        successor = node.get_random_successor()
-        p2 = evaluate(successor)[0] + np.random.normal(loc=0, scale=0.00)
-        de = p2 - p
-        if p2 == p:
-            accept = 0
-        else:
-            accept = math.exp(-de * beta)
-        # decide whether to accept the transition
-        if de <= 0:
-            node = successor
-            p = p2
-            if p < best_p:
-                best_p = p
-                best_node = node
-        elif np.random.random() < accept:
-            node = successor
-            p = p2
-        if i % 1 == 0:
-            discreps.append(p)
-        beta /= cooling_rate
-    info = {
-        'best_discrep': discreps[-1].tolist(),
-        'beta': beta,
-        'cooling_rate': cooling_rate,
-        'n': n,
-    }
-    return best_node, info, discreps
-
-mode = "queue"
+mode = "sa"
 assert mode in ["queue", "sa"], "invalid mode"
 
+learning_agent.set_memory(mem_probs, logits=False)
 if mode == "queue":
-    learning_agent.set_memory(mem_probs, logits=False)
     best_node, info, discreps = learning_agent.optimize_memory_fifo_queue()
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
@@ -132,12 +92,11 @@ if mode == "queue":
     n_mem_fns = M**(M * O * A)
     print(f'Total memory functions: {n_mem_fns}')
     print(f'Number evaluated: {info["n_evals"]}')
-
 elif mode == "sa":
     beta = 1e3
     cooling_rate = 0.99
     n = 200
-    best_node, info, discreps = simulated_annealing(mem_probs, beta, cooling_rate, n)
+    best_node, info, discreps = learning_agent.optimize_memory_annealing(beta, cooling_rate, n)
 
 plt.plot(range(len(discreps)), discreps)
 plt.show()
