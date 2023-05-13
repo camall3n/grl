@@ -352,6 +352,8 @@ class ActorCritic:
             delta = next_discrep - discrep
             if next_discrep == discrep:
                 accept = 0
+            elif next_discrep < discrep:
+                accept = 1
             else:
                 accept = math.exp(-delta * beta)
             # decide whether to accept the transition
