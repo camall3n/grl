@@ -101,8 +101,8 @@ class SearchNode:
 
     def modify_rowcol(self, action, obs, mem_row, mem_col):
         new_probs = self.mem_probs.copy()
-        new_row = np.zeros((1,learning_agent.n_mem_states))
-        new_row[0,mem_col] = 1
+        new_row = np.zeros((1, learning_agent.n_mem_states))
+        new_row[0, mem_col] = 1
         new_probs[action, obs][mem_row] = new_row
         return SearchNode(new_probs)
 
@@ -117,13 +117,13 @@ class SearchNode:
                     if successor.mem_hash not in skip_hashes:
                         successors.append(successor)
         return successors
-    
+
     def get_random_successor(self, modify_row=True):
         n_actions, n_obs, _, _ = self.mem_probs.shape
         a = np.random.choice(n_actions)
         o = np.random.choice(n_actions)
 
-        if modify_row: 
+        if modify_row:
             mem_row = np.random.choice(learning_agent.n_mem_states)
             mem_col = np.random.choice(learning_agent.n_mem_states)
             successor = self.modify_rowcol(a, o, mem_row, mem_col)
@@ -132,7 +132,7 @@ class SearchNode:
             mem_ops = [HOLD, TOGGLE, SET, RESET]
             mem_op_idx = np.random.choice(range(len(mem_ops)))
             mem_op = mem_ops[mem_op_idx]
-        
+
         return successor
 
     def evaluate(self):
@@ -185,7 +185,7 @@ def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
         if p2 == p:
             accept = 0
         else:
-            accept = math.exp(-de*beta)
+            accept = math.exp(-de * beta)
         # decide whether to accept the transition
         if de <= 0:
             node = successor
@@ -206,7 +206,7 @@ def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
         'n': n,
     }
     return best_node, info, discs
-    
+
 mode = "queue"
 assert mode in ["queue", "sa"], "invalid mode"
 
@@ -218,7 +218,7 @@ if mode == "queue":
     n_mem_fns = M**(M * O * A)
     print(f'Total memory functions: {n_mem_fns}')
     print(f'Number evaluated: {info["n_evals"]}')
-    
+
 elif mode == "sa":
     beta = 1e3
     cooling_rate = 0.99
