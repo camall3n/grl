@@ -28,6 +28,9 @@ class SearchNode:
         hash_obj = hashlib.sha256(x_bytes)
         return hash_obj.hexdigest()
 
+    def __hash__(self):
+        return self.mem_hash
+
     def modify(self, action, obs, mem_op):
         new_probs = self.mem_probs.copy()
         new_probs[action, obs] = mem_op
