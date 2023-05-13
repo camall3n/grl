@@ -310,6 +310,7 @@ class ActorCritic:
         n_evals = 0
         discreps = []
 
+        pbar = tqdm(total=max_iterations)
         while frontier:
             if max_iterations is not None and n_evals >= max_iterations:
                 break
@@ -327,6 +328,9 @@ class ActorCritic:
                 best_node = node
                 successors = node.get_successors(skip_hashes=visited)
                 frontier.extend(successors)
+            pbar.update(1)
+        if max_iterations is not None and n_evals < max_iterations:
+            pbar.update(max_iterations - n_evals)
 
         self.set_memory(best_node.mem_probs, logits=False)
         info = {
@@ -346,7 +350,7 @@ class ActorCritic:
         discrep = self.evaluate_memory()
         best_node = s
         best_discrep = discrep
-        for i in range(n_iter):
+        for i in tqdm(range(n_iter)):
             successor = node.get_random_successor()
             self.set_memory(successor.mem_probs, logits=False)
             next_discrep = self.evaluate_memory()
