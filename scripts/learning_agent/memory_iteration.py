@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument('--lambda1', type=float, default=0.99)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
+    parser.add_argument('--mem_optimizer', type=str, default='fifo-queue',
+                        choices=['fifo-queue', 'prio-queue', 'annealing', 'optuna'])
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)

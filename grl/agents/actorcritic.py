@@ -63,7 +63,7 @@ class ActorCritic:
             self.study_dir = f'./results/sample_based/{study_name}'
             self.n_optuna_workers = n_optuna_workers
             self.build_study(use_existing=use_existing_study)
-        elif mem_optimizer == 'fifo-queue':
+        elif mem_optimizer in ['fifo-queue', 'annealing']:
             pass
         else:
             raise NotImplementedError(f'Unknown mem_optimizer: {mem_optimizer}')
@@ -299,7 +299,7 @@ class ActorCritic:
 
         return study
 
-    def optimize_memory_fifo_queue(self):
+    def optimize_memory_fifo_queue(self, max_iterations=None):
         s = SearchNode(self.memory_probs)
 
         visited = set()
@@ -310,10 +310,12 @@ class ActorCritic:
         discreps = []
 
         while frontier:
+            if max_iterations is not None and n_evals >= max_iterations:
+                break
             node = frontier.popleft()
             self.set_memory(node.mem_probs, logits=False)
             discrep = self.evaluate_memory()
-            discreps.append(discrep)
+            discreps.append(discrep.item())
             n_evals += 1
             # print(f'discrep = {discrep}')
             visited.add(node.mem_hash)
@@ -325,11 +327,13 @@ class ActorCritic:
                 successors = node.get_successors(skip_hashes=visited)
                 frontier.extend(successors)
 
+        self.set_memory(best_node.mem_probs, logits=False)
         info = {
             'n_evals': n_evals,
+            'discreps': discreps,
             'best_discrep': best_discrep.item(),
         }
-        return best_node, info, discreps
+        return best_node, info
 
     def optimize_memory_annealing(self, beta=1e3, cooling_rate=0.99, n_iter=200):
         # simulated annealing
@@ -361,19 +365,29 @@ class ActorCritic:
                 node = successor
                 discrep = next_discrep
             if i % 1 == 0:
-                discreps.append(discrep)
+                discreps.append(discrep.item())
             beta /= cooling_rate
+
+        self.set_memory(best_node.mem_probs, logits=False)
         info = {
-            'best_discrep': discreps[-1].tolist(),
+            'best_discrep': discreps[-1],
+            'discreps': discreps,
             'beta': beta,
             'cooling_rate': cooling_rate,
             'n': n_iter,
         }
-        return best_node, info, discreps
+        return best_node, info
 
     def optimize_memory(self, n_trials):
-        study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
-        info = {'best_discrep': study.best_value}
+        if self.mem_optimizer == 'optuna':
+            study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
+            info = {'best_discrep': study.best_value}
+        elif self.mem_optimizer == 'fifo-queue':
+            _, info = self.optimize_memory_fifo_queue(max_iterations=n_trials)
+        elif self.mem_optimizer == 'annealing':
+            _, info = self.optimize_memory_annealing(n_iter=n_trials)
+        else:
+            raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
         return info
 
     def compute_discrepancy_loss(self, obs, actions, memories):
