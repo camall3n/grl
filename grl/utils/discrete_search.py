@@ -55,7 +55,7 @@ class SearchNode:
     def get_random_successor(self, modify_row=True):
         n_actions, n_obs, _, _ = self.mem_probs.shape
         a = np.random.choice(n_actions)
-        o = np.random.choice(n_actions)
+        o = np.random.choice(n_obs)
 
         if modify_row:
             mem_row = np.random.choice(self.n_mem_states)
