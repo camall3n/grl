@@ -225,8 +225,13 @@ def main():
     agent.add_memory()
     agent.reset_memory()
 
-    while len(agent.replay) < args.min_mem_opt_replay_size:
-        converge_value_functions(agent, env, args.n_samples_per_policy)
+    def maybe_fill_replay_buffer():
+        n_remaining_samples = args.min_mem_opt_replay_size - len(agent.replay)
+        if n_remaining_samples > 0:
+            print("Adding more samples to replay buffer to meet minimum requirements")
+            converge_value_functions(agent, env, n_remaining_samples)
+
+    maybe_fill_replay_buffer()
 
     discrep_start = agent.evaluate_memory()
     initial_mem_info_path = agent.study_dir + '/initial_mem_info.pkl'
@@ -236,8 +241,7 @@ def main():
     assert np.allclose(agent.memory_probs, agent.fill_in_params(required_params))
 
     for n_mem_iterations in range(args.n_memory_iterations):
-        while len(agent.replay) < args.min_mem_opt_replay_size:
-            converge_value_functions(agent, env, args.n_episodes_per_policy)
+        maybe_fill_replay_buffer()
 
         print(f"Memory iteration {n_mem_iterations}")
 
