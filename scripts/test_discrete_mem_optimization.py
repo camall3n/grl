@@ -172,7 +172,7 @@ def queue_search(mem_probs):
 def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
     # simulated annealing
     # beta = 1/temp
-    discs = []
+    discreps = []
     s = SearchNode(mem_probs)
     node = s
     p = node.evaluate()[0]
@@ -197,15 +197,15 @@ def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
             node = successor
             p = p2
         if i % 1 == 0:
-            discs.append(p)
+            discreps.append(p)
         beta /= cooling_rate
     info = {
-        'best_discrep': discs[-1].tolist(),
+        'best_discrep': discreps[-1].tolist(),
         'beta': beta,
         'cooling_rate': cooling_rate,
         'n': n,
     }
-    return best_node, info, discs
+    return best_node, info, discreps
 
 mode = "queue"
 assert mode in ["queue", "sa"], "invalid mode"
@@ -223,8 +223,8 @@ elif mode == "sa":
     beta = 1e3
     cooling_rate = 0.99
     n = 200
-    best_node, info, discs = simulated_annealing(mem_probs, beta, cooling_rate, n)
-    plt.plot(range(len(discs)), discs)
+    best_node, info, discreps = simulated_annealing(mem_probs, beta, cooling_rate, n)
+    plt.plot(range(len(discreps)), discreps)
     plt.show()
 
 # Search results stuff
