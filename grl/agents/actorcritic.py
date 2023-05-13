@@ -36,7 +36,7 @@ class ActorCritic:
         policy_epsilon: float = 0.10,
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
-        mem_optimizer='optuna', # [fifo-queue, prio-queue, annealing, optuna]
+        mem_optimizer='fifo-queue', # [fifo-queue, prio-queue, annealing, optuna]
         study_name='default_study',
         use_existing_study=False,
         n_optuna_workers=1,
@@ -59,6 +59,8 @@ class ActorCritic:
             self.study_dir = f'./results/sample_based/{study_name}'
             self.n_optuna_workers = n_optuna_workers
             self.build_study(use_existing=use_existing_study)
+        elif mem_optimizer == 'fifo-queue':
+            pass
         else:
             raise NotImplementedError(f'Unknown mem_optimizer: {mem_optimizer}')
         self.discrep_loss = discrep_loss
@@ -291,6 +293,9 @@ class ActorCritic:
         self.set_memory(params, logits=False)
 
         return study
+
+    def optimize_memory_fifo_queue(self, n_trials):
+        pass
 
     def optimize_memory(self, n_trials):
         study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)

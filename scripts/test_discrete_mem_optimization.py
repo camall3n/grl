@@ -81,13 +81,13 @@ discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
 class SearchNode:
-    def __init__(self, mem_probs=None):
-        if mem_probs is None:
-            mem_probs = np.tile(HOLD[None, None, :, :],
-                                (learning_agent.n_actions, learning_agent.n_obs, 1, 1))
-
+    def __init__(self, mem_probs):
         self.mem_probs = mem_probs
         self.mem_hash = self.round_and_hash(mem_probs)
+
+    @property
+    def n_mem_states(self):
+        return self.mem_probs.shape[-1]
 
     def round_and_hash(self, x, precision=0):
         x_bytes = np.round(x, precision).tobytes()
@@ -101,7 +101,7 @@ class SearchNode:
 
     def modify_rowcol(self, action, obs, mem_row, mem_col):
         new_probs = self.mem_probs.copy()
-        new_row = np.zeros((1, learning_agent.n_mem_states))
+        new_row = np.zeros((1, self.n_mem_states))
         new_row[0, mem_col] = 1
         new_probs[action, obs][mem_row] = new_row
         return SearchNode(new_probs)
@@ -124,8 +124,8 @@ class SearchNode:
         o = np.random.choice(n_actions)
 
         if modify_row:
-            mem_row = np.random.choice(learning_agent.n_mem_states)
-            mem_col = np.random.choice(learning_agent.n_mem_states)
+            mem_row = np.random.choice(self.n_mem_states)
+            mem_col = np.random.choice(self.n_mem_states)
             successor = self.modify_rowcol(a, o, mem_row, mem_col)
         else:
             # for the original modify
@@ -135,10 +135,10 @@ class SearchNode:
 
         return successor
 
-    def evaluate(self):
-        learning_agent.set_memory(self.mem_probs, logits=False)
-        mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
-        return discrep_loss(learning_agent.policy_probs, mem_aug_mdp)
+def evaluate(search_node: SearchNode):
+    memory_logits = np.log(search_node.mem_probs + 1e-20)
+    mem_aug_mdp = memory_cross_product(memory_logits, env)
+    return discrep_loss(learning_agent.policy_probs, mem_aug_mdp)
 
 def queue_search(mem_probs):
     s = SearchNode(mem_probs)
@@ -152,7 +152,7 @@ def queue_search(mem_probs):
 
     while frontier:
         node = frontier.popleft()
-        discrep = node.evaluate()[0] + np.random.normal(loc=0, scale=0.00)
+        discrep = evaluate(node)[0] + np.random.normal(loc=0, scale=0.00)
         discreps.append(discrep)
         n_evals += 1
         # print(f'discrep = {discrep}')
@@ -177,12 +177,12 @@ def simulated_annealing(mem_probs, beta=1e3, cooling_rate=0.99, n=200):
     discreps = []
     s = SearchNode(mem_probs)
     node = s
-    p = node.evaluate()[0]
+    p = evaluate(node)[0]
     best_node = s
     best_p = p
     for i in range(n):
         successor = node.get_random_successor()
-        p2 = successor.evaluate()[0] + np.random.normal(loc=0, scale=0.00)
+        p2 = evaluate(successor)[0] + np.random.normal(loc=0, scale=0.00)
         de = p2 - p
         if p2 == p:
             accept = 0
