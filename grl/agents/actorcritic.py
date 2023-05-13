@@ -59,6 +59,7 @@ class ActorCritic:
         self.mellowmax_beta = mellowmax_beta
         self.mem_optimizer = mem_optimizer
         self.study_dir = f'./results/sample_based/{study_name}'
+        os.makedirs(self.study_dir, exist_ok=True)
         if mem_optimizer == 'optuna':
             self.study_name = study_name
             self.n_optuna_workers = n_optuna_workers
