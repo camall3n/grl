@@ -493,10 +493,10 @@ class ActorCritic:
         return obs_augmented
 
     def augment_experience(self, experience: dict) -> dict:
-        augmented_experience = copy.deepcopy(experience)
-        augmented_experience['obs'] = self.augment_obs(experience['obs'], self.prev_memory)
-        augmented_experience['next_obs'] = self.augment_obs(experience['next_obs'], self.memory)
-        return augmented_experience
+        # augmented_experience = copy.deepcopy(experience)
+        experience['aug_obs'] = self.augment_obs(experience['obs'], self.prev_memory)
+        experience['next_aug_obs'] = self.augment_obs(experience['next_obs'], self.memory)
+        return experience
 
     def augment_policy(self, n_mem_states: int):
         """
