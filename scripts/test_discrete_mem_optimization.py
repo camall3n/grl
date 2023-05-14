@@ -24,12 +24,13 @@ args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
-args.env = 'cheese.95'
+# args.env = 'cheese.95'
 n_pi_iterations = 1000
 args.n_memory_trials = 1000
 t_max = 1
 t_min = 1e-3
 t_min_progress_mark = 0.5
+n_repeats = 5
 args.mem_optimizer = 'annealing'
 
 # Env stuff
@@ -85,7 +86,7 @@ start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
 discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
-info = learning_agent.optimize_memory_annealing(args.n_memory_trials, t_max, t_min, t_min_progress_mark)[1]
+info = learning_agent.optimize_memory_annealing(args.n_memory_trials, t_max, t_min, t_min_progress_mark, n_repeats)[1]
 if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
@@ -99,8 +100,8 @@ plt.show()
 
 # Search results stuff
 print()
-print(f'Best node: \n'
-      f'{learning_agent.memory_probs}\n')
+# print(f'Best node: \n'
+      # f'{learning_agent.memory_probs}\n')
 print(f'Best discrep: {info["best_discrep"]}')
 
 # Final performance stuff
