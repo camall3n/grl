@@ -24,11 +24,11 @@ args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
-# args.env = 'cheese.95'
+args.env = 'cheese.95'
 n_pi_iterations = 1000
-args.n_memory_trials = 1000
-t_max = 1
-t_min = 1e-3
+args.n_memory_trials = 200
+t_max = 1e-1
+t_min = 1e-4
 t_min_progress_mark = 0.5
 n_repeats = 5
 args.mem_optimizer = 'annealing'
@@ -54,7 +54,7 @@ learning_agent = ActorCritic(
     discrep_loss='mse',
     study_name='compare_sample_and_plan_04/' + args.study_name,
     override_mem_eval_with_analytical_env=env,
-    analytical_lambda_discrep_noise=0.01,
+    analytical_lambda_discrep_noise=0.00,
 )
 
 planning_agent = AnalyticalAgent(
