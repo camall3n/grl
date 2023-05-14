@@ -24,11 +24,10 @@ args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
-args.env = 'cheese.95'
+# args.env = 'cheese.95'
+args.env = '4x3.95'
 n_pi_iterations = 1000
-args.n_memory_trials = 200
-t_max = 1e-1
-t_min = 1e-4
+args.n_memory_trials = 400
 t_min_progress_mark = 0.5
 n_repeats = 5
 args.mem_optimizer = 'annealing'
@@ -83,9 +82,11 @@ def get_start_obs_value(value_fn, mdp):
 lstd_v0, lstd_q0 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda0)
 lstd_v1, lstd_q1 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda1)
 start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
-discrep_loss(pi_aug, mem_aug_mdp)
+initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
 
 # Search stuff
+t_max = 1e-1 * initial_discrep / 0.225
+t_min = 1e-4 * initial_discrep / 0.225
 info = learning_agent.optimize_memory_annealing(args.n_memory_trials, t_max, t_min, t_min_progress_mark, n_repeats)[1]
 if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
