@@ -24,6 +24,14 @@ args = parse_args()
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
+args.env = 'cheese.95'
+n_pi_iterations = 1000
+args.n_memory_trials = 1000
+t_max = 1
+t_min = 1e-3
+t_min_progress_mark = 0.5
+args.mem_optimizer = 'annealing'
+
 # Env stuff
 spec = load_spec(args.env, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
@@ -56,7 +64,7 @@ planning_agent = AnalyticalAgent(
 )
 
 # Policy stuff
-pi_improvement(planning_agent, env, iterations=100, lr=0.1)
+pi_improvement(planning_agent, env, iterations=n_pi_iterations, lr=0.1)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 learning_agent.add_memory()
 pi_aug = learning_agent.policy_probs
@@ -77,7 +85,7 @@ start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
 discrep_loss(pi_aug, mem_aug_mdp)
 
 # Search stuff
-info = learning_agent.optimize_memory(args.n_memory_trials)
+info = learning_agent.optimize_memory_annealing(args.n_memory_trials, t_max, t_min, t_min_progress_mark)[1]
 if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
@@ -99,7 +107,7 @@ print(f'Best discrep: {info["best_discrep"]}')
 learning_agent.reset_policy()
 planning_agent.pi_params = learning_agent.policy_logits
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
-pi_improvement(planning_agent, mem_aug_mdp, iterations=100, lr=0.1)
+pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations, lr=0.1)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
 lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
@@ -124,3 +132,11 @@ with open(json_filename, 'w') as f:
     json.dump(results, f)
 
 np.save(npy_filename, learning_agent.memory_probs)
+
+#%%
+plt.plot(range(len(info['temps'])), [b for b in info['temps']])
+plt.show()
+
+#%%
+plt.plot(range(len(info['accept_probs'])), [b for b in info['accept_probs']])
+plt.show()

@@ -354,14 +354,20 @@ class ActorCritic:
         }
         return best_node, info
 
-    def optimize_memory_annealing(self, beta=1e3, cooling_rate=0.99, n_iter=200):
+    def optimize_memory_annealing(self, n_iter=200, t_max=1e3, t_min=2.5, t_min_progress_mark=0.8):
+
         # simulated annealing
         # beta = 1/temp
+        temp = t_max
+        decay_rate = np.log(t_max / t_min) / (t_min_progress_mark * n_iter)
+
         discreps = []
+        temps = []
+        accept_probs = []
         s = SearchNode(self.memory_probs)
         node = s
         self.set_memory(node.mem_probs, logits=False)
-        discrep = self.evaluate_memory()
+        discrep = self.evaluate_memory().item()
         best_node = s
         best_discrep = discrep
         for i in tqdm(range(n_iter)):
@@ -374,7 +380,8 @@ class ActorCritic:
             elif next_discrep < discrep:
                 accept = 1
             else:
-                accept = math.exp(-delta * beta)
+                accept = math.exp(-delta / temp)
+            accept_probs.append(accept)
             # decide whether to accept the transition
             if delta <= 0:
                 node = successor
@@ -387,14 +394,16 @@ class ActorCritic:
                 discrep = next_discrep
             if i % 1 == 0:
                 discreps.append(discrep)
-            beta /= cooling_rate
+                temps.append(temp)
+            temp = max(t_min, temp * np.exp(-decay_rate))
 
         self.set_memory(best_node.mem_probs, logits=False)
         info = {
+            'accept_probs': accept_probs,
             'best_discrep': discreps[-1],
+            'temps': temps,
             'discreps': discreps,
-            'beta': beta,
-            'cooling_rate': cooling_rate,
+            'temp': temp,
             'n': n_iter,
         }
         return best_node, info
