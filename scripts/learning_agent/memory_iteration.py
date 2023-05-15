@@ -104,24 +104,29 @@ def converge_value_functions(agent: ActorCritic,
     # print(f"mc_v0: {mc_v0}")
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
+    return total_samples
 
 def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_policy, mode='td'):
+    policy_history = []
+    policy_history.append((0, agent.policy_probs))
     for i in tqdm(range(n_policy_iterations)):
         print(f'Policy iteration: {i}')
         print('Policy:\n', agent.policy_probs.round(4))
         print('Q(TD):\n', agent.q_td.q.T.round(5))
         print('Q(MC):\n', agent.q_mc.q.T.round(5))
-        converge_value_functions(agent,
-                                 env,
-                                 n_samples=n_samples_per_policy,
-                                 mode=mode,
-                                 reset_before_converging=True,
-                                 update_policy=False)
+        n_samples = converge_value_functions(agent,
+                                             env,
+                                             n_samples=n_samples_per_policy,
+                                             mode=mode,
+                                             reset_before_converging=False,
+                                             update_policy=False)
         np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
         did_change = agent.update_actor(mode=mode, argmax_type='hardmax')
-        if not did_change:
-            break
+        policy_history.append((n_samples, agent.policy_probs))
+        # if not did_change:
+        #     break
+    return policy_history
 
 def cpu_count():
     # os.cpu_count()
@@ -223,7 +228,8 @@ def main():
         agent.reset_policy()
 
     if not args.load_policy:
-        optimize_policy(agent, env, args.n_policy_iterations, args.n_samples_per_policy)
+        initial_policy_history = optimize_policy(agent, env, args.n_policy_iterations,
+                                                 args.n_samples_per_policy)
 
     agent.add_memory()
     agent.reset_memory()
@@ -248,7 +254,11 @@ def main():
 
         print(f"Memory iteration {n_mem_iterations}")
 
-        optim_results = agent.optimize_memory(n_trials=args.n_memory_trials)
+        t_max = 1e-1 * discrep_start / 0.225
+        t_min = 1e-4 * discrep_start / 0.225
+        optim_results = agent.optimize_memory(n_trials=args.n_memory_trials,
+                                              annealing_t_max=t_max,
+                                              annealing_t_min=t_min)
         np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
 
         print('Memory:')
@@ -259,7 +269,8 @@ def main():
 
         if not args.load_policy:
             agent.reset_policy()
-            optimize_policy(agent, env, args.n_policy_iterations, args.n_samples_per_policy)
+            mem_opt_policy_history = optimize_policy(agent, env, args.n_policy_iterations,
+                                                     args.n_samples_per_policy)
 
         print('Memory:')
         print(agent.memory_probs.round(3))
@@ -286,6 +297,9 @@ def main():
         'final_params': agent.memory_logits,
         'initial_discrep': discrep_start,
         'final_discrep': optim_results['best_discrep'],
+        'optim_results': optim_results,
+        'initial_policy_history': initial_policy_history,
+        'mem_opt_policy_history': mem_opt_policy_history,
         'policy_up_prob': args.policy_junction_up_prob,
         'final_memory_value_function': {
             '0': agent.q_td.q.copy(),

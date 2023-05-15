@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from grl.agents.td_lambda import TDLambdaQFunction
 from grl.agents.replaymemory import ReplayMemory
-from grl.utils.discrete_search import SearchNode
+from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
 from grl.utils.loss import mem_discrep_loss
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
@@ -186,7 +186,10 @@ class ActorCritic:
 
     def reset_memory(self):
         mem_shape = (self.n_actions, self.n_obs, self.n_mem_states, self.n_mem_states)
-        self.set_memory(normal_init(mem_shape))
+        if self.mem_optimizer == 'optuna':
+            self.set_memory(normal_init(mem_shape))
+        else:
+            self.set_memory(generate_hold_mem_fn(*mem_shape[:-1]), logits=False)
 
     def fill_in_params(self, required_params):
         required_params_shape = self.memory_logits.shape[:-1] + (self.n_mem_values - 1, )
@@ -418,14 +421,17 @@ class ActorCritic:
         }
         return best_node, info
 
-    def optimize_memory(self, n_trials):
+    def optimize_memory(self, n_trials, annealing_t_max=None, annealing_t_min=None):
         if self.mem_optimizer == 'optuna':
             study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
             info = {'best_discrep': study.best_value}
         elif self.mem_optimizer == 'queue':
             _, info = self.optimize_memory_prio_queue(max_iterations=n_trials)
         elif self.mem_optimizer == 'annealing':
-            _, info = self.optimize_memory_annealing(n_iter=n_trials)
+            _, info = self.optimize_memory_annealing(n_iter=n_trials,
+                                                     t_max=annealing_t_max,
+                                                     t_min=annealing_t_min,
+                                                     t_min_progress_mark=0.5)
         else:
             raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
         return info
