@@ -15,11 +15,6 @@ plt.rcParams.update({'font.size': 18})
 
 #%%
 
-df1 = pd.DataFrame({'shared_column': ['A', 'B', 'C', 'D'], 'df1_specific': [1, 2, 3, 4]})
-
-df2 = pd.DataFrame({'shared_column': ['B', 'D', 'E', 'F'], 'df2_specific': [5, 6, 7, 8]})
-df1.merge(df2, how='inner', on='shared_column')
-
 discrete_data = []
 for filename in glob.glob('results/discrete/discrete05*/*/*/discrete_oracle.json'):
     with open(filename, 'r') as f:
