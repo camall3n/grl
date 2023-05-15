@@ -21,14 +21,15 @@ df2 = pd.DataFrame({'shared_column': ['B', 'D', 'E', 'F'], 'df2_specific': [5, 6
 df1.merge(df2, how='inner', on='shared_column')
 
 discrete_data = []
-for filename in glob.glob('results/discrete/discrete01*/*/*/discrete_oracle.json'):
+for filename in glob.glob('results/discrete/discrete05*/*/*/discrete_oracle.json'):
     with open(filename, 'r') as f:
         results = json.load(f)
         results['spec'] = filename.split('/')[3]
         results['seed'] = int(filename.split('/')[4])
         discrete_data.append(results)
 
-discrete_df = pd.DataFrame(discrete_data).query('seed==1')
+discrete_df = pd.DataFrame(discrete_data).groupby('spec').mean()
+discrete_df['end_value_std'] = pd.DataFrame(discrete_data).groupby('spec').std()['end_value'] / np.sqrt(pd.DataFrame(discrete_data).groupby('spec').count()['seed'])
 
 # %%
 compare_to = 'belief'
@@ -83,7 +84,8 @@ for i, n_mem_states in enumerate(num_n_mem):
         # means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
         means[means['n_mem_states'] == n_mem_states]['end_value'],
         bar_width,
-        #    yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
+        # yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
+        # yerr=discrete_df['end_value_std'],
         label=f"{int(np.log2(n_mem_states))} Memory Bits")
 ax.set_ylim([0, 1])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
@@ -93,5 +95,5 @@ ax.legend(bbox_to_anchor=(0.7, 0.6), framealpha=0.95)
 ax.set_title("Performance of Memory Iteration in POMDPs")
 
 downloads = Path().home() / 'Downloads'
-fig_path = downloads / f"discrete-search-queue.pdf"
+fig_path = downloads / f"no-prio.pdf"
 fig.savefig(fig_path)
