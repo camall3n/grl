@@ -113,10 +113,14 @@ class ActorCritic:
         return action
 
     def step_memory(self, obs, action):
-        next_memory = np.random.choice(
-            self.n_mem_states,
-            p=self.memory_probs[action, obs, self.memory],
-        )
+        mem_dynamics = self.memory_probs[action, obs, self.memory]
+        if self.is_deterministic_binary_memory:
+            next_memory = int(mem_dynamics[-1])
+        else:
+            next_memory = np.random.choice(
+                self.n_mem_states,
+                p=mem_dynamics,
+            )
         self.prev_memory = self.memory
         self.memory = next_memory
 
@@ -177,6 +181,11 @@ class ActorCritic:
         else:
             self.memory_probs = params
             self.memory_logits = np.log(self.memory_probs + 1e-20)
+
+        self.is_deterministic_binary_memory = False
+        if np.allclose(self.memory_probs, np.round(self.memory_probs)):
+            if self.n_mem_values == 2 and self.n_mem_entries > 0:
+                self.is_deterministic_binary_memory = True
 
     def reset_policy(self):
         self.policy_logits = None
