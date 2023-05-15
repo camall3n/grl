@@ -422,7 +422,7 @@ class ActorCritic:
         self.set_memory(best_node.mem_probs, logits=False)
         info = {
             'accept_probs': accept_probs,
-            'best_discrep': discreps[-1],
+            'best_discrep': best_discrep,
             'temps': temps,
             'discreps': discreps,
             'temp': temp,
