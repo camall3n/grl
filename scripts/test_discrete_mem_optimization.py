@@ -23,6 +23,8 @@ np.set_printoptions(precision=3, suppress=True)
 config.update('jax_platform_name', 'cpu')
 
 args = parse_args()
+np.random.seed(args.seed)
+
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
@@ -143,6 +145,7 @@ results = {
     'env': args.env,
     'study_name': args.study_name,
     'trial_id': args.trial_id,
+    'seed': args.seed,
     'tmax': args.annealing_tmax,
     'tmin': args.annealing_tmin,
     'progress_fraction_at_tmin': args.annealing_progress_fraction_at_tmin,

@@ -42,6 +42,7 @@ def parse_args():
     parser.add_argument('--lambda1', type=float, default=0.99)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
+    parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--reward_scale', type=float, default=1.0)
     parser.add_argument('--normalize_reward_range', action='store_true')
     parser.add_argument('--mem_optimizer', type=str, default='queue',
@@ -215,6 +216,8 @@ def main():
     np.set_printoptions(suppress=True)
 
     args = parse_args()
+    np.random.seed(args.seed)
+
     # if args.use_min_replay_num_samples:
     #     args.min_mem_opt_replay_size = args.replay_buffer_size
     spec = environment.load_spec(args.env, memory_id=None)
