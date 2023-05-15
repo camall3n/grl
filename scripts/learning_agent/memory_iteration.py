@@ -118,7 +118,7 @@ def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_
                                              env,
                                              n_samples=n_samples_per_policy,
                                              mode=mode,
-                                             reset_before_converging=False,
+                                             reset_before_converging=True,
                                              update_policy=False)
         np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
 
