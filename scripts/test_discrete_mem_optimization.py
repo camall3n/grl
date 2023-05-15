@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import pprint
@@ -34,9 +35,24 @@ n_pi_iterations = 1000
 args.n_memory_trials = 400
 args.mem_optimizer = 'annealing'
 
+reward_range_dict = {
+    'cheese.95': (10.0, 0),
+    'tiger-alt-start': (10.0, -100.0),
+    'network': (80.0, -40.0),
+    'tmaze_5_two_thirds_up': (4.0, -0.1),
+    'example_7': (1.0, 0.0),
+    '4x3.95': (1.0, -1.0),
+    'shuttle.95': (10.0, -3.0),
+    'paint.95': (1.0, -1.0),
+    'bridge-repair': (4018, 0),
+    'hallway': (1.0, 0),
+}
+reward_scale = 1/(reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
+
 # Env stuff
 spec = load_spec(args.env, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+mdp.R *= reward_scale
 env = AbstractMDP(mdp, spec['phi'])
 
 learning_agent = ActorCritic(
@@ -78,12 +94,13 @@ learning_agent.set_memory(mem_probs, logits=False)
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 
 # Value stuff
-def get_start_obs_value(value_fn, mdp):
+def get_start_obs_value(pi, mdp):
+    mdp = copy.deepcopy(mdp)
+    mdp.R /= reward_scale
+    value_fn, _ = lstdq_lambda(pi, mdp, lambda_=args.lambda1)
     return (value_fn @ (mdp.p0 @ mdp.phi)).item()
 
-lstd_v0, lstd_q0 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda0)
-lstd_v1, lstd_q1 = lstdq_lambda(pi_aug, mem_aug_mdp, lambda_=args.lambda1)
-start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
+start_value = get_start_obs_value(pi_aug, mem_aug_mdp)
 initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
 
 # Search stuff
@@ -117,10 +134,7 @@ mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations, lr=0.1)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
-lstd_v0, lstd_q0 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda0)
-lstd_v1, lstd_q1 = lstdq_lambda(learning_agent.policy_probs, mem_aug_mdp, lambda_=args.lambda1)
-
-end_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
+end_value = get_start_obs_value(learning_agent.policy_probs, mem_aug_mdp)
 print(f'Start value: {start_value}')
 print(f'End value: {end_value}')
 

@@ -16,6 +16,19 @@ from grl.utils.policy_eval import lstdq_lambda
 
 cast_as_int = lambda x: int(float(x))
 
+reward_range_dict = {
+    'cheese.95': (10.0, 0),
+    'tiger-alt-start': (10.0, -100.0),
+    'network': (80.0, -40.0),
+    'tmaze_5_two_thirds_up': (4.0, -0.1),
+    'example_7': (1.0, 0.0),
+    '4x3.95': (1.0, -1.0),
+    'shuttle.95': (10.0, -3.0),
+    'paint.95': (1.0, -1.0),
+    'bridge-repair': (4018, 0),
+    'hallway': (1.0, 0),
+}
+
 def parse_args():
     # yapf: disable
     parser = argparse.ArgumentParser()
@@ -29,6 +42,8 @@ def parse_args():
     parser.add_argument('--lambda1', type=float, default=0.99)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
+    parser.add_argument('--reward_scale', type=float, default=1.0)
+    parser.add_argument('--normalize_reward_range', action='store_true')
     parser.add_argument('--mem_optimizer', type=str, default='queue',
                         choices=['queue', 'annealing', 'optuna'])
     parser.add_argument('--enable_priority_queue', action='store_true')
@@ -58,7 +73,8 @@ def converge_value_functions(agent: ActorCritic,
                              n_samples,
                              mode='td',
                              reset_before_converging=False,
-                             update_policy=False):
+                             update_policy=False,
+                             reward_scale=1.0):
     if reset_before_converging:
         agent.reset_value_functions()
 
@@ -73,13 +89,14 @@ def converge_value_functions(agent: ActorCritic,
         while not terminal:
             agent.step_memory(obs, action)
             next_obs, reward, terminal, _, _ = env.step(action)
+            effective_reward = reward * reward_scale
             eps_length += 1
             next_action = agent.act(next_obs)
 
             experience = {
                 'obs': obs,
                 'action': action,
-                'reward': reward,
+                'reward': effective_reward,
                 'terminal': terminal,
                 'next_obs': next_obs,
                 'next_action': next_action,
@@ -110,7 +127,12 @@ def converge_value_functions(agent: ActorCritic,
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
     return total_samples
 
-def optimize_policy(agent: ActorCritic, env, n_policy_iterations, n_samples_per_policy, mode='td'):
+def optimize_policy(agent: ActorCritic,
+                    env,
+                    n_policy_iterations,
+                    n_samples_per_policy,
+                    mode='td',
+                    reward_scale=1.0):
     policy_history = []
     policy_history.append((0, agent.policy_probs))
     for i in tqdm(range(n_policy_iterations)):
@@ -199,6 +221,10 @@ def main():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
 
+    reward_scale = args.reward_scale
+    if args.normalize_reward_range and args.env in reward_range_dict:
+        reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
+
     agent = ActorCritic(
         n_obs=env.n_obs,
         n_actions=env.n_actions,
@@ -232,8 +258,13 @@ def main():
         agent.reset_policy()
 
     if not args.load_policy:
-        initial_policy_history = optimize_policy(agent, env, args.n_policy_iterations,
-                                                 args.n_samples_per_policy)
+        initial_policy_history = optimize_policy(
+            agent,
+            env,
+            args.n_policy_iterations,
+            args.n_samples_per_policy,
+            reward_scale=reward_scale,
+        )
 
     agent.add_memory()
     agent.reset_memory()
@@ -242,7 +273,7 @@ def main():
         n_remaining_samples = args.min_mem_opt_replay_size - len(agent.replay)
         if n_remaining_samples > 0:
             print("Adding more samples to replay buffer to meet minimum requirements")
-            converge_value_functions(agent, env, n_remaining_samples)
+            converge_value_functions(agent, env, n_remaining_samples, reward_scale=reward_scale)
 
     maybe_fill_replay_buffer()
 
@@ -273,8 +304,13 @@ def main():
 
         if not args.load_policy:
             agent.reset_policy()
-            mem_opt_policy_history = optimize_policy(agent, env, args.n_policy_iterations,
-                                                     args.n_samples_per_policy)
+            mem_opt_policy_history = optimize_policy(
+                agent,
+                env,
+                args.n_policy_iterations,
+                args.n_samples_per_policy,
+                reward_scale=reward_scale,
+            )
 
         print('Memory:')
         print(agent.memory_probs.round(3))
@@ -283,7 +319,10 @@ def main():
         print(agent.policy_probs)
 
         while len(agent.replay) < args.min_mem_opt_replay_size:
-            converge_value_functions(agent, env, args.n_samples_per_policy)
+            converge_value_functions(agent,
+                                     env,
+                                     args.n_samples_per_policy,
+                                     reward_scale=reward_scale)
 
         mem_iter_info_path = agent.study_dir + f'/mem_iter_{n_mem_iterations}_info.pkl'
         log_and_save_info(agent, env, mem_iter_info_path)
