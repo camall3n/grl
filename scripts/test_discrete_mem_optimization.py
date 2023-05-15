@@ -1,5 +1,6 @@
 import json
 import os
+import pprint
 
 import numpy as np
 from jax.config import config
@@ -25,11 +26,12 @@ args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
 # args.env = 'cheese.95'
-args.env = '4x3.95'
+# args.env = '4x3.95'
+# args.env = 'shuttle.95'
+# args.env = 'example_7'
+#
 n_pi_iterations = 1000
 args.n_memory_trials = 400
-t_min_progress_mark = 0.5
-n_repeats = 5
 args.mem_optimizer = 'annealing'
 
 # Env stuff
@@ -85,9 +87,12 @@ start_value = get_start_obs_value(lstd_v1, mem_aug_mdp)
 initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
 
 # Search stuff
-t_max = 1e-1 * initial_discrep / 0.225
-t_min = 1e-4 * initial_discrep / 0.225
-info = learning_agent.optimize_memory_annealing(args.n_memory_trials, t_max, t_min, t_min_progress_mark, n_repeats)[1]
+tmax = args.annealing_tmax
+tmin = args.annealing_tmin
+progress_fraction_at_tmin = args.annealing_progress_fraction_at_tmin
+n_repeats = args.n_annealing_repeats
+
+info = learning_agent.optimize_memory_annealing(args.n_memory_trials, tmax, tmin, progress_fraction_at_tmin, n_repeats)[1]
 if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
@@ -96,8 +101,8 @@ if learning_agent.mem_optimizer == "queue":
     print(f'Total memory functions: {n_mem_fns}')
     print(f'Number evaluated: {info["n_evals"]}')
 
-plt.plot(range(len(info['discreps'])), info['discreps'])
-plt.show()
+# plt.plot(range(len(info['discreps'])), info['discreps'])
+# plt.show()
 
 # Search results stuff
 print()
@@ -121,10 +126,21 @@ print(f'End value: {end_value}')
 
 # Save stuff
 results = {
+    'env': args.env,
+    'study_name': args.study_name,
+    'trial_id': args.trial_id,
+    'tmax': args.annealing_tmax,
+    'tmin': args.annealing_tmin,
+    'progress_fraction_at_tmin': args.annealing_progress_fraction_at_tmin,
+    'n_repeats': args.n_annealing_repeats,
+    'n_iters': args.n_memory_trials,
     'start_value': start_value,
     'end_value': end_value,
+    'initial_discrep': initial_discrep,
+    'best_discrep': info['best_discrep'],
 }
-results.update(info)
+pprint.pprint(results, sort_dicts=False)
+results['optimizer_info'] = info
 
 dirname = f'results/discrete/{args.study_name}/{args.env}/{args.trial_id}'
 json_filename = dirname + '/discrete_oracle.json'
@@ -135,10 +151,10 @@ with open(json_filename, 'w') as f:
 
 np.save(npy_filename, learning_agent.memory_probs)
 
-#%%
-plt.plot(range(len(info['temps'])), [b for b in info['temps']])
-plt.show()
-
-#%%
-plt.plot(range(len(info['accept_probs'])), [b for b in info['accept_probs']])
-plt.show()
+# #%%
+# plt.plot(range(len(info['temps'])), [b for b in info['temps']])
+# plt.show()
+#
+# #%%
+# plt.plot(range(len(info['accept_probs'])), [b for b in info['accept_probs']])
+# plt.show()
