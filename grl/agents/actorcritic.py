@@ -42,6 +42,10 @@ class ActorCritic:
         mem_optimizer='queue', # [queue, annealing, optuna]
         prune_if_parent_suboptimal=False, # search queue pruning
         ignore_queue_priority=False, # search queue priority
+        annealing_tmax=3.16e-3,
+        annealing_tmin=1e-7,
+        annealing_progress_fraction_at_tmin=0.3,
+        n_annealing_repeats=10,
         study_name='default_study',
         use_existing_study=False,
         n_optuna_workers=1,
@@ -62,6 +66,10 @@ class ActorCritic:
         self.mem_optimizer = mem_optimizer
         self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
         self.ignore_queue_priority = ignore_queue_priority
+        self.annealing_tmax = annealing_tmax
+        self.annealing_tmin = annealing_tmin
+        self.annealing_progress_fraction_at_tmin = annealing_progress_fraction_at_tmin
+        self.n_annealing_repeats = n_annealing_repeats
         self.study_dir = f'./results/sample_based/{study_name}'
         os.makedirs(self.study_dir, exist_ok=True)
         if mem_optimizer == 'optuna':
@@ -430,17 +438,20 @@ class ActorCritic:
         }
         return best_node, info
 
-    def optimize_memory(self, n_trials, annealing_tmax=None, annealing_tmin=None):
+    def optimize_memory(self, n_trials):
         if self.mem_optimizer == 'optuna':
             study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
             info = {'best_discrep': study.best_value}
         elif self.mem_optimizer == 'queue':
             _, info = self.optimize_memory_prio_queue(max_iterations=n_trials)
         elif self.mem_optimizer == 'annealing':
-            _, info = self.optimize_memory_annealing(n_iter=n_trials,
-                                                     tmax=annealing_tmax,
-                                                     tmin=annealing_tmin,
-                                                     tmin_progress_mark=0.5)
+            _, info = self.optimize_memory_annealing(
+                n_iter=n_trials,
+                tmax=self.annealing_tmax,
+                tmin=self.annealing_tmin,
+                tmin_progress_mark=self.annealing_progress_fraction_at_tmin,
+                n_repeats=self.n_annealing_repeats,
+            )
         else:
             raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
         return info

@@ -294,9 +294,7 @@ def main():
 
         t_max = 1e-1 * discrep_start / 0.225
         t_min = 1e-4 * discrep_start / 0.225
-        optim_results = agent.optimize_memory(n_trials=args.n_memory_trials,
-                                              annealing_t_max=t_max,
-                                              annealing_t_min=t_min)
+        optim_results = agent.optimize_memory(n_trials=args.n_memory_trials)
         np.save(agent.study_dir + '/memory.npy', agent.memory_probs)
 
         print('Memory:')

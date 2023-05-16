@@ -49,7 +49,7 @@ reward_range_dict = {
     'bridge-repair': (4018, 0),
     'hallway': (1.0, 0),
 }
-reward_scale = 1/(reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
+reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
 
 # Env stuff
 spec = load_spec(args.env, memory_id=None)
@@ -106,12 +106,7 @@ start_value = get_start_obs_value(pi_aug, mem_aug_mdp)
 initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
 
 # Search stuff
-tmax = args.annealing_tmax
-tmin = args.annealing_tmin
-progress_fraction_at_tmin = args.annealing_progress_fraction_at_tmin
-n_repeats = args.n_annealing_repeats
-
-info = learning_agent.optimize_memory_annealing(args.n_memory_trials, tmax, tmin, progress_fraction_at_tmin, n_repeats)[1]
+info = learning_agent.optimize_memory(args.n_memory_trials)
 if learning_agent.mem_optimizer == "queue":
     M = learning_agent.n_mem_states
     O = learning_agent.n_obs
@@ -125,8 +120,7 @@ if learning_agent.mem_optimizer == "queue":
 
 # Search results stuff
 print()
-# print(f'Best node: \n'
-      # f'{learning_agent.memory_probs}\n')
+# print(f'Best node: \n{learning_agent.memory_probs}\n')
 print(f'Best discrep: {info["best_discrep"]}')
 
 # Final performance stuff
@@ -146,6 +140,8 @@ results = {
     'study_name': args.study_name,
     'trial_id': args.trial_id,
     'seed': args.seed,
+    'mem_optimizer': args.mem_optimizer,
+    'enable_priority_queue': args.enable_priority_queue,
     'tmax': args.annealing_tmax,
     'tmin': args.annealing_tmin,
     'progress_fraction_at_tmin': args.annealing_progress_fraction_at_tmin,
