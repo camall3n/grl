@@ -167,7 +167,7 @@ if __name__ == '__main__':
                                        flip_count_prob=args.flip_count_prob)
 
     info = {'logs': logs, 'args': args.__dict__}
-    agents_dir = results_path.parent / 'agents'
+    agents_dir = results_path.parent / 'agent'
     agents_dir.mkdir(exist_ok=True)
 
     agents_path = agents_dir / f'{results_path.stem}.pkl'

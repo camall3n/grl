@@ -6,7 +6,7 @@ from jax.nn import softmax
 from tqdm import trange
 from functools import partial
 
-from grl.agents.analytical import AnalyticalAgent
+from grl.agent.analytical import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product

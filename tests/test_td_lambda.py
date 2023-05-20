@@ -4,7 +4,7 @@ from jax.config import config
 config.update('jax_platform_name', 'cpu')
 
 from grl import MDP, AbstractMDP, environment
-from grl.agents.td_lambda import run_td_lambda_on_mdp
+from grl.agent.td_lambda import run_td_lambda_on_mdp
 from grl.utils.policy_eval import analytical_pe
 
 def test_td_lambda():

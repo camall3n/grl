@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from tqdm import tqdm
 
 from grl.environment import load_spec
-from grl.agents.actorcritic import ActorCritic
+from grl.agent.actorcritic import ActorCritic
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.file_system import numpyify_and_save

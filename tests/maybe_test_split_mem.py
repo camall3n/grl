@@ -33,7 +33,7 @@ def test_split_mem():
     lambda_1 = 1.
     # mem_funcs = [0, 16]
     mem_funcs = [(19, 0), (16, 1)]
-    agent_path = Path(ROOT_DIR, 'results', 'agents', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
+    agent_path = Path(ROOT_DIR, 'results', 'agent', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
 
     for mem, target_lambda in mem_funcs:
@@ -152,7 +152,7 @@ def test_sample_based_split_mem():
 
     # mem_funcs = [0, 16]
     # mem_funcs = [(19, 0), (16, 1)]
-    agent_path = Path(ROOT_DIR, 'results', 'agents', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
+    agent_path = Path(ROOT_DIR, 'results', 'agent', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
 
     # for mem, target_lambda in mem_funcs:

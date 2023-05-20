@@ -195,7 +195,7 @@ def load_analytical_results(pathname: str, use_epsilon=False):
             final_aggregated_q_discrep = aggregate_q_discrep(final_q_discrep, policy=policy)
         else:
             grad_info = info['logs']
-            agent_info = load_info(results_path.parent / 'agents' / f'{results_path.stem}.pkl.npy')
+            agent_info = load_info(results_path.parent / 'agent' / f'{results_path.stem}.pkl.npy')
             final_mem_params = agent_info.mem_params
             is_optimal, additional_checks = test_mem_matrix(final_mem_params,
                                                             test_preserving=use_epsilon)

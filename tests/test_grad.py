@@ -6,7 +6,7 @@ from jax.config import config
 config.update('jax_platform_name', 'cpu')
 
 from grl import load_spec, RTOL
-from grl.agents.analytical import AnalyticalAgent
+from grl.agent.analytical import AnalyticalAgent
 from grl.memory_iteration import memory_iteration
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.math import reverse_softmax

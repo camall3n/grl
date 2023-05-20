@@ -8,7 +8,7 @@ config.update('jax_platform_name', 'cpu')
 
 from grl import MDP, AbstractMDP
 from grl.environment import load_spec
-from grl.agents.analytical import AnalyticalAgent
+from grl.agent.analytical import AnalyticalAgent
 from grl.utils.math import glorot_init
 
 def test_policy_grad_fully_observable_tmaze():

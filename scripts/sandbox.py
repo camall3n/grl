@@ -2,13 +2,12 @@ import copy
 
 from jax import nn
 import numpy as np
-import optuna
 from tqdm import tqdm
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
-from grl.agents.td_lambda import TDLambdaQFunction
-from grl.agents.replaymemory import ReplayMemory
+from grl.agent.td_lambda import TDLambdaQFunction
+from grl.utils.replaymemory import ReplayMemory
 
 #%% Define base decision process
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)

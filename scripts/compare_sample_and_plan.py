@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 from jax.config import config
 
-from grl.agents.actorcritic import ActorCritic
+from grl.agent.actorcritic import ActorCritic
 from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda

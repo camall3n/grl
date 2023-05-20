@@ -67,7 +67,7 @@ for results_path in list(results_dir.iterdir()):
         continue
 
     info = load_info(results_path)
-    agent_path = Path(results_path.parent, 'agents', f"{results_path.stem}.pkl.npy")
+    agent_path = Path(results_path.parent, 'agent', f"{results_path.stem}.pkl.npy")
     agent = load_info(agent_path)
 
     args = info['args']

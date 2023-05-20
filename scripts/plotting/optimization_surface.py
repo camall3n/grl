@@ -14,7 +14,7 @@ import seaborn as sns
 
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
-from grl.agents.actorcritic import ActorCritic
+from grl.agent.actorcritic import ActorCritic
 from grl.memory.lib import get_memory
 
 #%%
