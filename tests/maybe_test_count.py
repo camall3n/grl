@@ -9,7 +9,7 @@ from functools import partial
 config.update('jax_platform_name', 'cpu')
 from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.utils.mdp import functional_get_occupancy
 
 @jit
@@ -110,13 +110,14 @@ def test_count():
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
-    n_mem_states = spec['mem_params'].shape[-1]
+    mem_params = get_memory(str(16))
+    n_mem_states = mem_params.shape[-1]
     # def cumulative_bitwise_and(carry: Tuple, )
 
     # id_mask = jnp.expand_dims(jnp.eye(amdp.T.shape[-1]), 0).repeat(amdp.T.shape[0], axis=0)
     # self_loop = (id_mask * amdp.T).astype(bool)
     # absorbing_mask = lax.reduce(self_loop, jnp.array(1).astype(bool), jnp.bitwise_and, (0,))
-    mem_aug_amdp = memory_cross_product(spec['mem_params'], amdp)
+    mem_aug_amdp = memory_cross_product(mem_params, amdp)
 
     # Make the last two memory-augmented states absorbing as well
     mem_aug_amdp.T = mem_aug_amdp.T.at[:, -2:].set(0)

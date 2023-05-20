@@ -65,7 +65,7 @@ def test_example_7_m():
     memory_start[memory_start == 0] += 1e-5
     memory_start[1, 0, 0] -= 1e-2
     memory_start[1, 0, 1] += 1e-2
-    spec['mem_params'] = np.log(np.array([memory_start, memory_start]))
+    mem_params = np.log(np.array([memory_start, memory_start]))
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
@@ -94,7 +94,8 @@ def test_example_7_m():
     ])
     agent = AnalyticalAgent(reverse_softmax(pi),
                             rand_key,
-                            mem_params=spec['mem_params'],
+                            optim_str='sgd',
+                            mem_params=mem_params,
                             error_type='l2',
                             value_type='q',
                             alpha=1.)

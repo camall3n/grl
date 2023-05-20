@@ -18,7 +18,7 @@ from tqdm import tqdm
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
-from grl.environment.memory_lib import get_memory
+from grl.memory.lib import get_memory
 from scripts.learning_agent.optuna_to_pandas import load_study
 
 #%%

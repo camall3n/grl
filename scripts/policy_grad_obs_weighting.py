@@ -6,7 +6,7 @@ from jax.nn import softmax
 import jax.numpy as jnp
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.math import reverse_softmax
@@ -35,9 +35,6 @@ if __name__ == "__main__":
     rand_key = jax.random.PRNGKey(seed)
 
     spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -48,7 +45,10 @@ if __name__ == "__main__":
 
     pi = spec['Pi_phi'][0]
     pi_params = reverse_softmax(pi)
-    mem_params = spec['mem_params']
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
     n_mem = mem_params.shape[-1]
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)

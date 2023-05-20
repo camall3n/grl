@@ -3,12 +3,11 @@ from pathlib import Path
 import inspect
 
 from . import examples_lib
-from .memory_lib import get_memory
 from .pomdp_file import POMDPFile
 from grl.utils.math import normalize
 from definitions import ROOT_DIR
 
-def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness: float = 0.1, **kwargs):
+def load_spec(name, **kwargs):
     """
     Loads a pre-defined POMDP
     :param name:            The name of the function or .POMDP file defining the POMDP.
@@ -57,13 +56,6 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness:
         spec['Pi_phi'] = normalize(spec['Pi_phi'])
         if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
             raise ValueError("T, R, and Pi_phi must contain the same number of actions")
-
-    if memory_id is not None:
-        spec['mem_params'] = get_memory(memory_id,
-                                        n_obs=spec['phi'].shape[-1],
-                                        n_actions=spec['T'].shape[0],
-                                        n_mem_states=n_mem_states,
-                                        leakiness=mem_leakiness)
 
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so

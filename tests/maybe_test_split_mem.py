@@ -10,7 +10,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 
@@ -48,7 +48,9 @@ def test_split_mem():
         amdp = AbstractMDP(mdp, spec['phi'])
 
         pi = spec['Pi_phi'][0]
-        mem_params = spec['mem_params']
+        mem_params = get_memory(str(mem),
+                                n_obs=amdp.n_obs,
+                                n_actions=amdp.n_actions)
         mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
         mem_aug_amdp = memory_cross_product(mem_params, amdp)
@@ -156,8 +158,6 @@ def test_sample_based_split_mem():
     # for mem, target_lambda in mem_funcs:
 
     spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str(19),
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -167,7 +167,9 @@ def test_sample_based_split_mem():
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
+    mem_params = get_memory(str(19),
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)

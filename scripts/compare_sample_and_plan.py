@@ -3,13 +3,12 @@ import pickle
 
 import numpy as np
 from jax.config import config
-from pathlib import Path
 
 from grl.agents.actorcritic import ActorCritic
 from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from scripts.learning_agent.memory_iteration import converge_value_functions, parse_args
 
 np.set_printoptions(precision=3, suppress=True)
@@ -29,7 +28,6 @@ error_type = 'mse'
 
 print(f"Running sample-based and analytical comparison for Q-values on {spec_name}")
 spec = load_spec(spec_name,
-                 memory_id=str(16),
                  corridor_length=corridor_length,
                  discount=discount,
                  junction_up_pi=junction_up_pi,
@@ -58,7 +56,8 @@ agent.set_policy(pi, logits=False)
 agent.add_memory()
 # agent.reset_memory()
 # mem_params = agent.memory_logits
-mem_params = spec['mem_params']
+
+mem_params = get_memory(str(16))
 agent.set_memory(mem_params, logits=True)
 mem_aug_mdp = memory_cross_product(mem_params, env)
 

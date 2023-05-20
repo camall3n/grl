@@ -1,7 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-from .memory_lib import *
 from .tmaze_lib import tmaze, slippery_tmaze
 from grl.mdp import random_stochastic_matrix
 from grl.environment.pomdp_file import POMDPFile

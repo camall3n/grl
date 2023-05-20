@@ -9,9 +9,11 @@ from tqdm import tqdm
 from pathlib import Path
 
 from grl.environment import load_spec
+from grl.memory import get_memory
+from grl.mdp import MDP, AbstractMDP
 from grl.utils.math import reverse_softmax
 from grl.utils.loss import mem_discrep_loss
-from grl.mdp import MDP, AbstractMDP
+
 from definitions import ROOT_DIR
 
 def calc_init_obs_dist(mem_fns: np.ndarray, action_idx: int = 2):
@@ -32,9 +34,9 @@ if __name__ == "__main__":
 
     df_path = Path(ROOT_DIR, 'results', 'analytical_tmaze_plot_data.pkl')
 
-    spec = load_spec('tmaze_5_two_thirds_up',
-                     memory_id='0',
-                     n_mem_states=2)
+    spec = load_spec('tmaze_5_two_thirds_up')
+
+    mem_params = get_memory('0', n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     all_ps_qs = np.array(np.meshgrid(qs, qs, ps, ps)).T.reshape(-1, 4)
 
     n_total_mem_funcs = all_ps_qs.shape[0]
-    all_mem_funcs = np.expand_dims(softmax(spec['mem_params'], axis=-1), 0).repeat(n_total_mem_funcs, axis=0)
+    all_mem_funcs = np.expand_dims(softmax(mem_params, axis=-1), 0).repeat(n_total_mem_funcs, axis=0)
 
     # init obs
     all_mem_funcs[:, 2, 0, 0, 0] = all_ps_qs[:, 0]

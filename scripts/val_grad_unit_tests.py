@@ -11,7 +11,7 @@ from tqdm import tqdm
 from collections import namedtuple
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.math import normalize
 from grl.utils.mdp import get_td_model, get_p_s_given_o, amdp_get_occupancy
@@ -247,9 +247,6 @@ if __name__ == "__main__":
     rand_key = jax.random.PRNGKey(seed)
 
     spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -259,7 +256,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
 
     test_unrolling(amdp, pi, mem_params)
     # test_product_grad(amdp, pi, mem_params)

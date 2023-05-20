@@ -15,6 +15,7 @@ from grl.utils.loss import discrep_loss
 from grl.vi import td_pe
 
 def run_memory_iteration(spec: dict,
+                         mem_params: jnp.ndarray,
                          policy_optim_alg: str = 'policy_iter',
                          optimizer_str: str = 'sgd',
                          pi_lr: float = 1.,
@@ -50,9 +51,6 @@ def run_memory_iteration(spec: dict,
     :param lambda_1:            What's our second lambda parameter for lambda discrep?
     :param alpha:               How uniform do we want our lambda discrep weighting?
     """
-    assert 'mem_params' in spec.keys() and spec['mem_params'] is not None
-    mem_params = spec['mem_params']
-
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     assert amdp.current_state is None, \
@@ -74,8 +72,8 @@ def run_memory_iteration(spec: dict,
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params,
-                            optimizer_str,
                             rand_key,
+                            optim_str=optimizer_str,
                             pi_lr=pi_lr,
                             mi_lr=mi_lr,
                             mem_params=mem_params,

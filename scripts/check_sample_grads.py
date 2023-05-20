@@ -10,10 +10,10 @@ import optax
 from tqdm import tqdm
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.loss import obs_space_mem_discrep_loss
-from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, get_td_model
+from grl.utils.mdp import get_td_model
 from grl.utils.optimizer import get_optimizer
 from grl.utils.policy_eval import lstdq_lambda
 
@@ -138,9 +138,6 @@ def check_samples():
     np.random.seed(seed)
 
     spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -149,8 +146,9 @@ def check_samples():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
+    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
 
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
     n_mem = mem_params.shape[-1]

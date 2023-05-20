@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 
@@ -184,9 +184,6 @@ if __name__ == "__main__":
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
 
     spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
                      corridor_length=corridor_length,
                      discount=discount,
                      junction_up_pi=junction_up_pi,
@@ -196,7 +193,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     grad_fn = jax.grad(mem_obs_val_func)

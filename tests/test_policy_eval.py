@@ -5,14 +5,15 @@ config.update('jax_platform_name', 'cpu')
 
 from grl import load_spec, MDP, AbstractMDP, memory_cross_product
 from grl.utils.policy_eval import analytical_pe
+from grl.memory import get_memory
 
-def assert_pe_results(spec, answers, use_memory=False):
+def assert_pe_results(spec, answers, mem_params=None):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     policies = spec['Pi_phi']
 
-    if use_memory:
-        amdp = memory_cross_product(spec['mem_params'], amdp)
+    if mem_params is not None:
+        amdp = memory_cross_product(mem_params, amdp)
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):
@@ -76,7 +77,9 @@ def test_example_7():
     assert_pe_results(spec, answers)
 
 def test_example_7_memory():
-    spec = load_spec('example_7', memory_id=str(4))
+    spec = load_spec('example_7')
+    mem_params = get_memory(str(4))
+
     spec['Pi_phi_x'] = [
         np.array([
             [0., 1], # Optimal policy with memory
@@ -110,7 +113,7 @@ def test_example_7_memory():
         ]],
     }
 
-    assert_pe_results(spec, answers, use_memory=True)
+    assert_pe_results(spec, answers, mem_params=mem_params)
 
 def test_example_11():
     spec = load_spec('example_11')

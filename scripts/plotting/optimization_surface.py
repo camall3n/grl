@@ -15,7 +15,7 @@ import seaborn as sns
 from grl import environment
 from grl.mdp import AbstractMDP, MDP
 from grl.agents.actorcritic import ActorCritic
-from grl.environment.memory_lib import get_memory
+from grl.memory.lib import get_memory
 
 #%%
 summary_filepath = 'results/sample_based/exp12-tmaze_2_two_thirds_up-summary.pkl'

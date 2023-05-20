@@ -8,14 +8,11 @@ import numpy as np
 from tqdm import tqdm
 
 from grl import environment
-from grl.agents.actorcritic import ActorCritic
 from grl.mdp import AbstractMDP, MDP
 from grl.memory import memory_cross_product
-from grl.environment.memory_lib import get_memory
 from grl.utils.math import greedify
 from grl.utils.mdp import amdp_get_occupancy
 from grl.utils.policy_eval import functional_solve_mdp
-from scripts.learning_agent.optuna_to_pandas import load_study
 
 #%%
 experiment_name = 'exp22-tmaze5'

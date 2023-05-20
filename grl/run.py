@@ -10,6 +10,7 @@ from jax.config import config
 from grl.environment import load_spec
 from grl.environment.policy_lib import get_start_pi
 from grl.utils.file_system import results_path, numpyify_and_save
+from grl.memory import get_memory
 from grl.memory_iteration import run_memory_iteration
 
 def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
@@ -120,6 +121,12 @@ if __name__ == '__main__':
                      epsilon=args.epsilon,
                      mem_leakiness=args.mem_leakiness)
 
+    mem_params = get_memory(args.use_memory,
+                            n_obs=spec['phi'].shape[-1],
+                            n_actions=spec['T'].shape[0],
+                            n_mem_states=args.n_mem_states,
+                            leakiness=args.mem_leakiness)
+
     logging.info(f'spec:\n {args.spec}\n')
     logging.info(f'T:\n {spec["T"]}')
     logging.info(f'R:\n {spec["R"]}')
@@ -140,6 +147,7 @@ if __name__ == '__main__':
     if args.init_pi is not None:
         pi_params = get_start_pi(args.init_pi, spec=spec)
     logs, agent = run_memory_iteration(spec,
+                                       mem_params,
                                        rand_key=rand_key,
                                        mi_iterations=args.mi_iterations,
                                        policy_optim_alg=args.policy_optim_alg,

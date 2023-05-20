@@ -1,18 +1,14 @@
 import jax
 from jax import random
 from jax.config import config
-from jax.nn import softmax
 import jax.numpy as jnp
 import numpy as np
 from tqdm import trange
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import get_memory
 from grl.mdp import MDP, AbstractMDP, normalize
-from grl.utils.mdp import get_td_model, get_p_s_given_o, amdp_get_occupancy
-from grl.utils.policy_eval import lstdq_lambda
-from scripts.check_val_grads import mem_obs_val_func
-from scripts.intermediate_sample_grads import mem_func
+from grl.utils.mdp import get_td_model
 
 def gather_counts(amdp: AbstractMDP, pi: jnp.ndarray,
                   rand_key: random.PRNGKey,
@@ -63,8 +59,12 @@ if __name__ == "__main__":
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
+
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
 
     T_obs_obs, R_obs_obs = get_td_model(amdp, pi)
     T_obs_obs = normalize(T_obs_obs)

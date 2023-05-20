@@ -3,7 +3,7 @@ from jax.config import config
 import jax.numpy as jnp
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.mdp import get_td_model
@@ -64,7 +64,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)

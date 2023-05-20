@@ -5,7 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 from functools import partial
 
-from grl.environment.memory_lib import get_memory
+from grl.memory.lib import get_memory
 from grl.environment import load_spec
 from grl.mdp import MDP, AbstractMDP
 from grl.memory import memory_cross_product

@@ -21,8 +21,8 @@ class AnalyticalAgent:
     """
     def __init__(self,
                  pi_params: jnp.ndarray,
-                 optim_str: str,
                  rand_key: random.PRNGKey,
+                 optim_str: str = 'adam',
                  pi_lr: float = 1.,
                  mi_lr: float = 1.,
                  mem_params: jnp.ndarray = None,

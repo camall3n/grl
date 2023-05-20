@@ -4,17 +4,13 @@ from jax.config import config
 from jax.nn import softmax
 import jax.numpy as jnp
 import numpy as np
-from pathlib import Path
-from tqdm import trange
 
 from grl.environment import load_spec
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 
-from definitions import ROOT_DIR
 from scripts.variance_calcs import collect_episodes
-from scripts.intermediate_sample_grads import expected_val_grad, mem_func, load_mem_params
 
 def mem_traj_prob(mem_params: jnp.ndarray, init_mem_belief: jnp.ndarray, mem: int, episode: dict,
                   T: int = None):
@@ -65,7 +61,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = spec['mem_params']
+    mem_params = get_memory('f',
+                            n_obs=amdp.n_obs,
+                            n_actions=amdp.n_actions,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     traj_grad_fn = jax.grad(mem_traj_prob)
