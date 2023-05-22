@@ -4,25 +4,51 @@ import numpy as np
 import jax
 from jax.config import config
 
+from grl.agent.lstm import LSTMAgent
 from grl.environment import load_spec
 from grl.mdp import AbstractMDP, MDP
+from grl.model import get_network
+from grl.utils.optimizer import get_optimizer
+from grl.sample_trainer import Trainer
 from grl.utils.file_system import results_path, numpyify_and_save
 
-if __name__ == "__main__":
-
+def parse_arguments():
     parser = argparse.ArgumentParser()
     # yapf:disable
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec', default='simple_chain', type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--algo', default='dqn', type=str,
                         help='Baseline algorithm to evaluate')
-    parser.add_argument('--lr', default=1, type=float)
+    parser.add_argument('--lr', default=0.001, type=float)
+    parser.add_argument('--hidden_size', default=10, type=int,
+                        help='RNN hidden size')
+    parser.add_argument('--trunc', default=10, type=int,
+                        help='RNN truncation length')
+    parser.add_argument('--replay_size', default=1, type=int,
+                        help='Replay buffer size. Set to 1 for online training.')
+    parser.add_argument('--action_cond', default=None, type=str,
+                        help='Do we do (previous) action conditioning of observations? (None | cat)')
     parser.add_argument('--epsilon', default=0.1, type=float,
-                        help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
+                        help='What epsilon do we use?')
+    parser.add_argument('--max_episode_steps', default=1000, type=int,
+                        help='Maximum number of episode steps')
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
+    parser.add_argument('--platform', type=str, default='cpu',
+                        help='What platform do we use (cpu | gpu)')
+    parser.add_argument('--checkpoint_freq', type=int, default=100,
+                        help='How often do we checkpoint?')
+    parser.add_argument('--save_all_checkpoints', action='store_true',
+                        help='Do we store ALL of our checkpoints? If not, store only last.')
+    parser.add_argument('--seed', default=None, type=int,
+                        help='What seed do we use to make the runs deterministic?')
 
     args = parser.parse_args()
+
+    return args
+
+if __name__ == "__main__":
+    args = parse_arguments()
 
     # configs
     np.set_printoptions(precision=4, suppress=True)
@@ -45,10 +71,28 @@ if __name__ == "__main__":
                      epsilon=args.epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    pomdp = AbstractMDP(mdp, spec['phi'])
+    env = AbstractMDP(mdp, spec['phi'])
 
     results_path = results_path(args)
-    agents_dir = results_path.parent / 'agent'
-    agents_dir.mkdir(exist_ok=True)
+    all_agents_dir = results_path.parent / 'agent'
+    all_agents_dir.mkdir(exist_ok=True)
 
-    agents_path = agents_dir / f'{results_path.stem}'
+    agents_dir = all_agents_dir / f'{results_path.stem}'
+
+    network = get_network(args.hidden_size, env.n_actions)
+
+    optimizer = get_optimizer(args.optimizer, step_size=args.lr)
+
+    features_shape = env.observation_space
+    if args.action_cond == 'cat':
+        features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions,)
+
+    agent = LSTMAgent(network, optimizer, features_shape, env.n_actions, args)
+
+    trainer = Trainer(env, agent, rand_key, args, checkpoint_dir=agents_dir)
+
+    trainer.train()
+
+
+
+

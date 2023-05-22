@@ -154,6 +154,10 @@ class MDP:
     def observe(self, s):
         return s
 
+    @property
+    def observation_space(self):
+        return (self.n_states,)
+
     def image(self, pr_x, pi=None):
         T = self.T_pi(pi)
         pr_next_x = pr_x @ T
@@ -241,6 +245,10 @@ class AbstractMDP(MDP):
 
     def observe(self, s):
         return np.random.choice(self.n_obs, p=self.phi[s])
+
+    @property
+    def observation_space(self):
+        return (self.n_obs,)
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
