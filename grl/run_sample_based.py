@@ -38,6 +38,8 @@ def parse_arguments():
                         help='What platform do we use (cpu | gpu)')
     parser.add_argument('--checkpoint_freq', type=int, default=100,
                         help='How often do we checkpoint?')
+    parser.add_argument('--total_steps', type=int, default=int(1e4),
+                        help='How many total environment steps do we take in this experiment?')
     parser.add_argument('--save_all_checkpoints', action='store_true',
                         help='Do we store ALL of our checkpoints? If not, store only last.')
     parser.add_argument('--seed', default=None, type=int,
