@@ -22,7 +22,7 @@ def parse_arguments():
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--hidden_size', default=10, type=int,
                         help='RNN hidden size')
-    parser.add_argument('--trunc', default=10, type=int,
+    parser.add_argument('--trunc', default=-1, type=int,
                         help='RNN truncation length')
     parser.add_argument('--replay_size', default=1, type=int,
                         help='Replay buffer size. Set to 1 for online training.')

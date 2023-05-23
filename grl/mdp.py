@@ -4,6 +4,9 @@ import numpy as np
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
+from grl.utils.data import one_hot
+
+
 def normalize(M, axis=-1):
     M = M.astype(float)
     if M.ndim > 1:
@@ -60,9 +63,6 @@ def random_observation_fn(n_states, n_obs_per_block):
 
     observation_fn = obs_fn_mask * tiled_split_probs
     return observation_fn
-
-def one_hot(x, n):
-    return jnp.eye(n)[x]
 
 @register_pytree_node_class
 class MDP:

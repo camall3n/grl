@@ -1,4 +1,5 @@
 import numpy as np
+from jax import numpy as jnp
 from jax.tree_util import register_pytree_node_class
 from dataclasses import dataclass, fields
 from typing import Union, Iterable
@@ -33,3 +34,6 @@ class Batch:
         # dict_children = {k: v for k, v in children}
         # return cls(**dict_children)
         return cls(*children)
+
+def one_hot(x, n):
+    return jnp.eye(n)[x]
