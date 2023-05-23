@@ -17,8 +17,8 @@ hparams = {
         'optimizer': 'adam',
         'lr': 0.01,
         'use_memory': 0,
-        'n_mem_states': 2,
-        # 'n_mem_states': [4, 8],
+        # 'n_mem_states': 2,
+        'n_mem_states': [4, 8],
         'mi_iterations': 1,
         'seed': [2020 + i for i in range(10)],
     }]
