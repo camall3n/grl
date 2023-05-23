@@ -17,6 +17,7 @@ class Batch:
     next_action: Union[np.ndarray, Iterable] = None
     state: Union[np.ndarray, Iterable] = None
     next_state: Union[np.ndarray, Iterable] = None
+    end: Union[np.ndarray, Iterable] = None  # End is done or max_steps == timesteps
 
     # MC stuff
     returns: Union[np.ndarray, Iterable] = None
@@ -36,4 +37,4 @@ class Batch:
         return cls(*children)
 
 def one_hot(x, n):
-    return jnp.eye(n)[x]
+    return np.eye(n)[x]

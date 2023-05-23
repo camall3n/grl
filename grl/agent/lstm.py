@@ -22,7 +22,7 @@ class LSTMAgent:
                  args: Namespace):
 
         self.features_shape = features_shape
-        self.n_hidden = args.n_hidden
+        self.n_hidden = args.hidden_size
         self.n_actions = n_actions
 
         self.trunc = args.trunc
@@ -35,18 +35,26 @@ class LSTMAgent:
         self.act = jax.jit(self.act)
         self.update = jax.jit(self.update)
 
-    def reset(self, rand_key: random.PRNGKey) -> Tuple[dict, optax.Params, LSTMCarry, random.PRNGKey]:
+    def init_params(self, rand_key: random.PRNGKey) -> Tuple[dict, optax.Params, random.PRNGKey]:
         """
-        Reset initializes network and optimizer params,
-        as well as the LSTM initial state (called LSTMCarry here).
+        Initialize params for agent and optimizer here.
         """
-        rand_key, carry_key, network_key = random.split(rand_key, 3)
-        new_carry = nn.OptimizedLSTMCell.initialize_carry(carry_key, (1, ), self.n_hidden)
-        network_params = self.network.init(rng=network_key,
-                                           x=jnp.zeros((1, self.trunc, *self.features_shape)),
-                                           h=new_carry, train=True)
+        rand_key, network_key = random.split(rand_key)
+        new_carry, rand_key = self.reset(rand_key)
+        network_params = self.network.init(network_key,
+                                           jnp.zeros((1, 1, *self.features_shape)),
+                                           new_carry)
+
         optimizer_params = self.optimizer.init(network_params)
-        return network_params, optimizer_params, new_carry, rand_key
+        return network_params, optimizer_params, rand_key
+
+    def reset(self, rand_key: random.PRNGKey) -> Tuple[LSTMCarry, random.PRNGKey]:
+        """
+        Reset the LSTM initial state (called LSTMCarry here).
+        """
+        rand_key, carry_key = random.split(rand_key)
+        new_carry = nn.OptimizedLSTMCell.initialize_carry(carry_key, (1, ), self.n_hidden)
+        return new_carry, rand_key
 
     def act(self, network_params: dict, obs: jnp.ndarray, hs: LSTMCarry, rand_key: random.PRNGKey):
         """

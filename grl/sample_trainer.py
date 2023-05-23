@@ -5,7 +5,7 @@ from typing import Union
 from jax import random
 import numpy as np
 import optax
-import orbax
+from orbax import checkpoint
 from tqdm import tqdm
 
 from grl.mdp import MDP, AbstractMDP
@@ -38,34 +38,50 @@ class Trainer:
 
         self.batch_size = self.args.batch_size
 
-        # if 'lstm' in self.args.arch and isinstance(self.agent, LSTMAgent):
-        self.online_training = self.args.buffer_size <= 1
+        # if 'lstm' in self.args.algo and isinstance(self.agent, LSTMAgent):
+        self.online_training = self.args.replay_size <= 1
 
-        replay_capacity = self.args.buffer_size
+        replay_capacity = self.args.replay_size
         if replay_capacity < self.max_episode_steps:
             replay_capacity = self.max_episode_steps
 
         # We save state for an LSTM agent
-        obs_shape = self.env.observation_space.shape
+        obs_shape = self.env.observation_space
         if self.action_cond == 'cat':
             obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions,)
 
+        # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
+        obs_dtype = np.float32
+        self.one_hot_obses = isinstance(self.env, AbstractMDP) or isinstance(self.env, MDP)
+
         self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
-                                    obs_dtype=self.env.observation_space.low.dtype,
+                                    obs_dtype=obs_dtype,
                                     state_size=(self.args.hidden_size, ))
         # else:
         #     self.buffer = ReplayBuffer(args.buffer_size, rand_key, self.env.observation_space.shape,
         #                                obs_dtype=self.env.observation_space.low.dtype)
 
-        # deal with checkpointing here
-
+        # deal with checkpointing here w/ orbax
         if self.checkpoint_dir is not None:
+            dict_options = {}
+            if not self.save_all_checkpoints:
+                dict_options['keep_period'] = 1
 
+            options = checkpoint.CheckpointManagerOptions(**dict_options)
+            # params_dir = self.checkpoint_dir
+            # params_dir.mkdir(exist_ok=True)
+
+            self.checkpointer = checkpoint.CheckpointManager(
+                self.checkpoint_dir,
+                {'network_params': checkpoint.PyTreeCheckpointer(), 'optimizer_params': checkpoint.PyTreeCheckpointer()},
+                options=options)
 
         self.episode_num = 0
         self.num_steps = 0
 
     def checkpoint(self, network_params: dict, optimizer_params: optax.Params):
+        self.checkpointer.save(self.num_steps, {'network_params': network_params, 'optimizer_params': optimizer_params})
+        # TODO: potentially add more saving stuff here
 
     def episode_stat_string(self, episode_reward: float, episode_loss: float, t: int,
                            additional_info: dict = None):
@@ -88,8 +104,11 @@ class Trainer:
         return print_str
 
     def train(self):
+        episode_infos = []
 
         pbar = tqdm(total=self.total_steps)
+
+        network_params, optimizer_params, self._rand_key = self.agent.init_params(self._rand_key)
 
         while self.num_steps < self.total_steps:
             episode_reward = []
@@ -98,30 +117,37 @@ class Trainer:
 
             checkpoint_after_ep = False
 
-            network_params, optimizer_params, hs, self._rand_key = self.agent.reset(self._rand_key)
+            # get new initial hidden state
+            hs, self._rand_key = self.agent.reset(self._rand_key)
 
             # We do online training by resetting the buffer after every episode
             if self.online_training:
                 self.buffer.reset()
 
-            obs = self.env.reset()
+            obs, env_info = self.env.reset()
+            if self.one_hot_obses:
+                obs = one_hot(obs, self.env.n_obs)
 
             # Action conditioning for t=-1 action
             if self.action_cond == 'cat':
                 action_encoding = np.zeros(self.env.n_actions)
                 obs = np.concatenate([obs, action_encoding], axis=-1)
 
-            action, self._rand_key, next_hs, qs = self.agent.act(network_params, obs, hs, self._rand_key).item()
+            action, self._rand_key, next_hs, qs = self.agent.act(network_params, obs, hs, self._rand_key)
+            action = action.item()
 
             for t in range(self.max_episode_steps):
-                next_obs, reward, done, info = self.env.step(action)
+                next_obs, reward, done, _, info = self.env.step(action)
+                if self.one_hot_obses:
+                    next_obs = one_hot(next_obs, self.env.n_obs)
 
                 # Action conditioning
                 if self.action_cond == 'cat':
                     action_encoding = one_hot(action, self.env.n_actions)
                     next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
-                next_action, self._rand_key, next_next_hs = self.agent.act(network_params, next_obs, hs, self._rand_key).item()
+                next_action, self._rand_key, next_next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
+                next_action = next_action.item()
 
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
                               next_action=next_action, state=hs, next_state=next_hs,
@@ -158,9 +184,22 @@ class Trainer:
                 if self.checkpoint_freq > 0 and self.num_steps % self.checkpoint_freq == 0:
                     checkpoint_after_ep = True
 
+            episode_info['episode_length'] = t
+            episode_info['total_episode_loss'] = episode_loss
+            # Here we compress our episode rewards.
+            episode_info['most_common_reward'] = max(set(episode_reward), key=episode_reward.count)
+            episode_info['compressed_rewards'] = [(i, rew) for i, rew in enumerate(episode_reward)
+                                                  if rew != episode_info['most_common_reward']]
+            episode_infos.append(episode_info)
+
             self.episode_num += 1
-            pbar.set_description(self.episode_stat_string(sum(episode_reward), episode_loss, t))
+            # pbar.set_description(self.episode_stat_string(sum(episode_reward), episode_loss, t))
+            print(self.episode_stat_string(sum(episode_reward), episode_loss, t))
 
             if checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)
 
+        if self.checkpoint_dir is not None:
+            self.checkpoint(network_params, optimizer_params)
+
+        return network_params, optimizer_params, episode_infos

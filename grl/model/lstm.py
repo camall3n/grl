@@ -11,7 +11,7 @@ class LSTMQNetwork(nn.Module):
     n_actions: int
 
     @nn.compact
-    def __call__(self, init_carry: LSTMCarry, obses: jnp.ndarray):
+    def __call__(self, obses: jnp.ndarray, init_carry: LSTMCarry):
         """
         Applies an LSTM over the init_carry for all observatiosn in obses.
         init_carry: A tuple of jnp.ndarrays, of size b x hidden_size
