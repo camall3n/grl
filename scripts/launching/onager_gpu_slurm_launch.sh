@@ -8,6 +8,6 @@ onager launch \
     --duration 0-06:00:00 \
     --venv venv \
     --gpus 1 \
-    -q 3090-gcondo
+    --account 3090-gcondo
 
 #    --tasks-per-node 4 \
