@@ -4,6 +4,8 @@ from typing import Union
 
 from jax import random
 import numpy as np
+import optax
+import orbax
 from tqdm import tqdm
 
 from grl.mdp import MDP, AbstractMDP
@@ -55,10 +57,37 @@ class Trainer:
         #     self.buffer = ReplayBuffer(args.buffer_size, rand_key, self.env.observation_space.shape,
         #                                obs_dtype=self.env.observation_space.low.dtype)
 
+        # deal with checkpointing here
+
+        if self.checkpoint_dir is not None:
+
+
         self.episode_num = 0
         self.num_steps = 0
 
-    def train(self, log_every: int = 1000):
+    def checkpoint(self, network_params: dict, optimizer_params: optax.Params):
+
+    def episode_stat_string(self, episode_reward: float, episode_loss: float, t: int,
+                           additional_info: dict = None):
+        # if use_pf:
+        #     self.info['pf_episodic_mean'].append(pf_episode_means)
+        #     self.info['pf_episodic_var'].append(pf_episode_vars)
+
+        # avg_over = min(self.episode_num, 30)
+        print_str = (f"Episode {self.episode_num}, steps: {t + 1}, "
+                    f"total steps: {self.num_steps}, "
+                    # f"moving avg steps: {sum(self.info['episode_length'][-avg_over:]) / avg_over:.3f}, "
+                    # f"moving avg returns: {sum(self.info['episode_reward'][-avg_over:]) / avg_over:.3f}, "
+                    f"rewards: {episode_reward:.2f}, "
+                    f"avg episode loss: {episode_loss / (t + 1):.4f}")
+
+        if additional_info is not None:
+            print_str += ", "
+            for k, v in additional_info.items():
+                print_str += f"{k}: {v / (t + 1):.4f}, "
+        return print_str
+
+    def train(self):
 
         pbar = tqdm(total=self.total_steps)
 
@@ -117,8 +146,21 @@ class Trainer:
                 self.num_steps += 1
                 episode_reward.append(reward)
 
+                if done:
+                    break
+
                 # bump time step
                 hs = next_hs
                 next_hs = next_next_hs
                 obs = next_obs
                 action = next_action
+
+                if self.checkpoint_freq > 0 and self.num_steps % self.checkpoint_freq == 0:
+                    checkpoint_after_ep = True
+
+            self.episode_num += 1
+            pbar.set_description(self.episode_stat_string(sum(episode_reward), episode_loss, t))
+
+            if checkpoint_after_ep:
+                self.checkpoint(network_params, optimizer_params)
+
