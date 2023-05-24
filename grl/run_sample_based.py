@@ -32,6 +32,8 @@ def parse_arguments():
                         help='Do we do (previous) action conditioning of observations? (None | cat)')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')
+    parser.add_argument('--no_gamma_terminal', action='store_true',
+                        help='Do we turn OFF gamma termination?')
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
     parser.add_argument('--optimizer', type=str, default='adam',

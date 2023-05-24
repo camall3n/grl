@@ -95,15 +95,15 @@ class LSTMAgent:
         return self.network.apply(network_params, obs, hidden_state)
 
     def _loss(self, network_params: dict, batch: Batch):
-        q, hiddens, _ = self.network.apply(network_params, batch.obs, batch.state)
-        q1, target_hiddens, _ = self.network.apply(network_params, batch.next_obs, batch.next_state)
+        hiddens, q = self.network.apply(network_params, batch.obs, batch.state)
+        target_hiddens, q1 = self.network.apply(network_params, batch.next_obs, batch.next_state)
 
         batch_loss = jax.vmap(seq_sarsa_loss)
         td_err = batch_loss(q, batch.action, batch.reward, batch.gamma, q1, batch.next_action)  # Should be batch x seq_len
 
         # Don't learn from the values past dones.
         td_err *= batch.zero_mask
-        return mse(td_err), (hiddens, target_hiddens)
+        return mse(td_err)
 
     def update(self,
                network_params: dict,

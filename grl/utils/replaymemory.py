@@ -328,7 +328,7 @@ class EpisodeBuffer(ReplayBuffer):
         batch['reward'] = self.r[sample_idx]
         if self.include_returns:
             batch['returns'] = self.returns[sample_idx]
-        batch['indices'] = sample_idx
+        # batch['indices'] = sample_idx
         ends = self.end[sample_idx]
 
         # Zero mask is essentially mask where we only learn if we're still within an episode.

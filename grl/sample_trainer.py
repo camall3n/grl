@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from grl.mdp import MDP, AbstractMDP
 from grl.agent.lstm import LSTMAgent
+from grl.model.lstm import LSTMCarry
 from grl.utils.data import Batch, one_hot
 from grl.utils.replaymemory import EpisodeBuffer
 
@@ -25,6 +26,8 @@ class Trainer:
         self.args = args
         self._rand_key = rand_key
 
+        self.gamma_terminal = not self.args.no_gamma_terminal
+        self.discounting = self.env.gamma if not self.gamma_terminal else 1.
         self.max_episode_steps = self.args.max_episode_steps
         self.trunc = self.args.trunc
 
@@ -56,7 +59,7 @@ class Trainer:
 
         self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
                                     obs_dtype=obs_dtype,
-                                    state_size=(self.args.hidden_size, ))
+                                    state_size=(2, self.args.hidden_size))
         # else:
         #     self.buffer = ReplayBuffer(args.buffer_size, rand_key, self.env.observation_space.shape,
         #                                obs_dtype=self.env.observation_space.low.dtype)
@@ -137,7 +140,7 @@ class Trainer:
             action = action.item()
 
             for t in range(self.max_episode_steps):
-                next_obs, reward, done, _, info = self.env.step(action)
+                next_obs, reward, done, _, info = self.env.step(action, gamma_terminal=self.gamma_terminal)
                 if self.one_hot_obses:
                     next_obs = one_hot(next_obs, self.env.n_obs)
 
@@ -150,7 +153,7 @@ class Trainer:
                 next_action = next_action.item()
 
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
-                              next_action=next_action, state=hs, next_state=next_hs,
+                              next_action=next_action, state=np.stack(hs)[:, 0], next_state=np.stack(next_hs)[:, 0],
                               end=done or (t == self.max_episode_steps - 1))
                 self.buffer.push(batch)
 
@@ -164,7 +167,9 @@ class Trainer:
                     # sample a sequence from our buffer!
                     sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
-                    sample.gamma = (1 - sample.done) * self.env.gamma
+                    sample.gamma = (1 - sample.done) * self.discounting
+                    sample.state = (sample.state[:, 0], sample.state[:, 1])
+                    sample.next_state = (sample.next_state[:, 0], sample.next_state[:, 1])
 
                     loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
 
