@@ -140,9 +140,6 @@ class Trainer:
             action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs, self._rand_key)
             action = action.item()
 
-            # DEBUGGING
-            episode_qs = [qs.item()]
-
             for t in range(self.max_episode_steps):
                 next_obs, reward, done, _, info = self.env.step(action, gamma_terminal=self.gamma_terminal)
                 if self.one_hot_obses:
@@ -156,9 +153,6 @@ class Trainer:
                 next_action, self._rand_key, next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
 
-                # DEBUGGING
-                episode_qs.append(qs.item())
-
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
                               next_action=next_action, state=np.stack(prev_hs)[:, 0], next_state=np.stack(hs)[:, 0],
                               end=done or (t == self.max_episode_steps - 1))
@@ -169,7 +163,6 @@ class Trainer:
 
                     seq_len = self.agent.trunc
                     if self.online_training:  # online training
-                        # seq_len = len(self.buffer)
                         sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
                     else:
                     # sample a sequence from our buffer!
@@ -212,15 +205,8 @@ class Trainer:
 
             self.episode_num += 1
 
-            # DEBUGGING
-            if self.episode_num % 50 == 0:
-                print(episode_qs[:-1])
-            gt_vals = (0.9**np.arange(9))[::-1]
-            episode_loss = ((gt_vals - np.array(episode_qs[:-1]))**2).mean()
-
-
-            # pbar.set_description(self.episode_stat_string(sum(episode_reward), episode_loss, t))
-            # print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
+            if episode_updates == 0:
+                episode_updates = 1
             print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
 
 

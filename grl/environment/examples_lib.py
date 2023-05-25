@@ -649,6 +649,16 @@ def tmaze_hyperparams(corridor_length: int = 5,
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(corridor_length, discount=discount), Pi_phi, Pi_phi_x)
 
+def po_simple_chain(n: int = 10):
+    spec = simple_chain(n)
+
+    # only one observation
+    phi = np.ones((n, 1))
+    Pi_phi = [np.ones((1, 1))]
+    spec['phi'] = phi
+    spec['Pi_phi'] = Pi_phi
+    return spec
+
 def tmaze_eps_hyperparams(corridor_length: int = 5,
                           discount: float = 0.9,
                           junction_up_pi: float = 2 / 3,
