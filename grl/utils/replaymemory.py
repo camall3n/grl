@@ -314,9 +314,31 @@ class EpisodeBuffer(ReplayBuffer):
                                                                               self.eligible_idxes, self.rand_key)
         return sampled_eligible_idxes
 
+    def get_zero_mask(self, ends: jnp.ndarray, sample_idx: np.ndarray):
+        # Zero mask is essentially mask where we only learn if we're still within an episode.
+        # To do this, we set everything AFTER done == True as 0, and any episode that ends
+        # after max steps. The array ends accomplishes this.
+        zero_mask = np.ones_like(ends)
+        ys, xs = ends.nonzero()
+
+        # if self.ei_cursor == 0, then we can sample anything!
+        if self.ei_cursor != 0:
+            # Also, we don't want any experience beyond our current cursor.
+            ys_cursor, xs_cursor = np.nonzero(np.array(sample_idx) == self.eligible_idxes[self.ei_cursor])
+
+            ys, xs = np.concatenate([ys_cursor, ys]), np.concatenate([xs_cursor, xs])
+
+        if ys.shape[0] > 0:
+            for y, x in zip(ys, xs):
+                zero_mask[y, x + 1:] = 0
+        return zero_mask
+
     def sample(self, batch_size: int, seq_len: int = 1, as_dict: bool = False) -> Union[Batch, dict]:
         sample_idx = self.sample_eligible_idxes(batch_size, seq_len)
+        return self.sample_idx(sample_idx)
 
+
+    def sample_idx(self, sample_idx: np.ndarray, as_dict: bool = False):
         batch = {}
         batch['state'] = self.s[sample_idx]
         batch['next_state'] = self.s[(sample_idx + 1) % self.capacity]
@@ -331,22 +353,7 @@ class EpisodeBuffer(ReplayBuffer):
         # batch['indices'] = sample_idx
         ends = self.end[sample_idx]
 
-        # Zero mask is essentially mask where we only learn if we're still within an episode.
-        # To do this, we set everything AFTER done == True as 0, and any episode that ends
-        # after max steps. The array ends accomplishes this.
-        zero_mask = np.ones_like(ends)
-        ys_ends, xs_ends = ends.nonzero()
-
-        # Also, we don't want any experience beyond our current cursor.
-        ys_cursor, xs_cursor = np.nonzero(np.array(sample_idx) == self.eligible_idxes[self.ei_cursor])
-
-        ys, xs = np.concatenate([ys_cursor, ys_ends]), np.concatenate([xs_cursor, xs_ends])
-
-        if ys.shape[0] > 0:
-            for y, x in zip(ys, xs):
-                zero_mask[y, x + 1:] = 0
-
-        batch['zero_mask'] = zero_mask
+        batch['zero_mask'] = self.get_zero_mask(ends, sample_idx)
 
         if as_dict:
             return batch

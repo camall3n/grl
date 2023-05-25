@@ -86,7 +86,7 @@ class Trainer:
         self.checkpointer.save(self.num_steps, {'network_params': network_params, 'optimizer_params': optimizer_params})
         # TODO: potentially add more saving stuff here
 
-    def episode_stat_string(self, episode_reward: float, episode_loss: float, t: int,
+    def episode_stat_string(self, episode_reward: float, avg_episode_loss: float, t: int,
                            additional_info: dict = None):
         # if use_pf:
         #     self.info['pf_episodic_mean'].append(pf_episode_means)
@@ -98,7 +98,7 @@ class Trainer:
                     # f"moving avg steps: {sum(self.info['episode_length'][-avg_over:]) / avg_over:.3f}, "
                     # f"moving avg returns: {sum(self.info['episode_reward'][-avg_over:]) / avg_over:.3f}, "
                     f"rewards: {episode_reward:.2f}, "
-                    f"avg episode loss: {episode_loss / (t + 1):.4f}")
+                    f"avg episode loss: {avg_episode_loss:.8f}")
 
         if additional_info is not None:
             print_str += ", "
@@ -117,6 +117,7 @@ class Trainer:
             episode_reward = []
             episode_loss = 0
             episode_info = {}
+            episode_updates = 0
 
             checkpoint_after_ep = False
 
@@ -139,6 +140,9 @@ class Trainer:
             action, self._rand_key, next_hs, qs = self.agent.act(network_params, obs, hs, self._rand_key)
             action = action.item()
 
+            # DEBUGGING
+            episode_qs = [qs.item()]
+
             for t in range(self.max_episode_steps):
                 next_obs, reward, done, _, info = self.env.step(action, gamma_terminal=self.gamma_terminal)
                 if self.one_hot_obses:
@@ -152,26 +156,35 @@ class Trainer:
                 next_action, self._rand_key, next_next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
 
+                # DEBUGGING
+                episode_qs.append(qs.item())
+
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
                               next_action=next_action, state=np.stack(hs)[:, 0], next_state=np.stack(next_hs)[:, 0],
                               end=done or (t == self.max_episode_steps - 1))
                 self.buffer.push(batch)
 
                 # if we have enough things in the batch
-                if self.batch_size < len(self.buffer):
+                if (self.online_training and done) or (not self.online_training and self.batch_size < len(self.buffer)):
 
                     seq_len = self.agent.trunc
-                    if self.agent.trunc <= 0:  # online training
-                        seq_len = len(self.buffer)
-
+                    if self.online_training:  # online training
+                        # seq_len = len(self.buffer)
+                        sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
+                    else:
                     # sample a sequence from our buffer!
-                    sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
+                        sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
                     sample.gamma = (1 - sample.done) * self.discounting
-                    sample.state = (sample.state[:, 0], sample.state[:, 1])
-                    sample.next_state = (sample.next_state[:, 0], sample.next_state[:, 1])
+
+                    # repack our hidden states. We only take t=0.
+                    sample.state = (sample.state[:, 0, 0], sample.state[:, 1, 0])
+                    sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 1, 0])
 
                     loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
+
+                    episode_loss += loss
+                    episode_updates += 1
 
                 pbar.update(1)
                 self.num_steps += 1
@@ -198,8 +211,18 @@ class Trainer:
             episode_infos.append(episode_info)
 
             self.episode_num += 1
+
+            # DEBUGGING
+            if self.episode_num % 50 == 0:
+                print(episode_qs)
+            gt_vals = (0.9**np.arange(9))[::-1]
+            episode_loss = ((gt_vals - np.array(episode_qs[:-1]))**2).mean()
+
+
             # pbar.set_description(self.episode_stat_string(sum(episode_reward), episode_loss, t))
-            print(self.episode_stat_string(sum(episode_reward), episode_loss, t))
+            # print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
+            print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
+
 
             if checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)

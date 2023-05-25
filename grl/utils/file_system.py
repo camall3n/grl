@@ -31,7 +31,7 @@ def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
     elif isinstance(info, list):
         return [numpyify_dict(i) for i in info]
     elif isinstance(info, tuple):
-        return (numpyify_dict(i) for i in info)
+        return tuple(numpyify_dict(i) for i in info)
 
     return info
 

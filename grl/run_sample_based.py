@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     trainer = Trainer(env, agent, rand_key, args, checkpoint_dir=agents_dir)
 
-    episodes_info = trainer.train()
+    final_network_params, final_optimizer_params, episodes_info = trainer.train()
 
     info = {
         'episodes_info': episodes_info,

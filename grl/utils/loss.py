@@ -25,6 +25,7 @@ def seq_sarsa_loss(q: jnp.ndarray, a: jnp.ndarray, r: jnp.ndarray, g: jnp.ndarra
     target = lax.stop_gradient(target)
     q_vals = q[jnp.arange(a.shape[0]), a]
     return q_vals - target
+
 def weight_and_sum_discrep_loss(diff: jnp.ndarray, occupancy: jnp.ndarray,
                                 pi: jnp.ndarray, amdp: AbstractMDP,
                                 value_type: str = 'q', error_type: str = 'l2',
