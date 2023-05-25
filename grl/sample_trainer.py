@@ -122,7 +122,7 @@ class Trainer:
             checkpoint_after_ep = False
 
             # get new initial hidden state
-            hs, self._rand_key = self.agent.reset(self._rand_key)
+            prev_hs, self._rand_key = self.agent.reset(self._rand_key)
 
             # We do online training by resetting the buffer after every episode
             if self.online_training:
@@ -137,7 +137,7 @@ class Trainer:
                 action_encoding = np.zeros(self.env.n_actions)
                 obs = np.concatenate([obs, action_encoding], axis=-1)
 
-            action, self._rand_key, next_hs, qs = self.agent.act(network_params, obs, hs, self._rand_key)
+            action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs, self._rand_key)
             action = action.item()
 
             # DEBUGGING
@@ -153,14 +153,14 @@ class Trainer:
                     action_encoding = one_hot(action, self.env.n_actions)
                     next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
-                next_action, self._rand_key, next_next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
+                next_action, self._rand_key, next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
 
                 # DEBUGGING
                 episode_qs.append(qs.item())
 
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
-                              next_action=next_action, state=np.stack(hs)[:, 0], next_state=np.stack(next_hs)[:, 0],
+                              next_action=next_action, state=np.stack(prev_hs)[:, 0], next_state=np.stack(hs)[:, 0],
                               end=done or (t == self.max_episode_steps - 1))
                 self.buffer.push(batch)
 
@@ -194,8 +194,8 @@ class Trainer:
                     break
 
                 # bump time step
+                prev_hs = hs
                 hs = next_hs
-                next_hs = next_next_hs
                 obs = next_obs
                 action = next_action
 
@@ -214,7 +214,7 @@ class Trainer:
 
             # DEBUGGING
             if self.episode_num % 50 == 0:
-                print(episode_qs)
+                print(episode_qs[:-1])
             gt_vals = (0.9**np.arange(9))[::-1]
             episode_loss = ((gt_vals - np.array(episode_qs[:-1]))**2).mean()
 
