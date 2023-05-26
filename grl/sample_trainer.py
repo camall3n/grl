@@ -8,9 +8,9 @@ import optax
 from orbax import checkpoint
 from tqdm import tqdm
 
+from grl.evaluation import test_episodes
 from grl.mdp import MDP, AbstractMDP
 from grl.agent.lstm import LSTMAgent
-from grl.model.lstm import LSTMCarry
 from grl.utils.data import Batch, one_hot
 from grl.utils.replaymemory import EpisodeBuffer
 
@@ -35,6 +35,9 @@ class Trainer:
         self.action_cond = self.args.action_cond
         self.total_steps = self.args.total_steps
 
+        self.offline_eval_freq = self.args.offline_eval_freq
+        self.offline_eval_episodes = self.args.offline_eval_episodes
+        self.offline_eval_eps = self.args.offline_eval_eps
         self.checkpoint_freq = self.args.checkpoint_freq
         self.checkpoint_dir = checkpoint_dir
         self.save_all_checkpoints = self.args.save_all_checkpoints
@@ -60,19 +63,13 @@ class Trainer:
         self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
                                     obs_dtype=obs_dtype,
                                     state_size=(2, self.args.hidden_size))
-        # else:
-        #     self.buffer = ReplayBuffer(args.buffer_size, rand_key, self.env.observation_space.shape,
-        #                                obs_dtype=self.env.observation_space.low.dtype)
 
-        # deal with checkpointing here w/ orbax
         if self.checkpoint_dir is not None:
             dict_options = {}
             if not self.save_all_checkpoints:
                 dict_options['keep_period'] = 1
 
             options = checkpoint.CheckpointManagerOptions(**dict_options)
-            # params_dir = self.checkpoint_dir
-            # params_dir.mkdir(exist_ok=True)
 
             self.checkpointer = checkpoint.CheckpointManager(
                 self.checkpoint_dir,
@@ -88,10 +85,6 @@ class Trainer:
 
     def episode_stat_string(self, episode_reward: float, avg_episode_loss: float, t: int,
                            additional_info: dict = None):
-        # if use_pf:
-        #     self.info['pf_episodic_mean'].append(pf_episode_means)
-        #     self.info['pf_episodic_var'].append(pf_episode_vars)
-
         # avg_over = min(self.episode_num, 30)
         print_str = (f"Episode {self.episode_num}, steps: {t + 1}, "
                     f"total steps: {self.num_steps}, "
@@ -107,9 +100,12 @@ class Trainer:
         return print_str
 
     def train(self):
-        episode_infos = []
+        all_logs = {
+            'episode_infos': [],
+            'offline_eval': [],
+        }
 
-        pbar = tqdm(total=self.total_steps)
+        pbar = tqdm(total=self.total_steps, position=0, leave=True)
 
         network_params, optimizer_params, self._rand_key = self.agent.init_params(self._rand_key)
 
@@ -171,8 +167,8 @@ class Trainer:
                     sample.gamma = (1 - sample.done) * self.discounting
 
                     # repack our hidden states. We only take t=0.
-                    sample.state = (sample.state[:, 0, 0], sample.state[:, 1, 0])
-                    sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 1, 0])
+                    sample.state = (sample.state[:, 0, 0], sample.state[:, 0, 1])
+                    sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 0, 1])
 
                     loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
 
@@ -183,6 +179,15 @@ class Trainer:
                 self.num_steps += 1
                 episode_reward.append(reward)
 
+                # Offline evaluation
+                if self.offline_eval_freq is not None and self.offline_eval_freq % self.num_steps == 0:
+                    test_rews, self._rand_key = test_episodes(self.agent, network_params,
+                                                              self.env, self._rand_key,
+                                                              n_episodes=self.offline_eval_episodes,
+                                                              test_eps=self.offline_eval_episodes,
+                                                              action_cond=self.action_cond,
+                                                              max_episode_steps=self.max_episode_steps)
+
                 if done:
                     break
 
@@ -192,7 +197,7 @@ class Trainer:
                 obs = next_obs
                 action = next_action
 
-                if self.checkpoint_freq > 0 and self.num_steps % self.checkpoint_freq == 0:
+                if self.checkpoint_dir is not None and self.checkpoint_freq > 0 and self.num_steps % self.checkpoint_freq == 0:
                     checkpoint_after_ep = True
 
             episode_info['episode_length'] = t
@@ -201,7 +206,7 @@ class Trainer:
             episode_info['most_common_reward'] = max(set(episode_reward), key=episode_reward.count)
             episode_info['compressed_rewards'] = [(i, rew) for i, rew in enumerate(episode_reward)
                                                   if rew != episode_info['most_common_reward']]
-            episode_infos.append(episode_info)
+            all_logs['episode_infos'].append(episode_info)
 
             self.episode_num += 1
 
@@ -210,10 +215,10 @@ class Trainer:
             print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
 
 
-            if checkpoint_after_ep:
+            if self.checkpoint_dir is not None and checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)
 
         if self.checkpoint_dir is not None:
             self.checkpoint(network_params, optimizer_params)
 
-        return network_params, optimizer_params, episode_infos
+        return network_params, optimizer_params, all_logs

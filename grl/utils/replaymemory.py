@@ -222,6 +222,8 @@ class ReplayBuffer:
         self.returns = np.zeros(self.capacity, dtype=np.float)
         self.d = np.zeros(self.capacity, dtype=bool)
 
+        self.eligible_idxes = np.zeros(self.capacity - 1, dtype=int)
+        self.n_eligible_idxes = 0
         self.ei_cursor = 0
         self._cursor = 0
         self._filled = False

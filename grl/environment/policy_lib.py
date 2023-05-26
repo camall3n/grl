@@ -26,6 +26,16 @@ def tiger_alt_start_uniform(**kwargs) -> jnp.ndarray:
     pi_params = reverse_softmax(pi_phi)
     return pi_params
 
+def tiger_alt_start_cam(**kwargs) -> jnp.ndarray:
+    pi_phi = jnp.array([
+        [0.8, 0.15, 0.05],  # init
+        [0.2, 0.7, 0.1],    # tiger-left
+        [0.6, 0.1, 0.3],    # tiger-right
+        [1, 0, 0],  # terminal
+    ])
+    pi_params = reverse_softmax(pi_phi)
+    return pi_params
+
 def get_start_pi(pi_name: str, spec: dict = None, **kwargs):
     # if we pass in a digit for get_start_pi, that means we look into
     # the corresponding index in Pi_phi in spec.
