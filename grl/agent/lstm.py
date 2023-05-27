@@ -12,7 +12,6 @@ from grl.model.lstm import LSTMCarry
 from grl.utils.data import Batch
 from grl.utils.loss import mse, seq_sarsa_loss
 
-
 class LSTMAgent:
     def __init__(self,
                  network: nn.Module,

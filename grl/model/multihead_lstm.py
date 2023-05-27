@@ -4,9 +4,9 @@ from flax import linen as nn
 import jax
 import jax.numpy as jnp
 
-LSTMCarry = Tuple[jax.Array, jax.Array]
+from grl.model.lstm import LSTMCarry
 
-class LSTMQNetwork(nn.Module):
+class TwoHeadedLSTMQNetwork(nn.Module):
     hidden_size: int
     n_actions: int
 
@@ -18,9 +18,12 @@ class LSTMQNetwork(nn.Module):
         obses: observations of size b x t x *obs_size
         """
         lstm_func = nn.RNN(nn.LSTMCell(name='lstm'), self.hidden_size, return_carry=True)
-        val_head = nn.Dense(features=self.n_actions, name='value')
+        val_head = nn.Dense(features=self.n_actions * 2, name='value_head')
 
         carry, lstm_out = lstm_func(obses, initial_carry=init_carry)
-        qs = val_head(lstm_out)
+        concat_qs = val_head(lstm_out)
 
-        return carry, qs
+        q0 = concat_qs[:, :self.n_actions]
+        q1 = concat_qs[:, self.n_actions:]
+
+        return carry, q0, q1

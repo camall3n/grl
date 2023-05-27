@@ -4,7 +4,7 @@ import numpy as np
 import jax
 from jax.config import config
 
-from grl.agent.lstm import LSTMAgent
+from grl.agent import get_agent
 from grl.environment import load_spec
 from grl.evaluation import test_episodes
 from grl.mdp import AbstractMDP, MDP
@@ -26,7 +26,7 @@ def parse_arguments(return_defaults: bool = False):
 
     # Agent params
     parser.add_argument('--algo', default='lstm', type=str,
-                        help='Algorithm to evaluate')
+                        help='Algorithm to evaluate, (lstm | multihead_lstm)')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')
     parser.add_argument('--lr', default=0.001, type=float)
@@ -38,6 +38,14 @@ def parse_arguments(return_defaults: bool = False):
                         help='RNN truncation length')
     parser.add_argument('--action_cond', default="cat", type=str,
                         help='Do we do (previous) action conditioning of observations? (None | cat)')
+
+    # Multihead RNN hyperparams
+    parser.add_argument('--multihead_action_mode', default='td', type=str,
+                        help='What head to we use for multihead_lstm for action selection? (td | mc)')
+    parser.add_argument('--multihead_loss_mode', default='both', type=str,
+                        help='What mode do we use for the multihead LSTM loss? (both | td | mc)')
+    parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
+                        help='What is our coefficient for our lambda discrepancy loss?')
 
     # Replay buffer hyperparams
     parser.add_argument('--replay_size', default=1, type=int,
@@ -115,7 +123,7 @@ if __name__ == "__main__":
     if args.action_cond == 'cat':
         features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions,)
 
-    agent = LSTMAgent(network, optimizer, features_shape, env.n_actions, args)
+    agent = get_agent(network, optimizer, features_shape, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
     trainer = Trainer(env, agent, trainer_key, args, checkpoint_dir=agents_dir)
