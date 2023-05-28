@@ -42,7 +42,10 @@ class MultiheadLSTMAgent(LSTMAgent):
             raise NotImplementedError
 
     def _combined_loss(self, combined_params: dict, batch: Batch):
+        # TODO: small optimization, where we pass in a batch of all obs and all hidden states,
+        #   and only do one forward pass.
         hiddens, q_td, q_mc = self.network.apply(combined_params, batch.obs, batch.state)
+        next_hiddens, next_q_td, next_q_mc = self.network.apply(combined_params, batch.next_obs, batch.next_state)
 
     def _split_loss(self, lstm_params: dict, value_head_params: dict, batch: Batch):
         pass
