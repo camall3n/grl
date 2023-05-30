@@ -35,6 +35,7 @@ class Trainer:
         self.action_cond = self.args.action_cond
         self.total_steps = self.args.total_steps
 
+        # Logging and eval
         self.offline_eval_freq = self.args.offline_eval_freq
         self.offline_eval_episodes = self.args.offline_eval_episodes
         self.offline_eval_eps = self.args.offline_eval_eps
@@ -44,7 +45,6 @@ class Trainer:
 
         self.batch_size = self.args.batch_size
 
-        # if 'lstm' in self.args.algo and isinstance(self.agent, LSTMAgent):
         self.online_training = self.args.replay_size <= 1
 
         replay_capacity = self.args.replay_size
@@ -161,14 +161,15 @@ class Trainer:
                     if self.online_training:  # online training
                         sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
                     else:
-                    # sample a sequence from our buffer!
+                        # sample a sequence from our buffer!
+                        # we add a + 1 here to also sample next_obs, next_states and next_actions.
                         sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
                     sample.gamma = (1 - sample.done) * self.discounting
 
                     # repack our hidden states. We only take t=0.
                     sample.state = (sample.state[:, 0, 0], sample.state[:, 0, 1])
-                    sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 0, 1])
+                    # sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 0, 1])
 
                     loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
 
@@ -181,12 +182,13 @@ class Trainer:
 
                 # Offline evaluation
                 if self.offline_eval_freq is not None and self.offline_eval_freq % self.num_steps == 0:
-                    test_rews, self._rand_key = test_episodes(self.agent, network_params,
+                    test_info, self._rand_key = test_episodes(self.agent, network_params,
                                                               self.env, self._rand_key,
                                                               n_episodes=self.offline_eval_episodes,
                                                               test_eps=self.offline_eval_episodes,
                                                               action_cond=self.action_cond,
                                                               max_episode_steps=self.max_episode_steps)
+                    all_logs['offline_eval'].append(test_info)
 
                 if done:
                     break
@@ -213,7 +215,6 @@ class Trainer:
             if episode_updates == 0:
                 episode_updates = 1
             print(self.episode_stat_string(sum(episode_reward), episode_loss / episode_updates, t))
-
 
             if self.checkpoint_dir is not None and checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)

@@ -9,12 +9,12 @@ from typing import Union, Iterable
 class Batch:
     obs: Union[np.ndarray, Iterable]
     action: Union[np.ndarray, Iterable]
-    next_obs: Union[np.ndarray, Iterable] = None
     reward: Union[np.ndarray, Iterable] = None
+    next_obs: Union[np.ndarray, Iterable] = None
+    next_action: Union[np.ndarray, Iterable] = None
     prev_action: Union[np.ndarray, Iterable] = None
     done: Union[np.ndarray, Iterable] = None
     gamma: Union[np.ndarray, Iterable] = None
-    next_action: Union[np.ndarray, Iterable] = None
     state: Union[np.ndarray, Iterable] = None
     next_state: Union[np.ndarray, Iterable] = None
     end: Union[np.ndarray, Iterable] = None  # End is done or max_steps == timesteps

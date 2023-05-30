@@ -12,8 +12,10 @@ def test_episodes(agent: LSTMAgent, network_params: dict,
                   env: Union[MDP, AbstractMDP], rand_key: random.PRNGKey,
                   n_episodes: int = 1, test_eps: float = 0.,
                   action_cond: str = 'cat', max_episode_steps: int = 1000)\
-        -> Tuple[List[list], random.PRNGKey]:
-    rews = []
+        -> Tuple[dict, random.PRNGKey]:
+    all_ep_rews = []
+    all_ep_qs = []
+
     original_epsilon = agent.eps
     agent.eps = test_eps
 
@@ -21,6 +23,7 @@ def test_episodes(agent: LSTMAgent, network_params: dict,
 
     for ep in trange(n_episodes):
         ep_rews = []
+        ep_qs = []
 
         hs, rand_key = agent.reset(rand_key)
 
@@ -34,6 +37,7 @@ def test_episodes(agent: LSTMAgent, network_params: dict,
             obs = np.concatenate([obs, action_encoding], axis=-1)
 
         action, rand_key, hs, qs = agent.act(network_params, obs, hs, rand_key)
+        ep_qs.append(qs)
         action = action.item()
 
         for t in range(max_episode_steps):
@@ -48,6 +52,7 @@ def test_episodes(agent: LSTMAgent, network_params: dict,
                 next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
             next_action, rand_key, next_hs, qs = agent.act(network_params, next_obs, hs, rand_key)
+            ep_qs.append(qs)
             next_action = next_action.item()
 
             ep_rews.append(reward)
@@ -57,9 +62,16 @@ def test_episodes(agent: LSTMAgent, network_params: dict,
             # bump time step
             hs = next_hs
             action = next_action
-        rews.append(ep_rews)
+        all_ep_rews.append(ep_rews)
+        all_ep_qs.append(ep_qs)
+
 
     # reset original epsilon
     agent.eps = original_epsilon
 
-    return rews, rand_key
+    info = {
+        'episode_rewards': all_ep_rews,
+        'episode_qs': all_ep_qs
+    }
+
+    return info, rand_key

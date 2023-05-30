@@ -95,6 +95,8 @@ if __name__ == "__main__":
     config.update('jax_platform_name', args.platform)
     config.update("jax_enable_x64", True)
 
+    # config.update('jax_disable_jit', True)
+
     rand_key = None
     if args.seed is not None:
         np.random.seed(args.seed)
@@ -133,13 +135,13 @@ if __name__ == "__main__":
     final_eval_episodes = 10
     print(f"Finished training. Evaluating over {final_eval_episodes} episodes.")
 
-    final_eval_rewards, rand_key = test_episodes(agent, final_network_params, env, rand_key,
-                                                 n_episodes=final_eval_episodes,
-                                                 test_eps=0., action_cond=args.action_cond,
-                                                 max_episode_steps=args.max_episode_steps)
+    final_eval_info, rand_key = test_episodes(agent, final_network_params, env, rand_key,
+                                              n_episodes=final_eval_episodes,
+                                              test_eps=0., action_cond=args.action_cond,
+                                              max_episode_steps=args.max_episode_steps)
 
     summed_perf = 0
-    for ep in final_eval_rewards:
+    for ep in final_eval_info['episode_rewards']:
         summed_perf += sum(ep)
 
     print(f"Final (averaged) greedy evaluation performance: {summed_perf / final_eval_episodes}")
@@ -147,7 +149,8 @@ if __name__ == "__main__":
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_greedy_eval_rews': final_eval_rewards
+        'final_greedy_eval_rews': final_eval_info['episode_rewards'],
+        'final_eval_qs': final_eval_info['episode_qs']
     }
 
     print(f"Saving results to {results_path}")

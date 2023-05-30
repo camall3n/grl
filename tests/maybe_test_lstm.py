@@ -35,11 +35,12 @@ def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, A
 
 def test_value():
     args = parse_arguments(return_defaults=True)
-    chain_length = 4
+    chain_length = 10
     args.max_episode_steps = chain_length
     args.seed = 2020
     args.lr = 0.002
     args.total_steps = 3000
+    args.no_gamma_terminal = True
 
     spec = po_simple_chain(n=chain_length)
 
@@ -87,13 +88,13 @@ def test_value():
     ground_truth_vals = env.gamma ** (np.arange(chain_length - 1)[::-1])
     mse = ((ground_truth_vals - all_qs) ** 2).mean()
 
-    assert np.isclose(mse, 0, atol=1e-2)
+    assert np.isclose(mse, 0, atol=1e-3)
 
 def test_actions():
     args = parse_arguments(return_defaults=True)
     args.max_episode_steps = 1000
     args.seed = 2020
-    args.lr = 0.002
+    args.lr = 0.0001
     args.trunc = 10
     args.replay_size = 1000
     args.total_steps = 10000
@@ -108,14 +109,17 @@ def test_actions():
 
     agent, network_params = train_agent(rand_key, args, env)
 
-    final_eval_rewards, rand_key = test_episodes(agent, network_params, env, rand_key,
-                                                 n_episodes=5,
-                                                 test_eps=0., action_cond=args.action_cond,
-                                                 max_episode_steps=args.max_episode_steps)
+    final_eval_info, rand_key = test_episodes(agent, network_params, env, rand_key,
+                                              n_episodes=5,
+                                              test_eps=0., action_cond=args.action_cond,
+                                              max_episode_steps=args.max_episode_steps)
+
+    final_eval_rewards = final_eval_info['episode_rewards']
+
     for ep_rews in final_eval_rewards:
         assert sum(ep_rews) == 4.
 
 
 if __name__ == "__main__":
-    # test_value()
-    test_actions()
+    test_value()
+    # test_actions()

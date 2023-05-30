@@ -244,8 +244,9 @@ class ReplayBuffer:
         self.obs[self._cursor] = batch.obs
         self.d[self._cursor] = batch.done
         self.r[self._cursor] = batch.reward
+
         if batch.next_action is not None:
-            self.next_a[self._cursor] = batch.next_action
+            self.a[next_cursor] = batch.next_action
 
         self.obs[next_cursor] = batch.next_obs
 
@@ -280,7 +281,7 @@ class ReplayBuffer:
         batch['obs'] = self.obs[sample_idx]
         batch['next_obs'] = self.obs[(sample_idx + 1) % self.capacity]
         batch['action'] = self.a[sample_idx]
-        batch['next_action'] = self.next_a[sample_idx]
+        batch['next_action'] = self.a[(sample_idx + 1) % self.capacity]
         batch['done'] = self.d[sample_idx]
         batch['reward'] = self.r[sample_idx]
         if self.include_returns:
@@ -339,19 +340,22 @@ class EpisodeBuffer(ReplayBuffer):
         sample_idx = self.sample_eligible_idxes(batch_size, seq_len)
         return self.sample_idx(sample_idx)
 
-
     def sample_idx(self, sample_idx: np.ndarray, as_dict: bool = False):
         batch = {}
-        batch['state'] = self.s[sample_idx]
-        batch['next_state'] = self.s[(sample_idx + 1) % self.capacity]
-        batch['obs'] = self.obs[sample_idx]
-        batch['next_obs'] = self.obs[(sample_idx + 1) % self.capacity]
-        batch['action'] = self.a[sample_idx]
-        batch['next_action'] = self.next_a[sample_idx]
+
+        # get the last index and bump it
+        t_p1_idx = (sample_idx[:, -1:] + 1) % self.capacity
+        sample_p1_idx = np.concatenate((sample_idx, t_p1_idx), axis=-1)
+
+        batch['state'] = self.s[sample_p1_idx]
+        batch['obs'] = self.obs[sample_p1_idx]
+        batch['action'] = self.a[sample_p1_idx]
         batch['done'] = self.d[sample_idx]
         batch['reward'] = self.r[sample_idx]
+
         if self.include_returns:
             batch['returns'] = self.returns[sample_idx]
+
         # batch['indices'] = sample_idx
         ends = self.end[sample_idx]
 
