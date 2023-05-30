@@ -40,5 +40,5 @@ def one_hot(x, n):
     return np.eye(n)[x]
 
 def get_idx_from_nth_dim(arr: np.ndarray, idx: int, nth_dim: int):
-    ix = [idx if dim == nth_dim else slice(None) for dim in range(arr.ndim)]
+    ix = tuple(idx if dim == nth_dim else slice(None) for dim in range(arr.ndim))
     return arr[ix]

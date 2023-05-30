@@ -99,6 +99,7 @@ def test_actions():
     args.replay_size = 1000
     args.total_steps = 10000
     args.no_gamma_terminal = True
+    # args.arch = 'lstm'
     args.spec = 'tmaze_5_two_thirds_up'
 
     spec = load_spec(args.spec)

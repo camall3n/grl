@@ -7,13 +7,13 @@ import jax.numpy as jnp
 import optax
 
 from grl.agent.rnn import RNNAgent
-from grl.model.multihead_gru import TwoHeadedGRUQNetwork
+from grl.model.rnn import TwoHeadedRNNQNetwork
 from grl.utils.data import Batch
 from grl.utils.loss import seq_sarsa_loss, seq_sarsa_mc_loss, seq_sarsa_lambda_discrep, mse
 
 class MultiheadRNNAgent(RNNAgent):
     def __init__(self,
-                 network: TwoHeadedGRUQNetwork,
+                 network: TwoHeadedRNNQNetwork,
                  optimizer: optax.GradientTransformation,
                  features_shape: Tuple,
                  n_actions: int,

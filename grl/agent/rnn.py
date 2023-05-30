@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import optax
 from optax import GradientTransformation
 
+from grl.model.rnn import rnn_arch_module_switch
 from grl.utils.data import Batch
 from grl.utils.loss import mse, seq_sarsa_loss
 
@@ -51,7 +52,8 @@ class RNNAgent:
         Reset the RNN initial state.
         """
         rand_key, carry_key = random.split(rand_key)
-        new_carry = nn.GRUCell.initialize_carry(carry_key, (1, ), self.n_hidden)
+        rnn_module_class = rnn_arch_module_switch(self.args.arch)
+        new_carry = rnn_module_class.initialize_carry(carry_key, (1, ), self.n_hidden)
         return new_carry, rand_key
 
     def act(self, network_params: dict, obs: jnp.ndarray, hs: jnp.ndarray, rand_key: random.PRNGKey):
@@ -113,7 +115,10 @@ class RNNAgent:
         :return: loss, network parameters, optimizer state and all hidden states (bs x timesteps x 2 x n_hidden)
         """
         # We only take t=0.
-        batch.state = batch.state[:, 0]
+        if isinstance(batch.state, tuple):
+            batch.state = tuple(state[:, 0] for state in batch.state)
+        else:
+            batch.state = batch.state[:, 0]
 
         loss, grad = jax.value_and_grad(self._loss)(network_params, batch)
         updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)

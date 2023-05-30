@@ -36,6 +36,8 @@ def parse_arguments(return_defaults: bool = False):
     # RNN hyperparams
     parser.add_argument('--hidden_size', default=10, type=int,
                         help='RNN hidden size')
+    parser.add_argument('--value_head_layers', default=0, type=int,
+                        help='For our value head network, how deep is it?')
     parser.add_argument('--trunc', default=-1, type=int,
                         help='RNN truncation length')
     parser.add_argument('--action_cond', default="cat", type=str,
