@@ -38,7 +38,7 @@ class Trainer:
         # Logging and eval
         self.offline_eval_freq = self.args.offline_eval_freq
         self.offline_eval_episodes = self.args.offline_eval_episodes
-        self.offline_eval_eps = self.args.offline_eval_eps
+        self.offline_eval_epsilon = self.args.offline_eval_epsilon
         self.checkpoint_freq = self.args.checkpoint_freq
         self.checkpoint_dir = checkpoint_dir
         self.save_all_checkpoints = self.args.save_all_checkpoints
@@ -185,7 +185,7 @@ class Trainer:
                     test_info, self._rand_key = test_episodes(self.agent, network_params,
                                                               self.env, self._rand_key,
                                                               n_episodes=self.offline_eval_episodes,
-                                                              test_eps=self.offline_eval_episodes,
+                                                              test_eps=self.offline_eval_epsilon,
                                                               action_cond=self.action_cond,
                                                               max_episode_steps=self.max_episode_steps)
                     all_logs['offline_eval'].append(test_info)

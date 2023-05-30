@@ -43,7 +43,7 @@ def parse_arguments(return_defaults: bool = False):
     parser.add_argument('--multihead_action_mode', default='td', type=str,
                         help='What head to we use for multihead_lstm for action selection? (td | mc)')
     parser.add_argument('--multihead_loss_mode', default='both', type=str,
-                        help='What mode do we use for the multihead LSTM loss? (both | td | mc)')
+                        help='What mode do we use for the multihead LSTM loss? (both | td | mc | split)')
     parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
                         help='What is our coefficient for our lambda discrepancy loss?')
 
@@ -60,7 +60,7 @@ def parse_arguments(return_defaults: bool = False):
                         help='How often do we evaluate offline during training?')
     parser.add_argument('--offline_eval_episodes', type=int, default=1,
                         help='When we do run offline eval, how many episodes do we run?')
-    parser.add_argument('--offline_eval_eps', type=float, default=0.,
+    parser.add_argument('--offline_eval_epsilon', type=float, default=None,
                         help='What is our evaluation epsilon? Default is greedy.')
     parser.add_argument('--checkpoint_freq', type=int, default=100,
                         help='How often do we checkpoint?')
@@ -84,6 +84,9 @@ def parse_arguments(return_defaults: bool = False):
                 defaults[action.dest] = action.default
         return argparse.Namespace(**defaults)
     args = parser.parse_args()
+
+    if args.offline_eval_epsilon is None:
+        args.offline_eval_epsilon = args.epsilon
 
     return args
 

@@ -22,7 +22,7 @@ class Batch:
     # MC stuff
     returns: Union[np.ndarray, Iterable] = None
 
-    # LSTM stuff
+    # GRU stuff
     zero_mask: Union[np.ndarray, Iterable] = None
 
     def tree_flatten(self):
