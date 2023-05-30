@@ -95,7 +95,6 @@ class LSTMAgent:
 
     def _loss(self, network_params: dict, batch: Batch):
         final_hidden, all_qs = self.network.apply(network_params, batch.obs, batch.state)
-        # target_hiddens, q1 = self.network.apply(network_params, batch.next_obs, batch.next_state)
 
         q, q1 = all_qs[:, :-1], all_qs[:, 1:]
         actions, next_actions = batch.action[:, :-1], batch.action[:, 1:]
