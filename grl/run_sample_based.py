@@ -25,8 +25,10 @@ def parse_arguments(return_defaults: bool = False):
                         help='Maximum number of episode steps')
 
     # Agent params
-    parser.add_argument('--algo', default='lstm', type=str,
-                        help='Algorithm to evaluate, (lstm | multihead_lstm)')
+    parser.add_argument('--algo', default='rnn', type=str,
+                        help='Algorithm to evaluate, (rnn | multihead_rnn)')
+    parser.add_argument('--arch', default='gru', type=str,
+                        help='Algorithm to evaluate, (gru | elman)')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')
     parser.add_argument('--lr', default=0.001, type=float)
@@ -41,9 +43,9 @@ def parse_arguments(return_defaults: bool = False):
 
     # Multihead RNN hyperparams
     parser.add_argument('--multihead_action_mode', default='td', type=str,
-                        help='What head to we use for multihead_lstm for action selection? (td | mc)')
+                        help='What head to we use for multihead_rnn for action selection? (td | mc)')
     parser.add_argument('--multihead_loss_mode', default='both', type=str,
-                        help='What mode do we use for the multihead LSTM loss? (both | td | mc | split)')
+                        help='What mode do we use for the multihead RNN loss? (both | td | mc | split)')
     parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
                         help='What is our coefficient for our lambda discrepancy loss?')
 

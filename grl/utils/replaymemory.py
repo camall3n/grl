@@ -4,13 +4,13 @@ import marshal
 import os
 import pickle
 import types
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 from jax import random, jit
 import jax.numpy as jnp
 
-from grl.utils.data import Batch
+from grl.utils.data import Batch, get_idx_from_nth_dim
 
 class ReplayMemory:
     def __init__(self, capacity: int, on_retrieve: dict = None):
@@ -174,7 +174,8 @@ class ReplayBuffer:
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
                  obs_size: Tuple,
                  obs_dtype: type,
-                 state_size: Tuple = None):
+                 state_size: Tuple = None,
+                 unpack_state: bool = False):
         """
         Replay buffer that saves both observation and state.
         :param capacity:
@@ -189,6 +190,7 @@ class ReplayBuffer:
         # TODO: change these to half precision to save GPU memory.
         if self.state_size is not None:
             self.s = np.zeros((self.capacity, *self.state_size))
+            self.unpack_state = unpack_state
 
         if obs_dtype is not None:
             self.obs = np.zeros((self.capacity, *self.obs_size), dtype=obs_dtype)
@@ -234,8 +236,14 @@ class ReplayBuffer:
 
         self.a[self._cursor] = batch.action
         if self.state_size is not None and batch.state is not None and batch.next_state is not None:
-            self.s[self._cursor] = batch.state
-            self.s[next_cursor] = batch.next_state
+
+            state, next_state = batch.state, batch.next_state
+            # If we are using an LSTM, state and next_state will be a tuple for cell and hidden states.
+            if isinstance(state, tuple) and isinstance(next_state, tuple):
+                state, next_state = np.stack(state), np.stack(next_state)
+
+            self.s[self._cursor] = state
+            self.s[next_cursor] = next_state
 
         if batch.returns is not None:
             self.returns[self._cursor] = batch.returns
@@ -263,6 +271,15 @@ class ReplayBuffer:
         idxes, self.rand_key = self.jitted_sampled_idx_batch(batch_size, length, self.rand_key)
         return self.eligible_idxes[idxes]
 
+    def maybe_unpack_state(self, sample_idx: List[int], packed_dim: int = 1):
+        state = self.s[sample_idx]
+        if self.unpack_state and self.state_size[0] == 2:
+            # repack our hidden states
+            state = (get_idx_from_nth_dim(state, 0, packed_dim),
+                     get_idx_from_nth_dim(state, 1, packed_dim))
+
+        return state
+
     def sample(self, batch_size: int, **kwargs) -> Batch:
         """
         NOTE: If done is True, then the next state returned is either all
@@ -273,15 +290,17 @@ class ReplayBuffer:
         """
 
         sample_idx = self.sample_eligible_idxes(batch_size)
+        next_sample_idx = (sample_idx + 1) % self.capacity
+
         batch = {}
         if self.state_size is not None:
-            batch['state'] = self.s[sample_idx]
-            batch['next_state'] = self.s[(sample_idx + 1) % self.capacity]
+            batch['state'] = self.maybe_unpack_state(sample_idx)
+            batch['next_state'] = self.maybe_unpack_state(next_sample_idx)
 
         batch['obs'] = self.obs[sample_idx]
-        batch['next_obs'] = self.obs[(sample_idx + 1) % self.capacity]
+        batch['next_obs'] = self.obs[next_sample_idx]
         batch['action'] = self.a[sample_idx]
-        batch['next_action'] = self.a[(sample_idx + 1) % self.capacity]
+        batch['next_action'] = self.a[next_sample_idx]
         batch['done'] = self.d[sample_idx]
         batch['reward'] = self.r[sample_idx]
         if self.include_returns:
@@ -302,8 +321,10 @@ class EpisodeBuffer(ReplayBuffer):
     is essentially a mask for
     """
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
-                 obs_size: Tuple, obs_dtype: type, state_size: Tuple = None):
-        super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype, state_size=state_size)
+                 obs_size: Tuple, obs_dtype: type, state_size: Tuple = None,
+                 unpack_state: bool = False):
+        super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype, state_size=state_size,
+                                            unpack_state=unpack_state)
         self.jitted_sampled_seq_idxes = jit(sample_seq_idxes, static_argnums=(0, 1, 2))
         self.end = np.zeros_like(self.d, dtype=bool)
 
@@ -347,7 +368,9 @@ class EpisodeBuffer(ReplayBuffer):
         t_p1_idx = (sample_idx[:, -1:] + 1) % self.capacity
         sample_p1_idx = np.concatenate((sample_idx, t_p1_idx), axis=-1)
 
-        batch['state'] = self.s[sample_p1_idx]
+        if self.state_size is not None:
+            batch['state'] = self.maybe_unpack_state(sample_p1_idx, packed_dim=2)
+            # batch['state'] = self.s[sample_p1_idx]
         batch['obs'] = self.obs[sample_p1_idx]
         batch['action'] = self.a[sample_p1_idx]
         batch['done'] = self.d[sample_idx]

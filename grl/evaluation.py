@@ -4,11 +4,11 @@ from jax import random
 import numpy as np
 from tqdm import trange
 
-from grl.agent.lstm import LSTMAgent
+from grl.agent.rnn import RNNAgent
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.data import one_hot
 
-def test_episodes(agent: LSTMAgent, network_params: dict,
+def test_episodes(agent: RNNAgent, network_params: dict,
                   env: Union[MDP, AbstractMDP], rand_key: random.PRNGKey,
                   n_episodes: int = 1, test_eps: float = 0.,
                   action_cond: str = 'cat', max_episode_steps: int = 1000)\

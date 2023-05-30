@@ -6,14 +6,14 @@ import jax
 import jax.numpy as jnp
 import optax
 
-from grl.agent.lstm import LSTMAgent
-from grl.model.multihead_lstm import TwoHeadedLSTMQNetwork, LSTMCarry
+from grl.agent.rnn import RNNAgent
+from grl.model.multihead_gru import TwoHeadedGRUQNetwork
 from grl.utils.data import Batch
 from grl.utils.loss import seq_sarsa_loss, seq_sarsa_mc_loss, seq_sarsa_lambda_discrep, mse
 
-class MultiheadLSTMAgent(LSTMAgent):
+class MultiheadRNNAgent(RNNAgent):
     def __init__(self,
-                 network: TwoHeadedLSTMQNetwork,
+                 network: TwoHeadedGRUQNetwork,
                  optimizer: optax.GradientTransformation,
                  features_shape: Tuple,
                  n_actions: int,
@@ -23,13 +23,13 @@ class MultiheadLSTMAgent(LSTMAgent):
         self.loss_mode = args.multihead_loss_mode
         self.lambda_coeff = args.multihead_lambda_coeff
 
-    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: LSTMCarry, *args,
+    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray, *args,
            mode: str = None) -> jnp.ndarray:
         """
         Get all Q-values given an observation and hidden state, from the self.action_mode head.
         :param network_params: network params to find Qs w.r.t.
         :param obs: (b x t x *obs_size) Obs to find action-values
-        :param hidden_state: LSTM hidden state to propagate.
+        :param hidden_state: RNN hidden state to propagate.
         :return: (b x t x actions)  full of action-values.
         """
         if mode is None:
@@ -71,12 +71,12 @@ class MultiheadLSTMAgent(LSTMAgent):
         loss *= batch.zero_mask
         return mse(loss)
 
-    def _split_loss(self, lstm_params: dict, value_head_params: dict, batch: Batch,
+    def _split_loss(self, rnn_params: dict, value_heads_params: dict, batch: Batch,
                     loss_mode: str = 'discrep'):
         """
         :param loss_mode:
         """
-        all_params = FrozenDict({'params': {'lstm': lstm_params, 'value_head': value_head_params}})
+        all_params = FrozenDict({'params': {'rnn': rnn_params, 'value': value_heads_params}})
 
         pass
 
@@ -89,7 +89,7 @@ class MultiheadLSTMAgent(LSTMAgent):
             return super().update(network_params, optimizer_state, batch)
         elif self.loss_mode == 'split':
             """
-            Split mode trains the LSTM with ONLY lambda discrepancy, 
+            Split mode trains the RNN with ONLY lambda discrepancy, 
             and the value head with ONLY td/mc.
             """
             pass

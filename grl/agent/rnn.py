@@ -8,11 +8,10 @@ import jax.numpy as jnp
 import optax
 from optax import GradientTransformation
 
-from grl.model.lstm import LSTMCarry
 from grl.utils.data import Batch
 from grl.utils.loss import mse, seq_sarsa_loss
 
-class LSTMAgent:
+class RNNAgent:
     def __init__(self,
                  network: nn.Module,
                  optimizer: GradientTransformation,
@@ -47,15 +46,15 @@ class LSTMAgent:
         optimizer_params = self.optimizer.init(network_params)
         return network_params, optimizer_params, rand_key
 
-    def reset(self, rand_key: random.PRNGKey) -> Tuple[LSTMCarry, random.PRNGKey]:
+    def reset(self, rand_key: random.PRNGKey) -> Tuple[jnp.ndarray, random.PRNGKey]:
         """
-        Reset the LSTM initial state (called LSTMCarry here).
+        Reset the RNN initial state.
         """
         rand_key, carry_key = random.split(rand_key)
-        new_carry = nn.OptimizedLSTMCell.initialize_carry(carry_key, (1, ), self.n_hidden)
+        new_carry = nn.GRUCell.initialize_carry(carry_key, (1, ), self.n_hidden)
         return new_carry, rand_key
 
-    def act(self, network_params: dict, obs: jnp.ndarray, hs: LSTMCarry, rand_key: random.PRNGKey):
+    def act(self, network_params: dict, obs: jnp.ndarray, hs: jnp.ndarray, rand_key: random.PRNGKey):
         """
         Given an observation, act based on self.hidden_state.
         obs should be of size n_obs, with NO batch dimension.
@@ -71,24 +70,24 @@ class LSTMAgent:
 
         return selected_action, key, new_hidden_state, qs
 
-    def greedy_act(self, network_params: dict, obs: jnp.ndarray, hidden_state: LSTMCarry) -> \
-            Tuple[jnp.ndarray, LSTMCarry, jnp.ndarray]:
+    def greedy_act(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray) -> \
+            Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """
         Get greedy actions given an obs and hidden_state
         :param network_params: Optional. Potentially use another model to find action-values.
         :param obs: (b x 1 x *obs.shape) Obs to find actions
-        :param hidden_state: LSTM hidden state
+        :param hidden_state: RNN hidden state
         :return: (b) Greedy actions
         """
         new_hidden_state, qs = self.Qs(network_params, obs, hidden_state)
         return jnp.argmax(qs[:, 0], axis=1), new_hidden_state, qs
 
-    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: LSTMCarry, *args) -> jnp.ndarray:
+    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray, *args) -> jnp.ndarray:
         """
         Get all Q-values given an observation and hidden state.
         :param network_params: network params to find Qs w.r.t.
         :param obs: (b x t x *obs_size) Obs to find action-values
-        :param hidden_state: LSTM hidden state to propagate.
+        :param hidden_state: RNN hidden state to propagate.
         :return: (b x t x actions)  full of action-values.
         """
         return self.network.apply(network_params, obs, hidden_state)
@@ -113,6 +112,9 @@ class LSTMAgent:
         """
         :return: loss, network parameters, optimizer state and all hidden states (bs x timesteps x 2 x n_hidden)
         """
+        # We only take t=0.
+        batch.state = batch.state[:, 0]
+
         loss, grad = jax.value_and_grad(self._loss)(network_params, batch)
         updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)
         network_params = optax.apply_updates(network_params, updates)

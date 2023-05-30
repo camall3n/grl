@@ -10,14 +10,14 @@ from tqdm import tqdm
 
 from grl.evaluation import test_episodes
 from grl.mdp import MDP, AbstractMDP
-from grl.agent.lstm import LSTMAgent
+from grl.agent.rnn import RNNAgent
 from grl.utils.data import Batch, one_hot
 from grl.utils.replaymemory import EpisodeBuffer
 
 class Trainer:
     def __init__(self,
                  env: Union[MDP, AbstractMDP],
-                 agent: LSTMAgent,
+                 agent: RNNAgent,
                  rand_key: random.PRNGKey,
                  args: Namespace,
                  checkpoint_dir: Path = None):
@@ -31,7 +31,7 @@ class Trainer:
         self.max_episode_steps = self.args.max_episode_steps
         self.trunc = self.args.trunc
 
-        # For LSTMs
+        # For RNNs
         self.action_cond = self.args.action_cond
         self.total_steps = self.args.total_steps
 
@@ -51,7 +51,6 @@ class Trainer:
         if replay_capacity < self.max_episode_steps:
             replay_capacity = self.max_episode_steps
 
-        # We save state for an LSTM agent
         obs_shape = self.env.observation_space
         if self.action_cond == 'cat':
             obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions,)
@@ -60,9 +59,13 @@ class Trainer:
         obs_dtype = np.float32
         self.one_hot_obses = isinstance(self.env, AbstractMDP) or isinstance(self.env, MDP)
 
+        state_size = (self.args.hidden_size, )
+        if self.args.arch == 'lstm':
+            state_size = (2, ) + state_size
         self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
                                     obs_dtype=obs_dtype,
-                                    state_size=(2, self.args.hidden_size))
+                                    state_size=state_size,
+                                    unpack_state=self.args.arch == 'lstm')
 
         if self.checkpoint_dir is not None:
             dict_options = {}
@@ -150,7 +153,7 @@ class Trainer:
                 next_action = next_action.item()
 
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
-                              next_action=next_action, state=np.stack(prev_hs)[:, 0], next_state=np.stack(hs)[:, 0],
+                              next_action=next_action, state=prev_hs[0], next_state=hs[0],
                               end=done or (t == self.max_episode_steps - 1))
                 self.buffer.push(batch)
 
@@ -162,14 +165,9 @@ class Trainer:
                         sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
                     else:
                         # sample a sequence from our buffer!
-                        # we add a + 1 here to also sample next_obs, next_states and next_actions.
                         sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
                     sample.gamma = (1 - sample.done) * self.discounting
-
-                    # repack our hidden states. We only take t=0.
-                    sample.state = (sample.state[:, 0, 0], sample.state[:, 0, 1])
-                    # sample.next_state = (sample.next_state[:, 0, 0], sample.next_state[:, 0, 1])
 
                     loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
 

@@ -4,7 +4,7 @@ from typing import Union, Tuple
 import jax
 import numpy as np
 
-from grl.agent.lstm import LSTMAgent
+from grl.agent.rnn import RNNAgent
 from grl.environment import load_spec
 from grl.environment.examples_lib import po_simple_chain
 from grl.evaluation import test_episodes
@@ -16,7 +16,7 @@ from grl.utils.data import one_hot
 from grl.utils.optimizer import get_optimizer
 
 def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, AbstractMDP]) \
-        -> Tuple[LSTMAgent, dict]:
+        -> Tuple[RNNAgent, dict]:
     network = get_network(args, env.n_actions)
 
     optimizer = get_optimizer(args.optimizer, step_size=args.lr)
@@ -25,7 +25,7 @@ def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, A
     if args.action_cond == 'cat':
         features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions,)
 
-    agent = LSTMAgent(network, optimizer, features_shape, env.n_actions, args)
+    agent = RNNAgent(network, optimizer, features_shape, env.n_actions, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
     trainer = Trainer(env, agent, trainer_key, args)
@@ -38,7 +38,7 @@ def test_value():
     chain_length = 10
     args.max_episode_steps = chain_length
     args.seed = 2020
-    args.lr = 0.002
+    args.lr = 0.005
     args.total_steps = 3000
     args.no_gamma_terminal = True
 
@@ -94,11 +94,11 @@ def test_actions():
     args = parse_arguments(return_defaults=True)
     args.max_episode_steps = 1000
     args.seed = 2020
-    args.lr = 0.0001
+    args.lr = 0.001
     args.trunc = 10
     args.replay_size = 1000
     args.total_steps = 10000
-    # args.no_gamma_terminal = True
+    args.no_gamma_terminal = True
     args.spec = 'tmaze_5_two_thirds_up'
 
     spec = load_spec(args.spec)
@@ -121,5 +121,5 @@ def test_actions():
 
 
 if __name__ == "__main__":
-    test_value()
-    # test_actions()
+    # test_value()
+    test_actions()
