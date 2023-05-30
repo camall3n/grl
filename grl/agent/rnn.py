@@ -110,7 +110,8 @@ class RNNAgent:
     def update(self,
                network_params: dict,
                optimizer_state: optax.Params,
-               batch: Batch):
+               batch: Batch) -> \
+        Tuple[dict, dict, optax.Params]:
         """
         :return: loss, network parameters, optimizer state and all hidden states (bs x timesteps x 2 x n_hidden)
         """
@@ -124,4 +125,4 @@ class RNNAgent:
         updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)
         network_params = optax.apply_updates(network_params, updates)
 
-        return loss, network_params, optimizer_state
+        return network_params, optimizer_state, {'total_loss': loss}

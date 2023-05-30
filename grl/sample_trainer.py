@@ -155,6 +155,8 @@ class Trainer:
                 batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
                               next_action=next_action, state=prev_hs[0], next_state=hs[0],
                               end=done or (t == self.max_episode_steps - 1))
+
+                # TODO: if we need to include return, we need to include it in Batch here!
                 self.buffer.push(batch)
 
                 # if we have enough things in the batch
@@ -169,9 +171,9 @@ class Trainer:
 
                     sample.gamma = (1 - sample.done) * self.discounting
 
-                    loss, network_params, optimizer_params = self.agent.update(network_params, optimizer_params, sample)
+                    network_params, optimizer_params, info = self.agent.update(network_params, optimizer_params, sample)
 
-                    episode_loss += loss
+                    episode_loss += info['total_loss']
                     episode_updates += 1
 
                 pbar.update(1)
