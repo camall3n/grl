@@ -1,8 +1,10 @@
 from argparse import Namespace
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
+import jax
 from jax import random
+import jax.numpy as jnp
 import numpy as np
 import optax
 from orbax import checkpoint
@@ -28,12 +30,16 @@ class Trainer:
 
         self.gamma_terminal = not self.args.no_gamma_terminal
         self.discounting = self.env.gamma if not self.gamma_terminal else 1.
+
         self.max_episode_steps = self.args.max_episode_steps
         self.trunc = self.args.trunc
 
         # For RNNs
         self.action_cond = self.args.action_cond
         self.total_steps = self.args.total_steps
+        # we train at the end of an episode only if we also need to learn an MC head.
+        self.include_returns_in_batch = self.args.algo == 'multihead_rnn' and \
+                                        self.args.multihead_loss_mode in ['both', 'mc', 'split']
 
         # Logging and eval
         self.offline_eval_freq = self.args.offline_eval_freq
@@ -47,6 +53,7 @@ class Trainer:
 
         self.online_training = self.args.replay_size <= 1
 
+        # Replay buffer initialization
         replay_capacity = self.args.replay_size
         if replay_capacity < self.max_episode_steps:
             replay_capacity = self.max_episode_steps
@@ -62,11 +69,13 @@ class Trainer:
         state_size = (self.args.hidden_size, )
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
+
         self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
                                     obs_dtype=obs_dtype,
                                     state_size=state_size,
                                     unpack_state=self.args.arch == 'lstm')
 
+        # Initialize checkpointers
         if self.checkpoint_dir is not None:
             dict_options = {}
             if not self.save_all_checkpoints:
@@ -88,11 +97,8 @@ class Trainer:
 
     def episode_stat_string(self, episode_reward: float, avg_episode_loss: float, t: int,
                            additional_info: dict = None):
-        # avg_over = min(self.episode_num, 30)
         print_str = (f"Episode {self.episode_num}, steps: {t + 1}, "
                     f"total steps: {self.num_steps}, "
-                    # f"moving avg steps: {sum(self.info['episode_length'][-avg_over:]) / avg_over:.3f}, "
-                    # f"moving avg returns: {sum(self.info['episode_reward'][-avg_over:]) / avg_over:.3f}, "
                     f"rewards: {episode_reward:.2f}, "
                     f"avg episode loss: {avg_episode_loss:.8f}")
 
@@ -101,6 +107,19 @@ class Trainer:
             for k, v in additional_info.items():
                 print_str += f"{k}: {v / (t + 1):.4f}, "
         return print_str
+
+    def add_returns_to_batches(self, episode_rewards: List[float], episode_batches: List[Batch]) -> List[Batch]:
+        episode_rewards = jnp.array(episode_rewards)
+        episode_discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_batches])
+
+        discounted_rewards = episode_rewards * episode_discounts
+        overdiscounted_returns = jnp.cumsum(discounted_rewards[::-1])[::-1]
+        returns = overdiscounted_returns / jnp.maximum(episode_discounts, 1e-10)
+
+        for g, batch in zip(returns, episode_batches):
+            batch.returns = g
+
+        return episode_batches
 
     def train(self):
         all_logs = {
@@ -114,6 +133,7 @@ class Trainer:
 
         while self.num_steps < self.total_steps:
             episode_reward = []
+            episode_batches = []
             episode_loss = 0
             episode_info = {}
             episode_updates = 0
@@ -156,11 +176,16 @@ class Trainer:
                               next_action=next_action, state=prev_hs[0], next_state=hs[0],
                               end=done or (t == self.max_episode_steps - 1))
 
-                # TODO: if we need to include return, we need to include it in Batch here!
-                self.buffer.push(batch)
+                episode_reward.append(reward)
 
-                # if we have enough things in the batch
-                if (self.online_training and done) or (not self.online_training and self.batch_size < len(self.buffer)):
+                if self.include_returns_in_batch:
+                    # save the batches to append at episode's end, once we can calculate returns.
+                    episode_batches.append(batch)
+                else:
+                    self.buffer.push(batch)
+
+                # if we have enough things in the buffer to update
+                if self.batch_size < len(self.buffer) and self.trunc < len(self.buffer):
 
                     seq_len = self.agent.trunc
                     if self.online_training:  # online training
@@ -178,7 +203,6 @@ class Trainer:
 
                 pbar.update(1)
                 self.num_steps += 1
-                episode_reward.append(reward)
 
                 # Offline evaluation
                 if self.offline_eval_freq is not None and self.offline_eval_freq % self.num_steps == 0:
@@ -201,6 +225,15 @@ class Trainer:
 
                 if self.checkpoint_dir is not None and self.checkpoint_freq > 0 and self.num_steps % self.checkpoint_freq == 0:
                     checkpoint_after_ep = True
+
+            if self.include_returns_in_batch:
+                batch_with_returns = self.add_returns_to_batches(episode_reward, episode_batches)
+                for b in batch_with_returns:
+                    self.buffer.push(b)
+
+            if self.online_training and self.include_returns_in_batch:
+                # Online MC training
+                pass
 
             episode_info['episode_length'] = t
             episode_info['total_episode_loss'] = episode_loss
