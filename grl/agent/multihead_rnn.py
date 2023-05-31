@@ -71,9 +71,12 @@ class MultiheadRNNAgent(RNNAgent):
         elif loss_mode == 'mc':
             loss = batch_mc_loss(q_mc, actions, batch.returns)
         elif loss_mode == 'both':
-            loss = batch_td_loss(q_td, actions, batch.reward, batch.gamma, q1_td, next_actions) + \
-                            batch_mc_loss(q_mc, actions, batch.returns) + \
-                            lambda_coeff * batch_lambda_discrep(q_td, q_mc, actions)
+            td_loss = batch_td_loss(q_td, actions, batch.reward, batch.gamma, q1_td, next_actions) * batch.zero_mask
+            mc_loss = batch_mc_loss(q_mc, actions, batch.returns) * batch.zero_mask
+            discrep_loss = lambda_coeff * batch_lambda_discrep(q_td, q_mc, actions) * batch.zero_mask
+            loss = mse(td_loss) + mse(mc_loss) + mse(discrep_loss)
+            return loss
+
         elif loss_mode == 'discrep':
             loss = batch_lambda_discrep(q_td, q_mc, actions)
         else:

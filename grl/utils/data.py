@@ -42,3 +42,15 @@ def one_hot(x, n):
 def get_idx_from_nth_dim(arr: np.ndarray, idx: int, nth_dim: int):
     ix = tuple(idx if dim == nth_dim else slice(None) for dim in range(arr.ndim))
     return arr[ix]
+
+def compress_episode_rewards(episode_reward: jnp.ndarray) -> dict:
+    """
+    Compresses a sequence of episode rewards (floats).
+    Returns a dict with 'most_common_reward', 'episode_length' and 'compressed_rewards',
+    where 'compressed_rewards' is a list of (t, r_t), where r_t != the most common reward.
+    """
+    most_common_reward = max(set(episode_reward), key=episode_reward.count)
+    compressed_rewards = [(i, rew) for i, rew in enumerate(episode_reward) if rew != most_common_reward]
+    return {'episode_length': len(episode_reward),
+            'most_common_reward': most_common_reward,
+            'compressed_rewards': compressed_rewards}

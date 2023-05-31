@@ -67,7 +67,7 @@ class TwoHeadedRNNQNetwork(RNNQNetwork):
         carry, rnn_out = rnn_func(obses, initial_carry=init_carry)
         concat_qs = self.value_layers(rnn_out)
 
-        q0 = concat_qs[:, :self.n_actions]
-        q1 = concat_qs[:, self.n_actions:]
+        q0 = concat_qs[:, :, :self.n_actions]
+        q1 = concat_qs[:, :, self.n_actions:]
 
         return carry, q0, q1

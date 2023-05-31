@@ -4,7 +4,7 @@ from typing import Union, Tuple
 import jax
 import numpy as np
 
-from grl.agent.rnn import RNNAgent
+from grl.agent import get_agent, RNNAgent
 from grl.environment import load_spec
 from grl.environment.examples_lib import po_simple_chain
 from grl.evaluation import test_episodes
@@ -25,7 +25,7 @@ def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, A
     if args.action_cond == 'cat':
         features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions,)
 
-    agent = RNNAgent(network, optimizer, features_shape, env.n_actions, args)
+    agent = get_agent(network, optimizer, features_shape, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
     trainer = Trainer(env, agent, trainer_key, args)
@@ -99,8 +99,12 @@ def test_actions():
     args.replay_size = 1000
     args.total_steps = 10000
     args.no_gamma_terminal = True
+    args.algo = 'multihead_rnn'
     # args.arch = 'lstm'
     args.spec = 'tmaze_5_two_thirds_up'
+
+    # from jax.config import config
+    # config.update('jax_disable_jit', True)
 
     spec = load_spec(args.spec)
 

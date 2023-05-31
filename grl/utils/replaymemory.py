@@ -173,7 +173,7 @@ def sample_seq_idxes(batch_size: int, capacity: int, seq_len: int, length: int, 
 class ReplayBuffer:
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
                  obs_size: Tuple,
-                 obs_dtype: type,
+                 obs_dtype: type = np.float32,
                  state_size: Tuple = None,
                  unpack_state: bool = False):
         """
@@ -224,7 +224,7 @@ class ReplayBuffer:
         self.returns = np.zeros(self.capacity, dtype=np.float)
         self.d = np.zeros(self.capacity, dtype=bool)
 
-        self.eligible_idxes = np.zeros(self.capacity - 1, dtype=int)
+        self.eligible_idxes = np.zeros(self.capacity - 1, dtype=int) - 1
         self.n_eligible_idxes = 0
         self.ei_cursor = 0
         self._cursor = 0
@@ -269,7 +269,9 @@ class ReplayBuffer:
     def sample_eligible_idxes(self, batch_size: int):
         length = self.n_eligible_idxes
         idxes, self.rand_key = self.jitted_sampled_idx_batch(batch_size, length, self.rand_key)
-        return self.eligible_idxes[idxes]
+        sampled_idxes = self.eligible_idxes[idxes]
+        assert np.all(sampled_idxes != -1)
+        return sampled_idxes
 
     def maybe_unpack_state(self, sample_idx: List[int], packed_dim: int = 1):
         state = self.s[sample_idx]
@@ -321,9 +323,11 @@ class EpisodeBuffer(ReplayBuffer):
     is essentially a mask for
     """
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
-                 obs_size: Tuple, obs_dtype: type, state_size: Tuple = None,
+                 obs_size: Tuple, obs_dtype: type = np.float32,
+                 state_size: Tuple = None,
                  unpack_state: bool = False):
-        super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype, state_size=state_size,
+        super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype=obs_dtype,
+                                            state_size=state_size,
                                             unpack_state=unpack_state)
         self.jitted_sampled_seq_idxes = jit(sample_seq_idxes, static_argnums=(0, 1, 2))
         self.end = np.zeros_like(self.d, dtype=bool)
