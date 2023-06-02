@@ -68,7 +68,7 @@ def parse_arguments(return_defaults: bool = False):
                         help='When we do run offline eval, how many episodes do we run?')
     parser.add_argument('--offline_eval_epsilon', type=float, default=None,
                         help='What is our evaluation epsilon? Default is greedy.')
-    parser.add_argument('--checkpoint_freq', type=int, default=100,
+    parser.add_argument('--checkpoint_freq', type=int, default=1000,
                         help='How often do we checkpoint?')
     parser.add_argument('--save_all_checkpoints', action='store_true',
                         help='Do we store ALL of our checkpoints? If not, store only last.')
