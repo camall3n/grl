@@ -76,6 +76,11 @@ def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
 
 @jit
 def all_t_discounted_returns(discounts: jnp.ndarray, rewards: jnp.ndarray):
+    """
+    Calculating discounted returns for every time step.
+    Taken from
+    https://github.com/samlobel/grl/blob/4f7837ec7ea48d9f167420ac59c8d65b1d332161/grl/baselines/rnn_agent.py#L39
+    """
     # Since we're calculating returns for each reward, we need to step timestep back by one
     shunted_discounts = jnp.concatenate([jnp.ones_like(discounts[0:1]), discounts[:-1]])
 
