@@ -7,23 +7,23 @@ from typing import Union, Iterable
 @register_pytree_node_class
 @dataclass
 class Batch:
-    obs: Union[np.ndarray, Iterable]
-    action: Union[np.ndarray, Iterable]
-    reward: Union[np.ndarray, Iterable] = None
-    next_obs: Union[np.ndarray, Iterable] = None
-    next_action: Union[np.ndarray, Iterable] = None
-    prev_action: Union[np.ndarray, Iterable] = None
-    done: Union[np.ndarray, Iterable] = None
-    gamma: Union[np.ndarray, Iterable] = None
-    state: Union[np.ndarray, Iterable] = None
-    next_state: Union[np.ndarray, Iterable] = None
-    end: Union[np.ndarray, Iterable] = None  # End is done or max_steps == timesteps
+    obs: Union[np.ndarray, jnp.ndarray, Iterable]
+    action: Union[np.ndarray, jnp.ndarray, Iterable]
+    reward: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    next_obs: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    next_action: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    prev_action: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    done: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    gamma: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    state: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    next_state: Union[np.ndarray, jnp.ndarray, Iterable] = None
+    end: Union[np.ndarray, jnp.ndarray, Iterable] = None  # End is done or max_steps == timesteps
 
     # MC stuff
-    returns: Union[np.ndarray, Iterable] = None
+    returns: Union[np.ndarray, jnp.ndarray, Iterable] = None
 
     # GRU stuff
-    zero_mask: Union[np.ndarray, Iterable] = None
+    zero_mask: Union[np.ndarray, jnp.ndarray, Iterable] = None
 
     def tree_flatten(self):
         children = tuple(getattr(self, field.name) for field in fields(self))

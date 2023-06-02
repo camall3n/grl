@@ -34,7 +34,7 @@ class MultiheadRNNAgent(RNNAgent):
         return network_params, optimizer_params, rand_key
 
     def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray, *args,
-           mode: str = None) -> jnp.ndarray:
+           mode: str = None) -> Tuple[Union[jnp.ndarray, Tuple], jnp.ndarray]:
         """
         Get all Q-values given an observation and hidden state, from the self.action_mode head.
         :param network_params: network params to find Qs w.r.t.
