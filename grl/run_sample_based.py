@@ -50,6 +50,8 @@ def parse_arguments(return_defaults: bool = False):
                         help='What head to we use for multihead_rnn for action selection? (td | mc)')
     parser.add_argument('--multihead_loss_mode', default='both', type=str,
                         help='What mode do we use for the multihead RNN loss? (both | td | mc | split)')
+    parser.add_argument('--residual_obs_val_input', action='store_true',
+                        help='For our value function head, do we concatenate obs to the RNN hidden state as input?')
     parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
                         help='What is our coefficient for our lambda discrepancy loss?')
     parser.add_argument('--normalize_rewards', action='store_true',

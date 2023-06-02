@@ -16,6 +16,7 @@ class RNNQNetwork(nn.Module):
     n_actions: int
     value_head_layers: int = 0
     arch: str = 'rnn'
+    obs_value_inputs: bool = False
     def setup(self):
         self.rnn_cell_class = get_rnn_cell(self.arch)
 
@@ -38,6 +39,8 @@ class RNNQNetwork(nn.Module):
         rnn_func = nn.RNN(self.rnn_cell_class(name='rnn'), self.hidden_size, return_carry=True)
 
         carry, rnn_out = rnn_func(obses, initial_carry=init_carry)
+        if self.obs_value_inputs:
+            rnn_out = jnp.concatenate((rnn_out, obses), axis=-1)
         qs = self.value_layers(rnn_out)
 
         return carry, qs

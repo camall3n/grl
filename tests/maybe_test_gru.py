@@ -104,9 +104,9 @@ def test_actions():
     args.replay_size = 1000
     args.total_steps = 10000
     args.no_gamma_terminal = True
-    # args.algo = 'multihead_rnn'
-    # args.multihead_loss_mode = 'mc'
-    # args.multihead_action_mode = 'mc'
+    args.algo = 'multihead_rnn'
+    args.multihead_loss_mode = 'split'
+    args.multihead_action_mode = 'td'
     args.spec = 'tmaze_5_two_thirds_up'
 
     # from jax.config import config
