@@ -39,6 +39,9 @@ def generate_onager_runs(run_dicts: List[dict],
         arg_list = []
 
         for k, v in run_dict.items():
+            if v is None:
+                continue
+
             if not (isinstance(v, list) or isinstance(v, np.ndarray)):
                 if isinstance(v, bool):
                     if v:
