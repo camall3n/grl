@@ -173,7 +173,7 @@ def sample_seq_idxes(batch_size: int, capacity: int, seq_len: int, length: int, 
 class ReplayBuffer:
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
                  obs_size: Tuple,
-                 obs_dtype: type = np.float32,
+                 obs_dtype: type = float,
                  state_size: Tuple = None,
                  unpack_state: bool = False):
         """
@@ -199,8 +199,8 @@ class ReplayBuffer:
 
         self.a = np.zeros(self.capacity, dtype=np.int16)
         self.next_a = np.zeros(self.capacity, dtype=np.int16)
-        self.r = np.zeros(self.capacity, dtype=np.float)
-        self.returns = np.zeros(self.capacity, dtype=np.float)
+        self.r = np.zeros(self.capacity, dtype=float)
+        self.returns = np.zeros(self.capacity, dtype=float)
         self.include_returns = False
         self.d = np.zeros(self.capacity, dtype=bool)
 
@@ -220,8 +220,8 @@ class ReplayBuffer:
         self.obs = np.zeros((self.capacity, *self.obs_size))
         self.a = np.zeros(self.capacity, dtype=np.int16)
         self.next_a = np.zeros(self.capacity, dtype=np.int16)
-        self.r = np.zeros(self.capacity, dtype=np.float)
-        self.returns = np.zeros(self.capacity, dtype=np.float)
+        self.r = np.zeros(self.capacity, dtype=float)
+        self.returns = np.zeros(self.capacity, dtype=float)
         self.d = np.zeros(self.capacity, dtype=bool)
 
         self.eligible_idxes = np.zeros(self.capacity - 1, dtype=int) - 1
@@ -323,7 +323,7 @@ class EpisodeBuffer(ReplayBuffer):
     is essentially a mask for
     """
     def __init__(self, capacity: int, rand_key: random.PRNGKey,
-                 obs_size: Tuple, obs_dtype: type = np.float32,
+                 obs_size: Tuple, obs_dtype: type = float,
                  state_size: Tuple = None,
                  unpack_state: bool = False):
         super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype=obs_dtype,

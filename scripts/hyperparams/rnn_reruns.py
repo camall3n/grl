@@ -5,6 +5,7 @@ exp_name = Path(__file__).stem
 hparams = {
     'file_name':
         f'runs_{exp_name}.txt',
+    'entry': '-m grl.run_sample_based',
     'args': [{
         # Env
         'spec': [
