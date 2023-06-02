@@ -81,6 +81,7 @@ def parse_arguments(return_defaults: bool = False):
     parser.add_argument('--study_name', type=str, default=None,
                         help='If study name is not specified, we just save things to the root results/ directory.')
 
+    # For testing: PyTest doesn't like parser.parse_args(), so we just return the defaults.
     if return_defaults:
         defaults = {}
         for action in parser._actions:
@@ -139,6 +140,7 @@ if __name__ == "__main__":
 
     final_network_params, final_optimizer_params, episodes_info = trainer.train()
 
+    # TODO: change to a parser param
     final_eval_episodes = 10
     print(f"Finished training. Evaluating over {final_eval_episodes} episodes.")
 
@@ -147,6 +149,7 @@ if __name__ == "__main__":
                                               test_eps=0., action_cond=args.action_cond,
                                               max_episode_steps=args.max_episode_steps)
 
+    # TODO: add in test_episodes
     summed_perf = 0
     for ep in final_eval_info['episode_rewards']:
         summed_perf += sum(ep)

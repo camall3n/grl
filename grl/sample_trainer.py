@@ -31,11 +31,11 @@ class Trainer:
         self.discounting = self.env.gamma if not self.gamma_terminal else 1.
 
         self.max_episode_steps = self.args.max_episode_steps
-        self.trunc = self.args.trunc
+        self.total_steps = self.args.total_steps
 
         # For RNNs
+        self.trunc = self.args.trunc
         self.action_cond = self.args.action_cond
-        self.total_steps = self.args.total_steps
 
         # we train at the end of an episode only if we also need to learn an MC head.
         self.include_returns_in_batch = self.args.algo == 'multihead_rnn' and \
@@ -50,11 +50,12 @@ class Trainer:
         self.save_all_checkpoints = self.args.save_all_checkpoints
 
         self.batch_size = self.args.batch_size
-        self.online_training = self.args.replay_size <= 1
+        self.online_training = self.args.replay_size < 1
 
         # Replay buffer initialization
         replay_capacity = self.args.replay_size
         if replay_capacity < self.max_episode_steps:
+            # TODO: add a warning if we've had to increase the replay capacity
             replay_capacity = self.max_episode_steps
 
         # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
@@ -104,18 +105,20 @@ class Trainer:
                 print_str += f"{k}: {v / (t + 1):.4f}, "
         return print_str
 
-    def add_returns_to_batches(self, episode_rewards: List[float], episode_batches: List[Batch]) -> List[Batch]:
+    def add_returns_to_batches(self, episode_rewards: List[float], episode_experiences: List[Batch]) -> List[Batch]:
         episode_rewards = jnp.array(episode_rewards)
-        episode_discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_batches])
+        # TODO: BUG - need to calculate gamma multipliers
+        episode_discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_experiences])
 
+        # calculate discounted return for each time step
         discounted_rewards = episode_rewards * episode_discounts
         overdiscounted_returns = jnp.cumsum(discounted_rewards[::-1])[::-1]
         returns = overdiscounted_returns / jnp.maximum(episode_discounts, 1e-10)
 
-        for g, batch in zip(returns, episode_batches):
+        for g, batch in zip(returns, episode_experiences):
             batch.returns = g
 
-        return episode_batches
+        return episode_experiences
 
     def sample_and_update(self, network_params: dict, optimizer_params: optax.Params) \
             -> Tuple[dict, optax.Params, dict]:
@@ -146,7 +149,7 @@ class Trainer:
         network_params, optimizer_params, self._rand_key = self.agent.init_params(self._rand_key)
 
         while self.num_steps < self.total_steps:
-            episode_reward, episode_batches = [], []
+            episode_reward, episode_experiences = [], []
             episode_info = {'total_episode_loss': 0, 'episode_updates': 0}
 
             checkpoint_after_ep = False
@@ -181,17 +184,17 @@ class Trainer:
                 next_action, self._rand_key, next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
 
-                batch = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
+                experience = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
                               next_action=next_action, state=prev_hs[0], next_state=hs[0],
                               end=done or (t == self.max_episode_steps - 1))
 
                 episode_reward.append(reward)
 
-                # Defer adding batch to buffer until episode's end, after we calculate returns.
+                # Defer adding experience to buffer until episode's end, after we calculate returns.
                 if self.include_returns_in_batch:
-                    episode_batches.append(batch)
+                    episode_experiences.append(experience)
                 else:
-                    self.buffer.push(batch)
+                    self.buffer.push(experience)
 
                 # If we have enough things in the buffer to update
                 if self.batch_size < len(self.buffer) and self.trunc < len(self.buffer):
@@ -220,7 +223,7 @@ class Trainer:
                     checkpoint_after_ep = True
 
             if self.include_returns_in_batch:
-                batch_with_returns = self.add_returns_to_batches(episode_reward, episode_batches)
+                batch_with_returns = self.add_returns_to_batches(episode_reward, episode_experiences)
                 for b in batch_with_returns:
                     self.buffer.push(b)
 

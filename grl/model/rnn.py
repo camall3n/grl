@@ -1,7 +1,7 @@
 from flax import linen as nn
 import jax.numpy as jnp
 
-def rnn_arch_module_switch(arch: str):
+def get_rnn_cell(arch: str):
     if arch == 'gru':
         return nn.GRUCell
     elif arch == 'lstm':
@@ -17,7 +17,7 @@ class RNNQNetwork(nn.Module):
     value_head_layers: int = 0
     arch: str = 'rnn'
     def setup(self):
-        self.rnn_cell_class = rnn_arch_module_switch(self.arch)
+        self.rnn_cell_class = get_rnn_cell(self.arch)
 
         # define our value head MLP
         value_layers = []
@@ -44,7 +44,7 @@ class RNNQNetwork(nn.Module):
 
 class TwoHeadedRNNQNetwork(RNNQNetwork):
     def setup(self):
-        self.rnn_cell_class = rnn_arch_module_switch(self.arch)
+        self.rnn_cell_class = get_rnn_cell(self.arch)
 
         # define our value head MLP
         value_layers = []

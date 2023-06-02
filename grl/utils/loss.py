@@ -10,18 +10,19 @@ from grl.mdp import MDP, AbstractMDP
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
 def mse(predictions: jnp.ndarray, targets: jnp.ndarray = None):
+    # TODO: include zero-mask means.
     if targets is None:
         targets = jnp.zeros_like(predictions)
     squared_diff = 0.5 * (predictions - targets) ** 2
     return jnp.mean(squared_diff)
 
-def seq_sarsa_loss(q: jnp.ndarray, a: jnp.ndarray, r: jnp.ndarray, g: jnp.ndarray, q1: jnp.ndarray, next_a: jnp.ndarray):
+def seq_sarsa_loss(q: jnp.ndarray, a: jnp.ndarray, r: jnp.ndarray,
+                   gamma: jnp.ndarray, next_q: jnp.ndarray, next_a: jnp.ndarray):
     """
     sequential version of sarsa loss
     First axis of all tensors are the sequence length.
-    :return:
     """
-    target = r + g * q1[jnp.arange(next_a.shape[0]), next_a]
+    target = r + gamma * next_q[jnp.arange(next_a.shape[0]), next_a]
     target = lax.stop_gradient(target)
     q_vals = q[jnp.arange(a.shape[0]), a]
     return q_vals - target

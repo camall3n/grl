@@ -47,7 +47,7 @@ def compress_episode_rewards(episode_reward: jnp.ndarray) -> dict:
     """
     Compresses a sequence of episode rewards (floats).
     Returns a dict with 'most_common_reward', 'episode_length' and 'compressed_rewards',
-    where 'compressed_rewards' is a list of (t, r_t), where r_t != the most common reward.
+    where 'compressed_rewards' is a list of (t, r_t), whenever r_t != the most common reward.
     """
     most_common_reward = max(set(episode_reward), key=episode_reward.count)
     compressed_rewards = [(i, rew) for i, rew in enumerate(episode_reward) if rew != most_common_reward]

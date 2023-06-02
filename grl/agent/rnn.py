@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import optax
 from optax import GradientTransformation
 
-from grl.model.rnn import rnn_arch_module_switch
+from grl.model.rnn import get_rnn_cell
 from grl.utils.data import Batch
 from grl.utils.loss import mse, seq_sarsa_loss
 
@@ -52,23 +52,23 @@ class RNNAgent:
         Reset the RNN initial state.
         """
         rand_key, carry_key = random.split(rand_key)
-        rnn_module_class = rnn_arch_module_switch(self.args.arch)
+        rnn_module_class = get_rnn_cell(self.args.arch)
         new_carry = rnn_module_class.initialize_carry(carry_key, (1, ), self.n_hidden)
         return new_carry, rand_key
 
     def act(self, network_params: dict, obs: jnp.ndarray, hs: jnp.ndarray, rand_key: random.PRNGKey):
         """
         Given an observation, act based on self.hidden_state.
-        obs should be of size n_obs, with NO batch dimension.
+        obs should be of size n_obs, with NO batch dimension and NO time dimension.
         """
         obs = jnp.expand_dims(jnp.expand_dims(obs, 0), 0)  # bs x ts x *obs_size, bs = ts = 1
-        probs = jnp.zeros(self.n_actions) + self.eps / self.n_actions
+        action_probs = jnp.zeros(self.n_actions) + self.eps / self.n_actions
         greedy_idx, new_hidden_state, qs = self.greedy_act(network_params, obs, hs)
-        probs = probs.at[greedy_idx].add(1 - self.eps)
+        action_probs = action_probs.at[greedy_idx].add(1 - self.eps)
 
         key, subkey = random.split(rand_key)
         selected_action = random.choice(subkey, jnp.arange(self.n_actions),
-                                        p=probs, shape=(obs.shape[0],))
+                                        p=action_probs, shape=(obs.shape[0],))
 
         return selected_action, key, new_hidden_state, qs
 
@@ -89,7 +89,7 @@ class RNNAgent:
         Get all Q-values given an observation and hidden state.
         :param network_params: network params to find Qs w.r.t.
         :param obs: (b x t x *obs_size) Obs to find action-values
-        :param hidden_state: RNN hidden state to propagate.
+        :param hidden_state: (b x hidden_size) RNN hidden state to propagate.
         :return: (b x t x actions)  full of action-values.
         """
         return self.network.apply(network_params, obs, hidden_state)
@@ -97,11 +97,11 @@ class RNNAgent:
     def _loss(self, network_params: dict, batch: Batch):
         final_hidden, all_qs = self.network.apply(network_params, batch.obs, batch.state)
 
-        q, q1 = all_qs[:, :-1], all_qs[:, 1:]
+        q, next_q = all_qs[:, :-1], all_qs[:, 1:]
         actions, next_actions = batch.action[:, :-1], batch.action[:, 1:]
 
         batch_loss = jax.vmap(seq_sarsa_loss)
-        td_err = batch_loss(q, actions, batch.reward, batch.gamma, q1, next_actions)  # Should be batch x seq_len
+        td_err = batch_loss(q, actions, batch.reward, batch.gamma, next_q, next_actions)  # Should be batch x seq_len
 
         # Don't learn from the values past dones.
         td_err *= batch.zero_mask
@@ -111,11 +111,12 @@ class RNNAgent:
                network_params: dict,
                optimizer_state: optax.Params,
                batch: Batch) -> \
-        Tuple[dict, dict, optax.Params]:
+        Tuple[dict, optax.Params, dict]:
         """
-        :return: loss, network parameters, optimizer state and all hidden states (bs x timesteps x 2 x n_hidden)
+        :return: network parameters, optimizer state, and loss
         """
-        # We only take t=0.
+        # We only take t=0 b/c we sample trajectories and roll out the hidden state
+        # over those trajectories.
         if isinstance(batch.state, tuple):
             batch.state = tuple(state[:, 0] for state in batch.state)
         else:
