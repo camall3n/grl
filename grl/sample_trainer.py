@@ -13,6 +13,7 @@ from grl.evaluation import test_episodes
 from grl.mdp import MDP, AbstractMDP
 from grl.agent.rnn import RNNAgent
 from grl.utils.data import Batch, one_hot, compress_episode_rewards
+from grl.utils.mdp import all_t_discounted_returns
 from grl.utils.replaymemory import EpisodeBuffer
 
 class Trainer:
@@ -95,9 +96,9 @@ class Trainer:
     def episode_stat_string(self, episode_reward: float, avg_episode_loss: float, t: int,
                            additional_info: dict = None):
         print_str = (f"Episode {self.episode_num}, steps: {t + 1}, "
-                    f"total steps: {self.num_steps}, "
-                    f"rewards: {episode_reward:.2f}, "
-                    f"avg episode loss: {avg_episode_loss:.8f}")
+                     f"total steps: {self.num_steps}, "
+                     f"rewards: {episode_reward:.2f}, "
+                     f"avg episode loss: {avg_episode_loss:.8f}")
 
         if additional_info is not None:
             print_str += ", "
@@ -107,13 +108,11 @@ class Trainer:
 
     def add_returns_to_batches(self, episode_rewards: List[float], episode_experiences: List[Batch]) -> List[Batch]:
         episode_rewards = jnp.array(episode_rewards)
-        # TODO: BUG - need to calculate gamma multipliers
-        episode_discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_experiences])
 
-        # calculate discounted return for each time step
-        discounted_rewards = episode_rewards * episode_discounts
-        overdiscounted_returns = jnp.cumsum(discounted_rewards[::-1])[::-1]
-        returns = overdiscounted_returns / jnp.maximum(episode_discounts, 1e-10)
+        # Calculate discounts for every step
+        discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_experiences])
+
+        returns = all_t_discounted_returns(discounts, episode_rewards)
 
         for g, batch in zip(returns, episode_experiences):
             batch.returns = g
