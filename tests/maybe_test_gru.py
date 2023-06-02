@@ -38,8 +38,12 @@ def test_value():
     chain_length = 10
     args.max_episode_steps = chain_length
     args.seed = 2020
-    args.lr = 0.005
-    args.total_steps = 3000
+    args.lr = 0.00005  # for TD
+    # args.lr = 0.001  # for MC
+    args.total_steps = 20000
+    args.algo = 'multihead_rnn'
+    args.multihead_loss_mode = 'td'
+    args.multihead_action_mode = 'td'
     args.no_gamma_terminal = True
 
     spec = po_simple_chain(n=chain_length)
@@ -94,13 +98,15 @@ def test_actions():
     args = parse_arguments(return_defaults=True)
     args.max_episode_steps = 1000
     args.seed = 2020
-    args.lr = 0.001
+    # args.lr = 0.01  # for MC
+    args.lr = 0.001  # for TD
     args.trunc = 10
     args.replay_size = 1000
     args.total_steps = 10000
     args.no_gamma_terminal = True
-    args.algo = 'multihead_rnn'
-    # args.arch = 'lstm'
+    # args.algo = 'multihead_rnn'
+    # args.multihead_loss_mode = 'mc'
+    # args.multihead_action_mode = 'mc'
     args.spec = 'tmaze_5_two_thirds_up'
 
     # from jax.config import config

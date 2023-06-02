@@ -52,8 +52,8 @@ def parse_arguments(return_defaults: bool = False):
                         help='What is our coefficient for our lambda discrepancy loss?')
 
     # Replay buffer hyperparams
-    parser.add_argument('--replay_size', default=1, type=int,
-                        help='Replay buffer size. Set to 1 for online training.')
+    parser.add_argument('--replay_size', default=-1, type=int,
+                        help='Replay buffer size. Set to -1 for online training.')
     parser.add_argument('--batch_size', default=1, type=int,
                         help='Replay buffer batch size. Set to 1 for online training.')
     parser.add_argument('--optimizer', type=str, default='adam',
