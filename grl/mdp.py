@@ -66,7 +66,7 @@ def random_observation_fn(n_states, n_obs_per_block):
 
 @register_pytree_node_class
 class MDP:
-    def __init__(self, T, R, p0, gamma=0.9):
+    def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
@@ -84,6 +84,7 @@ class MDP:
         self.R_max = np.max(self.R)
         self.p0 = p0
         self.current_state = None
+        self.rand_key = rand_key
 
     def tree_flatten(self):
         children = (self.T, self.R, self.p0, self.gamma)
@@ -129,21 +130,32 @@ class MDP:
 
     def reset(self, state=None):
         if state is None:
-            state = np.random.choice(self.n_states, p=self.p0)
+            if self.rand_key is not None:
+                state = self.rand_key.choice(self.n_states, p=self.p0)
+            else:
+                state = np.random.choice(self.n_states, p=self.p0)
         self.current_state = state
         info = {'state': self.current_state}
         return self.observe(self.current_state), info
 
     def step(self, action: int, gamma_terminal: bool = True):
         pr_next_s = self.T[action, self.current_state, :]
-        next_state = np.random.choice(self.n_states, p=pr_next_s)
+        if self.rand_key is not None:
+            next_state = self.rand_key.choice(self.n_states, p=pr_next_s)
+        else:
+            next_state = np.random.choice(self.n_states, p=pr_next_s)
         reward = self.R[action][self.current_state][next_state]
         # Check if next_state is absorbing state
         is_absorbing = (self.T[:, next_state, next_state] == 1)
         terminal = is_absorbing.all() # absorbing for all actions
         # Discounting: end episode with probability 1-gamma
-        if gamma_terminal and np.random.uniform() < (1 - self.gamma):
-            terminal = True
+        if gamma_terminal:
+            if self.rand_key is not None:
+                unif = self.rand_key.uniform()
+            else:
+                unif = np.random.uniform()
+            if unif < (1 - self.gamma):
+                terminal = True
         truncated = False
         observation = self.observe(next_state)
         info = {'state': next_state}
@@ -244,6 +256,9 @@ class AbstractMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
+        if self.rand_key is not None:
+            return self.rand_key.choice(self.n_obs, p=self.phi[s])
+
         return np.random.choice(self.n_obs, p=self.phi[s])
 
     @property

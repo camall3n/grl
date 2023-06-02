@@ -42,6 +42,13 @@ class Trainer:
         self.include_returns_in_batch = self.args.algo == 'multihead_rnn' and \
                                         self.args.multihead_loss_mode in ['both', 'mc', 'split']
 
+        # Reward normalization
+        self.reward_scale = 1.
+        self.normalize_rewards = self.args.normalize_rewards
+        if self.normalize_rewards:
+            assert hasattr(self.env, 'R_max') and hasattr(self.env, 'R_min')
+            self.reward_scale = 1 / (self.env.R_max - self.env.R_min)
+
         # Logging and eval
         self.offline_eval_freq = self.args.offline_eval_freq
         self.offline_eval_episodes = self.args.offline_eval_episodes
@@ -128,17 +135,22 @@ class Trainer:
             # sample a sequence from our buffer!
             sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
+        if self.normalize_rewards:
+            sample.reward = sample.reward * self.reward_scale
+
         sample.gamma = (1 - sample.done) * self.discounting
 
         network_params, optimizer_params, info = self.agent.update(network_params, optimizer_params, sample)
         return network_params, optimizer_params, info
 
     def evaluate(self, network_params: dict) -> dict:
+        prev_state = self.env.current_state
         test_info, self._rand_key = test_episodes(self.agent, network_params, self.env, self._rand_key,
                                                   n_episodes=self.offline_eval_episodes,
                                                   test_eps=self.offline_eval_epsilon,
                                                   action_cond=self.action_cond,
                                                   max_episode_steps=self.max_episode_steps)
+        self.env.current_state = prev_state
         return test_info
 
     def train(self):
@@ -206,7 +218,7 @@ class Trainer:
                 self.num_steps += 1
 
                 # Offline evaluation
-                if self.offline_eval_freq is not None and self.offline_eval_freq % self.num_steps == 0:
+                if self.offline_eval_freq is not None and self.num_steps % self.offline_eval_freq == 0:
                     test_info = self.evaluate(network_params)
                     all_logs['offline_eval'].append(test_info)
 

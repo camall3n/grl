@@ -28,36 +28,38 @@ def parse_arguments(return_defaults: bool = False):
     parser.add_argument('--algo', default='rnn', type=str,
                         help='Algorithm to evaluate, (rnn | multihead_rnn)')
     parser.add_argument('--arch', default='gru', type=str,
-                        help='Algorithm to evaluate, (gru | elman)')
+                        help='Algorithm to evaluate, (gru | elman | lstm)')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')
     parser.add_argument('--lr', default=0.001, type=float)
+    parser.add_argument('--optimizer', type=str, default='adam',
+                        help='What optimizer do we use? (sgd | adam | rmsprop)')
 
     # RNN hyperparams
     parser.add_argument('--hidden_size', default=10, type=int,
                         help='RNN hidden size')
     parser.add_argument('--value_head_layers', default=0, type=int,
-                        help='For our value head network, how deep is it?')
+                        help='For our value head network, how deep is it? 0 for a linear value head.')
     parser.add_argument('--trunc', default=-1, type=int,
-                        help='RNN truncation length')
+                        help='RNN truncation length. -1 for the full buffer.')
     parser.add_argument('--action_cond', default="cat", type=str,
-                        help='Do we do (previous) action conditioning of observations? (None | cat)')
+                        help='Do we do (previous) action conditioning of observations? (none | cat)')
 
-    # Multihead RNN hyperparams
+    # Multihead RNN/Lambda Discrep hyperparams
     parser.add_argument('--multihead_action_mode', default='td', type=str,
                         help='What head to we use for multihead_rnn for action selection? (td | mc)')
     parser.add_argument('--multihead_loss_mode', default='both', type=str,
                         help='What mode do we use for the multihead RNN loss? (both | td | mc | split)')
     parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
                         help='What is our coefficient for our lambda discrepancy loss?')
+    parser.add_argument('--normalize_rewards', action='store_true',
+                        help='Do we normalize our reward range?')
 
     # Replay buffer hyperparams
     parser.add_argument('--replay_size', default=-1, type=int,
                         help='Replay buffer size. Set to -1 for online training.')
     parser.add_argument('--batch_size', default=1, type=int,
                         help='Replay buffer batch size. Set to 1 for online training.')
-    parser.add_argument('--optimizer', type=str, default='adam',
-                        help='What optimizer do we use? (sgd | adam | rmsprop)')
 
     # Logging and checkpointing hyperparams
     parser.add_argument('--offline_eval_freq', type=int, default=None,
@@ -68,12 +70,12 @@ def parse_arguments(return_defaults: bool = False):
                         help='What is our evaluation epsilon? Default is greedy.')
     parser.add_argument('--checkpoint_freq', type=int, default=100,
                         help='How often do we checkpoint?')
-    parser.add_argument('--total_steps', type=int, default=int(1e4),
-                        help='How many total environment steps do we take in this experiment?')
     parser.add_argument('--save_all_checkpoints', action='store_true',
                         help='Do we store ALL of our checkpoints? If not, store only last.')
 
     # Experiment hyperparams
+    parser.add_argument('--total_steps', type=int, default=int(1e4),
+                        help='How many total environment steps do we take in this experiment?')
     parser.add_argument('--platform', type=str, default='cpu',
                         help='What platform do we use (cpu | gpu)')
     parser.add_argument('--seed', default=None, type=int,
@@ -106,9 +108,11 @@ if __name__ == "__main__":
     # config.update('jax_disable_jit', True)
 
     rand_key = None
+    np_rand_key = None
     if args.seed is not None:
         np.random.seed(args.seed)
         rand_key = jax.random.PRNGKey(args.seed)
+        np_rand_key = np.random.RandomState(seed=args.seed)
     else:
         rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
 
@@ -116,7 +120,7 @@ if __name__ == "__main__":
     # Get POMDP definition
     spec = load_spec(args.spec)
 
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'], rand_key=np_rand_key)
     env = AbstractMDP(mdp, spec['phi'])
 
     results_path = results_path(args)
