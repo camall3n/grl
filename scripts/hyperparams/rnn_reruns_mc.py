@@ -44,6 +44,7 @@ hparams = {
             'offline_eval_freq': 1000,
             'offline_eval_episodes': 5,
             'offline_eval_epsilon': None,  # Defaults to epsilon
+            'checkpoint_freq': -1,  # only save last agent
 
             # Experiment
             'total_steps': 150000,
