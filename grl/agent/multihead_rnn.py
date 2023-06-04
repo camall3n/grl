@@ -71,10 +71,12 @@ class MultiheadRNNAgent(RNNAgent):
         elif loss_mode == 'mc':
             loss = batch_mc_loss(q_mc, actions, batch.returns)
         elif loss_mode == 'both':
-            td_loss = batch_td_loss(q_td, actions, batch.reward, batch.gamma, q1_td, next_actions) * batch.zero_mask
-            mc_loss = batch_mc_loss(q_mc, actions, batch.returns) * batch.zero_mask
-            discrep_loss = lambda_coeff * batch_lambda_discrep(q_td, q_mc, actions) * batch.zero_mask
-            loss = mse(td_loss) + mse(mc_loss) + mse(discrep_loss)
+            td_loss = batch_td_loss(q_td, actions, batch.reward, batch.gamma, q1_td, next_actions)
+            mc_loss = batch_mc_loss(q_mc, actions, batch.returns)
+            discrep_loss = lambda_coeff * batch_lambda_discrep(q_td, q_mc, actions)
+            loss = mse(td_loss, zero_mask=batch.zero_mask) + \
+                   mse(mc_loss, zero_mask=batch.zero_mask) + \
+                   mse(discrep_loss, zero_mask=batch.zero_mask)
             return loss
 
         elif loss_mode == 'discrep':
@@ -83,8 +85,7 @@ class MultiheadRNNAgent(RNNAgent):
             assert NotImplementedError
 
         # Don't learn from the values past dones.
-        loss *= batch.zero_mask
-        return mse(loss)
+        return mse(loss, zero_mask=batch.zero_mask)
 
     def _split_loss(self, rnn_params: dict, value_heads_params: dict, batch: Batch,
                     loss_mode: str = 'both', lambda_coeff: float = 0):

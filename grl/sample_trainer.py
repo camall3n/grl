@@ -115,6 +115,8 @@ class Trainer:
 
     def add_returns_to_batches(self, episode_rewards: List[float], episode_experiences: List[Batch]) -> List[Batch]:
         episode_rewards = jnp.array(episode_rewards)
+        if self.normalize_rewards:
+            episode_rewards *= self.reward_scale
 
         # Calculate discounts for every step
         discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_experiences])

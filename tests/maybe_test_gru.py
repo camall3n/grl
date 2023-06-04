@@ -40,6 +40,10 @@ def test_value():
     args.seed = 2020
     args.lr = 0.00005  # for TD
     # args.lr = 0.001  # for MC
+
+    args.replay_size = 1000
+    args.trunc = 10
+
     args.total_steps = 20000
     args.algo = 'multihead_rnn'
     args.multihead_loss_mode = 'td'
@@ -100,17 +104,21 @@ def test_actions():
     args.seed = 2020
     # args.lr = 0.01  # for MC
     args.lr = 0.001  # for TD
+
     args.trunc = 10
     args.replay_size = 1000
+
     args.total_steps = 10000
     args.no_gamma_terminal = True
     args.algo = 'multihead_rnn'
-    args.multihead_loss_mode = 'split'
+    args.multihead_loss_mode = 'td'
     args.multihead_action_mode = 'td'
     args.spec = 'tmaze_5_two_thirds_up'
 
-    # from jax.config import config
-    # config.update('jax_disable_jit', True)
+    # args.residual_obs_val_input = True
+
+    from jax.config import config
+    config.update('jax_disable_jit', True)
 
     spec = load_spec(args.spec)
 

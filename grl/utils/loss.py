@@ -9,11 +9,16 @@ from grl.mdp import MDP, AbstractMDP
 """
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
-def mse(predictions: jnp.ndarray, targets: jnp.ndarray = None):
-    # TODO: include zero-mask means.
+def mse(predictions: jnp.ndarray, targets: jnp.ndarray = None, zero_mask: jnp.ndarray = None):
     if targets is None:
         targets = jnp.zeros_like(predictions)
     squared_diff = 0.5 * (predictions - targets) ** 2
+
+    # if we have a zero mask, we take the mean over non-zero elements.
+    if zero_mask is not None:
+        masked_squared_diff = squared_diff * zero_mask
+        return jnp.sum(masked_squared_diff) * (1 / zero_mask.sum())
+
     return jnp.mean(squared_diff)
 
 def seq_sarsa_loss(q: jnp.ndarray, a: jnp.ndarray, r: jnp.ndarray,
