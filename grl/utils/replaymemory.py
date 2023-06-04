@@ -187,7 +187,6 @@ class ReplayBuffer:
         self.state_size = state_size
         self.obs_size = obs_size
 
-        # TODO: change these to half precision to save GPU memory.
         if self.state_size is not None:
             self.s = np.zeros((self.capacity, *self.state_size))
             self.unpack_state = unpack_state

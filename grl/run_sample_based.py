@@ -146,21 +146,18 @@ if __name__ == "__main__":
 
     final_network_params, final_optimizer_params, episodes_info = trainer.train()
 
-    # TODO: change to a parser param
-    final_eval_episodes = 10
-    print(f"Finished training. Evaluating over {final_eval_episodes} episodes.")
+    print(f"Finished training. Evaluating over {args.offline_eval_episodes} episodes.")
 
     final_eval_info, rand_key = test_episodes(agent, final_network_params, env, rand_key,
-                                              n_episodes=final_eval_episodes,
+                                              n_episodes=args.offline_eval_episodes,
                                               test_eps=0., action_cond=args.action_cond,
                                               max_episode_steps=args.max_episode_steps)
 
-    # TODO: add in test_episodes
     summed_perf = 0
     for ep in final_eval_info['episode_rewards']:
         summed_perf += sum(ep)
 
-    print(f"Final (averaged) greedy evaluation performance: {summed_perf / final_eval_episodes}")
+    print(f"Final (averaged) greedy evaluation performance: {summed_perf / args.offline_eval_episodes}")
 
     info = {
         'episodes_info': episodes_info,

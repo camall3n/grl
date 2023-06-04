@@ -67,13 +67,6 @@ if __name__ == "__main__":
 
     all_ys = calc_init_obs_dist(all_mem_funcs)
 
-    # TODO: change this, this filters only y == 0
-    # mask = all_ys == 0
-    # mem_funcs = all_mem_funcs[mask]
-    # ys = all_ys[mask]
-    # p1s = all_corridor_mems[mask][:, 0, 0]
-    # p2s = all_corridor_mems[mask][:, 1, 0]
-
     pi = spec['Pi_phi'][0]
     pi_x = pi.repeat(all_mem_funcs.shape[-1], axis=0)
 

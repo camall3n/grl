@@ -1,6 +1,7 @@
 from argparse import Namespace
 from pathlib import Path
 from typing import Union, List, Tuple
+import warnings
 
 from jax import random
 import jax.numpy as jnp
@@ -63,7 +64,8 @@ class Trainer:
         # Replay buffer initialization
         replay_capacity = self.args.replay_size
         if replay_capacity < self.max_episode_steps:
-            # TODO: add a warning if we've had to increase the replay capacity
+            warnings.warn("Replay capacity is < max_episode_steps. "
+                          f"Increasing to max_episode_steps={self.max_episode_steps}")
             replay_capacity = self.max_episode_steps
 
         # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
