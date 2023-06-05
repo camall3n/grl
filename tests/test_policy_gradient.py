@@ -39,18 +39,19 @@ def test_policy_grad_fully_observable_tmaze():
           f"{learnt_pi}")
 
 def test_policy_grad_tmaze():
-    iterations = 5000
+    iterations = 10000
     spec = load_spec('tmaze_5_two_thirds_up')
     print(f"Testing analytical policy gradient on partially observable T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    np.random.seed(2020)
-    rand_key = jax.random.PRNGKey(2020)
+    seed = 2022
+    np.random.seed(seed)
+    rand_key = jax.random.PRNGKey(seed)
     pi_params = glorot_init((spec['Pi_phi'][0].shape))
 
-    agent = AnalyticalAgent(pi_params, rand_key, pi_lr=0.01, policy_optim_alg='policy_grad')
+    agent = AnalyticalAgent(pi_params, rand_key, pi_lr=0.0025, policy_optim_alg='policy_grad')
 
     for it in trange(iterations):
         v_0 = agent.policy_improvement(amdp)
