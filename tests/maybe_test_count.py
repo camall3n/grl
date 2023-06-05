@@ -29,8 +29,8 @@ def step(mdp: MDP, current_state: int, action: int, rand_key: random.PRNGKey):
     is_absorbing = (mdp.T[:, next_state, next_state] == 1)
 
     # Discounting: end episode with probability 1-gamma
-    terminal = is_absorbing.all() | (random.uniform(terminal_key) <
-                                     (1 - mdp.gamma)) # absorbing for all actions
+    terminal = is_absorbing.all() | (random.uniform(terminal_key) < (1 - mdp.gamma)
+                                     ) # absorbing for all actions
 
     truncated = False
     observation = next_state
