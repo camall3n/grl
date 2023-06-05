@@ -1,4 +1,5 @@
 from argparse import Namespace
+from dataclasses import replace
 from typing import Tuple
 
 from flax import linen as nn
@@ -118,9 +119,9 @@ class RNNAgent:
         # We only take t=0 b/c we sample trajectories and roll out the hidden state
         # over those trajectories.
         if isinstance(batch.state, tuple):
-            batch.state = tuple(state[:, 0] for state in batch.state)
+            batch = replace(batch, state=tuple(state[:, 0] for state in batch.state))
         else:
-            batch.state = batch.state[:, 0]
+            batch = replace(batch, state=batch.state[:, 0])
 
         loss, grad = jax.value_and_grad(self._loss)(network_params, batch)
         updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)

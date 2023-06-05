@@ -1,4 +1,5 @@
 from argparse import Namespace
+from dataclasses import replace
 from pathlib import Path
 from typing import Union, List, Tuple
 import warnings
@@ -127,19 +128,16 @@ class Trainer:
 
     def add_returns_to_batches(self, episode_rewards: List[float],
                                episode_experiences: List[Batch]) -> List[Batch]:
-        episode_rewards = jnp.array(episode_rewards)
+        episode_rewards = np.array(episode_rewards)
         if self.normalize_rewards:
             episode_rewards *= self.reward_scale
 
         # Calculate discounts for every step
-        discounts = jnp.array([(1 - b.done) * self.discounting for b in episode_experiences])
+        discounts = np.array([(1 - b.done) * self.discounting for b in episode_experiences])
 
         returns = all_t_discounted_returns(discounts, episode_rewards)
 
-        for g, batch in zip(returns, episode_experiences):
-            batch.returns = g
-
-        return episode_experiences
+        return [replace(batch, returns=g) for g, batch in zip(returns, episode_experiences)]
 
     def sample_and_update(self, network_params: dict, optimizer_params: optax.Params) \
             -> Tuple[dict, optax.Params, dict]:
@@ -150,10 +148,12 @@ class Trainer:
             # sample a sequence from our buffer!
             sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
 
+        reward = sample.reward
         if self.normalize_rewards:
-            sample.reward = sample.reward * self.reward_scale
+            reward = sample.reward * self.reward_scale
 
-        sample.gamma = (1 - sample.done) * self.discounting
+        gamma = (1 - sample.done) * self.discounting
+        sample = replace(sample, gamma=gamma, reward=reward)
 
         network_params, optimizer_params, info = self.agent.update(network_params,
                                                                    optimizer_params, sample)
@@ -272,7 +272,7 @@ class Trainer:
             if self.online_training and self.include_returns_in_batch:
                 network_params, optimizer_params, info = self.sample_and_update(
                     network_params, optimizer_params)
-                episode_info['total_episode_loss'] += info['total_loss']
+                episode_info['total_episode_loss'] += info['total_loss'].item()
                 episode_info['episode_updates'] += 1
 
             episode_info |= compress_episode_rewards(episode_reward)

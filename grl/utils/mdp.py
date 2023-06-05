@@ -1,5 +1,6 @@
 from jax import jit
 import jax.numpy as jnp
+import numpy as np
 from typing import Union
 from grl.mdp import MDP, AbstractMDP
 
@@ -74,25 +75,27 @@ def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
     p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
     return functional_create_td_model(p_pi_of_s_given_o, amdp)
 
-@jit
-def all_t_discounted_returns(discounts: jnp.ndarray, rewards: jnp.ndarray):
+# @jit
+def all_t_discounted_returns(discounts: np.ndarray, rewards: np.ndarray):
     """
     Calculating discounted returns for every time step.
     Taken from
     https://github.com/samlobel/grl/blob/4f7837ec7ea48d9f167420ac59c8d65b1d332161/grl/baselines/rnn_agent.py#L39
+    FOR SOME REASON! There's a memory leak when we use jnp here.
+    I suspect it's in either the jnp.cumsum or jnp.cumprod.
     """
     # Since we're calculating returns for each reward, we need to step timestep back by one
-    shunted_discounts = jnp.concatenate([jnp.ones_like(discounts[0:1]), discounts[:-1]])
+    shunted_discounts = np.concatenate([np.ones_like(discounts[0:1]), discounts[:-1]])
 
     # Calculate discounting starting at t=0
-    t0_discounts = jnp.cumprod(shunted_discounts)
+    t0_discounts = np.cumprod(shunted_discounts)
 
     # calculate discounted return for each time step
     discounted_rewards = rewards * t0_discounts
 
     # Calculate t = 0 discounted returns.
-    overdiscounted_returns = jnp.cumsum(discounted_rewards[::-1])[::-1]
-    returns = overdiscounted_returns / jnp.maximum(t0_discounts, 1e-10)
+    overdiscounted_returns = np.cumsum(discounted_rewards[::-1])[::-1]
+    returns = overdiscounted_returns / np.maximum(t0_discounts, 1e-10)
     return returns
 
 def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):

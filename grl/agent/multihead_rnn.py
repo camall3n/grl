@@ -1,4 +1,5 @@
 from argparse import Namespace
+from dataclasses import replace
 from typing import Tuple, Union
 
 from flax.linen import FrozenDict
@@ -117,9 +118,9 @@ class MultiheadRNNAgent(RNNAgent):
 
         # We only take t=0.
         if isinstance(batch.state, tuple):
-            batch.state = tuple(state[:, 0] for state in batch.state)
+            batch = replace(batch, state=tuple(state[:, 0] for state in batch.state))
         else:
-            batch.state = batch.state[:, 0]
+            batch = replace(batch, state=batch.state[:, 0])
 
         if self.loss_mode in ['both', 'td', 'mc']:
             loss, grad = jax.value_and_grad(self._combined_loss)(network_params,

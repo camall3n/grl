@@ -5,7 +5,7 @@ from dataclasses import dataclass, fields
 from typing import Union, Iterable
 
 @register_pytree_node_class
-@dataclass
+@dataclass(frozen=True)
 class Batch:
     obs: Union[np.ndarray, jnp.ndarray, Iterable]
     action: Union[np.ndarray, jnp.ndarray, Iterable]
