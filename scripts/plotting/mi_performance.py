@@ -49,9 +49,7 @@ compare_to_list = []
 for spec in spec_plot_order:
     for fname in pomdp_files_dir.iterdir():
         if 'pomdp-solver-results' in fname.stem:
-            if (fname.stem ==
-                    f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
-                ):
+            if (fname.stem == f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"):
                 belief_info = load_info(fname)
                 coeffs = belief_info['coeffs']
                 max_start_vals = coeffs[belief_info['max_start_idx']]
@@ -97,6 +95,7 @@ for results_path in results_dir.iterdir():
 
     def get_perf(info: dict):
         return (info['state_vals_v'] * info['p0']).sum()
+
     single_res = {k: args[k] for k in args_to_keep}
 
     single_res.update({
@@ -110,9 +109,7 @@ for results_path in results_dir.iterdir():
     })
     all_results.append(single_res)
 
-
 all_res_df = pd.DataFrame(all_results)
-
 
 # %%
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
@@ -121,11 +118,13 @@ merged_df = all_res_df.merge(compare_to_df, on='spec')
 # for col_name in cols_to_normalize:
 
 normalized_df = merged_df.copy()
-normalized_df['init_improvement_perf'] = (normalized_df['init_improvement_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
-normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
+normalized_df['init_improvement_perf'] = (
+    normalized_df['init_improvement_perf'] -
+    merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
+normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']
+                                   ) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
 del normalized_df['init_policy_perf']
 del normalized_df['compare_perf']
-
 
 # all_normalized_perf_results = {}
 # for hparams, res in all_results.items():
@@ -139,6 +138,7 @@ del normalized_df['compare_perf']
 #             all_results[hparams][k] = (v - min_v) / (max_v - min_v)
 # %%
 normalized_df.groupby(split_by).mean()
+
 # %%
 
 # all_table_results = {}

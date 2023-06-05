@@ -26,10 +26,8 @@ def obs_pi_features(obs: int, pi: jnp.ndarray):
     return jnp.ravel(feature)
 
 @partial(jax.jit, static_argnames=['rew', 'next_obs', 'gamma', 'lambda_'])
-def lstdq_update(A: jnp.ndarray, b: jnp.ndarray, z: jnp.ndarray,
-                 feature: jnp.ndarray, pi: jnp.ndarray,
-                 rew: float, next_obs: int,
-                 gamma: float, lambda_: float):
+def lstdq_update(A: jnp.ndarray, b: jnp.ndarray, z: jnp.ndarray, feature: jnp.ndarray,
+                 pi: jnp.ndarray, rew: float, next_obs: int, gamma: float, lambda_: float):
     z = lambda_ * z + feature
     g = obs_pi_features(next_obs, pi)
     A += jnp.outer(z, feature - gamma * g)
@@ -71,10 +69,17 @@ def lstdq_lambda_samples(agent: ActorCritic,
 
             next_feature = featurize_obs_actions(next_obs, next_action, env.n_obs, env.n_actions)
 
-            A, b, z = lstdq_update(A, b, z, feature,
-                                   agent.policy_probs, reward, next_obs,
-                                   # gamma=env.gamma * (1 - terminal), lambda_=lambda_)
-                                   gamma=(1 - terminal), lambda_=lambda_)
+            A, b, z = lstdq_update(
+                A,
+                b,
+                z,
+                feature,
+                agent.policy_probs,
+                reward,
+                next_obs,
+                # gamma=env.gamma * (1 - terminal), lambda_=lambda_)
+                gamma=(1 - terminal),
+                lambda_=lambda_)
             experience = {
                 'obs': obs,
                 'action': action,
@@ -97,7 +102,6 @@ def lstdq_lambda_samples(agent: ActorCritic,
     q_flat = jnp.linalg.solve(A, b)
     q = q_flat.reshape(env.n_obs, env.n_actions).T
     return q
-
 
 def check_lstdq_samples():
     config.update('jax_platform_name', 'cpu')
@@ -147,4 +151,3 @@ if __name__ == "__main__":
     # feature = featurize_obs_actions(1, 2, env.n_obs, env.n_actions)
     # pi_feature = obs_pi_features(1, pi)
     # print('hello')
-

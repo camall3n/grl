@@ -10,7 +10,7 @@ import optax
 from orbax import checkpoint
 from tqdm import tqdm
 
-from grl.evaluation import test_episodes
+from grl.evaluation import eval_episodes
 from grl.mdp import MDP, AbstractMDP
 from grl.agent.rnn import RNNAgent
 from grl.utils.data import Batch, one_hot, compress_episode_rewards
@@ -71,7 +71,7 @@ class Trainer:
         # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
         obs_shape = self.env.observation_space
         if self.action_cond == 'cat':
-            obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions,)
+            obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions, )
 
         self.one_hot_obses = isinstance(self.env, AbstractMDP) or isinstance(self.env, MDP)
 
@@ -79,8 +79,11 @@ class Trainer:
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
 
-        self.buffer = EpisodeBuffer(replay_capacity, rand_key, obs_shape,
-                                    state_size=state_size, unpack_state=self.args.arch == 'lstm')
+        self.buffer = EpisodeBuffer(replay_capacity,
+                                    rand_key,
+                                    obs_shape,
+                                    state_size=state_size,
+                                    unpack_state=self.args.arch == 'lstm')
 
         # Initialize checkpointers
         if self.checkpoint_dir is not None:
@@ -90,20 +93,27 @@ class Trainer:
 
             options = checkpoint.CheckpointManagerOptions(**dict_options)
 
-            self.checkpointer = checkpoint.CheckpointManager(
-                self.checkpoint_dir,
-                {'network_params': checkpoint.PyTreeCheckpointer(), 'optimizer_params': checkpoint.PyTreeCheckpointer()},
-                options=options)
+            self.checkpointer = checkpoint.CheckpointManager(self.checkpoint_dir, {
+                'network_params': checkpoint.PyTreeCheckpointer(),
+                'optimizer_params': checkpoint.PyTreeCheckpointer()
+            },
+                                                             options=options)
 
         self.episode_num = 0
         self.num_steps = 0
 
     def checkpoint(self, network_params: dict, optimizer_params: optax.Params):
         # TODO: potentially add more saving stuff here
-        self.checkpointer.save(self.num_steps, {'network_params': network_params, 'optimizer_params': optimizer_params})
+        self.checkpointer.save(self.num_steps, {
+            'network_params': network_params,
+            'optimizer_params': optimizer_params
+        })
 
-    def episode_stat_string(self, episode_reward: float, avg_episode_loss: float, t: int,
-                           additional_info: dict = None):
+    def episode_stat_string(self,
+                            episode_reward: float,
+                            avg_episode_loss: float,
+                            t: int,
+                            additional_info: dict = None):
         print_str = (f"Episode {self.episode_num}, steps: {t + 1}, "
                      f"total steps: {self.num_steps}, "
                      f"rewards: {episode_reward:.2f}, "
@@ -115,7 +125,8 @@ class Trainer:
                 print_str += f"{k}: {v / (t + 1):.4f}, "
         return print_str
 
-    def add_returns_to_batches(self, episode_rewards: List[float], episode_experiences: List[Batch]) -> List[Batch]:
+    def add_returns_to_batches(self, episode_rewards: List[float],
+                               episode_experiences: List[Batch]) -> List[Batch]:
         episode_rewards = jnp.array(episode_rewards)
         if self.normalize_rewards:
             episode_rewards *= self.reward_scale
@@ -133,7 +144,7 @@ class Trainer:
     def sample_and_update(self, network_params: dict, optimizer_params: optax.Params) \
             -> Tuple[dict, optax.Params, dict]:
         seq_len = self.agent.trunc
-        if self.online_training:  # online training
+        if self.online_training: # online training
             sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
         else:
             # sample a sequence from our buffer!
@@ -144,12 +155,16 @@ class Trainer:
 
         sample.gamma = (1 - sample.done) * self.discounting
 
-        network_params, optimizer_params, info = self.agent.update(network_params, optimizer_params, sample)
+        network_params, optimizer_params, info = self.agent.update(network_params,
+                                                                   optimizer_params, sample)
         return network_params, optimizer_params, info
 
     def evaluate(self, network_params: dict) -> dict:
         prev_state = self.env.current_state
-        test_info, self._rand_key = test_episodes(self.agent, network_params, self.env, self._rand_key,
+        test_info, self._rand_key = eval_episodes(self.agent,
+                                                  network_params,
+                                                  self.env,
+                                                  self._rand_key,
                                                   n_episodes=self.offline_eval_episodes,
                                                   test_eps=self.offline_eval_epsilon,
                                                   action_cond=self.action_cond,
@@ -180,28 +195,37 @@ class Trainer:
             if self.one_hot_obses:
                 obs = one_hot(obs, self.env.n_obs)
 
-            if self.action_cond == 'cat':  # Action conditioning for t=-1 action
+            if self.action_cond == 'cat': # Action conditioning for t=-1 action
                 action_encoding = np.zeros(self.env.n_actions)
                 obs = np.concatenate([obs, action_encoding], axis=-1)
 
-            action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs, self._rand_key)
+            action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs,
+                                                            self._rand_key)
             action = action.item()
 
             for t in range(self.max_episode_steps):
-                next_obs, reward, done, _, info = self.env.step(action, gamma_terminal=self.gamma_terminal)
+                next_obs, reward, done, _, info = self.env.step(action,
+                                                                gamma_terminal=self.gamma_terminal)
                 if self.one_hot_obses:
                     next_obs = one_hot(next_obs, self.env.n_obs)
 
-                if self.action_cond == 'cat':  # Action conditioning
+                if self.action_cond == 'cat': # Action conditioning
                     action_encoding = one_hot(action, self.env.n_actions)
                     next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
-                next_action, self._rand_key, next_hs, qs = self.agent.act(network_params, next_obs, hs, self._rand_key)
+                next_action, self._rand_key, next_hs, qs = self.agent.act(
+                    network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
 
-                experience = Batch(obs=obs, reward=reward, next_obs=next_obs, action=action, done=done,
-                              next_action=next_action, state=prev_hs[0], next_state=hs[0],
-                              end=done or (t == self.max_episode_steps - 1))
+                experience = Batch(obs=obs,
+                                   reward=reward,
+                                   next_obs=next_obs,
+                                   action=action,
+                                   done=done,
+                                   next_action=next_action,
+                                   state=prev_hs[0],
+                                   next_state=hs[0],
+                                   end=done or (t == self.max_episode_steps - 1))
 
                 episode_reward.append(reward)
 
@@ -213,7 +237,8 @@ class Trainer:
 
                 # If we have enough things in the buffer to update
                 if self.batch_size < len(self.buffer) and self.trunc < len(self.buffer):
-                    network_params, optimizer_params, info = self.sample_and_update(network_params, optimizer_params)
+                    network_params, optimizer_params, info = self.sample_and_update(
+                        network_params, optimizer_params)
 
                     episode_info['total_episode_loss'] += info['total_loss']
                     episode_info['episode_updates'] += 1
@@ -238,13 +263,15 @@ class Trainer:
                     checkpoint_after_ep = True
 
             if self.include_returns_in_batch:
-                batch_with_returns = self.add_returns_to_batches(episode_reward, episode_experiences)
+                batch_with_returns = self.add_returns_to_batches(episode_reward,
+                                                                 episode_experiences)
                 for b in batch_with_returns:
                     self.buffer.push(b)
 
             # Online MC training
             if self.online_training and self.include_returns_in_batch:
-                network_params, optimizer_params, info = self.sample_and_update(network_params, optimizer_params)
+                network_params, optimizer_params, info = self.sample_and_update(
+                    network_params, optimizer_params)
                 episode_info['total_episode_loss'] += info['total_loss']
                 episode_info['episode_updates'] += 1
 
@@ -253,7 +280,8 @@ class Trainer:
 
             self.episode_num += 1
 
-            avg_episode_loss = episode_info['total_episode_loss'] / max(episode_info['episode_updates'], 1)
+            avg_episode_loss = episode_info['total_episode_loss'] / max(
+                episode_info['episode_updates'], 1)
             print(self.episode_stat_string(sum(episode_reward), avg_episode_loss, t))
 
             if self.checkpoint_dir is not None and checkpoint_after_ep:

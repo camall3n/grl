@@ -113,7 +113,8 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     # See section 2 of https://arxiv.org/pdf/1511.08495.pdf
     D_eps_ao = 1e-10 * jnp.eye(oa)
     phi_D_mu = phi_as_ao.T @ D_mu
-    A = (phi_D_mu @ (I - gamma * P_as_as) @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as, phi_as_ao))
+    A = (phi_D_mu @ (I - gamma * P_as_as) @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as,
+                                                             phi_as_ao))
     b = phi_D_mu @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as, R_as)
     Q_LSTD_lamb_as = (phi_as_ao @ jnp.linalg.solve(A + D_eps_ao, b)).reshape((a, s))
 
@@ -127,4 +128,4 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     Q_LSTD_lamb_ao = Q_LSTD_lamb_as @ p_pi_of_s_given_o
     V_LSTD_lamb_o = V_LSTD_lamb_s @ p_pi_of_s_given_o
 
-    return V_LSTD_lamb_o, Q_LSTD_lamb_ao, { 'occupancy': occupancy_s }
+    return V_LSTD_lamb_o, Q_LSTD_lamb_ao, {'occupancy': occupancy_s}

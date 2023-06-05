@@ -6,7 +6,6 @@ from jax.tree_util import register_pytree_node_class
 
 from grl.utils.data import one_hot
 
-
 def normalize(M, axis=-1):
     M = M.astype(float)
     if M.ndim > 1:
@@ -168,7 +167,7 @@ class MDP:
 
     @property
     def observation_space(self):
-        return (self.n_states,)
+        return (self.n_states, )
 
     def image(self, pr_x, pi=None):
         T = self.T_pi(pi)
@@ -263,7 +262,7 @@ class AbstractMDP(MDP):
 
     @property
     def observation_space(self):
-        return (self.n_obs,)
+        return (self.n_obs, )
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)

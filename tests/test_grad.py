@@ -32,12 +32,18 @@ def test_example_7_p():
                             error_type='l2',
                             value_type='q',
                             policy_optim_alg='discrep_min',
+                            pi_lr=0.001,
                             alpha=1.)
-    info, agent = memory_iteration(agent, amdp, mi_iterations=1, mi_per_step=0,
-                                   pi_per_step=int(5e4), init_pi_improvement=False)
+    info, agent = memory_iteration(agent,
+                                   amdp,
+                                   mi_iterations=1,
+                                   mi_per_step=0,
+                                   pi_per_step=int(1e3),
+                                   init_pi_improvement=False)
     final_lambda_discrep_min_policy = softmax(info['final_discrep_min_pi_params'], axis=-1)
 
-    assert np.allclose(pi_known[0], final_lambda_discrep_min_policy[0], rtol=RTOL) # just assert the red obs policy
+    assert np.allclose(pi_known[0], final_lambda_discrep_min_policy[0],
+                       rtol=RTOL) # just assert the red obs policy
 
 def test_example_7_m():
     """
@@ -92,17 +98,23 @@ def test_example_7_m():
         [1, 0],
         [1, 0],
     ])
-    agent = AnalyticalAgent(reverse_softmax(pi),
-                            rand_key,
-                            optim_str='sgd',
-                            mem_params=mem_params,
-                            error_type='l2',
-                            value_type='q',
-                            alpha=1.)
-    info, agent = memory_iteration(agent, amdp, mi_iterations=1, pi_per_step=0,
-                                   mi_per_step=int(5e4), init_pi_improvement=False)
+    agent = AnalyticalAgent(
+        reverse_softmax(pi),
+        rand_key,
+        optim_str='sgd',
+        mem_params=mem_params,
+        error_type='l2',
+        value_type='q',
+        # mi_lr=0.001,
+        alpha=1.)
+    info, agent = memory_iteration(agent,
+                                   amdp,
+                                   mi_iterations=1,
+                                   pi_per_step=0,
+                                   mi_per_step=int(5e4),
+                                   init_pi_improvement=False)
 
     assert np.allclose(memory_end, agent.memory, atol=1e-2)
 
 if __name__ == "__main__":
-    test_example_7_p()
+    test_example_7_m()

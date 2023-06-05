@@ -6,7 +6,7 @@ from jax.config import config
 
 from grl.agent import get_agent
 from grl.environment import load_spec
-from grl.evaluation import test_episodes
+from grl.evaluation import eval_episodes
 from grl.mdp import AbstractMDP, MDP
 from grl.model import get_network
 from grl.utils.optimizer import get_optimizer
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     print(f"Finished training. Evaluating over {args.offline_eval_episodes} episodes.")
 
-    final_eval_info, rand_key = test_episodes(agent, final_network_params, env, rand_key,
+    final_eval_info, rand_key = eval_episodes(agent, final_network_params, env, rand_key,
                                               n_episodes=args.offline_eval_episodes,
                                               test_eps=0., action_cond=args.action_cond,
                                               max_episode_steps=args.max_episode_steps)
@@ -168,7 +168,3 @@ if __name__ == "__main__":
 
     print(f"Saving results to {results_path}")
     numpyify_and_save(results_path, info)
-
-
-
-

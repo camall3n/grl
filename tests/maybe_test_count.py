@@ -29,7 +29,8 @@ def step(mdp: MDP, current_state: int, action: int, rand_key: random.PRNGKey):
     is_absorbing = (mdp.T[:, next_state, next_state] == 1)
 
     # Discounting: end episode with probability 1-gamma
-    terminal = is_absorbing.all() | (random.uniform(terminal_key) < (1 - mdp.gamma)) # absorbing for all actions
+    terminal = is_absorbing.all() | (random.uniform(terminal_key) <
+                                     (1 - mdp.gamma)) # absorbing for all actions
 
     truncated = False
     observation = next_state
@@ -47,10 +48,11 @@ def measure_step_speed():
                      memory_id=str(0),
                      corridor_length=5,
                      discount=0.9,
-                     junction_up_pi=2/3,
+                     junction_up_pi=2 / 3,
                      epsilon=0.1)
 
-    jax_mdp = MDP(jnp.array(spec['T']), jnp.array(spec['R']), jnp.array(spec['p0']), jnp.array(spec['gamma']))
+    jax_mdp = MDP(jnp.array(spec['T']), jnp.array(spec['R']), jnp.array(spec['p0']),
+                  jnp.array(spec['gamma']))
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     pi_ground = (spec['phi'] @ spec['Pi_phi'][0])
 
@@ -93,7 +95,6 @@ def measure_step_speed():
     non_jitted_elapsed = non_jitted_step_end - non_jitted_step_start
     print(f"Elapsed time for non-jitted steps: {non_jitted_elapsed}s")
     print("test_count test passed.")
-
 
 def test_count():
     seed = 2020
@@ -142,7 +143,8 @@ def test_count():
 
         action, rand_key = act(pi_ground[obs], rand_key)
 
-        obs, reward, terminal, truncated, info = step(mem_aug_mdp, obs.item(), action.item(), rand_key)
+        obs, reward, terminal, truncated, info = step(mem_aug_mdp, obs.item(), action.item(),
+                                                      rand_key)
         rand_key = info['rand_key']
 
         if terminal:
@@ -151,8 +153,6 @@ def test_count():
 
     sampled_count_dist = state_counts / state_counts.sum(axis=-1, keepdims=True)
     print("Done collecting samples.")
-
-
 
     assert jnp.allclose(sampled_count_dist, analytical_count_dist, atol=1e-3)
 

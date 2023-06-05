@@ -32,8 +32,7 @@ def run_memory_iteration(spec: dict,
                          alpha: float = 1.,
                          pi_params: jnp.ndarray = None,
                          epsilon: float = 0.1,
-                         flip_count_prob: bool = False
-):
+                         flip_count_prob: bool = False):
     """
     Wrapper function for the Memory Iteration algorithm.
     Memory iteration intersperses memory improvement and policy improvement.
@@ -55,7 +54,6 @@ def run_memory_iteration(spec: dict,
     amdp = AbstractMDP(mdp, spec['phi'])
     assert amdp.current_state is None, \
         f"AbstractMDP should be stateless and current_state should be None, got {amdp.current_state} instead"
-
 
     # initialize policy params
     if 'Pi_phi' not in spec or spec['Pi_phi'] is None:
@@ -94,7 +92,10 @@ def run_memory_iteration(spec: dict,
                                    mi_per_step=mi_steps,
                                    init_pi_improvement=init_pi_improvement)
 
-    discrep_loss_fn = partial(discrep_loss, value_type=value_type, error_type=error_type, alpha=alpha)
+    discrep_loss_fn = partial(discrep_loss,
+                              value_type=value_type,
+                              error_type=error_type,
+                              alpha=alpha)
     get_measures = partial(lambda_discrep_measures, discrep_loss_fn=discrep_loss_fn)
 
     info['initial_policy'] = initial_policy
@@ -103,18 +104,19 @@ def run_memory_iteration(spec: dict,
     info['initial_policy_stats'] = get_measures(amdp, initial_policy)
     info['initial_improvement_stats'] = get_measures(amdp, info['initial_improvement_policy'])
     greedy_initial_improvement_policy = greedify(info['initial_improvement_policy'])
-    info['greedy_initial_improvement_stats'] = get_measures(amdp, greedy_initial_improvement_policy)
-
+    info['greedy_initial_improvement_stats'] = get_measures(amdp,
+                                                            greedy_initial_improvement_policy)
 
     if policy_optim_alg in ['discrep_max', 'discrep_min'] or not init_pi_improvement:
         info['td_optimal_policy_stats'] = get_measures(amdp, info['td_optimal_memoryless_policy'])
-        info['greedy_td_optimal_policy_stats'] = get_measures(amdp, greedify(info['td_optimal_memoryless_policy']))
+        info['greedy_td_optimal_policy_stats'] = get_measures(
+            amdp, greedify(info['td_optimal_memoryless_policy']))
 
     # Initial memory amdp w/ initial improvement policy discrep
     if 'initial_mem_params' in info and info['initial_mem_params'] is not None:
         init_mem_amdp = memory_cross_product(info['initial_mem_params'], amdp)
-        info['initial_mem_stats'] = get_measures(
-            init_mem_amdp, info['initial_expanded_improvement_policy'])
+        info['initial_mem_stats'] = get_measures(init_mem_amdp,
+                                                 info['initial_expanded_improvement_policy'])
 
     # Final memory w/ final policy discrep
     final_mem_amdp = memory_cross_product(agent.mem_params, amdp)
@@ -127,9 +129,13 @@ def run_memory_iteration(spec: dict,
 
     print("Finished Memory Iteration.")
     print(f"Initial policy performance: {perf_from_stats(info['initial_policy_stats']):.4f}")
-    print(f"Initial improvement performance: {perf_from_stats(info['initial_improvement_stats']):.4f}")
+    print(
+        f"Initial improvement performance: {perf_from_stats(info['initial_improvement_stats']):.4f}"
+    )
     if 'greedy_td_optimal_policy_stats' in info:
-        print(f"TD-optimal policy performance: {perf_from_stats(info['greedy_td_optimal_policy_stats']):.4f}")
+        print(
+            f"TD-optimal policy performance: {perf_from_stats(info['greedy_td_optimal_policy_stats']):.4f}"
+        )
     print(f"Final performance after MI: {perf_from_stats(info['greedy_final_mem_stats']):.4f}")
 
     return info, agent
@@ -187,12 +193,13 @@ def memory_iteration(
         info['policy_improvement_outputs'].append(initial_outputs)
 
     info['initial_improvement_policy'] = agent.policy.copy()
-    info['initial_mem_params'] = agent.mem_params
     print(f"Starting (unexpanded) policy: \n{agent.policy}\n")
 
     if agent.mem_params is not None:
         # we have to set our policy over our memory MDP now
         # we do so with a random/copied policy given new memory bit
+        info['initial_mem_params'] = agent.mem_params
+
         agent.new_pi_over_mem()
         info['initial_expanded_improvement_policy'] = agent.policy.copy()
         print(f"Starting (expanded) policy: \n{agent.policy}\n")

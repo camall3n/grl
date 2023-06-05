@@ -12,6 +12,7 @@ import seaborn as sns
 
 from grl.utils import load_info
 from definitions import ROOT_DIR
+
 config.update('jax_platform_name', 'cpu')
 
 #%%
@@ -38,7 +39,7 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
     def test_start_bits_set(right_up_start: np.ndarray, right_down_start: np.ndarray):
         res = np.abs(right_up_start - right_down_start).sum() / 2
         if mse:
-            return (res - 1) ** 2
+            return (res - 1)**2
         else:
             return np.isclose(res, 1, atol=1e-1)
 
@@ -49,8 +50,8 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
 
     def test_corridor_hold_or_toggle(right_corridor: np.ndarray):
         if mse:
-            is_toggle = ((right_corridor - np.eye(2)[:, ::-1]) ** 2).mean()
-            is_hold = ((right_corridor - np.eye(2)) ** 2).mean()
+            is_toggle = ((right_corridor - np.eye(2)[:, ::-1])**2).mean()
+            is_hold = ((right_corridor - np.eye(2))**2).mean()
             return is_toggle, is_hold
         else:
             is_toggle = np.allclose(right_corridor, np.eye(2)[:, ::-1], atol=1e-1)
@@ -65,15 +66,21 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
 
         junction_bumps = mem[[EAST], JUNCTION]
         junction_left = mem[[WEST], JUNCTION]
-        all_checks = {'corridor_bumps': corridor_bumps, 'corridor_left': corridor_left,
-                      'junction_bumps': junction_bumps, 'junction_left': junction_left}
+        all_checks = {
+            'corridor_bumps': corridor_bumps,
+            'corridor_left': corridor_left,
+            'junction_bumps': junction_bumps,
+            'junction_left': junction_left
+        }
         if mse:
             mses = []
             for check in all_checks.values():
-                mses.append(((check - np.eye(2)) ** 2).mean())
+                mses.append(((check - np.eye(2))**2).mean())
             return sum(mses) / len(mses), all_checks
         else:
-            is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0), np.eye(2), atol=1e-2)
+            is_preserving = np.allclose(np.concatenate(tuple(all_checks.values()), axis=0),
+                                        np.eye(2),
+                                        atol=1e-2)
             return is_preserving, all_checks
 
     is_toggle, is_hold = test_corridor_hold_or_toggle(right_corridor)
@@ -83,7 +90,11 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
     else:
         is_optimal = diff_start_bits_set and (is_toggle or is_hold)
 
-    additional_info = {'diff_start_bits_set': diff_start_bits_set, 'is_toggle': is_toggle, 'is_hold': is_hold}
+    additional_info = {
+        'diff_start_bits_set': diff_start_bits_set,
+        'is_toggle': is_toggle,
+        'is_hold': is_hold
+    }
     if test_preserving:
         is_preserving, all_preserving_checks = test_memory_preserving(mem_func)
 
@@ -94,7 +105,6 @@ def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: 
         additional_info.update(all_preserving_checks)
 
     return is_optimal, additional_info
-
 
 #%%
 def load_sampled_results(pathname: str, use_epsilon: bool = False):
@@ -138,9 +148,10 @@ def load_analytical_results(pathname: str, use_epsilon=False):
 
         grad_info = info['logs']
         args = info['args']
-        agent_info = load_info(results_path.parent/'agent'/f'{results_path.stem}.pkl.npy')
+        agent_info = load_info(results_path.parent / 'agent' / f'{results_path.stem}.pkl.npy')
         final_mem_params = agent_info.mem_params
-        is_optimal, additional_checks = test_mem_matrix(final_mem_params, test_preserving=use_epsilon)
+        is_optimal, additional_checks = test_mem_matrix(final_mem_params,
+                                                        test_preserving=use_epsilon)
 
         initial_q_discrep = grad_info['initial_mem_stats']['discrep'].item()
         final_q_discrep = grad_info['final_mem_stats']['discrep'].item()
@@ -201,7 +212,8 @@ def plot_sweep(data: pd.DataFrame, x='policy_up_prob', ax=None, title=None, add_
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'junction-up-prob-lambda999-6', 'tmaze_5_two_thirds_up/*')))
 # planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_lambda1')), use_epsilon=True)
-planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze2_sweep_eps')), use_epsilon=True)
+planning_data = load_analytical_results(str(Path(ROOT_DIR, 'results', 'tmaze2_sweep_eps')),
+                                        use_epsilon=True)
 fig, axes = plt.subplots(1, 1, figsize=(12, 5))
 plot_sweep(planning_data, x='policy_epsilon', ax=axes, title='tmaze 2, epsilon sweep')
 # learning_data = load_sampled_results(
@@ -232,7 +244,9 @@ plot_sweep(planning_data, x='policy_up_prob', ax=axes, title='tmaze 2, epsilon s
 # planning_data = load_analytical_results(pathname=str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps')), use_epsilon=True)
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'junction-sweep-eps-lambda999-03', 'tmaze_5_two_thirds_up/*')))
-planning_data = load_analytical_results(pathname=str(Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_leaky')), use_epsilon=True)
+planning_data = load_analytical_results(pathname=str(
+    Path(ROOT_DIR, 'results', 'tmaze_sweep_eps_leaky')),
+                                        use_epsilon=True)
 # learning_data = load_sampled_results(
 #     str(Path(ROOT_DIR, 'results', 'sweep-eps-imp-samp-04', 'tmaze_5_two_thirds_up/*')))
 
@@ -240,16 +254,44 @@ leaks = planning_data['leak'].unique()
 leaks.sort()
 fig, axes = plt.subplots(1, 1, figsize=(8, 5))
 for leak in leaks:
-    plot_sweep(planning_data[planning_data['leak'] == leak], ax=axes, x='policy_epsilon', title=f'Planning Agent, leak={leak:.2f}', add_colorbar=False)
+    plot_sweep(planning_data[planning_data['leak'] == leak],
+               ax=axes,
+               x='policy_epsilon',
+               title=f'Planning Agent, leak={leak:.2f}',
+               add_colorbar=False)
 # plot_sweep(learning_data, ax=axes[1], x='policy_epsilon', title='Learning Agent', add_colorbar=True)
 
 #%%
 fig, ax = plt.subplots()
 plt.plot()
-sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='-', label='Initial, Planning')
-sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='initial_discrep', color='blue', linestyle='--', label='Initial, Learning')
-sns.lineplot(data=planning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='-', label='Final, Planning')
-sns.lineplot(data=learning_data, ax=ax, x='policy_epsilon', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
+sns.lineplot(data=planning_data,
+             ax=ax,
+             x='policy_epsilon',
+             y='initial_discrep',
+             color='blue',
+             linestyle='-',
+             label='Initial, Planning')
+sns.lineplot(data=learning_data,
+             ax=ax,
+             x='policy_epsilon',
+             y='initial_discrep',
+             color='blue',
+             linestyle='--',
+             label='Initial, Learning')
+sns.lineplot(data=planning_data,
+             ax=ax,
+             x='policy_epsilon',
+             y='final_discrep',
+             color='black',
+             linestyle='-',
+             label='Final, Planning')
+sns.lineplot(data=learning_data,
+             ax=ax,
+             x='policy_epsilon',
+             y='final_discrep',
+             color='black',
+             linestyle='--',
+             label='Final, Learning')
 
 #%%
 planning_data = load_analytical_results('results/analytical/tmaze_sweep_junction_pi_2022-02-17')
@@ -258,8 +300,32 @@ learning_data = load_sampled_results(
 
 fig, ax = plt.subplots()
 plt.plot()
-sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='-', label='Initial, Planning')
-sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='initial_discrep', color='blue', linestyle='--', label='Initial, Learning')
-sns.lineplot(data=planning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='-', label='Final, Planning')
-sns.lineplot(data=learning_data, ax=ax, x='policy_up_prob', y='final_discrep', color='black', linestyle='--', label='Final, Learning')
+sns.lineplot(data=planning_data,
+             ax=ax,
+             x='policy_up_prob',
+             y='initial_discrep',
+             color='blue',
+             linestyle='-',
+             label='Initial, Planning')
+sns.lineplot(data=learning_data,
+             ax=ax,
+             x='policy_up_prob',
+             y='initial_discrep',
+             color='blue',
+             linestyle='--',
+             label='Initial, Learning')
+sns.lineplot(data=planning_data,
+             ax=ax,
+             x='policy_up_prob',
+             y='final_discrep',
+             color='black',
+             linestyle='-',
+             label='Final, Planning')
+sns.lineplot(data=learning_data,
+             ax=ax,
+             x='policy_up_prob',
+             y='final_discrep',
+             color='black',
+             linestyle='--',
+             label='Final, Learning')
 plt.legend()

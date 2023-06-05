@@ -13,7 +13,8 @@ def main():
     results_dirs = glob.glob(f'results/sample_based/{glob_pattern}')
     output_file = f'results/sample_based/{glob_pattern.replace("*", "")}-{env_name}-summary.pkl'
 
-    assert not os.path.exists(output_file), 'Output file already exists. Disable this assert to overwrite it.'
+    assert not os.path.exists(
+        output_file), 'Output file already exists. Disable this assert to overwrite it.'
 
     studies = []
     for results_dir in results_dirs:
@@ -31,12 +32,11 @@ def main():
 
     data.to_pickle(output_file)
 
-
 def extract_tmaze_mem_coords(trial):
-    p_m0_after_m0_o0 = trial.params['20']  # y
-    p_m0_after_m0_o1 = trial.params['22']  # y
-    p_m0_after_m0_o2 = trial.params['24']  # p1
-    p_m0_after_m1_o2 = trial.params['25']  # p2
+    p_m0_after_m0_o0 = trial.params['20'] # y
+    p_m0_after_m0_o1 = trial.params['22'] # y
+    p_m0_after_m0_o2 = trial.params['24'] # p1
+    p_m0_after_m1_o2 = trial.params['25'] # p2
 
     p_initial = np.array([p_m0_after_m0_o0, p_m0_after_m0_o1])
     p0 = np.minimum(norm(p_initial - np.array([0, 1])), norm(p_initial - np.array([1, 0])))
@@ -55,18 +55,20 @@ def load_study(experiment_name, env_name, seed):
 
 def load_study_into_pandas(experiment_name, env_name, seed):
     study = load_study(experiment_name, env_name, seed)
-    df = pd.DataFrame([{
-        'trial_id': t.number,
-        'experiment_name': experiment_name,
-        'env_name': env_name,
-        'seed': seed,
-        'state': str(t.state).replace('TrialState.', ''),
-        'mem_coords': extract_tmaze_mem_coords(t),
-        'value': t.values[0] if t.values is not None and t.values != [] else np.nan,
-        # 'datetime_start': t.datetime_start,
-        # 'datetime_complete': t.datetime_complete,
-        # 'duration': (t.datetime_complete - t.datetime_start) if (t.datetime_complete is not None) else None,
-    } for t in study.trials if str(t.state) == 'TrialState.COMPLETE' ])
+    df = pd.DataFrame([
+        {
+            'trial_id': t.number,
+            'experiment_name': experiment_name,
+            'env_name': env_name,
+            'seed': seed,
+            'state': str(t.state).replace('TrialState.', ''),
+            'mem_coords': extract_tmaze_mem_coords(t),
+            'value': t.values[0] if t.values is not None and t.values != [] else np.nan,
+            # 'datetime_start': t.datetime_start,
+            # 'datetime_complete': t.datetime_complete,
+            # 'duration': (t.datetime_complete - t.datetime_start) if (t.datetime_complete is not None) else None,
+        } for t in study.trials if str(t.state) == 'TrialState.COMPLETE'
+    ])
     complete_trials = df.query('state=="COMPLETE"')
     values_by_trial_id = complete_trials.sort_values(by='trial_id')['value'].tolist()
     best_value_by_trial_id = np.minimum.accumulate(values_by_trial_id)

@@ -43,19 +43,8 @@ if __name__ == "__main__":
         mem_dist = og_mem_dist.at[argmax_idx].add(-fuzz)
         mem = og_mem.at[mem_idx].set(mem_dist)
         mem_aug_amdp = memory_cross_product(reverse_softmax(mem), amdp)
-        indv_res = {
-            'fuzz': fuzz,
-            'mem': mem
-        }
+        indv_res = {'fuzz': fuzz, 'mem': mem}
         indv_res.update(lambda_discrep_measures(mem_aug_amdp, pi, discrep_loss_fn=loss))
         all_res.append(indv_res)
 
     numpyify_and_save(save_path, all_res)
-
-
-
-
-
-
-
-

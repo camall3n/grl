@@ -20,7 +20,8 @@ def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
 
     # Outer product that compacts the two i dimensions and the two l dimensions
     # (SxAxMxM, AxSxS -> AxSMxSM), where SM=x
-    T_x = jnp.einsum('iljk,lim->lijmk', T_mem_phi, amdp.T).reshape(amdp.T.shape[0], n_states_x, n_states_x)
+    T_x = jnp.einsum('iljk,lim->lijmk', T_mem_phi, amdp.T).reshape(amdp.T.shape[0], n_states_x,
+                                                                   n_states_x)
 
     # The new obs_x are the original obs times memory states
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}
@@ -32,4 +33,3 @@ def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
 
     mem_aug_mdp = MDP(T_x, R_x, p0_x, gamma=amdp.gamma)
     return AbstractMDP(mem_aug_mdp, phi_x)
-

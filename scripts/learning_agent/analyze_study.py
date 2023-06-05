@@ -28,9 +28,8 @@ subset = data
 # subset=subset.query("experiment_name=='exp11-cmaes-sigma0'")
 # subset['sigma'] = list(map(lambda x: x.split('_')[-1], subset['seed']))
 # subset['seed'] = list(map(lambda x: int(x.split('_')[-4]) % 5, subset['seed']))
-sns.lineplot(data=subset, x='trial_id', y='best_value')#, units='seed', estimator=None)
+sns.lineplot(data=subset, x='trial_id', y='best_value') #, units='seed', estimator=None)
 plt.savefig('foo.png')
-
 
 #%%
 env_name = 'tmaze_2_two_thirds_up'
@@ -45,9 +44,7 @@ plt.close()
 
 #%%
 
-params = [
-    study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)
-]
+params = [study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)]
 spec = environment.load_spec(env_name, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])

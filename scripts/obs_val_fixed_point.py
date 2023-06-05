@@ -8,8 +8,13 @@ from grl.mdp import MDP, AbstractMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.mdp import get_td_model
 
-def n_step_bellman_update(obs: int, T_td: jnp.ndarray, R_td: jnp.ndarray, v: jnp.ndarray, pi: jnp.ndarray,
-                   gamma: float = 0.9, depth: int = 1):
+def n_step_bellman_update(obs: int,
+                          T_td: jnp.ndarray,
+                          R_td: jnp.ndarray,
+                          v: jnp.ndarray,
+                          pi: jnp.ndarray,
+                          gamma: float = 0.9,
+                          depth: int = 1):
     if depth == 0:
         return v[obs]
 
@@ -30,8 +35,9 @@ def n_step_bellman_update(obs: int, T_td: jnp.ndarray, R_td: jnp.ndarray, v: jnp
             if p_op_o_a == 0:
                 continue
 
-            update = pi_a_o * p_op_o_a * (R_td[a, obs, next_obs] + gamma *
-                                          n_step_bellman_update(next_obs, T_td, R_td, v, pi, gamma, depth - 1))
+            update = pi_a_o * p_op_o_a * (
+                R_td[a, obs, next_obs] +
+                gamma * n_step_bellman_update(next_obs, T_td, R_td, v, pi, gamma, depth - 1))
             new_v += update
 
     return new_v
@@ -51,23 +57,21 @@ if __name__ == "__main__":
 
     rand_key = jax.random.PRNGKey(seed)
 
-    spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
-                     corridor_length=corridor_length,
-                     discount=discount,
-                     junction_up_pi=junction_up_pi,
-                     epsilon=epsilon)
+    spec = load_spec(
+        spec_name,
+        # memory_id=str(mem),
+        memory_id=str('f'),
+        mem_leakiness=0.2,
+        corridor_length=corridor_length,
+        discount=discount,
+        junction_up_pi=junction_up_pi,
+        epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f',
-                            n_obs=amdp.n_obs,
-                            n_actions=amdp.n_actions,
-                            leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)

@@ -46,12 +46,15 @@ def heatmap(spec: dict, error_type: str = 'l2', num_ticks: int = 5):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec',
+                        default='example_11',
+                        type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
-    parser.add_argument('--error_type', default='l2', type=str,
+    parser.add_argument('--error_type',
+                        default='l2',
+                        type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
-    parser.add_argument('--num_ticks', default=5, type=int,
-                        help='Number of ticks in our heatmap')
+    parser.add_argument('--num_ticks', default=5, type=int, help='Number of ticks in our heatmap')
 
     global args
     args = parser.parse_args()

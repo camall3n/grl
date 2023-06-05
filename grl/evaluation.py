@@ -8,7 +8,7 @@ from grl.agent.rnn import RNNAgent
 from grl.mdp import MDP, AbstractMDP
 from grl.utils.data import one_hot
 
-def test_episodes(agent: RNNAgent, network_params: dict,
+def eval_episodes(agent: RNNAgent, network_params: dict,
                   env: Union[MDP, AbstractMDP], rand_key: random.PRNGKey,
                   n_episodes: int = 1, test_eps: float = 0.,
                   action_cond: str = 'cat', max_episode_steps: int = 1000)\
@@ -65,13 +65,9 @@ def test_episodes(agent: RNNAgent, network_params: dict,
         all_ep_rews.append(ep_rews)
         all_ep_qs.append(ep_qs)
 
-
     # reset original epsilon
     agent.eps = original_epsilon
 
-    info = {
-        'episode_rewards': all_ep_rews,
-        'episode_qs': all_ep_qs
-    }
+    info = {'episode_rewards': all_ep_rews, 'episode_qs': all_ep_qs}
 
     return info, rand_key

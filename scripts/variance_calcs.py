@@ -22,12 +22,14 @@ def act(pi: jnp.ndarray, rand_key: random.PRNGKey):
     return action, rand_key
 
 @partial(jit, static_argnames=['prev_mems', 'action', 'obs'])
-def mem_act(mem_probses: jnp.ndarray, prev_mems: Tuple[int], action: int, obs: int, rand_key: random.PRNGKey):
+def mem_act(mem_probses: jnp.ndarray, prev_mems: Tuple[int], action: int, obs: int,
+            rand_key: random.PRNGKey):
     all_keys = random.split(rand_key, num=len(mem_probses) + 1)
     mem_keys = all_keys[:-1]
     rand_key = all_keys[-1]
-    return tuple(random.choice(mem_key, mem_prob.shape[-1], p=mem_prob[action, obs, prev_mems[i]])
-            for i, (mem_key, mem_prob) in enumerate(zip(mem_keys, mem_probses))), rand_key
+    return tuple(
+        random.choice(mem_key, mem_prob.shape[-1], p=mem_prob[action, obs, prev_mems[i]])
+        for i, (mem_key, mem_prob) in enumerate(zip(mem_keys, mem_probses))), rand_key
 
 def collect_episodes(mdp: Union[MDP, AbstractMDP],
                      pi: jnp.ndarray,
@@ -163,13 +165,8 @@ if __name__ == "__main__":
     denom = all_act_obs_counts + (all_act_obs_counts == 0)
     mse_q /= denom
     var_q /= denom
-    bias_q = np.array((analytical_q1_vals - analytical_q0_vals) ** 2)
+    bias_q = np.array((analytical_q1_vals - analytical_q0_vals)**2)
 
     mse_q = mse_q.reshape((n_actions, n_obs))
     var_q = var_q.reshape((n_actions, n_obs))
     print(f"returns: {returns}")
-
-
-
-
-

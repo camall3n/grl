@@ -33,7 +33,10 @@ def test_split_mem():
     lambda_1 = 1.
     # mem_funcs = [0, 16]
     mem_funcs = [(19, 0), (16, 1)]
-    agent_path = Path(ROOT_DIR, 'results', 'agent', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
+    agent_path = Path(
+        ROOT_DIR, 'results', 'agent',
+        'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy'
+    )
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
 
     for mem, target_lambda in mem_funcs:
@@ -48,9 +51,7 @@ def test_split_mem():
         amdp = AbstractMDP(mdp, spec['phi'])
 
         pi = spec['Pi_phi'][0]
-        mem_params = get_memory(str(mem),
-                                n_obs=amdp.n_obs,
-                                n_actions=amdp.n_actions)
+        mem_params = get_memory(str(mem), n_obs=amdp.n_obs, n_actions=amdp.n_actions)
         mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
         mem_aug_amdp = memory_cross_product(mem_params, amdp)
@@ -61,9 +62,14 @@ def test_split_mem():
         lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
         lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
 
-        mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(mem_aug_pi, learnt_mem_aug_amdp)
-        mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_0)
-        mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_1)
+        mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
+            mem_aug_pi, learnt_mem_aug_amdp)
+        mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
+                                                               mem_aug_amdp,
+                                                               lambda_=lambda_0)
+        mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi,
+                                                                 mem_aug_amdp,
+                                                                 lambda_=lambda_1)
 
         # undisc_mdp = MDP(amdp.T, amdp.R, amdp.p0, 1.)
         # undisc_amdp = AbstractMDP(undisc_mdp, amdp.phi)
@@ -73,9 +79,10 @@ def test_split_mem():
 
         # counts_mem_aug_flat_obs = amdp_get_occupancy(mem_aug_pi, undisc_mem_aug_amdp) @ undisc_mem_aug_amdp.phi
         counts_mem_aug_flat_obs = mem_lstd_info['occupancy'] @ mem_aug_amdp.phi
-        counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs, mem_aug_pi).T  # A x OM
+        counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs,
+                                         mem_aug_pi).T # A x OM
 
-        counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, 2)  # A x O x M
+        counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, 2) # A x O x M
 
         denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
         denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)
@@ -90,18 +97,18 @@ def test_split_mem():
         mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1])
         reformed_q0 = (mem_lstd_q0_unflat * prob_mem_given_oa).sum(axis=-1)
 
-        learnt_reformed_q0 = (mem_learnt_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1]) * prob_mem_given_oa).sum(axis=-1)
+        learnt_reformed_q0 = (
+            mem_learnt_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1]) *
+            prob_mem_given_oa).sum(axis=-1)
         if target_lambda == 1:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q1[:, :-1])
         elif target_lambda == 0:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q0[:, :-1])
 
-
 @jax.jit
-def calc_episode_vals(episode: dict, init_mem_belief: jnp.ndarray,
-                      mem_params: jnp.ndarray, learnt_mem_params: jnp.ndarray,
-                      mem_lstd_v: jnp.ndarray, lstd_v1: jnp.ndarray,
-                      mem_learnt_lstd_v: jnp.ndarray):
+def calc_episode_vals(episode: dict, init_mem_belief: jnp.ndarray, mem_params: jnp.ndarray,
+                      learnt_mem_params: jnp.ndarray, mem_lstd_v: jnp.ndarray,
+                      lstd_v1: jnp.ndarray, mem_learnt_lstd_v: jnp.ndarray):
     mem_belief = init_mem_belief.copy()
     learnt_mem_belief = init_mem_belief.copy()
     mem_sampled_v = jnp.zeros(mem_lstd_v.shape[0])
@@ -152,7 +159,10 @@ def test_sample_based_split_mem():
 
     # mem_funcs = [0, 16]
     # mem_funcs = [(19, 0), (16, 1)]
-    agent_path = Path(ROOT_DIR, 'results', 'agent', 'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy')
+    agent_path = Path(
+        ROOT_DIR, 'results', 'agent',
+        'tmaze_eps_hyperparams_seed(2026)_time(20230406-131003)_6a75e7a07d0b20088902a5094ede14cc.pkl.npy'
+    )
     learnt_mem_params, learnt_agent = load_mem_params(agent_path)
 
     # for mem, target_lambda in mem_funcs:
@@ -167,9 +177,7 @@ def test_sample_based_split_mem():
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory(str(19),
-                            n_obs=amdp.n_obs,
-                            n_actions=amdp.n_actions)
+    mem_params = get_memory(str(19), n_obs=amdp.n_obs, n_actions=amdp.n_actions)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
@@ -178,14 +186,23 @@ def test_sample_based_split_mem():
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key, mem_paramses=[mem_params, learnt_mem_params])
+    sampled_episodes = collect_episodes(amdp,
+                                        pi,
+                                        n_episode_samples,
+                                        rand_key,
+                                        mem_paramses=[mem_params, learnt_mem_params])
 
     lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
     lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
 
-    mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(mem_aug_pi, learnt_mem_aug_amdp)
-    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_0)
-    mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_1)
+    mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
+        mem_aug_pi, learnt_mem_aug_amdp)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
+                                                           mem_aug_amdp,
+                                                           lambda_=lambda_0)
+    mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi,
+                                                             mem_aug_amdp,
+                                                             lambda_=lambda_1)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
     mem_learnt_lstd_v0_unflat = mem_learnt_lstd_v0.reshape(-1, mem_params.shape[-1])
@@ -197,11 +214,11 @@ def test_sample_based_split_mem():
     learnt_mem_sampled_v = jnp.zeros_like(mem_sampled_v)
     obs_counts = jnp.zeros_like(mem_sampled_v, dtype=int)
 
-
     for episode in tqdm(sampled_episodes):
 
-        ep_mem_sampled_v, ep_learnt_mem_sampled_v, ep_obs_counts = calc_episode_vals(episode, init_mem_belief, mem_params, learnt_mem_params,
-                                                                            mem_lstd_v0_unflat, lstd_v1, mem_learnt_lstd_v0_unflat)
+        ep_mem_sampled_v, ep_learnt_mem_sampled_v, ep_obs_counts = calc_episode_vals(
+            episode, init_mem_belief, mem_params, learnt_mem_params, mem_lstd_v0_unflat, lstd_v1,
+            mem_learnt_lstd_v0_unflat)
         mem_sampled_v += ep_mem_sampled_v
         learnt_mem_sampled_v += ep_learnt_mem_sampled_v
         obs_counts += ep_obs_counts
@@ -215,8 +232,6 @@ def test_sample_based_split_mem():
     # assert jnp.allclose(learnt_mem_sampled_v, mem_learnt_lstd_v0, atol=1e-3)
     print("hello")
 
-
 if __name__ == "__main__":
     # test_split_mem()
     test_sample_based_split_mem()
-

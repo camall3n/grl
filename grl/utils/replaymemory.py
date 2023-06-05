@@ -159,10 +159,11 @@ def unserialize_np(value, dtype):
 
 def sample_idx_batch(batch_size: int, length: int, rand_key: random.PRNGKey):
     new_rand_key, sample_rand_key = random.split(rand_key, 2)
-    idx = random.randint(sample_rand_key, (batch_size,), minval=0, maxval=length, dtype=int)
+    idx = random.randint(sample_rand_key, (batch_size, ), minval=0, maxval=length, dtype=int)
     return idx, new_rand_key
 
-def sample_seq_idxes(batch_size: int, capacity: int, seq_len: int, length: int, eligible_idxes: jnp.ndarray, rand_key: random.PRNGKey):
+def sample_seq_idxes(batch_size: int, capacity: int, seq_len: int, length: int,
+                     eligible_idxes: jnp.ndarray, rand_key: random.PRNGKey):
     sampled_ei_idx, new_rand_key = sample_idx_batch(batch_size, length, rand_key)
     sample_idx = eligible_idxes[sampled_ei_idx]
     seq_range = jnp.arange(seq_len, dtype=int)[:, None]
@@ -171,7 +172,9 @@ def sample_seq_idxes(batch_size: int, capacity: int, seq_len: int, length: int, 
     return sample_seq_idx, new_rand_key
 
 class ReplayBuffer:
-    def __init__(self, capacity: int, rand_key: random.PRNGKey,
+    def __init__(self,
+                 capacity: int,
+                 rand_key: random.PRNGKey,
                  obs_size: Tuple,
                  obs_dtype: type = float,
                  state_size: Tuple = None,
@@ -276,8 +279,8 @@ class ReplayBuffer:
         state = self.s[sample_idx]
         if self.unpack_state and self.state_size[0] == 2:
             # repack our hidden states
-            state = (get_idx_from_nth_dim(state, 0, packed_dim),
-                     get_idx_from_nth_dim(state, 1, packed_dim))
+            state = (get_idx_from_nth_dim(state, 0,
+                                          packed_dim), get_idx_from_nth_dim(state, 1, packed_dim))
 
         return state
 
@@ -310,7 +313,6 @@ class ReplayBuffer:
 
         return Batch(**batch)
 
-
 class EpisodeBuffer(ReplayBuffer):
     """
     For episode buffer, we return zero-padded batches back.
@@ -321,11 +323,17 @@ class EpisodeBuffer(ReplayBuffer):
     How zero-padded batches work in our case is that the "done" tensor
     is essentially a mask for
     """
-    def __init__(self, capacity: int, rand_key: random.PRNGKey,
-                 obs_size: Tuple, obs_dtype: type = float,
+    def __init__(self,
+                 capacity: int,
+                 rand_key: random.PRNGKey,
+                 obs_size: Tuple,
+                 obs_dtype: type = float,
                  state_size: Tuple = None,
                  unpack_state: bool = False):
-        super(EpisodeBuffer, self).__init__(capacity, rand_key, obs_size, obs_dtype=obs_dtype,
+        super(EpisodeBuffer, self).__init__(capacity,
+                                            rand_key,
+                                            obs_size,
+                                            obs_dtype=obs_dtype,
                                             state_size=state_size,
                                             unpack_state=unpack_state)
         self.jitted_sampled_seq_idxes = jit(sample_seq_idxes, static_argnums=(0, 1, 2))
@@ -337,8 +345,8 @@ class EpisodeBuffer(ReplayBuffer):
 
     def sample_eligible_idxes(self, batch_size: int, seq_len: int) -> np.ndarray:
         length = self.n_eligible_idxes
-        sampled_eligible_idxes, self.rand_key = self.jitted_sampled_seq_idxes(batch_size, self.capacity, seq_len, length,
-                                                                              self.eligible_idxes, self.rand_key)
+        sampled_eligible_idxes, self.rand_key = self.jitted_sampled_seq_idxes(
+            batch_size, self.capacity, seq_len, length, self.eligible_idxes, self.rand_key)
         return sampled_eligible_idxes
 
     def get_zero_mask(self, ends: jnp.ndarray, sample_idx: np.ndarray):
@@ -351,7 +359,8 @@ class EpisodeBuffer(ReplayBuffer):
         # if self.ei_cursor == 0, then we can sample anything!
         if self.ei_cursor != 0:
             # Also, we don't want any experience beyond our current cursor.
-            ys_cursor, xs_cursor = np.nonzero(np.array(sample_idx) == self.eligible_idxes[self.ei_cursor])
+            ys_cursor, xs_cursor = np.nonzero(
+                np.array(sample_idx) == self.eligible_idxes[self.ei_cursor])
 
             ys, xs = np.concatenate([ys_cursor, ys]), np.concatenate([xs_cursor, xs])
 
@@ -360,7 +369,10 @@ class EpisodeBuffer(ReplayBuffer):
                 zero_mask[y, x + 1:] = 0
         return zero_mask
 
-    def sample(self, batch_size: int, seq_len: int = 1, as_dict: bool = False) -> Union[Batch, dict]:
+    def sample(self,
+               batch_size: int,
+               seq_len: int = 1,
+               as_dict: bool = False) -> Union[Batch, dict]:
         sample_idx = self.sample_eligible_idxes(batch_size, seq_len)
         return self.sample_idx(sample_idx)
 

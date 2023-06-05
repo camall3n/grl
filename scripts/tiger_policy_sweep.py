@@ -33,7 +33,9 @@ def fill_in_params(req_params: List[float], pi_shape: Tuple, scale_values: bool 
         scaled_req_params = np.zeros_like(shaped_req_params)
         scaled_req_params[:, 0] = shaped_req_params[:, 0]
         for i in range(1, shaped_req_params.shape[-1]):
-            scaled_req_params[:, i] = (1 - scaled_req_params[:, :i].sum(axis=1)) * shaped_req_params[:, i]
+            scaled_req_params[:,
+                              i] = (1 -
+                                    scaled_req_params[:, :i].sum(axis=1)) * shaped_req_params[:, i]
         shaped_req_params = scaled_req_params
     params[:, :-1] = shaped_req_params
     params[:, -1] = 1 - params[:, :-1].sum(axis=-1)
@@ -46,17 +48,17 @@ def cpu_count():
         return os.cpu_count()
 
 @partial(jit, static_argnames=['gamma'])
-def get_perf(pi_obs: jnp.ndarray,
-                   T: jnp.ndarray,
-                   R: jnp.ndarray,
-                   p0: jnp.ndarray,
-                   phi: jnp.ndarray, gamma: float):
+def get_perf(pi_obs: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarray,
+             phi: jnp.ndarray, gamma: float):
     pi_state = phi @ pi_obs
     state_v, state_q = functional_solve_mdp(pi_state, T, R, gamma)
     return jnp.dot(p0, state_v)
 
-def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
-             pi_iterations: int = 10000, seed: int = 2020):
+def fixed_mi(pi: jnp.ndarray,
+             amdp: AbstractMDP,
+             mem_iterations: int = 30000,
+             pi_iterations: int = 10000,
+             seed: int = 2020):
     rand_key = jax.random.PRNGKey(seed)
     mem_params = get_memory("0",
                             n_obs=amdp.phi.shape[-1],
@@ -68,7 +70,8 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                             rand_key,
                             mem_params=mem_params,
                             policy_optim_alg='pi',
-                            error_type='abs', value_type='q')
+                            error_type='abs',
+                            value_type='q')
 
     agent.new_pi_over_mem()
     mem_loss = mem_improvement(agent,
@@ -90,29 +93,31 @@ def fixed_mi(pi: jnp.ndarray, amdp: AbstractMDP, mem_iterations: int = 30000,
                                    log_every=pi_iterations,
                                    progress_bar=False)
     amdp_mem = memory_cross_product(agent.mem_params, amdp)
-    return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi, amdp_mem.gamma)
-
+    return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi,
+                    amdp_mem.gamma)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='tiger-alt-start', type=str,
+    parser.add_argument('--spec',
+                        default='tiger-alt-start',
+                        type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
-    parser.add_argument('--study_name', default='tiger-alt-start', type=str,
+    parser.add_argument('--study_name',
+                        default='tiger-alt-start',
+                        type=str,
                         help='What is the study name')
-    parser.add_argument('--new_study', action='store_true',
-                        help='Delete existing study?')
-    parser.add_argument('--n_jobs', default=1, type=int,
+    parser.add_argument('--new_study', action='store_true', help='Delete existing study?')
+    parser.add_argument('--n_jobs',
+                        default=1,
+                        type=int,
                         help='How many concurrent jobs do we split into?')
-    parser.add_argument('--trials', default=100, type=int,
-                        help='How many trials do we run?')
+    parser.add_argument('--trials', default=100, type=int, help='How many trials do we run?')
 
     args = parser.parse_args()
 
     config.update('jax_platform_name', 'cpu')
 
-    spec = load_spec(args.spec,
-                     memory_id=0,
-                     n_mem_states=2)
+    spec = load_spec(args.spec, memory_id=0, n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
@@ -131,17 +136,14 @@ if __name__ == "__main__":
         direction='maximize',
         storage=optuna.storages.JournalStorage(
             optuna.storages.JournalFileStorage(str(journal_path))),
-        sampler=optuna.samplers.TPESampler(
-            constant_liar=True,
-            n_startup_trials=100
-        ),
+        sampler=optuna.samplers.TPESampler(constant_liar=True, n_startup_trials=100),
         # sampler=sampler,
         load_if_exists=True,
     )
     results = {}
 
-
     pi_params_shape = (amdp.phi.shape[-1], amdp.T.shape[0])
+
     def objective(trial: optuna.Trial):
         def try_suggesting_float(i_str: str, float_low: float, float_high: float):
             n_suggest_float_attempts = 0
@@ -180,7 +182,7 @@ if __name__ == "__main__":
         n_trials_per_worker = list(map(len, np.array_split(np.arange(args.trials), n_jobs)))
         print(f'Starting pool with {n_jobs} workers')
         print(f'n_trials_per_worker: {n_trials_per_worker}')
-        pool = Pool(n_jobs, maxtasksperchild=1)  # Each new tasks gets a fresh worker
+        pool = Pool(n_jobs, maxtasksperchild=1) # Each new tasks gets a fresh worker
         pool.starmap(
             study.optimize,
             zip(repeat(objective), n_trials_per_worker),
@@ -206,4 +208,3 @@ if __name__ == "__main__":
 
     numpyify_and_save(logs_path, results)
     print(f"Saved results to {logs_path}.")
-

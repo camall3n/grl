@@ -35,7 +35,8 @@ def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
             memories.append(agent.memory)
             agent.step_memory(obs, action)
 
-        sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(all_obs, all_actions, memories)
+        sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(
+            all_obs, all_actions, memories)
 
     lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
     lstd_v1, lstd_q1, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
@@ -261,7 +262,6 @@ def main():
         mem_iter_info_path = agent.study_dir + f'/mem_iter_{n_mem_iterations}_info.pkl'
         log_and_save_info(agent, env, mem_iter_info_path)
 
-
     print('Final memory:')
     print(agent.memory_probs.round(3))
     print()
@@ -275,7 +275,10 @@ def main():
         'final_params': agent.memory_logits,
         'final_discrep': study.best_value,
         'policy_up_prob': args.policy_junction_up_prob,
-        'final_memory_value_function': {'0': agent.q_td.q.copy(), '1': agent.q_mc.q.copy()},
+        'final_memory_value_function': {
+            '0': agent.q_td.q.copy(),
+            '1': agent.q_mc.q.copy()
+        },
         'policy_epsilon': args.policy_epsilon,
     })
     np.save(agent.study_dir + '/info.npy', info)

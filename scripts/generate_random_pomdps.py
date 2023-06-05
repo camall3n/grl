@@ -68,8 +68,14 @@ def generate_pomdps(params):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--generate_pomdps', default=None, nargs=8, type=int,
-                        help='args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; generate pomdp specs and save to environment/pomdp_files/generated/')
+    parser.add_argument(
+        '--generate_pomdps',
+        default=None,
+        nargs=8,
+        type=int,
+        help=
+        'args: n_pomdps, n_policies, min_n_s, max_n_s, min_n_a, max_n_a, min_n_o, max_n_o; generate pomdp specs and save to environment/pomdp_files/generated/'
+    )
     args = parser.parse_args()
     a = args.generate_pomdps
     params = {

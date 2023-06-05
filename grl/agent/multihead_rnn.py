@@ -13,12 +13,8 @@ from grl.utils.data import Batch
 from grl.utils.loss import seq_sarsa_loss, seq_sarsa_mc_loss, seq_sarsa_lambda_discrep, mse
 
 class MultiheadRNNAgent(RNNAgent):
-    def __init__(self,
-                 network: TwoHeadedRNNQNetwork,
-                 optimizer: optax.GradientTransformation,
-                 features_shape: Tuple,
-                 n_actions: int,
-                 args: Namespace):
+    def __init__(self, network: TwoHeadedRNNQNetwork, optimizer: optax.GradientTransformation,
+                 features_shape: Tuple, n_actions: int, args: Namespace):
         super().__init__(network, optimizer, features_shape, n_actions, args)
         self.action_mode = args.multihead_action_mode
         self.loss_mode = args.multihead_loss_mode
@@ -33,7 +29,11 @@ class MultiheadRNNAgent(RNNAgent):
             optimizer_params = {'rnn': rnn_optimizer_params, 'value': value_optimizer_params}
         return network_params, optimizer_params, rand_key
 
-    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray, *args,
+    def Qs(self,
+           network_params: dict,
+           obs: jnp.ndarray,
+           hidden_state: jnp.ndarray,
+           *args,
            mode: str = None) -> Tuple[Union[jnp.ndarray, Tuple], jnp.ndarray]:
         """
         Get all Q-values given an observation and hidden state, from the self.action_mode head.
@@ -51,12 +51,18 @@ class MultiheadRNNAgent(RNNAgent):
             return carry, td_q
         elif mode == 'mc':
             return carry, mc_q
+        elif mode == 'both':
+            return carry, td_q, mc_q
         else:
             raise NotImplementedError
 
-    def _combined_loss(self, combined_params: dict, batch: Batch,
-                       loss_mode: str = 'both', lambda_coeff: float = 0.):
-        final_hidden, all_qs_td, all_qs_mc = self.network.apply(combined_params, batch.obs, batch.state)
+    def _combined_loss(self,
+                       combined_params: dict,
+                       batch: Batch,
+                       loss_mode: str = 'both',
+                       lambda_coeff: float = 0.):
+        final_hidden, all_qs_td, all_qs_mc = self.network.apply(combined_params, batch.obs,
+                                                                batch.state)
 
         q_td, q1_td = all_qs_td[:, :-1], all_qs_td[:, 1:]
         q_mc, q1_mc = all_qs_mc[:, :-1], all_qs_mc[:, 1:]
@@ -87,14 +93,21 @@ class MultiheadRNNAgent(RNNAgent):
         # Don't learn from the values past dones.
         return mse(loss, zero_mask=batch.zero_mask)
 
-    def _split_loss(self, rnn_params: dict, value_heads_params: dict, batch: Batch,
-                    loss_mode: str = 'both', lambda_coeff: float = 0):
+    def _split_loss(self,
+                    rnn_params: dict,
+                    value_heads_params: dict,
+                    batch: Batch,
+                    loss_mode: str = 'both',
+                    lambda_coeff: float = 0):
         """
         :param loss_mode:
         """
         all_params = FrozenDict({'params': {'rnn': rnn_params, 'value': value_heads_params}})
 
-        return self._combined_loss(all_params, batch, loss_mode=loss_mode, lambda_coeff=lambda_coeff)
+        return self._combined_loss(all_params,
+                                   batch,
+                                   loss_mode=loss_mode,
+                                   lambda_coeff=lambda_coeff)
 
     def update(self,
                network_params: dict,
@@ -109,7 +122,9 @@ class MultiheadRNNAgent(RNNAgent):
             batch.state = batch.state[:, 0]
 
         if self.loss_mode in ['both', 'td', 'mc']:
-            loss, grad = jax.value_and_grad(self._combined_loss)(network_params, batch, loss_mode=self.loss_mode)
+            loss, grad = jax.value_and_grad(self._combined_loss)(network_params,
+                                                                 batch,
+                                                                 loss_mode=self.loss_mode)
             updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)
             network_params = optax.apply_updates(network_params, updates)
             info = {'total_loss': loss}
@@ -126,7 +141,9 @@ class MultiheadRNNAgent(RNNAgent):
             rnn_loss, rnn_grad = \
                 jax.value_and_grad(self._split_loss, argnums=0)(og_rnn_params, og_value_params, batch,
                                                                 loss_mode='both')
-            rnn_updates, rnn_optimizer_state = self.optimizer.update(rnn_grad, optimizer_state['rnn'], og_rnn_params)
+            rnn_updates, rnn_optimizer_state = self.optimizer.update(rnn_grad,
+                                                                     optimizer_state['rnn'],
+                                                                     og_rnn_params)
             rnn_params = optax.apply_updates(og_rnn_params, rnn_updates)
 
             # Value head update
@@ -139,12 +156,13 @@ class MultiheadRNNAgent(RNNAgent):
 
             network_params = FrozenDict({'params': {'rnn': rnn_params, 'value': value_params}})
             optimizer_state = {'rnn': rnn_optimizer_state, 'value': value_optimizer_state}
-            info = {'rnn_loss': rnn_loss, 'value_loss': value_loss, 'total_loss': rnn_loss + rnn_loss}
+            info = {
+                'rnn_loss': rnn_loss,
+                'value_loss': value_loss,
+                'total_loss': rnn_loss + rnn_loss
+            }
 
         else:
             raise NotImplementedError
 
         return network_params, optimizer_state, info
-
-
-

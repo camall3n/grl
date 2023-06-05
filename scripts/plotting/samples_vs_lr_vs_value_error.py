@@ -62,18 +62,33 @@ df = pd.DataFrame(data)
 
 #%%
 sns.lineplot(data=df, x='n_samples', y='value_error', hue='learning_rate', style='lambda')
-plt.hlines(df.lstd_discrep.mean(), df.n_samples.min(), df.n_samples.max(), linestyle='--', color='r')
-plt.text(x=df.n_samples.min(), y=lstd_discrep-0.001, s=r'$D_\lambda$ for $\lambda \in \{0, 0.9\}$ (analytical)', ha='left', va='top')
+plt.hlines(df.lstd_discrep.mean(),
+           df.n_samples.min(),
+           df.n_samples.max(),
+           linestyle='--',
+           color='r')
+plt.text(x=df.n_samples.min(),
+         y=lstd_discrep - 0.001,
+         s=r'$D_\lambda$ for $\lambda \in \{0, 0.9\}$ (analytical)',
+         ha='left',
+         va='top')
 plt.semilogx()
 plt.ylim([-0.05, 0.2])
 plt.ylabel('Q-function MSE')
 plt.xlabel('Number of samples')
 
 #%%
-sns.lineplot(data=df.query('lambda_mode=="mc"'), x='n_samples', y='samp_discrep', hue='learning_rate', palette='colorblind')
+sns.lineplot(data=df.query('lambda_mode=="mc"'),
+             x='n_samples',
+             y='samp_discrep',
+             hue='learning_rate',
+             palette='colorblind')
 plt.semilogx()
 plt.hlines(lstd_discrep, df.n_samples.min(), df.n_samples.max(), linestyle='--', color='r')
-plt.text(x=df.n_samples.median(), y=lstd_discrep-0.008, s=r'$D_\lambda$ for $\lambda \in \{0, 0.9\}$ (analytical)', ha='left')
+plt.text(x=df.n_samples.median(),
+         y=lstd_discrep - 0.008,
+         s=r'$D_\lambda$ for $\lambda \in \{0, 0.9\}$ (analytical)',
+         ha='left')
 plt.semilogx()
 plt.ylabel(r'Estimated $\lambda$ discrepancy')
 plt.xlabel('Number of samples')

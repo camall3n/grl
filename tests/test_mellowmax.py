@@ -17,7 +17,7 @@ assert arg_boltzman(x, beta=1).shape == x.shape
 assert arg_mellowmax(x, beta=3.9).shape == x.shape
 
 #%%
-shape = (2,3,4,5)
+shape = (2, 3, 4, 5)
 x = np.reshape(np.arange(np.prod(shape)), shape)
 
 for axis in range(-2, 4):

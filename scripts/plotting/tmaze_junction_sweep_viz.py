@@ -25,10 +25,12 @@ config.update('jax_platform_name', 'cpu')
 #%%
 # importance sampling results
 planning_up_prob_filename = str(Path(ROOT_DIR, 'results/tmaze_sweep_junction_pi_obs_space'))
-learning_up_prob_filename = str(Path(ROOT_DIR, 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'))
+learning_up_prob_filename = str(
+    Path(ROOT_DIR, 'results/sample_based/sweep-up-prob-imp-samp-7/tmaze_5_two_thirds_up/*'))
 planning_eps_filename = str(Path(ROOT_DIR, 'results/tmaze_sweep_eps_obs_space'))
 # learning_eps_filename = 'results/sample_based/sweep-eps-imp-samp-04/tmaze_5_two_thirds_up/*'
-learning_eps_filename = str(Path(ROOT_DIR, 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'))
+learning_eps_filename = str(
+    Path(ROOT_DIR, 'results/sample_based/sweep-eps-05-analytical-optuna/tmaze_5_two_thirds_up/*'))
 
 #%%
 def test_mem_matrix(mem_params: jnp.ndarray, test_preserving: bool = True, mse: bool = False):
@@ -282,7 +284,7 @@ plot_sweep(learning_data,
            title='Learning Agent',
            add_colorbar=True)
 #%%
-planning_data[planning_data['policy_epsilon'] < 0.2
+planning_data[planning_data['policy_epsilon']] < 0.2
 
 #%%
 fig, ax = plt.subplots()

@@ -45,10 +45,7 @@ if __name__ == "__main__":
 
     pi = spec['Pi_phi'][0]
     pi_params = reverse_softmax(pi)
-    mem_params = get_memory('f',
-                            n_obs=amdp.n_obs,
-                            n_actions=amdp.n_actions,
-                            leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
     n_mem = mem_params.shape[-1]
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)
@@ -62,14 +59,14 @@ if __name__ == "__main__":
         all_policy_grads = all_policy_grads.at[o].set(policy_grad_fn(pi_params, amdp, o))
 
     # l2 norm of all gradients
-    pg_norms = jnp.sqrt(jnp.einsum('ijk->i', all_policy_grads ** 2))
+    pg_norms = jnp.sqrt(jnp.einsum('ijk->i', all_policy_grads**2))
 
     outs, params_grad = jax.value_and_grad(pg_objective_func, has_aux=True)(pi_params, amdp)
     pg_norms_over_obs = jnp.linalg.norm(params_grad, axis=-1)
 
-    mem_aug_outs, mem_aug_params_grad = jax.value_and_grad(pg_objective_func, has_aux=True)(mem_aug_pi_params, mem_aug_amdp)
+    mem_aug_outs, mem_aug_params_grad = jax.value_and_grad(pg_objective_func,
+                                                           has_aux=True)(mem_aug_pi_params,
+                                                                         mem_aug_amdp)
     pg_norms_over_mem_aug_obs = jnp.linalg.norm(mem_aug_params_grad, axis=-1)
 
     print("done")
-
-

@@ -17,7 +17,7 @@ class Batch:
     gamma: Union[np.ndarray, jnp.ndarray, Iterable] = None
     state: Union[np.ndarray, jnp.ndarray, Iterable] = None
     next_state: Union[np.ndarray, jnp.ndarray, Iterable] = None
-    end: Union[np.ndarray, jnp.ndarray, Iterable] = None  # End is done or max_steps == timesteps
+    end: Union[np.ndarray, jnp.ndarray, Iterable] = None # End is done or max_steps == timesteps
 
     # MC stuff
     returns: Union[np.ndarray, jnp.ndarray, Iterable] = None
@@ -50,7 +50,10 @@ def compress_episode_rewards(episode_reward: jnp.ndarray) -> dict:
     where 'compressed_rewards' is a list of (t, r_t), whenever r_t != the most common reward.
     """
     most_common_reward = max(set(episode_reward), key=episode_reward.count)
-    compressed_rewards = [(i, rew) for i, rew in enumerate(episode_reward) if rew != most_common_reward]
-    return {'episode_length': len(episode_reward),
-            'most_common_reward': most_common_reward,
-            'compressed_rewards': compressed_rewards}
+    compressed_rewards = [(i, rew) for i, rew in enumerate(episode_reward)
+                          if rew != most_common_reward]
+    return {
+        'episode_length': len(episode_reward),
+        'most_common_reward': most_common_reward,
+        'compressed_rewards': compressed_rewards
+    }

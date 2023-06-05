@@ -10,9 +10,13 @@ from definitions import ROOT_DIR
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec',
+                        default='example_11',
+                        type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
-    parser.add_argument('--tol', default=1e-10, type=float,
+    parser.add_argument('--tol',
+                        default=1e-10,
+                        type=float,
                         help='name of POMDP spec; evals Pi_phi policies by default')
 
     args = parser.parse_args()

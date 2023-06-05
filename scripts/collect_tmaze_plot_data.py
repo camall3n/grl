@@ -22,14 +22,19 @@ def calc_init_obs_dist(mem_fns: np.ndarray, action_idx: int = 2):
     second_min = np.linalg.norm(ab - np.array([0, 1]), axis=-1, ord=2)
     return np.minimum(first_min, second_min)
 
-
 if __name__ == "__main__":
     config.update('jax_platform_name', 'cpu')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n', default=100, type=int,
-                        help='How many points for corridor do we linspace over? (total points is squared of this)')
-    parser.add_argument('--m', default=10, type=int,
-                        help='How many points for init_obs do we linspace over? (total points is squared of this)')
+    parser.add_argument(
+        '--n',
+        default=100,
+        type=int,
+        help='How many points for corridor do we linspace over? (total points is squared of this)')
+    parser.add_argument(
+        '--m',
+        default=10,
+        type=int,
+        help='How many points for init_obs do we linspace over? (total points is squared of this)')
     args = parser.parse_args()
 
     df_path = Path(ROOT_DIR, 'results', 'analytical_tmaze_plot_data.pkl')
@@ -50,7 +55,8 @@ if __name__ == "__main__":
     all_ps_qs = np.array(np.meshgrid(qs, qs, ps, ps)).T.reshape(-1, 4)
 
     n_total_mem_funcs = all_ps_qs.shape[0]
-    all_mem_funcs = np.expand_dims(softmax(mem_params, axis=-1), 0).repeat(n_total_mem_funcs, axis=0)
+    all_mem_funcs = np.expand_dims(softmax(mem_params, axis=-1), 0).repeat(n_total_mem_funcs,
+                                                                           axis=0)
 
     # init obs
     all_mem_funcs[:, 2, 0, 0, 0] = all_ps_qs[:, 0]
@@ -86,10 +92,10 @@ if __name__ == "__main__":
 
     calc_discrep = jit(mem_discrep_loss)
     for i, mem_func in enumerate(tqdm(mem_funcs)):
-        discreps[i] = calc_discrep(reverse_softmax(mem_func), spec['gamma'], pi_x, spec['T'], spec['R'], spec['phi'], spec['p0'])
+        discreps[i] = calc_discrep(reverse_softmax(mem_func), spec['gamma'], pi_x, spec['T'],
+                                   spec['R'], spec['phi'], spec['p0'])
 
     df = pd.DataFrame({'y': ys, 'p1': p1s, 'p2': p2s, 'D': discreps})
     df.to_pickle(df_path)
 
     print(f"Saved {df.shape[0]} rows to {df_path}.")
-

@@ -13,12 +13,8 @@ from grl.utils.data import Batch
 from grl.utils.loss import mse, seq_sarsa_loss
 
 class RNNAgent:
-    def __init__(self,
-                 network: nn.Module,
-                 optimizer: GradientTransformation,
-                 features_shape: Tuple,
-                 n_actions: int,
-                 args: Namespace):
+    def __init__(self, network: nn.Module, optimizer: GradientTransformation,
+                 features_shape: Tuple, n_actions: int, args: Namespace):
 
         self.features_shape = features_shape
         self.n_hidden = args.hidden_size
@@ -40,8 +36,7 @@ class RNNAgent:
         """
         rand_key, network_key = random.split(rand_key)
         new_carry, rand_key = self.reset(rand_key)
-        network_params = self.network.init(network_key,
-                                           jnp.zeros((1, 1, *self.features_shape)),
+        network_params = self.network.init(network_key, jnp.zeros((1, 1, *self.features_shape)),
                                            new_carry)
 
         optimizer_params = self.optimizer.init(network_params)
@@ -56,19 +51,22 @@ class RNNAgent:
         new_carry = rnn_module_class.initialize_carry(carry_key, (1, ), self.n_hidden)
         return new_carry, rand_key
 
-    def act(self, network_params: dict, obs: jnp.ndarray, hs: jnp.ndarray, rand_key: random.PRNGKey):
+    def act(self, network_params: dict, obs: jnp.ndarray, hs: jnp.ndarray,
+            rand_key: random.PRNGKey):
         """
         Given an observation, act based on self.hidden_state.
         obs should be of size n_obs, with NO batch dimension and NO time dimension.
         """
-        obs = jnp.expand_dims(jnp.expand_dims(obs, 0), 0)  # bs x ts x *obs_size, bs = ts = 1
+        obs = jnp.expand_dims(jnp.expand_dims(obs, 0), 0) # bs x ts x *obs_size, bs = ts = 1
         action_probs = jnp.zeros(self.n_actions) + self.eps / self.n_actions
         greedy_idx, new_hidden_state, qs = self.greedy_act(network_params, obs, hs)
         action_probs = action_probs.at[greedy_idx].add(1 - self.eps)
 
         key, subkey = random.split(rand_key)
-        selected_action = random.choice(subkey, jnp.arange(self.n_actions),
-                                        p=action_probs, shape=(obs.shape[0],))
+        selected_action = random.choice(subkey,
+                                        jnp.arange(self.n_actions),
+                                        p=action_probs,
+                                        shape=(obs.shape[0], ))
 
         return selected_action, key, new_hidden_state, qs
 
@@ -84,7 +82,8 @@ class RNNAgent:
         new_hidden_state, qs = self.Qs(network_params, obs, hidden_state)
         return jnp.argmax(qs[:, 0], axis=1), new_hidden_state, qs
 
-    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray, *args) -> jnp.ndarray:
+    def Qs(self, network_params: dict, obs: jnp.ndarray, hidden_state: jnp.ndarray,
+           *args) -> jnp.ndarray:
         """
         Get all Q-values given an observation and hidden state.
         :param network_params: network params to find Qs w.r.t.
@@ -101,7 +100,8 @@ class RNNAgent:
         actions, next_actions = batch.action[:, :-1], batch.action[:, 1:]
 
         batch_loss = jax.vmap(seq_sarsa_loss)
-        td_err = batch_loss(q, actions, batch.reward, batch.gamma, next_q, next_actions)  # Should be batch x seq_len
+        td_err = batch_loss(q, actions, batch.reward, batch.gamma, next_q,
+                            next_actions) # Should be batch x seq_len
 
         # Don't learn from the values past dones.
         td_err *= batch.zero_mask

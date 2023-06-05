@@ -47,15 +47,16 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
     spec = environment.load_spec(env_name, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = AbstractMDP(mdp, spec['phi'])
-    mem_logits = jnp.log(memory+1e-20)
+    mem_logits = jnp.log(memory + 1e-20)
     amdp_mem = memory_cross_product(mem_logits, env)
 
     def expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc):
         c_s = amdp_get_occupancy(greedify(policy), amdp_mem)
         c_o = (c_s @ amdp_mem.phi)
         p_o = c_o / c_o.sum()
-        p_oa = (policy * p_o[:,None]).T
+        p_oa = (policy * p_o[:, None]).T
         return (abs(td - mc) * p_oa).sum()
+
     expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc)
 
     performance = get_perf(greedify(policy), amdp_mem)

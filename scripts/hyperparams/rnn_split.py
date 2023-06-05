@@ -5,13 +5,13 @@ exp_name = Path(__file__).stem
 hparams = {
     'file_name':
         f'runs_{exp_name}.txt',
-    'entry': '-m grl.run_sample_based',
+    'entry':
+        '-m grl.run_sample_based',
     'args': [
         {
             # Env
             'spec': [
-                'cheese.95', 'tiger-alt-start',
-                'network', 'tmaze_5_two_thirds_up', '4x3.95',
+                'cheese.95', 'tiger-alt-start', 'network', 'tmaze_5_two_thirds_up', '4x3.95',
                 'shuttle.95', 'paint.95', 'hallway'
             ],
             'no_gamma_terminal': False,
@@ -44,8 +44,8 @@ hparams = {
             # Logging and Checkpointing
             'offline_eval_freq': 1000,
             'offline_eval_episodes': 5,
-            'offline_eval_epsilon': None,  # Defaults to epsilon
-            'checkpoint_freq': -1,  # only save last agent
+            'offline_eval_epsilon': None, # Defaults to epsilon
+            'checkpoint_freq': -1, # only save last agent
 
             # Experiment
             'total_steps': 150000,

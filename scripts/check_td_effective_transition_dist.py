@@ -10,7 +10,8 @@ from grl.memory import get_memory
 from grl.mdp import MDP, AbstractMDP, normalize
 from grl.utils.mdp import get_td_model
 
-def gather_counts(amdp: AbstractMDP, pi: jnp.ndarray,
+def gather_counts(amdp: AbstractMDP,
+                  pi: jnp.ndarray,
                   rand_key: random.PRNGKey,
                   n_samples: int = int(1e3)):
     amdp_obs_count = np.zeros(amdp.n_obs)
@@ -47,22 +48,20 @@ if __name__ == "__main__":
     rand_key = jax.random.PRNGKey(seed)
     np.random.seed(seed)
 
-    spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
-                     corridor_length=corridor_length,
-                     discount=discount,
-                     junction_up_pi=junction_up_pi,
-                     epsilon=epsilon)
+    spec = load_spec(
+        spec_name,
+        # memory_id=str(mem),
+        memory_id=str('f'),
+        mem_leakiness=0.2,
+        corridor_length=corridor_length,
+        discount=discount,
+        junction_up_pi=junction_up_pi,
+        epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f',
-                            n_obs=amdp.n_obs,
-                            n_actions=amdp.n_actions,
-                            leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
 
     pi = spec['Pi_phi'][0]
 

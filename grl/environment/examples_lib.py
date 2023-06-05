@@ -713,7 +713,8 @@ def tmaze_5_two_thirds_up_fully_observable():
     T, R, discount, p0, phi = tmaze(n, discount=discount)
     phi_fully_observable = np.eye(T.shape[-1])
 
-    pi_obs = np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    pi_obs = np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0],
+                       [1, 0, 0, 0]])
     pi = phi @ pi_obs
 
     Pi_phi = [pi]
@@ -796,14 +797,12 @@ def tmaze_5_obs_optimal():
 def tiger_fixed_pi():
     file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'tiger-alt-start.POMDP')
     spec = POMDPFile(file_path).get_spec()
-    Pi_phi = [
-        np.array([
-            [1, 0, 0],
-            [0.1, 0.1, 0.8],
-            [0.1, 0.7, 0.2],
-            [0, 0, 1],
-        ])
-    ]
+    Pi_phi = [np.array([
+        [1, 0, 0],
+        [0.1, 0.1, 0.8],
+        [0.1, 0.7, 0.2],
+        [0, 0, 1],
+    ])]
 
     # memory policy is observations * memory bits (2) x n_actions
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]

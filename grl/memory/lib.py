@@ -98,7 +98,6 @@ def all_n_state_deterministic_memory(n_mem_states: int):
     all_mem_funcs = id[all_idxes]
     return all_mem_funcs
 
-
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down

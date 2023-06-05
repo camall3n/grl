@@ -12,7 +12,10 @@ from grl.utils.policy_eval import lstdq_lambda
 
 from scripts.variance_calcs import collect_episodes
 
-def mem_traj_prob(mem_params: jnp.ndarray, init_mem_belief: jnp.ndarray, mem: int, episode: dict,
+def mem_traj_prob(mem_params: jnp.ndarray,
+                  init_mem_belief: jnp.ndarray,
+                  mem: int,
+                  episode: dict,
                   T: int = None):
     mem_probs = softmax(mem_params, axis=-1)
 
@@ -48,23 +51,21 @@ if __name__ == "__main__":
     rand_key = jax.random.PRNGKey(seed)
     np.random.seed(seed)
 
-    spec = load_spec(spec_name,
-                     # memory_id=str(mem),
-                     memory_id=str('f'),
-                     mem_leakiness=0.2,
-                     corridor_length=corridor_length,
-                     discount=discount,
-                     junction_up_pi=junction_up_pi,
-                     epsilon=epsilon)
+    spec = load_spec(
+        spec_name,
+        # memory_id=str(mem),
+        memory_id=str('f'),
+        mem_leakiness=0.2,
+        corridor_length=corridor_length,
+        discount=discount,
+        junction_up_pi=junction_up_pi,
+        epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f',
-                            n_obs=amdp.n_obs,
-                            n_actions=amdp.n_actions,
-                            leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     traj_grad_fn = jax.grad(mem_traj_prob)
@@ -76,14 +77,19 @@ if __name__ == "__main__":
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp, pi, n_episode_samples, rand_key, mem_paramses=[mem_params, learnt_mem_params])
+    sampled_episodes = collect_episodes(amdp,
+                                        pi,
+                                        n_episode_samples,
+                                        rand_key,
+                                        mem_paramses=[mem_params, learnt_mem_params])
 
     lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
 
-    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=lambda_0)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
+                                                           mem_aug_amdp,
+                                                           lambda_=lambda_0)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
     init_mem_belief = jnp.zeros(n_mem_states)
     init_mem_belief = init_mem_belief.at[0].set(1.)
-
