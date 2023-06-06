@@ -1,8 +1,11 @@
 numpy
 gmpy2
 jax[cpu]
+flax
+optax
 seaborn
 matplotlib
 -e .
 tqdm
-onager
+git+https://github.com/camall3n/onager.git
+optuna==3.1.0

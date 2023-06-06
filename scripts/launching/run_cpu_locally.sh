@@ -3,4 +3,4 @@ export CUDA_VISIBLE_DEVICES=0
 
 cd ../../
 source venv/bin/activate
-parallel --eta -u < 'scripts/runs/runs_pomdps_mi_pi_q_abs.txt'
+parallel --eta -u < 'scripts/runs/runs_tiger_grid_mi_pi_obs_space.txt'

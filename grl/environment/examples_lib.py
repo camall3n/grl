@@ -1,8 +1,11 @@
 import numpy as np
+from pathlib import Path
 
-from .memory_lib import *
 from .tmaze_lib import tmaze, slippery_tmaze
 from grl.mdp import random_stochastic_matrix
+from grl.environment.pomdp_file import POMDPFile
+from grl.utils.mdp import to_dict
+from definitions import ROOT_DIR
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -630,7 +633,8 @@ def simple_chain(n: int = 10):
 
 def tmaze_hyperparams(corridor_length: int = 5,
                       discount: float = 0.9,
-                      junction_up_pi: float = 2 / 3):
+                      junction_up_pi: float = 2 / 3,
+                      **kwargs):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
     policy is still go right everywhere except for junction.
@@ -645,10 +649,21 @@ def tmaze_hyperparams(corridor_length: int = 5,
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(corridor_length, discount=discount), Pi_phi, Pi_phi_x)
 
+def po_simple_chain(n: int = 10):
+    spec = simple_chain(n)
+
+    # only one observation
+    phi = np.ones((n, 1))
+    Pi_phi = [np.ones((1, 1))]
+    spec['phi'] = phi
+    spec['Pi_phi'] = Pi_phi
+    return spec
+
 def tmaze_eps_hyperparams(corridor_length: int = 5,
                           discount: float = 0.9,
                           junction_up_pi: float = 2 / 3,
-                          epsilon: float = 0.1):
+                          epsilon: float = 0.1,
+                          **kwargs):
     """
     tmaze, except set the junction length, discount, and t-junction policy based on hyperparams
     policy is still go right everywhere except for junction.
@@ -678,6 +693,19 @@ def tmaze_5_two_thirds_up():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
+def tmaze_2_two_thirds_up():
+    # n_obs x n_actions
+    n = 2
+    discount = 0.99999999999
+    Pi_phi = [
+        np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0], [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    tmaze_instance = tmaze(n, discount=discount, good_term_reward=1, bad_term_reward=0)
+    return to_dict(*tmaze_instance, Pi_phi, Pi_phi_x)
+
 def tmaze_5_two_thirds_up_fully_observable():
     # n_obs x n_actions
     n = 5
@@ -685,11 +713,9 @@ def tmaze_5_two_thirds_up_fully_observable():
     T, R, discount, p0, phi = tmaze(n, discount=discount)
     phi_fully_observable = np.eye(T.shape[-1])
 
-    pi = np.zeros((T.shape[-1], 4))
-    pi[:, 2] = 1
-    pi[-2, :] = 0
-    pi[-2, 0] = 2 / 3
-    pi[-2, 1] = 1 / 3
+    pi_obs = np.array([[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [2 / 3, 1 / 3, 0, 0],
+                       [1, 0, 0, 0]])
+    pi = phi @ pi_obs
 
     Pi_phi = [pi]
 
@@ -768,13 +794,93 @@ def tmaze_5_obs_optimal():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
-def to_dict(T, R, gamma, p0, phi, Pi_phi, Pi_phi_x=None):
-    return {
-        'T': T,
-        'R': R,
-        'gamma': gamma,
-        'p0': p0,
-        'phi': phi,
-        'Pi_phi': Pi_phi,
-        'Pi_phi_x': Pi_phi_x,
-    }
+def tiger_fixed_pi():
+    file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'tiger-alt-start.POMDP')
+    spec = POMDPFile(file_path).get_spec()
+    Pi_phi = [np.array([
+        [1, 0, 0],
+        [0.1, 0.1, 0.8],
+        [0.1, 0.7, 0.2],
+        [0, 0, 1],
+    ])]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+
+    spec['Pi_phi'] = Pi_phi
+    spec['Pi_phi_x'] = Pi_phi_x
+
+    return spec
+
+def count_by_n(n: int = 5):
+    T_right = np.zeros((n + 1, n + 1))
+    T_right[np.arange(n - 1), np.arange(1, n)] = 1
+    T_right[[-2, -1], -1] = 1
+
+    T_up = np.zeros_like(T_right)
+    T_up[:, -1] = 1
+
+    T = np.array([T_up, T_right])
+
+    R_right = np.zeros_like(T_right)
+    R_right[-2, -1] = -1
+
+    R_up = np.zeros_like(T_up)
+    # R_up[np.arange(n), -1] = -1
+    R_up[-2, -1] = 1
+    R = np.array([R_up, R_right])
+
+    phi = np.zeros((n + 1, 2))
+    phi[:n, 0] = 1
+    phi[-1, -1] = 1
+
+    p0 = np.zeros(n + 1)
+    p0[0] = 1
+
+    pi_phi = None
+
+    return to_dict(T, R, 0.9, p0, phi, pi_phi)
+
+def short_corridor():
+    """
+    Short corridor in func. approx as described in Example 13.1
+    In the RL Book.
+    """
+    T_left = np.array([
+        # r, b, r, t
+        [1, 0, 0, 0],
+        [0, 0, 1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
+    ])
+
+    T_right = np.array([
+        # r, b, r, t
+        [0, 1, 0, 0],
+        [1, 0, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1]
+    ])
+    T = np.array([T_left, T_right])
+
+    R = -np.ones((2, 4, 4))
+    R[:, -1, -1] = 0
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        [1, 0],
+        [1, 0],
+        [1, 0],
+        [0, 1],
+    ])
+
+    Pi_phi = [
+        np.array([
+            [1, 0], # up, down
+            [1, 0],
+        ]),
+    ]
+
+    return to_dict(T, R, 0.9999, p0, phi, Pi_phi, None)

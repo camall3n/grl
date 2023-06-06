@@ -2,6 +2,9 @@ import copy
 from gmpy2 import mpz
 import numpy as np
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
+
+from grl.utils.data import one_hot
 
 def normalize(M, axis=-1):
     M = M.astype(float)
@@ -60,25 +63,36 @@ def random_observation_fn(n_states, n_obs_per_block):
     observation_fn = obs_fn_mask * tiled_split_probs
     return observation_fn
 
-def one_hot(x, n):
-    return jnp.eye(n)[x]
-
+@register_pytree_node_class
 class MDP:
-    def __init__(self, T, R, p0, gamma=0.9):
+    def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None):
         self.n_states = len(T[0])
         self.n_obs = self.n_states
         self.n_actions = len(T)
         self.gamma = gamma
-        if isinstance(T, np.ndarray):
-            self.T = np.stack(T).copy().astype(float)
-            self.R = np.stack(R).copy().astype(float)
-        else:
-            self.T = jnp.stack(T).copy().astype(float)
-            self.R = jnp.stack(R).copy().astype(float)
+        self.T = T
+        self.R = R
+        # if isinstance(T, np.ndarray):
+        #     self.T = np.stack(T).copy().astype(float)
+        #     self.R = np.stack(R).copy().astype(float)
+        # else:
+        #     self.T = jnp.stack(T).copy().astype(float)
+        #     self.R = jnp.stack(R).copy().astype(float)
 
         self.R_min = np.min(self.R)
         self.R_max = np.max(self.R)
         self.p0 = p0
+        self.current_state = None
+        self.rand_key = rand_key
+
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*children)
 
     def __repr__(self):
         return repr(self.T) + '\n' + repr(self.R)
@@ -113,22 +127,47 @@ class MDP:
             old_distr = state_distr
         return state_distr
 
-    def step(self, s, a, gamma):
-        pr_next_s = self.T[a, s, :]
-        sp = np.random.choice(self.n_states, p=pr_next_s)
-        r = self.R[a][s][sp]
-        # Check if sp is terminal state
-        sp_is_absorbing = (self.T[:, sp, sp] == 1)
-        done = sp_is_absorbing.all()
-        # Discounting
-        # End episode with probability 1-gamma
-        if np.random.uniform() < (1 - gamma):
-            done = True
+    def reset(self, state=None):
+        if state is None:
+            if self.rand_key is not None:
+                state = self.rand_key.choice(self.n_states, p=self.p0)
+            else:
+                state = np.random.choice(self.n_states, p=self.p0)
+        self.current_state = state
+        info = {'state': self.current_state}
+        return self.observe(self.current_state), info
 
-        return sp, r, done
+    def step(self, action: int, gamma_terminal: bool = True):
+        pr_next_s = self.T[action, self.current_state, :]
+        if self.rand_key is not None:
+            next_state = self.rand_key.choice(self.n_states, p=pr_next_s)
+        else:
+            next_state = np.random.choice(self.n_states, p=pr_next_s)
+        reward = self.R[action][self.current_state][next_state]
+        # Check if next_state is absorbing state
+        is_absorbing = (self.T[:, next_state, next_state] == 1)
+        terminal = is_absorbing.all() # absorbing for all actions
+        # Discounting: end episode with probability 1-gamma
+        if gamma_terminal:
+            if self.rand_key is not None:
+                unif = self.rand_key.uniform()
+            else:
+                unif = np.random.uniform()
+            if unif < (1 - self.gamma):
+                terminal = True
+        truncated = False
+        observation = self.observe(next_state)
+        info = {'state': next_state}
+        self.current_state = next_state
+        # Conform to new-style Gym API
+        return observation, reward, terminal, truncated, info
 
     def observe(self, s):
         return s
+
+    @property
+    def observation_space(self):
+        return (self.n_states, )
 
     def image(self, pr_x, pi=None):
         T = self.T_pi(pi)
@@ -193,27 +232,37 @@ class BlockMDP(MDP):
         self.R = jnp.stack(self.R)
         self.obs_fn = obs_fn
 
+@register_pytree_node_class
 class AbstractMDP(MDP):
-    def __init__(self, base_mdp, phi, pi=None, t=200):
+    def __init__(self, base_mdp, phi):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.n_states, n_abstract_states
         self.n_obs = phi.shape[-1]
 
-        # self.belief = self.B(pi, t=t)
-        # self.T = [self.compute_Tz(self.belief,T_a)
-        #             for T_a in base_mdp.T]
-        # self.R = [self.compute_Rz(self.belief,Rx_a,Tx_a,Tz_a)
-        #             for (Rx_a, Tx_a, Tz_a) in zip(base_mdp.R, base_mdp.T, self.T)]
-        # self.T = jnp.stack(self.T)
-        # self.R = jnp.stack(self.R)
+    def tree_flatten(self):
+        children = (self.T, self.R, self.p0, self.gamma, self.phi)
+        aux_data = None
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        mdp = MDP(*children[:-1])
+        return cls(mdp, children[-1])
 
     def __repr__(self):
         base_str = super().__repr__()
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
+        if self.rand_key is not None:
+            return self.rand_key.choice(self.n_obs, p=self.phi[s])
+
         return np.random.choice(self.n_obs, p=self.phi[s])
+
+    @property
+    def observation_space(self):
+        return (self.n_obs, )
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)

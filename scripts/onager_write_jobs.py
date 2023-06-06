@@ -39,6 +39,9 @@ def generate_onager_runs(run_dicts: List[dict],
         arg_list = []
 
         for k, v in run_dict.items():
+            if v is None:
+                continue
+
             if not (isinstance(v, list) or isinstance(v, np.ndarray)):
                 if isinstance(v, bool):
                     if v:
@@ -48,20 +51,25 @@ def generate_onager_runs(run_dicts: List[dict],
                 else:
                     command += f" --{k} {v}"
             else:
-                arg_string = f"+arg --{k} {' '.join(map(str, v))}"
+                if all([isinstance(el, bool) for el in v]):
+                    arg_string = f"+flag --{k}"
+                else:
+                    arg_string = f"+arg --{k} {' '.join(map(str, v))}"
                 arg_list.append(arg_string)
 
-        command += f" --experiment_name {experiment_name}"
+        command += f" --study_name {experiment_name}"
 
         prelaunch_list.append(f'+command "{command}"')
         prelaunch_list += arg_list
 
         prelaunch_string = ' '.join(prelaunch_list)
         print(f"Launching prelaunch script: {prelaunch_string}")
+        os.chdir(ROOT_DIR)
         os.system(prelaunch_string)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument('--study_name', default=None, type=str)
     parser.add_argument('--hparam', default='', type=str)
     parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
@@ -77,4 +85,7 @@ if __name__ == "__main__":
     if 'pairs' in hparams:
         pairs = hparams['pairs']
 
-    generate_onager_runs(hparams['args'], args.hparam, main_fname=main_fname)
+    exp_name = args.hparam
+    if args.study_name is not None:
+        exp_name = args.study_name
+    generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname)

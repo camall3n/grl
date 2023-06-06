@@ -1,27 +1,111 @@
-import sys
-import numpy as np
+from itertools import product
 
-from grl.utils.math import glorot_init
+import numpy as np
+from tqdm import tqdm
+
+from grl.utils.math import glorot_init, reverse_softmax
+
+def get_memory(memory_id: str,
+               n_obs: int = None,
+               n_actions: int = None,
+               n_mem_states: int = 2,
+               leakiness: float = 0.1) -> np.ndarray:
+    current_module = globals()
+    mem_name = f'memory_{memory_id}'
+    if memory_id.isdigit():
+        if int(memory_id) == 0:
+            if n_obs is None or n_actions is None:
+                raise ValueError('Must specify n_obs and n_actions when generating memory params')
+            mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
+        else:
+            if mem_name in current_module:
+                T_mem = current_module[mem_name]
+                # smooth out for softmax
+                mem_params = reverse_softmax(T_mem)
+            else:
+                raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
+    elif memory_id == 'f':
+        assert (n_obs is not None) and (n_actions is not None), \
+            f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
+        identity = np.eye(n_mem_states)
+        fuzzy_identity = identity - identity * leakiness + (1 - identity) * leakiness
+        # 1 x 1 x n_mem_states x n_mem_states
+        fuzzy_expanded_identity = np.expand_dims(np.expand_dims(fuzzy_identity, 0), 0)
+        mem_func = fuzzy_expanded_identity.repeat(n_obs, axis=1).repeat(n_actions, axis=0)
+
+        mem_params = reverse_softmax(mem_func)
+    else:
+        raise NotImplementedError(f"No memory of id {memory_id} exists.")
+    return mem_params
+
+def generate_1bit_mem_fns(n_obs, n_actions):
+    """
+    Generates all possible deterministic 1 bit memory functions with given number of obs and actions.
+    There are M^(MZA) memory functions.
+    1 bit means M=2.
+
+    Example:
+    For 2 obs (r, b) and 2 actions (up, down), binary_mp=10011000 looks like:
+
+    m o_a    mp
+    -----------
+    0 r_up   1
+    0 r_down 0
+    0 b_up   0
+    0 b_down 1
+    1 r_up   1
+    1 r_down 0
+    1 b_up   0
+    1 b_down 0
+
+    """
+    # TODO: add tests
+    n_mem_states = 2
+    fns = []
+
+    MZA = n_mem_states * n_obs * n_actions
+    for i in tqdm(range(n_mem_states**(MZA))):
+        T_mem = generate_mem_fn(i, n_mem_states, n_obs, n_actions)
+        fns.append(T_mem)
+
+    return fns
+
+def generate_mem_fn(mem_fn_id, n_mem_states, n_obs, n_actions):
+    """Generate the AxZxMxM memory function transition matrix for the given
+    mem_fn_id and sizes.
+
+    :param mem_fn_id: a decimal number whose binary representation is m'
+    """
+
+    MZA = n_mem_states * n_obs * n_actions
+    n_valid_mem_fns = n_mem_states**MZA
+    if mem_fn_id is not None and (mem_fn_id >= n_valid_mem_fns or mem_fn_id < 0):
+        raise ValueError(f'Unknown mem_fn_id: {mem_fn_id}')
+
+    binary_mp = format(mem_fn_id, 'b').zfill(MZA)
+    T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+    for m in range(n_mem_states):
+        for ob in range(n_obs):
+            for a in range(n_actions):
+                mp = int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])
+                T_mem[a, ob, m, mp] = 1
+    return T_mem
+
+def all_n_state_deterministic_memory(n_mem_states: int):
+    id = np.eye(n_mem_states)
+    idxes = [list(range(n_mem_states))]
+    all_idxes = list(product(*(n_mem_states * idxes)))
+    all_mem_funcs = id[all_idxes]
+    return all_mem_funcs
+
 """
 1 bit memory functions with three obs: r, b, t
 and 2 actions: up, down
 
 Dimensions: AxZxMxM
-"""
 
-def get_memory(memory_id: int, n_obs: int, n_actions: int, n_mem_states: int = 2) -> np.ndarray:
-    current_module = globals()
-    mem_name = f'memory_{memory_id}'
-    if memory_id == 0:
-        mem_params = glorot_init((n_actions, n_obs, n_mem_states, n_mem_states))
-    else:
-        if mem_name in current_module:
-            T_mem = current_module[mem_name]
-            # smooth out for softmax
-            mem_params = np.log(T_mem + 1e-20)
-        else:
-            raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
-    return mem_params
+"f" - fuzzy identity memory function
+"""
 
 mem_1 = np.array([
     [ # red
@@ -235,7 +319,7 @@ memory_15 = np.stack([mem_15_solid, mem_15_dashed])
 
 # Optimal memory for t-maze
 mem_16 = np.array([
-    [ # we see the goal as UP
+    [
         # Pr(m'| m, o)
         # m0', m1'
         [1., 0], # m0
@@ -288,3 +372,32 @@ mem_17 = np.array([
     ],
 ])
 memory_17 = np.array([mem_17, mem_17, mem_17, mem_17]) # up, down, right, left
+
+# Optimal memory for t-maze
+mem_18 = np.array([
+    [ # we see the goal as UP
+        # Pr(m'| m, o)
+        # m0', m1'
+        [1., 0], # m0
+        [1, 0], # m1
+    ],
+    [ # we see the goal as DOWN
+        [0, 1],
+        [0, 1],
+    ],
+    [ # corridor
+        [0, 1],
+        [1, 0],
+    ],
+    [ # junction
+        [1, 0],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left
+
+memory_19 = np.zeros_like(memory_18) + 1 / memory_18.shape[-1]
