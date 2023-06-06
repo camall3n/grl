@@ -5,7 +5,6 @@ from typing import Union, List, Tuple
 import warnings
 
 from jax import random
-import jax.numpy as jnp
 import numpy as np
 import optax
 from orbax import checkpoint
@@ -173,7 +172,7 @@ class Trainer:
         return test_info
 
     def train(self):
-        all_logs = {'episode_infos': [], 'offline_eval': []}
+        all_logs = {'online_info': {}, 'offline_eval': []}
         pbar = tqdm(total=self.total_steps, position=0, leave=True)
 
         network_params, optimizer_params, self._rand_key = self.agent.init_params(self._rand_key)
@@ -276,7 +275,12 @@ class Trainer:
                 episode_info['episode_updates'] += 1
 
             episode_info |= compress_episode_rewards(episode_reward)
-            all_logs['episode_infos'].append(episode_info)
+
+            # save all our episode info in lists
+            for k, v in episode_info.items():
+                if k not in all_logs['online_info']:
+                    all_logs['online_info'][k] = []
+                all_logs['online_info'][k].append(v)
 
             self.episode_num += 1
 
@@ -289,5 +293,8 @@ class Trainer:
 
         if self.checkpoint_dir is not None:
             self.checkpoint(network_params, optimizer_params)
+
+        if 'total_loss' in all_logs:
+            all_logs['total_loss'] = np.array(all_logs['total_loss'], dtype=np.half)
 
         return network_params, optimizer_params, all_logs

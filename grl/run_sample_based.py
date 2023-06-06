@@ -9,8 +9,9 @@ from grl.environment import load_spec
 from grl.evaluation import eval_episodes
 from grl.mdp import AbstractMDP, MDP
 from grl.model import get_network
-from grl.utils.optimizer import get_optimizer
 from grl.sample_trainer import Trainer
+from grl.utils.data import uncompress_episode_rewards
+from grl.utils.optimizer import get_optimizer
 from grl.utils.file_system import results_path, numpyify_and_save
 
 def parse_arguments(return_defaults: bool = False):
@@ -155,7 +156,8 @@ if __name__ == "__main__":
 
     summed_perf = 0
     for ep in final_eval_info['episode_rewards']:
-        summed_perf += sum(ep)
+        full_ep = uncompress_episode_rewards(ep['episode_length'], ep['most_common_reward'], ep['compressed_rewards'])
+        summed_perf += sum(full_ep)
 
     print(f"Final (averaged) greedy evaluation performance: {summed_perf / args.offline_eval_episodes}")
 
