@@ -840,3 +840,47 @@ def count_by_n(n: int = 5):
     pi_phi = None
 
     return to_dict(T, R, 0.9, p0, phi, pi_phi)
+
+def short_corridor():
+    """
+    Short corridor in func. approx as described in Example 13.1
+    In the RL Book.
+    """
+    T_left = np.array([
+        # r, b, r, t
+        [1, 0, 0, 0],
+        [0, 0, 1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
+    ])
+
+    T_right = np.array([
+        # r, b, r, t
+        [0, 1, 0, 0],
+        [1, 0, 0, 0],
+        [0, 0, 0, 1],
+        [0, 0, 0, 1]
+    ])
+    T = np.array([T_left, T_right])
+
+    R = -np.ones((2, 4, 4))
+    R[:, -1, -1] = 0
+
+    p0 = np.zeros(len(T[0]))
+    p0[0] = 1
+
+    phi = np.array([
+        [1, 0],
+        [1, 0],
+        [1, 0],
+        [0, 1],
+    ])
+
+    Pi_phi = [
+        np.array([
+            [1, 0], # up, down
+            [1, 0],
+        ]),
+    ]
+
+    return to_dict(T, R, 0.9999, p0, phi, Pi_phi, None)
