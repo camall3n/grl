@@ -12,8 +12,12 @@ hparams = {
             # Env
             'spec': [
                 # 'tmaze_5_two_thirds_up', 'tiger-alt-start',
-                'cheese.95', 'network', '4x3.95',
-                'shuttle.95', 'paint.95', 'hallway'
+                'cheese.95',
+                'network',
+                '4x3.95',
+                'shuttle.95',
+                'paint.95',
+                'hallway'
             ],
             'no_gamma_terminal': False,
             'max_episode_steps': 1000,
