@@ -151,7 +151,8 @@ if __name__ == "__main__":
 
     final_eval_info, rand_key = eval_episodes(agent, final_network_params, env, rand_key,
                                               n_episodes=args.offline_eval_episodes,
-                                              test_eps=0., action_cond=args.action_cond,
+                                              test_eps=args.offline_eval_epsilon,
+                                              action_cond=args.action_cond,
                                               max_episode_steps=args.max_episode_steps)
 
     summed_perf = 0
@@ -164,7 +165,7 @@ if __name__ == "__main__":
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_greedy_eval_rews': final_eval_info['episode_rewards'],
+        'final_eval_rews': final_eval_info['episode_rewards'],
         'final_eval_qs': final_eval_info['episode_qs']
     }
 
