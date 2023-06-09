@@ -8,7 +8,7 @@ import jax.numpy as jnp
 def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
     T_mem = nn.softmax(mem_params, axis=-1)
     n_states_m = T_mem.shape[-1]
-    n_states = amdp.n_states
+    n_states = amdp.state_space.n
     n_states_x = n_states_m * n_states
 
     # Rewards only depend on MDP (not memory function)

@@ -83,7 +83,7 @@ def fixed_mi(pi: jnp.ndarray,
 
     amdp_mem = memory_cross_product(agent.mem_params, amdp)
 
-    agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
+    agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.action_space.n))
 
     # Now we improve our policy again
     policy_output = pi_improvement(agent,

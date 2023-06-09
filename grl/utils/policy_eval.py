@@ -45,7 +45,7 @@ def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
     # A*V_pi(s) = b
     # A = (I - \gamma (T^π))
     # b = R^π
-    A = (jnp.eye(mdp.T.shape[-1]) - mdp.gamma * T_pi)
+    A = (jnp.eye(mdp.state_space.n) - mdp.gamma * T_pi)
     b = R_pi
     v_vals = jnp.linalg.solve(A, b)
 

@@ -23,13 +23,13 @@ def generate_pomdps(params):
 
         content += f'discount: {amdp.gamma}\n'
         content += 'values: reward\n'
-        content += f'states: {amdp.n_states}\n'
-        content += f'actions: {amdp.n_actions}\n'
-        content += f'observations: {amdp.n_obs}\n'
+        content += f'states: {amdp.state_space.n}\n'
+        content += f'actions: {amdp.action_space.n}\n'
+        content += f'observations: {amdp.observation_space.n}\n'
         content += f'start: {str(amdp.p0)[1:-1]}\n\n' # remove array brackets
 
         # T
-        for a in range(amdp.n_actions):
+        for a in range(amdp.action_space.n):
             content += f'T: {a}\n'
             for row in amdp.T[a]:
                 content += f'{str(row)[1:-1]}\n' # remove array brackets
@@ -44,7 +44,7 @@ def generate_pomdps(params):
         content += '\n'
 
         # R
-        for a in range(amdp.n_actions):
+        for a in range(amdp.action_space.n):
             for m, row in enumerate(amdp.R[a]):
                 for n, val in enumerate(row):
                     content += f'R: {a} : {m} : {n} : * {val}\n'

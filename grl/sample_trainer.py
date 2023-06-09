@@ -68,20 +68,14 @@ class Trainer:
                           f"Increasing to max_episode_steps={self.max_episode_steps}")
             replay_capacity = self.max_episode_steps
 
-        # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
-        obs_shape = self.env.observation_space
-        if self.action_cond == 'cat':
-            obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions, )
-
-        self.one_hot_obses = isinstance(self.env, AbstractMDP) or isinstance(self.env, MDP)
-
+        # For the special case of LSTMs, we have both hidden AND cell states
         state_size = (self.args.hidden_size, )
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
 
         self.buffer = EpisodeBuffer(replay_capacity,
                                     rand_key,
-                                    obs_shape,
+                                    self.env.observation_space.shape,
                                     state_size=state_size,
                                     unpack_state=self.args.arch == 'lstm')
 
@@ -166,7 +160,6 @@ class Trainer:
                                                   self._rand_key,
                                                   n_episodes=self.offline_eval_episodes,
                                                   test_eps=self.offline_eval_epsilon,
-                                                  action_cond=self.action_cond,
                                                   max_episode_steps=self.max_episode_steps)
         self.env.current_state = prev_state
         return test_info
@@ -191,12 +184,6 @@ class Trainer:
                 self.buffer.reset()
 
             obs, env_info = self.env.reset()
-            if self.one_hot_obses:
-                obs = one_hot(obs, self.env.n_obs)
-
-            if self.action_cond == 'cat': # Action conditioning for t=-1 action
-                action_encoding = np.zeros(self.env.n_actions)
-                obs = np.concatenate([obs, action_encoding], axis=-1)
 
             action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs,
                                                             self._rand_key)
@@ -205,13 +192,6 @@ class Trainer:
             for t in range(self.max_episode_steps):
                 next_obs, reward, done, _, info = self.env.step(action,
                                                                 gamma_terminal=self.gamma_terminal)
-                if self.one_hot_obses:
-                    next_obs = one_hot(next_obs, self.env.n_obs)
-
-                if self.action_cond == 'cat': # Action conditioning
-                    action_encoding = one_hot(action, self.env.n_actions)
-                    next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
-
                 next_action, self._rand_key, next_hs, qs = self.agent.act(
                     network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.item()
@@ -291,6 +271,7 @@ class Trainer:
             if self.checkpoint_dir is not None and checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)
 
+        # at the end of training, save a checkpoint
         if self.checkpoint_dir is not None:
             self.checkpoint(network_params, optimizer_params)
 

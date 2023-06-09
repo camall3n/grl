@@ -71,7 +71,7 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     n_step = 4
     new_v = jnp.zeros_like(v0)
-    for o in range(amdp.n_obs):
+    for o in range(amdp.observation_space.n):
         new_v_o = n_step_bellman_update(o, T_td, R_td, v0, pi, gamma=amdp.gamma, depth=n_step)
         new_v = new_v.at[o].set(new_v_o)
 

@@ -188,8 +188,8 @@ def main():
     env = AbstractMDP(mdp, spec['phi'])
 
     agent = ActorCritic(
-        n_obs=env.n_obs,
-        n_actions=env.n_actions,
+        n_obs=env.observation_space.n,
+        n_actions=env.action_space.n,
         gamma=env.gamma,
         n_mem_entries=0,
         policy_epsilon=args.policy_epsilon,

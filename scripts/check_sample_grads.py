@@ -158,7 +158,7 @@ def check_samples():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
 
     pi = spec['Pi_phi'][0]
 
@@ -208,8 +208,8 @@ def check_samples():
 
     for g in range(n_grad_updates):
         print(f"Calculating base \grad v(o, m)'s for update {g}")
-        all_om_val_grads = jnp.zeros((amdp.n_obs, n_mem) + mem_params.shape)
-        for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
+        all_om_val_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
+        for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
             all_om_val_grads = all_om_val_grads.at[o,
                                                    m].set(val_grad_fn(mem_params, amdp, pi, o, m))
 
@@ -220,12 +220,12 @@ def check_samples():
         mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
         if unrolling_steps > 0:
-            all_mem_grads = jnp.zeros((n_mem, amdp.n_obs, amdp.n_actions, n_mem) +
+            all_mem_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
                                       mem_params.shape)
 
             print(f"Calculating memory grads for update {g}")
-            for o, m in tqdm(list(product(list(range(amdp.n_obs)), list(range(n_mem))))):
-                for a, next_m in list(product(list(range(amdp.n_actions)), list(range(n_mem)))):
+            for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+                for a, next_m in list(product(list(range(amdp.action_space.n)), list(range(n_mem)))):
                     all_mem_grads = all_mem_grads.at[m, o, a, next_m].set(
                         mem_grad_fn(mem_params, o, a, m, next_m))
 

@@ -50,8 +50,6 @@ def run_memory_iteration(spec: dict,
     :param lambda_1:            What's our second lambda parameter for lambda discrep?
     :param alpha:               How uniform do we want our lambda discrep weighting?
     """
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
     assert amdp.current_state is None, \
         f"AbstractMDP should be stateless and current_state should be None, got {amdp.current_state} instead"
 
@@ -225,7 +223,7 @@ def memory_iteration(
 
         if pi_per_step > 0:
             # reset our policy parameters
-            agent.reset_pi_params((amdp.n_obs, amdp.n_actions))
+            agent.reset_pi_params((amdp.observation_space.n, amdp.action_space.n))
 
             # Now we improve our policy again
             policy_output = pi_improvement(agent,

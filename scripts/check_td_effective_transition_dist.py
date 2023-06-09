@@ -14,7 +14,7 @@ def gather_counts(amdp: AbstractMDP,
                   pi: jnp.ndarray,
                   rand_key: random.PRNGKey,
                   n_samples: int = int(1e3)):
-    amdp_obs_count = np.zeros(amdp.n_obs)
+    amdp_obs_count = np.zeros(amdp.observation_space.n)
 
     obs, info = amdp.reset()
     amdp_obs_count[obs] += 1
@@ -22,8 +22,8 @@ def gather_counts(amdp: AbstractMDP,
     for i in trange(n_samples):
 
         # action_key, rand_key = random.split(rand_key)
-        # a = random.choice(action_key, amdp.n_actions, p=pi[obs]).item()
-        a = np.random.choice(amdp.n_actions, p=pi[obs])
+        # a = random.choice(action_key, amdp.action_space.n, p=pi[obs]).item()
+        a = np.random.choice(amdp.action_space.n, p=pi[obs])
         obs, reward, terminal, truncated, info = amdp.step(a)
         amdp_obs_count[obs] += 1
         if terminal:
@@ -61,14 +61,14 @@ if __name__ == "__main__":
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
 
     pi = spec['Pi_phi'][0]
 
     T_obs_obs, R_obs_obs = get_td_model(amdp, pi)
     T_obs_obs = normalize(T_obs_obs)
     td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
-    td_amdp = AbstractMDP(td_mdp, np.eye(td_mdp.n_states))
+    td_amdp = AbstractMDP(td_mdp, np.eye(td_mdp.state_space.n))
 
     print("Collecting POMDP samples")
     amdp_obs_counts = gather_counts(amdp, pi, rand_key, n_samples=n_samples)

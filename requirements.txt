@@ -1,4 +1,5 @@
 numpy
+gym
 gmpy2
 jax[cpu]
 flax

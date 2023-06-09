@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     pi = spec['Pi_phi'][0]
     pi_params = reverse_softmax(pi)
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
     n_mem = mem_params.shape[-1]
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)
@@ -54,8 +54,8 @@ if __name__ == "__main__":
 
     policy_grad_fn = jax.grad(policy_grad_objective)
 
-    all_policy_grads = jnp.zeros((amdp.n_obs, ) + pi_params.shape)
-    for o in range(amdp.n_obs):
+    all_policy_grads = jnp.zeros((amdp.observation_space.n, ) + pi_params.shape)
+    for o in range(amdp.observation_space.n):
         all_policy_grads = all_policy_grads.at[o].set(policy_grad_fn(pi_params, amdp, o))
 
     # l2 norm of all gradients

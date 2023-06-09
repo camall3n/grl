@@ -38,8 +38,8 @@ env = AbstractMDP(mdp, spec['phi'])
 pi = spec['Pi_phi'][0]
 
 agent = ActorCritic(
-    n_obs=env.n_obs,
-    n_actions=env.n_actions,
+    n_obs=env.observation_space.n,
+    n_actions=env.action_space.n,
     gamma=env.gamma,
     lambda_0=args.lambda0,
     lambda_1=args.lambda1,

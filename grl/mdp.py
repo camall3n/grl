@@ -1,8 +1,10 @@
 import copy
 from gmpy2 import mpz
-import numpy as np
+import gym
+from gym import spaces
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
+import numpy as np
 
 from grl.utils.data import one_hot
 
@@ -64,11 +66,8 @@ def random_observation_fn(n_states, n_obs_per_block):
     return observation_fn
 
 @register_pytree_node_class
-class MDP:
+class MDP(gym.Env):
     def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None):
-        self.n_states = len(T[0])
-        self.n_obs = self.n_states
-        self.n_actions = len(T)
         self.gamma = gamma
         self.T = T
         self.R = R
@@ -98,17 +97,18 @@ class MDP:
         return repr(self.T) + '\n' + repr(self.R)
 
     def get_policy(self, i):
-        assert i < self.n_actions**self.n_states
-        if not (2 <= self.n_actions <= 62):
+        n_actions, n_states = self.action_space.n, self.state_space.n
+        assert i < n_actions**n_states
+        if not (2 <= n_actions <= 62):
             raise ValueError(f'gmpy2.mpz.digits only supports integer bases in the'
-                             'range [2, 62], but n_actions = {self.n_actions}')
-        policy_str = mpz(str(i)).digits(mpz(str(self.n_actions))).zfill(self.n_states)
+                             f'range [2, 62], but n_actions = {n_actions}')
+        policy_str = mpz(str(i)).digits(mpz(str(n_actions))).zfill(n_states)
         policy = np.array([int(x) for x in reversed(policy_str)])
         return policy
 
     def all_policies(self):
         policies = []
-        n_policies = self.n_actions**self.n_states
+        n_policies = self.action_space.n**self.state_space.n
         for i in range(n_policies):
             pi = self.get_policy(i)
             policies.append(pi)
@@ -116,7 +116,7 @@ class MDP:
 
     def stationary_distribution(self, pi=None, p0=None, max_steps=200):
         if p0 is None:
-            state_distr = np.ones(self.n_states) / self.n_states
+            state_distr = np.ones(self.state_space.n) / self.state_space.n
         else:
             state_distr = p0
         old_distr = state_distr
@@ -130,9 +130,9 @@ class MDP:
     def reset(self, state=None):
         if state is None:
             if self.rand_key is not None:
-                state = self.rand_key.choice(self.n_states, p=self.p0)
+                state = self.rand_key.choice(self.state_space.n, p=self.p0)
             else:
-                state = np.random.choice(self.n_states, p=self.p0)
+                state = np.random.choice(self.state_space.n, p=self.p0)
         self.current_state = state
         info = {'state': self.current_state}
         return self.observe(self.current_state), info
@@ -140,9 +140,9 @@ class MDP:
     def step(self, action: int, gamma_terminal: bool = True):
         pr_next_s = self.T[action, self.current_state, :]
         if self.rand_key is not None:
-            next_state = self.rand_key.choice(self.n_states, p=pr_next_s)
+            next_state = self.rand_key.choice(self.state_space.n, p=pr_next_s)
         else:
-            next_state = np.random.choice(self.n_states, p=pr_next_s)
+            next_state = np.random.choice(self.state_space.n, p=pr_next_s)
         reward = self.R[action][self.current_state][next_state]
         # Check if next_state is absorbing state
         is_absorbing = (self.T[:, next_state, next_state] == 1)
@@ -166,8 +166,16 @@ class MDP:
         return s
 
     @property
-    def observation_space(self):
-        return (self.n_states, )
+    def state_space(self) -> spaces.Space:
+        return spaces.Discrete(self.T.shape[-1])
+
+    @property
+    def observation_space(self) -> spaces.Discrete:
+        return spaces.Discrete(self.T.shape[-1])
+
+    @property
+    def action_space(self) -> spaces.Discrete:
+        return spaces.Discrete(self.T.shape[0])
 
     def image(self, pr_x, pi=None):
         T = self.T_pi(pi)
@@ -178,14 +186,14 @@ class MDP:
         if pi is None:
             T_pi = np.mean(self.T, axis=0)
         else:
-            T_pi = self.T[pi, np.arange(self.n_states), :]
+            T_pi = self.T[pi, np.arange(self.state_space.n), :]
         return T_pi
 
     def get_N(self, pi):
         return self.T_pi(pi)
 
     def get_I(self, pi):
-        pi_one_hot = one_hot(pi, self.n_actions).transpose()[:, :, None]
+        pi_one_hot = one_hot(pi, self.action_space.n).transpose()[:, :, None]
         N = self.get_N(pi)[None, :, :]
         I = np.divide(self.T * pi_one_hot, N, out=np.zeros_like(self.T), where=N != 0)
         return I
@@ -203,6 +211,9 @@ class MDP:
                 R_a = R_a * mask
             T.append(T_a)
             R.append(R_a)
+
+        T = np.array(T)
+        R = np.array(R)
         p0 = random_stochastic_matrix(size=[n_states])
         mdp = cls(T, R, p0, gamma)
         return mdp
@@ -211,10 +222,9 @@ class BlockMDP(MDP):
     def __init__(self, base_mdp, n_obs_per_block=2, obs_fn=None):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
-        self.n_states = base_mdp.n_states * n_obs_per_block
 
         if obs_fn is None:
-            obs_fn = random_observation_fn(base_mdp.n_states, n_obs_per_block)
+            obs_fn = random_observation_fn(base_mdp.state_space.n, n_obs_per_block)
         else:
             n_obs_per_block = obs_fn.shape[1]
 
@@ -222,7 +232,7 @@ class BlockMDP(MDP):
 
         self.T = [] # List of x -> x transition matrices, one for each action
         self.R = [] # List of x -> x reward matrices, one for each action
-        for a in range(self.n_actions):
+        for a in range(self.action_space.n):
             Ta, Ra = base_mdp.T[a], base_mdp.R[a]
             Tx_a = obs_mask.transpose() @ Ta @ obs_fn
             Rx_a = obs_mask.transpose() @ Ra @ obs_mask
@@ -237,8 +247,7 @@ class AbstractMDP(MDP):
     def __init__(self, base_mdp, phi):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
-        self.phi = phi # array: base_mdp.n_states, n_abstract_states
-        self.n_obs = phi.shape[-1]
+        self.phi = phi # array: base_mdp.state_space.n, n_abstract_states
 
     def tree_flatten(self):
         children = (self.T, self.R, self.p0, self.gamma, self.phi)
@@ -256,13 +265,13 @@ class AbstractMDP(MDP):
 
     def observe(self, s):
         if self.rand_key is not None:
-            return self.rand_key.choice(self.n_obs, p=self.phi[s])
+            return self.rand_key.choice(self.observation_space.n, p=self.phi[s])
 
-        return np.random.choice(self.n_obs, p=self.phi[s])
+        return np.random.choice(self.observation_space.n, p=self.phi[s])
 
     @property
-    def observation_space(self):
-        return (self.n_obs, )
+    def observation_space(self) -> spaces.Discrete:
+        return spaces.Discrete(self.phi.shape[-1])
 
     # def B(self, pi, t=200):
     #     p = self.base_mdp.stationary_distribution(pi=pi, p0=self.p0, max_steps=t)
@@ -278,7 +287,7 @@ class AbstractMDP(MDP):
     def is_abstract_policy(self, pi):
         agg_states = (self.phi.sum(axis=0) > 1)
         for idx, is_agg in enumerate(agg_states):
-            agg_cluster = (one_hot(idx, self.n_obs) @ self.phi.transpose()).astype(bool)
+            agg_cluster = (one_hot(idx, self.observation_space.n) @ self.phi.transpose()).astype(bool)
             if not np.all(pi[agg_cluster] == pi[agg_cluster][0]):
                 return False
         return True
@@ -302,7 +311,7 @@ class AbstractMDP(MDP):
     def generate_random_policies(self, n):
         policies = []
         for _ in range(n):
-            policies.append(random_stochastic_matrix((self.n_obs, self.n_actions)))
+            policies.append(random_stochastic_matrix((self.observation_space.n, self.action_space.n)))
 
         return policies
 
@@ -321,17 +330,17 @@ class UniformAbstractMDP(AbstractMDP):
         return normalize(p * self.phi.transpose())
 
     def _replace_stationary_distribution(self, pi=None, p0=None, max_steps=200):
-        return jnp.ones(self.base_mdp.n_states) / self.base_mdp.n_states
+        return jnp.ones(self.base_mdp.state_space.n) / self.base_mdp.state_space.n
 
 def test():
     # Generate a random base MDP
     mdp1 = MDP.generate(n_states=5, n_actions=3, sparsity=0.5)
-    assert all([is_stochastic(mdp1.T[a]) for a in range(mdp1.n_actions)])
+    assert all([is_stochastic(mdp1.T[a]) for a in range(mdp1.action_space.n)])
 
     # Add block structure to the base MDP
     mdp2 = BlockMDP(mdp1, n_obs_per_block=2)
-    assert all([np.allclose(mdp2.base_mdp.T[a], mdp1.T[a]) for a in range(mdp1.n_actions)])
-    assert all([np.allclose(mdp2.base_mdp.R[a], mdp1.R[a]) for a in range(mdp1.n_actions)])
+    assert all([np.allclose(mdp2.base_mdp.T[a], mdp1.T[a]) for a in range(mdp1.action_space.n)])
+    assert all([np.allclose(mdp2.base_mdp.R[a], mdp1.R[a]) for a in range(mdp1.action_space.n)])
 
     # Construct abstract MDP of the block MDP using perfect abstraction function
     phi = (mdp2.obs_fn.transpose() > 0).astype(int)
