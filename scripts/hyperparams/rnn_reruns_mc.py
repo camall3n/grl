@@ -11,7 +11,8 @@ hparams = {
         {
             # Env
             'spec': [
-                # 'tmaze_5_two_thirds_up', 'tiger-alt-start',
+                'tmaze_5_two_thirds_up',
+                'tiger-alt-start',
                 'cheese.95',
                 'network',
                 '4x3.95',

@@ -3,4 +3,4 @@ export CUDA_VISIBLE_DEVICES=0
 
 cd ../../
 source venv/bin/activate
-parallel --eta -u < 'scripts/runs/runs_tiger_grid_mi_pi_obs_space.txt'
+parallel --eta -u < 'scripts/runs/runs_rnn_split.txt'

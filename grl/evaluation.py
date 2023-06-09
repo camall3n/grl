@@ -6,7 +6,7 @@ from tqdm import trange
 
 from grl.agent.rnn import RNNAgent
 from grl.mdp import MDP, AbstractMDP
-from grl.utils.data import one_hot
+from grl.utils.data import one_hot, compress_episode_rewards
 
 def eval_episodes(agent: RNNAgent, network_params: dict,
                   env: Union[MDP, AbstractMDP], rand_key: random.PRNGKey,
@@ -37,8 +37,8 @@ def eval_episodes(agent: RNNAgent, network_params: dict,
             obs = np.concatenate([obs, action_encoding], axis=-1)
 
         action, rand_key, hs, qs = agent.act(network_params, obs, hs, rand_key)
-        ep_qs.append(qs)
         action = action.item()
+        ep_qs.append(qs.squeeze()[action])
 
         for t in range(max_episode_steps):
             # TODO: we have gamma_terminal as False here. Is that what we want?
@@ -52,8 +52,8 @@ def eval_episodes(agent: RNNAgent, network_params: dict,
                 next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
             next_action, rand_key, next_hs, qs = agent.act(network_params, next_obs, hs, rand_key)
-            ep_qs.append(qs)
             next_action = next_action.item()
+            ep_qs.append(qs.squeeze()[next_action])
 
             ep_rews.append(reward)
             if done:
@@ -62,8 +62,9 @@ def eval_episodes(agent: RNNAgent, network_params: dict,
             # bump time step
             hs = next_hs
             action = next_action
-        all_ep_rews.append(ep_rews)
-        all_ep_qs.append(ep_qs)
+
+        all_ep_rews.append(compress_episode_rewards(ep_rews))
+        all_ep_qs.append(np.array(ep_qs, dtype=np.half))
 
     # reset original epsilon
     agent.eps = original_epsilon
