@@ -1,7 +1,7 @@
 import copy
 from gmpy2 import mpz
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 import numpy as np

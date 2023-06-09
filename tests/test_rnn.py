@@ -216,7 +216,7 @@ def test_actions():
                                        f"loss_mode: {loss_mode}, action_mode: {action_mode}"
 
 if __name__ == "__main__":
-    test_gamma_terminal()
+    # test_gamma_terminal()
     # test_td_mc_values()
     # test_both_values()
-    # test_actions()
+    test_actions()
