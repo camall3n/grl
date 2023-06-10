@@ -29,6 +29,7 @@ args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
 
 # args.env = 'cheese.95'
+# args.env = 'slippery-tmaze'
 # args.env = '4x3.95'
 # args.env = 'shuttle.95'
 # args.env = 'example_7'
@@ -41,6 +42,7 @@ reward_range_dict = {
     'cheese.95': (10.0, 0),
     'tiger-alt-start': (10.0, -100.0),
     'network': (80.0, -40.0),
+    'slippery-tmaze': (4.0, -0.1),
     'tmaze_5_two_thirds_up': (4.0, -0.1),
     'example_7': (1.0, 0.0),
     '4x3.95': (1.0, -1.0),
