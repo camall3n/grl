@@ -38,8 +38,10 @@ hparams = {
 
             # Multihead RNN/Lambda discrep
             'multihead_action_mode': 'td',
-            'multihead_loss_mode': ['both', 'td'],
-            'multihead_lambda_coeff': [-1, 0., 1.],
+            # 'multihead_loss_mode': ['both', 'td'],
+            'multihead_loss_mode': ['both'],
+            # 'multihead_lambda_coeff': [-1, 0., 1.],
+            'multihead_lambda_coeff': [-1, 1.],
             'normalize_rewards': True,
 
             # Replay
