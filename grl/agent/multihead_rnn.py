@@ -125,7 +125,8 @@ class MultiheadRNNAgent(RNNAgent):
         if self.loss_mode in ['both', 'td', 'mc']:
             loss, grad = jax.value_and_grad(self._combined_loss)(network_params,
                                                                  batch,
-                                                                 loss_mode=self.loss_mode)
+                                                                 loss_mode=self.loss_mode,
+                                                                 lambda_coeff=self.lambda_coeff)
             updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)
             network_params = optax.apply_updates(network_params, updates)
             info = {'total_loss': loss}
