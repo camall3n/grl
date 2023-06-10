@@ -449,7 +449,7 @@ class ActorCritic:
                 n_iter=n_trials,
                 tmax=self.annealing_tmax,
                 tmin=self.annealing_tmin,
-                tmin_progress_mark=self.annealing_progress_fraction_at_tmin,
+                progress_fraction_at_tmin=self.annealing_progress_fraction_at_tmin,
                 n_repeats=self.n_annealing_repeats,
             )
         else:
