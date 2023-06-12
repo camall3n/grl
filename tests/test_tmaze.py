@@ -16,8 +16,8 @@ def test_slippery_tmaze():
 
     # Now we test slip probabilities
     samples = 10000
-    go_right_states = np.arange(0, slip_tmaze.n_states - 3)
-    go_left_states = np.arange(2, slip_tmaze.n_states - 1)
+    go_right_states = np.arange(0, slip_tmaze.state_space.n - 3)
+    go_left_states = np.arange(2, slip_tmaze.state_space.n - 1)
 
     success_right_counts, success_left_counts = np.zeros_like(go_right_states), np.zeros_like(
         go_left_states)
@@ -67,7 +67,7 @@ def test_tmaze_start(tmaze):
 
 def test_tmaze_noop(tmaze):
     # Now we test bumping - or self-loops/no-op actions.
-    bump_ns_states = np.arange(0, tmaze.n_states - 3, dtype=int)
+    bump_ns_states = np.arange(0, tmaze.state_space.n - 3, dtype=int)
     for s in bump_ns_states:
         # test up
         tmaze.reset(s)
@@ -82,7 +82,7 @@ def test_tmaze_noop(tmaze):
         next_s = info['state']
         assert next_s == s and r == 0 and not terminal
 
-    bump_east_states = np.array([tmaze.n_states - 2 - 1, tmaze.n_states - 1 - 1])
+    bump_east_states = np.array([tmaze.state_space.n - 2 - 1, tmaze.state_space.n - 1 - 1])
     bump_west_states = np.array([0, 1])
     for s in bump_east_states:
         tmaze.reset(s)
@@ -98,14 +98,14 @@ def test_tmaze_noop(tmaze):
 
 # Now we test moving
 def test_tmaze_move(tmaze):
-    go_right_states = np.arange(0, tmaze.n_states - 3)
+    go_right_states = np.arange(0, tmaze.state_space.n - 3)
     for s in go_right_states:
         tmaze.reset(s)
         _, r, terminal, _, info = tmaze.step(2)
         next_s = info['state']
         assert next_s == s + 2 and r == 0 and not terminal
 
-    go_left_states = np.arange(2, tmaze.n_states - 1)
+    go_left_states = np.arange(2, tmaze.state_space.n - 1)
     for s in go_left_states:
         tmaze.reset(s)
         _, r, terminal, _, info = tmaze.step(3)
@@ -114,44 +114,44 @@ def test_tmaze_move(tmaze):
 
 def test_tmaze_terminals(tmaze):
     # make sure our terminals are terminals
-    for i in range(tmaze.n_actions):
-        tmaze.reset(tmaze.n_states - 1)
+    for i in range(tmaze.action_space.n):
+        tmaze.reset(tmaze.state_space.n - 1)
         _, r, terminal, _, info = tmaze.step(0)
         next_s = info['state']
-        assert terminal and next_s == tmaze.n_states - 1 and r == 0
+        assert terminal and next_s == tmaze.state_space.n - 1 and r == 0
 
 def test_tmaze_rewards(tmaze):
     # Test rewarding transitions
-    top_junction = tmaze.n_states - 2 - 1
-    bottom_junction = tmaze.n_states - 1 - 1
+    top_junction = tmaze.state_space.n - 2 - 1
+    bottom_junction = tmaze.state_space.n - 1 - 1
 
     # top rewards
     tmaze.reset(top_junction)
     _, r, terminal, _, info = tmaze.step(0)
     next_s = info['state']
-    assert terminal and next_s == tmaze.n_states - 1 and r == 4
+    assert terminal and next_s == tmaze.state_space.n - 1 and r == 4
 
     tmaze.reset(top_junction)
     _, r, terminal, _, info = tmaze.step(1)
     next_s = info['state']
-    assert terminal and next_s == tmaze.n_states - 1 and r == -0.1
+    assert terminal and next_s == tmaze.state_space.n - 1 and r == -0.1
 
     # Bottom rewards
     tmaze.reset(bottom_junction)
     _, r, terminal, _, info = tmaze.step(0)
     next_s = info['state']
-    assert terminal and next_s == tmaze.n_states - 1 and r == -0.1
+    assert terminal and next_s == tmaze.state_space.n - 1 and r == -0.1
 
     tmaze.reset(bottom_junction)
     _, r, terminal, _, info = tmaze.step(1)
     next_s = info['state']
-    assert terminal and next_s == tmaze.n_states - 1 and r == 4
+    assert terminal and next_s == tmaze.state_space.n - 1 and r == 4
 
 def test_tmaze_obs(tmaze):
     all_0_obs_states = np.array([0])
     all_1_obs_states = np.array([1])
-    all_2_obs_states = np.arange(2, tmaze.n_states - 2 - 1)
-    all_3_obs_states = np.arange(tmaze.n_states - 2 - 1, tmaze.n_states - 1)
+    all_2_obs_states = np.arange(2, tmaze.state_space.n - 2 - 1)
+    all_3_obs_states = np.arange(tmaze.state_space.n - 2 - 1, tmaze.state_space.n - 1)
 
     for i, list_s in enumerate(
         [all_0_obs_states, all_1_obs_states, all_2_obs_states, all_3_obs_states]):

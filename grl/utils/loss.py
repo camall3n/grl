@@ -168,14 +168,14 @@ def obs_space_mem_discrep_loss(
     counts_mem_aug_flat_obs = mem_info['occupancy'] @ mem_aug_amdp.phi
     counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs, pi).T # A x OM
 
-    counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, n_mem_states) # A x O x M
+    counts_mem_aug = counts_mem_aug_flat.reshape(amdp.action_space.n, -1, n_mem_states) # A x O x M
 
     denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
     denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)
     denom_counts_mem_aug = denom_counts_mem_aug_unmasked + denom_mask
     prob_mem_given_oa = counts_mem_aug / denom_counts_mem_aug
 
-    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(amdp.n_actions, -1, n_mem_states)
+    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(amdp.action_space.n, -1, n_mem_states)
     reformed_lambda_0_q_vals = (unflattened_lambda_0_q_vals * prob_mem_given_oa).sum(axis=-1)
 
     lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
@@ -260,11 +260,12 @@ def magnitude_td_loss(
         error_type: str = 'l2',
         alpha: float = 1.,
         flip_count_prob: bool = False): # initialize static args
+    n_states = amdp.state_space.n
     # TODO: this is wrong?
     _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
     assert value_type == 'q'
     R_s_o = amdp.R @ amdp.phi # A x S x O
-    expanded_R_s_o = jnp.expand_dims(R_s_o, -1).repeat(amdp.n_actions, axis=-1)
+    expanded_R_s_o = jnp.expand_dims(R_s_o, -1).repeat(amdp.action_space.n, axis=-1)
 
     # repeat the Q-function over A x O
     # Multiply that with p(O', A' | s, a) and sum over O' and A' dimensions.
@@ -285,7 +286,7 @@ def magnitude_td_loss(
     if flip_count_prob:
         count_s = nn.softmax(-count_s)
 
-    uniform_s = jnp.ones(amdp.n_states) / amdp.n_states
+    uniform_s = jnp.ones(n_states) / n_states
 
     p_s = alpha * uniform_s + (1 - alpha) * count_s
 

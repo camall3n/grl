@@ -7,7 +7,7 @@ import numpy as np
 import jax
 from jax.config import config
 
-from grl.environment import load_spec
+from grl.environment import load_pomdp
 from grl.environment.policy_lib import get_start_pi
 from grl.utils.file_system import results_path, numpyify_and_save
 from grl.memory import get_memory
@@ -112,41 +112,41 @@ if __name__ == '__main__':
 
     # Run
     # Get POMDP definition
-    spec = load_spec(args.spec,
-                     memory_id=args.use_memory,
-                     n_mem_states=args.n_mem_states,
-                     corridor_length=args.tmaze_corridor_length,
-                     discount=args.tmaze_discount,
-                     junction_up_pi=args.tmaze_junction_up_pi,
-                     epsilon=args.epsilon,
-                     mem_leakiness=args.mem_leakiness)
+    amdp, pi_dict = load_pomdp(args.spec,
+                               memory_id=args.use_memory,
+                               n_mem_states=args.n_mem_states,
+                               corridor_length=args.tmaze_corridor_length,
+                               discount=args.tmaze_discount,
+                               junction_up_pi=args.tmaze_junction_up_pi,
+                               epsilon=args.epsilon,
+                               mem_leakiness=args.mem_leakiness)
 
     mem_params = get_memory(args.use_memory,
-                            n_obs=spec['phi'].shape[-1],
-                            n_actions=spec['T'].shape[0],
+                            n_obs=amdp.observation_space.n,
+                            n_actions=amdp.action_space.n,
                             n_mem_states=args.n_mem_states,
                             leakiness=args.mem_leakiness)
 
     logging.info(f'spec:\n {args.spec}\n')
-    logging.info(f'T:\n {spec["T"]}')
-    logging.info(f'R:\n {spec["R"]}')
-    logging.info(f'gamma: {spec["gamma"]}')
-    logging.info(f'p0:\n {spec["p0"]}')
-    logging.info(f'phi:\n {spec["phi"]}')
+    logging.info(f'T:\n {amdp.T}')
+    logging.info(f'R:\n {amdp.R}')
+    logging.info(f'gamma: {amdp.gamma}')
+    logging.info(f'p0:\n {amdp.p0}')
+    logging.info(f'phi:\n {amdp.phi}')
 
-    if 'mem_params' in spec.keys():
-        logging.info(f'mem_params:\n {spec["mem_params"]}')
-    if 'Pi_phi_x' in spec.keys():
-        logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
-    if 'Pi_phi' in spec and spec['Pi_phi'] is not None:
-        logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
+    logging.info(f'mem_params:\n {mem_params}')
+
+    pi_params = None
+    if 'Pi_phi_x' in pi_dict and pi_dict['Pi_phi_x']:
+        logging.info(f'Pi_phi_x:\n {pi_dict["Pi_phi_x"]}')
+    if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
+        logging.info(f'Pi_phi:\n {pi_dict["Pi_phi"]}')
+        if args.init_pi is not None:
+            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'])
 
     results_path = results_path(args)
 
-    pi_params = None
-    if args.init_pi is not None:
-        pi_params = get_start_pi(args.init_pi, spec=spec)
-    logs, agent = run_memory_iteration(spec,
+    logs, agent = run_memory_iteration(amdp,
                                        mem_params,
                                        rand_key=rand_key,
                                        mi_iterations=args.mi_iterations,

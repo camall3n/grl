@@ -89,20 +89,20 @@ def run_td_lambda_on_mdp(
         pi_ground = mdp.get_ground_policy(pi)
     else:
         pi_ground = pi
-    if pi_ground.shape[0] != mdp.n_states:
+    if pi_ground.shape[0] != mdp.state_space.n:
         raise ValueError("pi must be a valid policy for the ground mdp")
 
     print(f"Running TD(λ) with λ = {lambda_}")
 
-    tdlq = TDLambdaQFunction(mdp.n_obs, mdp.n_actions, lambda_, mdp.gamma, alpha)
+    tdlq = TDLambdaQFunction(mdp.observation_space.n, mdp.action_space.n, lambda_, mdp.gamma, alpha)
 
     for i in range(n_episodes):
         obs, _ = mdp.reset()
-        a = np.random.choice(mdp.n_actions, p=pi[obs])
+        a = np.random.choice(mdp.action_space.n, p=pi[obs])
         done = False
         while not done:
             next_obs, r, done, _, _ = mdp.step(a)
-            next_a = np.random.choice(mdp.n_actions, p=pi[next_obs])
+            next_a = np.random.choice(mdp.action_space.n, p=pi[next_obs])
 
             tdlq.update(obs, a, r, done, next_obs, next_a)
 

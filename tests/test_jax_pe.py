@@ -13,10 +13,10 @@ def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
     """
     Weights the value contribution of each state to each observation for the amdp
     """
-    amdp_q_vals = jnp.zeros((amdp.n_actions, amdp.n_obs))
+    amdp_q_vals = jnp.zeros((amdp.action_space.n, amdp.observation_space.n))
 
     # Q vals
-    for ob in range(amdp.n_obs):
+    for ob in range(amdp.observation_space.n):
         p_of_o_given_s = amdp.phi[:, ob].copy().astype('float')
         w = occupancy * p_of_o_given_s
         # Skip this ob (leave vals at 0) if w is full of 0s
@@ -37,9 +37,9 @@ def create_td_model(amdp, occupancy):
     """
     Generates effective TD(0) model
     """
-    T_obs_obs = jnp.zeros((len(amdp.T), amdp.n_obs, amdp.n_obs))
-    R_obs_obs = jnp.zeros((len(amdp.R), amdp.n_obs, amdp.n_obs))
-    for curr_ob in range(amdp.n_obs):
+    T_obs_obs = jnp.zeros((len(amdp.T), amdp.observation_space.n, amdp.observation_space.n))
+    R_obs_obs = jnp.zeros((len(amdp.R), amdp.observation_space.n, amdp.observation_space.n))
+    for curr_ob in range(amdp.observation_space.n):
         # phi is |S|x|O|
         ###### curr_a = self.pi[curr_ob]
         # compute p_π(o|s) for all s
@@ -53,7 +53,7 @@ def create_td_model(amdp, occupancy):
             continue
         p_π_of_s_given_o = (w / w.sum())[:, None]
 
-        for next_ob in range(amdp.n_obs):
+        for next_ob in range(amdp.observation_space.n):
             # Q: what action should this be? [self.pi[i]]
             p_π_of_op_given_sp = amdp.phi[:, next_ob].copy().astype('float')
 

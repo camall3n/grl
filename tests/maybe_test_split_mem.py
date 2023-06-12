@@ -51,7 +51,7 @@ def test_split_mem():
         amdp = AbstractMDP(mdp, spec['phi'])
 
         pi = spec['Pi_phi'][0]
-        mem_params = get_memory(str(mem), n_obs=amdp.n_obs, n_actions=amdp.n_actions)
+        mem_params = get_memory(str(mem), n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n)
         mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
         mem_aug_amdp = memory_cross_product(mem_params, amdp)
@@ -82,23 +82,23 @@ def test_split_mem():
         counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs,
                                          mem_aug_pi).T # A x OM
 
-        counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, 2) # A x O x M
+        counts_mem_aug = counts_mem_aug_flat.reshape(amdp.action_space.n, -1, 2) # A x O x M
 
         denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
         denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)
         denom_counts_mem_aug = denom_counts_mem_aug_unmasked + denom_mask
         prob_mem_given_oa = counts_mem_aug / denom_counts_mem_aug
 
-        # init_obs_action = jnp.expand_dims(amdp.p0 @ amdp.phi, 0).repeat(amdp.n_actions, 0)
+        # init_obs_action = jnp.expand_dims(amdp.p0 @ amdp.phi, 0).repeat(amdp.action_space.n, 0)
         # init_obs_action = init_obs_action + (init_obs_action == 0).astype(float)
         # init_obs_action_mem = jnp.expand_dims(init_obs_action, -1).repeat(n_mem_states, -1)
         # prob_mem_given_oa = prob_mem_given_oa_less_init * init_obs_action_mem
 
-        mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1])
+        mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.action_space.n, -1, mem_params.shape[-1])
         reformed_q0 = (mem_lstd_q0_unflat * prob_mem_given_oa).sum(axis=-1)
 
         learnt_reformed_q0 = (
-            mem_learnt_lstd_q0.reshape(amdp.n_actions, -1, mem_params.shape[-1]) *
+            mem_learnt_lstd_q0.reshape(amdp.action_space.n, -1, mem_params.shape[-1]) *
             prob_mem_given_oa).sum(axis=-1)
         if target_lambda == 1:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q1[:, :-1])
@@ -177,7 +177,7 @@ def test_sample_based_split_mem():
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory(str(19), n_obs=amdp.n_obs, n_actions=amdp.n_actions)
+    mem_params = get_memory(str(19), n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_amdp = memory_cross_product(mem_params, amdp)

@@ -123,8 +123,8 @@ if __name__ == "__main__":
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
-    n_obs = amdp.n_obs
-    n_actions = amdp.n_actions
+    n_obs = amdp.observation_space.n
+    n_actions = amdp.action_space.n
     n_oa = n_obs * n_actions
 
     analytical_v0_vals, analytical_q0_vals, info_0 = lstdq_lambda(pi, amdp, lambda_=lambda_0)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         episode_buffer = collect_episodes(amdp, pi, n_episodes, rand_key)
         numpyify_and_save(buffer_path, episode_buffer)
 
-    sample_v = np.zeros(amdp.n_obs)
+    sample_v = np.zeros(amdp.observation_space.n)
     sample_q = np.zeros(n_oa)
     all_act_obs_counts = np.zeros_like(sample_q, dtype=int)
 

@@ -43,7 +43,7 @@ def lstdq_lambda_samples(agent: ActorCritic,
     if reset_before_converging:
         agent.reset_value_functions()
 
-    n_features = env.n_obs * env.n_actions
+    n_features = env.observation_space.n * env.action_space.n
 
     A = np.zeros((n_features, n_features))
     b = np.zeros(n_features)
@@ -56,7 +56,7 @@ def lstdq_lambda_samples(agent: ActorCritic,
 
         obs, _ = env.reset()
         action = agent.act(obs)
-        feature = featurize_obs_actions(obs, action, env.n_obs, env.n_actions)
+        feature = featurize_obs_actions(obs, action, env.observation_space.n, env.action_space.n)
 
         terminal = False
         eps_length = 0
@@ -67,7 +67,7 @@ def lstdq_lambda_samples(agent: ActorCritic,
             eps_length += 1
             next_action = agent.act(next_obs)
 
-            next_feature = featurize_obs_actions(next_obs, next_action, env.n_obs, env.n_actions)
+            next_feature = featurize_obs_actions(next_obs, next_action, env.observation_space.n, env.action_space.n)
 
             A, b, z = lstdq_update(
                 A,
@@ -100,7 +100,7 @@ def lstdq_lambda_samples(agent: ActorCritic,
 
     A += np.eye(n_features) * 1e-10
     q_flat = jnp.linalg.solve(A, b)
-    q = q_flat.reshape(env.n_obs, env.n_actions).T
+    q = q_flat.reshape(env.observation_space.n, env.action_space.n).T
     return q
 
 def check_lstdq_samples():
@@ -116,8 +116,8 @@ def check_lstdq_samples():
     pi = spec['Pi_phi'][0]
 
     agent = ActorCritic(
-        n_obs=env.n_obs,
-        n_actions=env.n_actions,
+        n_obs=env.observation_space.n,
+        n_actions=env.action_space.n,
         gamma=env.gamma,
         n_mem_entries=0,
         policy_epsilon=args.policy_epsilon,
@@ -148,6 +148,6 @@ if __name__ == "__main__":
     # pi[3, 0] = 1
     # pi[3, 1] = 0
     #
-    # feature = featurize_obs_actions(1, 2, env.n_obs, env.n_actions)
+    # feature = featurize_obs_actions(1, 2, env.observation_space.n, env.action_space.n)
     # pi_feature = obs_pi_features(1, pi)
     # print('hello')

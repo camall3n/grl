@@ -14,8 +14,8 @@ from grl.memory.lib import get_memory
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])
-agent = ActorCritic(n_obs=env.n_obs,
-                    n_actions=env.n_actions,
+agent = ActorCritic(n_obs=env.observation_space.n,
+                    n_actions=env.action_space.n,
                     gamma=env.gamma,
                     n_mem_entries=0,
                     replay_buffer_size=int(4e6))

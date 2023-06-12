@@ -48,8 +48,8 @@ params = [study.best_trial.params[key] for key in sorted(study.best_trial.params
 spec = environment.load_spec(env_name, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 env = AbstractMDP(mdp, spec['phi'])
-agent = ActorCritic(n_obs=env.n_obs,
-                    n_actions=env.n_actions,
+agent = ActorCritic(n_obs=env.observation_space.n,
+                    n_actions=env.action_space.n,
                     gamma=env.gamma,
                     n_mem_entries=0,
                     replay_buffer_size=int(4e6))

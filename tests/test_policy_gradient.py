@@ -64,5 +64,5 @@ def test_policy_grad_short_corridor():
     print(f"Learnt policy: {learnt_pi}")
 
 if __name__ == "__main__":
-    # test_policy_grad_fully_observable_tmaze()
-    test_policy_grad_short_corridor()
+    test_policy_grad_fully_observable_tmaze()
+    # test_policy_grad_short_corridor()

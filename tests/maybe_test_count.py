@@ -22,7 +22,7 @@ def act(pi: jnp.ndarray, rand_key: random.PRNGKey):
 def step(mdp: MDP, current_state: int, action: int, rand_key: random.PRNGKey):
     pr_next_s = mdp.T[action, current_state, :]
     rand_key, choice_key, terminal_key = random.split(rand_key, 3)
-    next_state = random.choice(choice_key, mdp.n_states, p=pr_next_s).astype(int)
+    next_state = random.choice(choice_key, mdp.state_space.n, p=pr_next_s).astype(int)
     reward = mdp.R[action][current_state][next_state]
 
     # Check if next_state is absorbing state
@@ -133,7 +133,7 @@ def test_count():
     c_s = c_s.at[-2:].set(0)
     analytical_count_dist = c_s / c_s.sum(axis=-1, keepdims=True)
 
-    state_counts = np.zeros(mem_aug_mdp.n_states, dtype=int)
+    state_counts = np.zeros(mem_aug_mdp.state_space.n, dtype=int)
     print(f"Collecting {samples} samples from {spec_name} spec")
     obs, info = mem_aug_mdp.reset()
     obs = jnp.array(obs)
