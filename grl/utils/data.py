@@ -74,7 +74,8 @@ def uncompress_episode_rewards(ep_length: int, most_common_reward: float,
 
             curr_compressed_rew_idx += 1
             if curr_compressed_rew_idx < len(compressed_rewards):
-                curr_compressed_rew_step, curr_compressed_rew = compressed_rewards[curr_compressed_rew_idx]
+                curr_compressed_rew_step, curr_compressed_rew = compressed_rewards[
+                    curr_compressed_rew_idx]
         else:
             rews.append(most_common_reward)
 

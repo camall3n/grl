@@ -61,7 +61,10 @@ if __name__ == "__main__":
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
+    mem_params = get_memory('f',
+                            n_obs=amdp.observation_space.n,
+                            n_actions=amdp.action_space.n,
+                            leakiness=0.2)
 
     pi = spec['Pi_phi'][0]
 

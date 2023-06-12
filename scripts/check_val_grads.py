@@ -204,7 +204,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
+    mem_params = get_memory('f',
+                            n_obs=amdp.observation_space.n,
+                            n_actions=amdp.action_space.n,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     grad_fn = jax.grad(mem_obs_val_func)
@@ -239,7 +242,8 @@ if __name__ == "__main__":
     init_mem_belief[0] = 1.
 
     expected_mem_val_grads = jnp.zeros((amdp.observation_space.n, n_mem_states) + mem_params.shape)
-    expected_learnt_mem_val_grads = jnp.zeros((amdp.observation_space.n, n_mem_states) + mem_params.shape)
+    expected_learnt_mem_val_grads = jnp.zeros((amdp.observation_space.n, n_mem_states) +
+                                              mem_params.shape)
 
     analytical_mem_val_grad = jnp.zeros_like(expected_mem_val_grads)
     analytical_learnt_mem_val_grad = jnp.zeros_like(expected_learnt_mem_val_grads)

@@ -175,7 +175,8 @@ def obs_space_mem_discrep_loss(
     denom_counts_mem_aug = denom_counts_mem_aug_unmasked + denom_mask
     prob_mem_given_oa = counts_mem_aug / denom_counts_mem_aug
 
-    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(amdp.action_space.n, -1, n_mem_states)
+    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(amdp.action_space.n, -1,
+                                                              n_mem_states)
     reformed_lambda_0_q_vals = (unflattened_lambda_0_q_vals * prob_mem_given_oa).sum(axis=-1)
 
     lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}

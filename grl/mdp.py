@@ -287,7 +287,8 @@ class AbstractMDP(MDP):
     def is_abstract_policy(self, pi):
         agg_states = (self.phi.sum(axis=0) > 1)
         for idx, is_agg in enumerate(agg_states):
-            agg_cluster = (one_hot(idx, self.observation_space.n) @ self.phi.transpose()).astype(bool)
+            agg_cluster = (
+                one_hot(idx, self.observation_space.n) @ self.phi.transpose()).astype(bool)
             if not np.all(pi[agg_cluster] == pi[agg_cluster][0]):
                 return False
         return True
@@ -311,7 +312,8 @@ class AbstractMDP(MDP):
     def generate_random_policies(self, n):
         policies = []
         for _ in range(n):
-            policies.append(random_stochastic_matrix((self.observation_space.n, self.action_space.n)))
+            policies.append(
+                random_stochastic_matrix((self.observation_space.n, self.action_space.n)))
 
         return policies
 

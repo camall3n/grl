@@ -158,7 +158,10 @@ def check_samples():
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     amdp = AbstractMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
+    mem_params = get_memory('f',
+                            n_obs=amdp.observation_space.n,
+                            n_actions=amdp.action_space.n,
+                            leakiness=0.2)
 
     pi = spec['Pi_phi'][0]
 
@@ -220,12 +223,14 @@ def check_samples():
         mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
         if unrolling_steps > 0:
-            all_mem_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
-                                      mem_params.shape)
+            all_mem_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n,
+                                       n_mem) + mem_params.shape)
 
             print(f"Calculating memory grads for update {g}")
-            for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
-                for a, next_m in list(product(list(range(amdp.action_space.n)), list(range(n_mem)))):
+            for o, m in tqdm(
+                    list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+                for a, next_m in list(product(list(range(amdp.action_space.n)),
+                                              list(range(n_mem)))):
                     all_mem_grads = all_mem_grads.at[m, o, a, next_m].set(
                         mem_grad_fn(mem_params, o, a, m, next_m))
 

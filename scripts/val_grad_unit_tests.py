@@ -176,9 +176,10 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=0.)
     mem_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
-    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) + mem_params.shape)
-    all_prod_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem, amdp.observation_space.n) +
-                               mem_params.shape)
+    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
+                          mem_params.shape)
+    all_prod_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem,
+                                amdp.observation_space.n) + mem_params.shape)
     # all_oma_grads = jnp.zeros((amdp.action_space.n, amdp.observation_space.n, n_mem) + mem_params.shape)
 
     for m in range(n_mem):
@@ -220,7 +221,8 @@ def test_product_grad(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarra
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp)
     mem_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
-    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) + mem_params.shape)
+    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
+                          mem_params.shape)
 
     for m in range(n_mem):
         for o in range(amdp.observation_space.n):
@@ -270,7 +272,10 @@ if __name__ == "__main__":
     amdp = AbstractMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f', n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n, leakiness=0.2)
+    mem_params = get_memory('f',
+                            n_obs=amdp.observation_space.n,
+                            n_actions=amdp.action_space.n,
+                            leakiness=0.2)
 
     test_unrolling(amdp, pi, mem_params)
     # test_product_grad(amdp, pi, mem_params)

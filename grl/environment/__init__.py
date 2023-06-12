@@ -20,5 +20,3 @@ def get_env(args: Namespace, rand_key: random.RandomState = None, **kwargs):
         env = OneHotActionConcatWrapper(env)
 
     return env
-
-

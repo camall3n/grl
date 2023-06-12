@@ -94,7 +94,8 @@ def run_td_lambda_on_mdp(
 
     print(f"Running TD(λ) with λ = {lambda_}")
 
-    tdlq = TDLambdaQFunction(mdp.observation_space.n, mdp.action_space.n, lambda_, mdp.gamma, alpha)
+    tdlq = TDLambdaQFunction(mdp.observation_space.n, mdp.action_space.n, lambda_, mdp.gamma,
+                             alpha)
 
     for i in range(n_episodes):
         obs, _ = mdp.reset()

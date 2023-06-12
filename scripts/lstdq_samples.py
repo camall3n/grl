@@ -67,7 +67,8 @@ def lstdq_lambda_samples(agent: ActorCritic,
             eps_length += 1
             next_action = agent.act(next_obs)
 
-            next_feature = featurize_obs_actions(next_obs, next_action, env.observation_space.n, env.action_space.n)
+            next_feature = featurize_obs_actions(next_obs, next_action, env.observation_space.n,
+                                                 env.action_space.n)
 
             A, b, z = lstdq_update(
                 A,
