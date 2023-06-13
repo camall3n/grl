@@ -17,10 +17,10 @@ from grl.utils.mdp import get_td_model
 from grl.utils.optimizer import get_optimizer
 from grl.utils.policy_eval import lstdq_lambda
 
-from scripts.check_traj_grads import mem_traj_prob
+from scripts.memory_gradient.check_traj_grads import mem_traj_prob
 from scripts.variance_calcs import collect_episodes
-from scripts.val_grad_unit_tests import mem_obs_val_func, calc_all_unrolled_val_grads
-from scripts.intermediate_sample_grads import mem_func
+from scripts.memory_gradient.val_grad_unit_tests import mem_obs_val_func, calc_all_unrolled_val_grads
+from scripts.memory_gradient.intermediate_sample_grads import mem_func
 
 @partial(jax.jit, static_argnames=['obs', 'lambda_0'])
 def mem_packed_v(mem_params: jnp.ndarray,

@@ -14,7 +14,7 @@ from grl.utils.policy_eval import lstdq_lambda
 
 from definitions import ROOT_DIR
 from scripts.variance_calcs import collect_episodes
-from scripts.intermediate_sample_grads import expected_val_grad, mem_func, load_mem_params
+from scripts.memory_gradient.intermediate_sample_grads import expected_val_grad, mem_func, load_mem_params
 
 def mem_obs_val_func(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, obs: int, mem: int):
 

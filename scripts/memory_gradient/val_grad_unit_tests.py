@@ -16,8 +16,8 @@ from grl.mdp import MDP, POMDP
 from grl.utils.math import normalize
 from grl.utils.mdp import get_td_model, get_p_s_given_o, amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
-from scripts.check_val_grads import mem_obs_val_func
-from scripts.intermediate_sample_grads import mem_func
+from scripts.memory_gradient.check_val_grads import mem_obs_val_func
+from scripts.memory_gradient.intermediate_sample_grads import mem_func
 
 ValGradInputs = namedtuple('ValGradInputs', [
     'mem_params', 'amdp', 'pi', 'T_td', 'all_mem_grads', 'unflat_v_mem', 'all_om_grads',
