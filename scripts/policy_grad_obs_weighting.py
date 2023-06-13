@@ -7,13 +7,13 @@ import jax.numpy as jnp
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.math import reverse_softmax
 from grl.utils.loss import pg_objective_func
 
 @partial(jax.jit, static_argnames='obs')
-def policy_grad_objective(pi_params: jnp.ndarray, amdp: AbstractMDP, obs: int):
+def policy_grad_objective(pi_params: jnp.ndarray, amdp: POMDP, obs: int):
     pi = softmax(pi_params, axis=-1)
     lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
     return lstd_v0[obs]
@@ -41,11 +41,11 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
     pi_params = reverse_softmax(pi)
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)

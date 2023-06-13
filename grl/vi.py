@@ -6,7 +6,7 @@ from functools import partial
 
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils import functional_solve_mdp
 
 @jit
@@ -61,7 +61,7 @@ def value_iteration(mdp: MDP, tol: float = 1e-10)\
 #     Get our policy over
 #     """
 
-def td_pe(pi_phi: jnp.ndarray, amdp: AbstractMDP) -> Tuple[jnp.ndarray, jnp.ndarray]:
+def td_pe(pi_phi: jnp.ndarray, amdp: POMDP) -> Tuple[jnp.ndarray, jnp.ndarray]:
     pi_ground = amdp.phi @ pi_phi
     occupancy = functional_get_occupancy(pi_ground, amdp)
 
@@ -81,7 +81,7 @@ def get_eps_greedy_pi(q_vals: jnp.ndarray, eps: float = 0.1) -> jnp.ndarray:
     new_phi_pi = new_phi_pi.at[jnp.arange(new_phi_pi.shape[0]), max_a].add(1 - eps)
     return new_phi_pi
 
-def policy_iteration_step(pi_params: jnp.ndarray, amdp: AbstractMDP, eps: float = 0.1):
+def policy_iteration_step(pi_params: jnp.ndarray, amdp: POMDP, eps: float = 0.1):
     pi_phi = nn.softmax(pi_params, axis=-1)
     # now we calculate our TD model and values
     td_v_vals, td_q_vals = td_pe(pi_phi, amdp)
@@ -94,7 +94,7 @@ def policy_iteration_step(pi_params: jnp.ndarray, amdp: AbstractMDP, eps: float 
 
     return new_pi_params, td_v_vals, td_q_vals
 
-def po_policy_iteration(amdp: AbstractMDP, eps: float = 0.1) -> jnp.ndarray:
+def po_policy_iteration(amdp: POMDP, eps: float = 0.1) -> jnp.ndarray:
     """
     Value iteration over observations.
     :param amdp: AbstractMDP

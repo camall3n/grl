@@ -7,10 +7,10 @@ from tqdm import trange
 
 from grl.environment import load_spec
 from grl.memory import get_memory
-from grl.mdp import MDP, AbstractMDP, normalize
+from grl.mdp import MDP, POMDP, normalize
 from grl.utils.mdp import get_td_model
 
-def gather_counts(amdp: AbstractMDP,
+def gather_counts(amdp: POMDP,
                   pi: jnp.ndarray,
                   rand_key: random.PRNGKey,
                   n_samples: int = int(1e3)):
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     spec = load_spec(
         spec_name,
         # memory_id=str(mem),
-        memory_id=str('f'),
+        memory_id=str('fuzzy'),
         mem_leakiness=0.2,
         corridor_length=corridor_length,
         discount=discount,
@@ -59,9 +59,9 @@ if __name__ == "__main__":
         epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     T_obs_obs, R_obs_obs = get_td_model(amdp, pi)
     T_obs_obs = normalize(T_obs_obs)
     td_mdp = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
-    td_amdp = AbstractMDP(td_mdp, np.eye(td_mdp.state_space.n))
+    td_amdp = POMDP(td_mdp, np.eye(td_mdp.state_space.n))
 
     print("Collecting POMDP samples")
     amdp_obs_counts = gather_counts(amdp, pi, rand_key, n_samples=n_samples)

@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from grl.environment import load_spec
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.utils.policy_eval import analytical_pe, lstdq_lambda
 
 def test_lstdq():
@@ -10,7 +10,7 @@ def test_lstdq():
 
     spec = load_spec(spec_name, epsilon=0.1)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
 
     _, mc_vals, td_vals, _ = analytical_pe(pi, amdp)

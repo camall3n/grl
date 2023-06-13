@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.math import greedify
 from grl.utils.mdp import amdp_get_occupancy
@@ -18,7 +18,7 @@ from grl.utils.policy_eval import functional_solve_mdp
 experiment_name = 'exp22-tmaze5'
 env_name = 'tmaze_5_two_thirds_up'
 
-def get_perf(pi_obs: jnp.ndarray, env: AbstractMDP):
+def get_perf(pi_obs: jnp.ndarray, env: POMDP):
     pi_state = env.phi @ pi_obs
     state_v, state_q = functional_solve_mdp(pi_state, env)
     return jnp.dot(env.p0, state_v)
@@ -46,7 +46,7 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
     # ]
     spec = environment.load_spec(env_name, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = POMDP(mdp, spec['phi'])
     mem_logits = jnp.log(memory + 1e-20)
     amdp_mem = memory_cross_product(mem_logits, env)
 

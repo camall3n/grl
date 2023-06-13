@@ -7,7 +7,7 @@ from jax.nn import softmax
 import numpy as np
 import optax
 
-from grl.mdp import AbstractMDP
+from grl.mdp import POMDP
 from grl.utils.loss import policy_discrep_loss, pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init
@@ -161,7 +161,7 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self'])
     def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray,
-                               amdp: AbstractMDP):
+                               amdp: POMDP):
         outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, amdp)
         v_0, (td_v_vals, td_q_vals) = outs
 
@@ -176,7 +176,7 @@ class AnalyticalAgent:
     def policy_discrep_update(self,
                               params: jnp.ndarray,
                               optim_state: jnp.ndarray,
-                              amdp: AbstractMDP,
+                              amdp: POMDP,
                               sign: bool = True):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
                                            has_aux=True)(params, amdp)
@@ -190,7 +190,7 @@ class AnalyticalAgent:
 
         return loss, mc_vals, td_vals, params
 
-    def policy_improvement(self, amdp: AbstractMDP):
+    def policy_improvement(self, amdp: POMDP):
         if self.policy_optim_alg == 'policy_grad':
             v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = \
                 self.policy_gradient_update(self.pi_params, self.pi_optim_state, amdp)
@@ -217,7 +217,7 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self'])
     def memory_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pi_params: jnp.ndarray,
-                      amdp: AbstractMDP):
+                      amdp: POMDP):
         pi = softmax(pi_params / self.pi_softmax_temp, axis=-1)
         loss, params_grad = value_and_grad(self.memory_objective_func, argnums=0)(params, pi, amdp)
 
@@ -226,7 +226,7 @@ class AnalyticalAgent:
 
         return loss, params
 
-    def memory_improvement(self, amdp: AbstractMDP):
+    def memory_improvement(self, amdp: POMDP):
         assert self.mem_params is not None, 'I have no memory params'
         loss, new_mem_params = self.memory_update(self.mem_params, self.mem_optim_state,
                                                   self.pi_params, amdp)

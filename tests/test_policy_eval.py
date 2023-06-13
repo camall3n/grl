@@ -3,13 +3,13 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import load_spec, MDP, AbstractMDP, memory_cross_product
+from grl import load_spec, MDP, POMDP, memory_cross_product
 from grl.utils.policy_eval import analytical_pe
 from grl.memory import get_memory
 
 def assert_pe_results(spec, answers, mem_params=None):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     policies = spec['Pi_phi']
 
     if mem_params is not None:

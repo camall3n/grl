@@ -3,7 +3,7 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import MDP, AbstractMDP, environment
+from grl import MDP, POMDP, environment
 from grl.vi import po_policy_iteration, value_iteration
 
 def test_vi():
@@ -38,7 +38,7 @@ def test_po_pi_tmaze():
     print(f"Testing value iteration on T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     phi_pi = po_policy_iteration(amdp)
 
     print(f"Policy Iteration pi: {phi_pi}\n")

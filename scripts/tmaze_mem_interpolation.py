@@ -7,7 +7,7 @@ from functools import partial
 
 from grl.memory.lib import get_memory
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.memory import memory_cross_product
 from grl.utils.math import reverse_softmax
 from grl.utils.lambda_discrep import lambda_discrep_measures
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     spec = load_spec(spec_name)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     og_mem_params = get_memory(str(mem_id))
     og_mem = softmax(og_mem_params, axis=-1)
     pi = spec['Pi_phi'][0].repeat(2, axis=0)

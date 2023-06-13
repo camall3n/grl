@@ -10,7 +10,7 @@ from pathlib import Path
 
 from grl.environment import load_spec
 from grl.memory import get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.math import reverse_softmax
 from grl.utils.loss import mem_discrep_loss
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     mem_params = get_memory('0', n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     # corridor values
     ps = np.linspace(0., 1., num=args.n)

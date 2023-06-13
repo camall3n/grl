@@ -37,8 +37,6 @@ def tiger_alt_start_cam(**kwargs) -> jnp.ndarray:
     return pi_params
 
 def get_start_pi(pi_name: str, pi_phi: jnp.ndarray = None, **kwargs):
-    # if we pass in a digit for get_start_pi, that means we look into
-    # the corresponding index in Pi_phi in spec.
     if pi_phi is not None:
         return reverse_softmax(pi_phi)
 

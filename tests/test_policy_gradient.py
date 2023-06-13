@@ -6,7 +6,7 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import MDP, AbstractMDP
+from grl import MDP, POMDP
 from grl.environment import load_spec
 from grl.agent.analytical import AnalyticalAgent
 from grl.utils.math import glorot_init
@@ -17,7 +17,7 @@ def test_policy_grad_fully_observable_tmaze():
     print(f"Testing analytical policy gradient on fully observable T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     np.random.seed(2020)
     rand_key = jax.random.PRNGKey(2020)
@@ -44,7 +44,7 @@ def test_policy_grad_short_corridor():
     print(f"Testing analytical policy gradient on short corridor")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     seed = 2022
     np.random.seed(seed)

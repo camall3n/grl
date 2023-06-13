@@ -5,7 +5,7 @@ from tqdm import tqdm
 import optuna
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.agent.actorcritic import ActorCritic
 from grl.memory.lib import get_memory
 
@@ -13,7 +13,7 @@ from grl.memory.lib import get_memory
 
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-env = AbstractMDP(mdp, spec['phi'])
+env = POMDP(mdp, spec['phi'])
 agent = ActorCritic(n_obs=env.observation_space.n,
                     n_actions=env.action_space.n,
                     gamma=env.gamma,

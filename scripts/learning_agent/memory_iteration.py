@@ -9,14 +9,14 @@ from tqdm import tqdm
 
 from grl import environment
 from grl.agent.actorcritic import ActorCritic
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.file_system import numpyify_and_save
 from grl.utils.policy_eval import lstdq_lambda
 
 cast_as_int = lambda x: int(float(x))
 
-def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
+def log_info(agent: ActorCritic, amdp: POMDP) -> dict:
     pi = agent.policy_probs
     info = {'lambda_0': agent.lambda_0, 'lambda_1': agent.lambda_1, 'policy_probs': pi.copy()}
 
@@ -47,7 +47,7 @@ def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
 
     return info
 
-def log_and_save_info(agent: ActorCritic, amdp: AbstractMDP, save_path: Union[Path, str]):
+def log_and_save_info(agent: ActorCritic, amdp: POMDP, save_path: Union[Path, str]):
     info = log_info(agent, amdp)
     numpyify_and_save(save_path, info)
 
@@ -185,7 +185,7 @@ def main():
     #     args.min_mem_opt_replay_size = args.replay_buffer_size
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = POMDP(mdp, spec['phi'])
 
     agent = ActorCritic(
         n_obs=env.observation_space.n,

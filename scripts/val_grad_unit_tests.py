@@ -12,7 +12,7 @@ from collections import namedtuple
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.math import normalize
 from grl.utils.mdp import get_td_model, get_p_s_given_o, amdp_get_occupancy
 from grl.utils.policy_eval import lstdq_lambda
@@ -24,16 +24,16 @@ ValGradInputs = namedtuple('ValGradInputs', [
     'all_prod_grads'
 ])
 
-def get_init_belief(amdp: AbstractMDP, pi: jnp.ndarray):
+def get_init_belief(amdp: POMDP, pi: jnp.ndarray):
     amdp_occupancy = amdp_get_occupancy(pi, amdp)
     return get_p_s_given_o(amdp.phi, amdp_occupancy)
 
-def mem_prod_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray, mem: int, obs: int,
+def mem_prod_val(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
                  action: int, next_mem: int, next_obs: int):
     return mem_func(mem_params, obs, action, mem, next_mem) * mem_obs_val_func(
         mem_params, amdp, pi, next_obs, next_mem)
 
-def q_mem_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray, mem: int, obs: int,
+def q_mem_val(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
               action: int):
     mem_aug_amdp = memory_cross_product(mem_params, amdp)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
@@ -43,7 +43,7 @@ def q_mem_val(mem_params: jnp.ndarray, amdp: AbstractMDP, pi: jnp.ndarray, mem: 
     return q0_unflat[action, obs, mem]
 
 @partial(jax.jit, static_argnames='a')
-def belief_update(prev_belief: jnp.ndarray, amdp: AbstractMDP, a: int):
+def belief_update(prev_belief: jnp.ndarray, amdp: POMDP, a: int):
     next_belief = amdp.T[a] @ prev_belief
     prob_next_o = next_belief @ amdp.phi
     return next_belief, prob_next_o
@@ -135,7 +135,7 @@ def prod_val_grad(obs: int, mem: int, val_grad_inputs: ValGradInputs):
     return cumulative_mem_grads
 
 def calc_all_unrolled_val_grads(mem_params: jnp.ndarray,
-                                amdp: AbstractMDP,
+                                amdp: POMDP,
                                 pi: jnp.ndarray,
                                 T_td: jnp.ndarray,
                                 unflat_v_mem: jnp.ndarray,
@@ -161,7 +161,7 @@ def calc_all_unrolled_val_grads(mem_params: jnp.ndarray,
 
     return all_om_n_grads
 
-def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
+def test_unrolling(amdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     mem_grad_fn = jax.grad(mem_func)
     prod_grad_fn = jax.grad(mem_prod_val)
@@ -211,7 +211,7 @@ def test_unrolling(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
             val_grad_unroll(o, m, val_grad_inputs, unrolling_steps=n_unrolls))
     print("are they the same???")
 
-def test_product_grad(amdp: AbstractMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
+def test_product_grad(amdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     grad_fn = jax.grad(mem_func)
     T_td, R_td = get_td_model(amdp, pi)
@@ -269,10 +269,10 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)

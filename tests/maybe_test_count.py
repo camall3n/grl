@@ -8,7 +8,7 @@ from functools import partial
 
 config.update('jax_platform_name', 'cpu')
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.memory import memory_cross_product, get_memory
 from grl.utils.mdp import functional_get_occupancy
 
@@ -110,7 +110,7 @@ def test_count():
                      epsilon=0.2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     mem_params = get_memory(str(16))
     n_mem_states = mem_params.shape[-1]
     # def cumulative_bitwise_and(carry: Tuple, )

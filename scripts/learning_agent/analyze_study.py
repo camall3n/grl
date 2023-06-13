@@ -16,7 +16,7 @@ import seaborn as sns
 from tqdm import tqdm
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.agent.actorcritic import ActorCritic
 from grl.memory.lib import get_memory
 from scripts.learning_agent.optuna_to_pandas import load_study
@@ -47,7 +47,7 @@ plt.close()
 params = [study.best_trial.params[key] for key in sorted(study.best_trial.params.keys(), key=int)]
 spec = environment.load_spec(env_name, memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-env = AbstractMDP(mdp, spec['phi'])
+env = POMDP(mdp, spec['phi'])
 agent = ActorCritic(n_obs=env.observation_space.n,
                     n_actions=env.action_space.n,
                     gamma=env.gamma,

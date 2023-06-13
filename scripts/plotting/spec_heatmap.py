@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.environment import load_spec
 from grl.utils.loss import discrep_loss
 
@@ -13,7 +13,7 @@ def heatmap(spec: dict, error_type: str = 'l2', num_ticks: int = 5):
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     # Run for both v and q
     value_types = ['v', 'q']

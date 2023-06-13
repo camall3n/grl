@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.agent.actorcritic import ActorCritic
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.file_system import numpyify_and_save
 from grl.utils.policy_eval import lstdq_lambda
@@ -35,7 +35,7 @@ def lstdq_update(A: jnp.ndarray, b: jnp.ndarray, z: jnp.ndarray, feature: jnp.nd
     return A, b, z
 
 def lstdq_lambda_samples(agent: ActorCritic,
-                         env: AbstractMDP,
+                         env: POMDP,
                          n_samples: int,
                          lambda_: float = 0.,
                          reset_before_converging: bool = False,
@@ -113,7 +113,7 @@ def check_lstdq_samples():
 
     spec = load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
 
     agent = ActorCritic(

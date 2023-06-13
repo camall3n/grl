@@ -16,7 +16,7 @@ from functools import partial
 
 from grl.utils.file_system import numpyify_and_save
 from grl.environment import load_spec
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.utils.math import reverse_softmax
 from grl.utils.policy_eval import functional_solve_mdp
 from grl.agent.analytical import AnalyticalAgent
@@ -55,7 +55,7 @@ def get_perf(pi_obs: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarra
     return jnp.dot(p0, state_v)
 
 def fixed_mi(pi: jnp.ndarray,
-             amdp: AbstractMDP,
+             amdp: POMDP,
              mem_iterations: int = 30000,
              pi_iterations: int = 10000,
              seed: int = 2020):
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     spec = load_spec(args.spec, memory_id=0, n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     study_dir = Path(ROOT_DIR, 'results', 'analytical', args.study_name)
     journal_path = study_dir / "study.journal"

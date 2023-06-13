@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.loss import obs_space_mem_discrep_loss
 from grl.utils.mdp import get_td_model
 from grl.utils.optimizer import get_optimizer
@@ -24,7 +24,7 @@ from scripts.intermediate_sample_grads import mem_func
 
 @partial(jax.jit, static_argnames=['obs', 'lambda_0'])
 def mem_packed_v(mem_params: jnp.ndarray,
-                 amdp: AbstractMDP,
+                 amdp: POMDP,
                  pi: jnp.ndarray,
                  obs: int,
                  lambda_0: float = 0.):
@@ -51,7 +51,7 @@ def mem_packed_v(mem_params: jnp.ndarray,
     return reformed_lambda_0_v_vals[obs]
 
 @partial(jax.jit, static_argnames=['obs', 'action'])
-def prob_mem_over_obs(mem_params: jnp.ndarray, mem_aug_pi: jnp.ndarray, mem_aug_amdp: AbstractMDP,
+def prob_mem_over_obs(mem_params: jnp.ndarray, mem_aug_pi: jnp.ndarray, mem_aug_amdp: POMDP,
                       obs: int, mem: int):
     n_mem_states = mem_params.shape[-1]
 
@@ -70,7 +70,7 @@ def prob_mem_over_obs(mem_params: jnp.ndarray, mem_aug_pi: jnp.ndarray, mem_aug_
     return prob_mem_given_o[obs, mem]
 
 def lambda_discrep_loss(mem_params: jnp.ndarray,
-                        amdp: AbstractMDP,
+                        amdp: POMDP,
                         lstd_v1: jnp.ndarray,
                         pi: jnp.ndarray,
                         obs: int,
@@ -102,7 +102,7 @@ def calc_all_mem_grads(mem_params: jnp.ndarray, init_mem_belief: jnp.ndarray,
 def calc_val_diff(v0_unflat: jnp.ndarray, mem_belief: jnp.ndarray, v1: jnp.ndarray, obs: int):
     return jnp.dot(v0_unflat[obs], mem_belief) - v1[obs]
 
-def calc_product_rule(mem_params: jnp.ndarray, mem_aug_pi: jnp.ndarray, mem_aug_amdp: AbstractMDP,
+def calc_product_rule(mem_params: jnp.ndarray, mem_aug_pi: jnp.ndarray, mem_aug_amdp: POMDP,
                       mem_lstd_v0_unflat: jnp.ndarray, all_om_val_grads: jnp.ndarray,
                       lstd_v1: jnp.ndarray, obs: int):
     n_mem = mem_params.shape[-1]
@@ -156,9 +156,9 @@ def check_samples():
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)

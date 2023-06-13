@@ -5,14 +5,14 @@ import numpy as np
 from tqdm import tqdm
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.agent.td_lambda import TDLambdaQFunction
 from grl.utils.replaymemory import ReplayMemory
 
 #%% Define base decision process
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-amdp = AbstractMDP(mdp, spec['phi'])
+amdp = POMDP(mdp, spec['phi'])
 pi_base = spec['Pi_phi'][0] # abstract policy over base (non-memory) actions
 n_episodes = 10000
 

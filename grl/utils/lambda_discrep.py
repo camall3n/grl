@@ -2,11 +2,11 @@ import jax.numpy as jnp
 from typing import Callable
 from functools import partial
 
-from grl import AbstractMDP
+from grl import POMDP
 from grl.utils.loss import discrep_loss
 from grl.utils.policy_eval import analytical_pe
 
-def lambda_discrep_measures(amdp: AbstractMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
+def lambda_discrep_measures(amdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
     if discrep_loss_fn is None:
         discrep_loss_fn = partial(discrep_loss, value_type='q', error_type='l2', alpha=1.)
 

@@ -8,7 +8,7 @@ from functools import partial
 
 from grl.agent.analytical import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.math import glorot_init, greedify
 from grl.utils.loss import discrep_loss
@@ -140,7 +140,7 @@ def run_memory_iteration(spec: dict,
 
 def memory_iteration(
     agent: AnalyticalAgent,
-    init_amdp: AbstractMDP,
+    init_amdp: POMDP,
     pi_per_step: int = 50000,
     mi_per_step: int = 50000,
     mi_iterations: int = 1,
@@ -264,7 +264,7 @@ def memory_iteration(
     return info, agent
 
 def pi_improvement(agent: AnalyticalAgent,
-                   amdp: AbstractMDP,
+                   amdp: POMDP,
                    iterations: int = 10000,
                    log_every: int = 1000,
                    progress_bar: bool = True) -> dict:
@@ -292,7 +292,7 @@ def pi_improvement(agent: AnalyticalAgent,
     return output
 
 def mem_improvement(agent: AnalyticalAgent,
-                    amdp: AbstractMDP,
+                    amdp: POMDP,
                     iterations: int = 10000,
                     log_every: int = 1000,
                     progress_bar: bool = True) -> np.ndarray:

@@ -24,7 +24,7 @@ def get_memory(memory_id: str,
                 mem_params = reverse_softmax(T_mem)
             else:
                 raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
-    elif memory_id == 'f':
+    elif memory_id == 'fuzzy':
         assert (n_obs is not None) and (n_actions is not None), \
             f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
         identity = np.eye(n_mem_states)

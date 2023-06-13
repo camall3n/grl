@@ -4,7 +4,7 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import environment, MDP, AbstractMDP
+from grl import environment, MDP, POMDP
 from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, amdp_get_occupancy
 from grl.utils.policy_eval import functional_solve_amdp, functional_solve_mdp
 
@@ -81,7 +81,7 @@ def indv_spec_jaxify_pe_funcs(spec):
     pi = spec['Pi_phi'][0]
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
 
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     # MC*
     pi_ground = amdp.get_ground_policy(pi)
     mdp_v, mdp_q = functional_solve_mdp(pi_ground, mdp)

@@ -7,7 +7,7 @@ from jax.config import config
 from grl.agent import get_agent
 from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.model import get_network
 from grl.sample_trainer import Trainer
 from grl.utils.data import uncompress_episode_rewards
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_eval_rews': final_eval_info['episode_rewards'],
+        'final_eval_rewards': final_eval_info['episode_rewards'],
         'final_eval_qs': final_eval_info['episode_qs']
     }
 

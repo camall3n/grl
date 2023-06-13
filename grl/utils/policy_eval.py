@@ -4,10 +4,10 @@ from typing import Union
 from jax import jit
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 
 @jit
-def analytical_pe(pi_obs: jnp.ndarray, amdp: AbstractMDP):
+def analytical_pe(pi_obs: jnp.ndarray, amdp: POMDP):
     # observation policy, but expanded over states
     pi_state = amdp.phi @ pi_obs
 
@@ -33,7 +33,7 @@ def analytical_pe(pi_obs: jnp.ndarray, amdp: AbstractMDP):
     }
 
 @jit
-def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
+def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, POMDP]):
     """
     Solves for V using linear equations.
     For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
@@ -66,7 +66,7 @@ def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarra
     return {'v': amdp_v_vals, 'q': amdp_q_vals}
 
 @partial(jit, static_argnames='lambda_')
-def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float = 0.9):
+def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, POMDP], lambda_: float = 0.9):
     """Solve for V, Q using LSTD(λ)
 
     For the definition of LSTD(λ) see https://arxiv.org/pdf/1405.3229.pdf

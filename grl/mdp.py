@@ -243,7 +243,7 @@ class BlockMDP(MDP):
         self.obs_fn = obs_fn
 
 @register_pytree_node_class
-class AbstractMDP(MDP):
+class POMDP(MDP):
     def __init__(self, base_mdp, phi):
         super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
         self.base_mdp = copy.deepcopy(base_mdp)
@@ -323,7 +323,7 @@ class AbstractMDP(MDP):
         phi = random_stochastic_matrix(size=(n_states, n_obs))
         return cls(mdp, phi)
 
-class UniformAbstractMDP(AbstractMDP):
+class UniformPOMDP(POMDP):
     def __init__(self, base_mdp, phi, pi=None, p0=None):
         super().__init__(base_mdp, phi, pi, p0)
 
@@ -346,7 +346,7 @@ def test():
 
     # Construct abstract MDP of the block MDP using perfect abstraction function
     phi = (mdp2.obs_fn.transpose() > 0).astype(int)
-    mdp3 = AbstractMDP(mdp2, phi)
+    mdp3 = POMDP(mdp2, phi)
     assert np.allclose(mdp1.T, mdp3.T)
     assert np.allclose(mdp1.R, mdp3.R)
     print('All tests passed.')

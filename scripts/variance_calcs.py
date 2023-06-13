@@ -10,7 +10,7 @@ from typing import Union, List, Tuple
 config.update('jax_platform_name', 'cpu')
 
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.file_system import numpyify_and_save, load_info
 from definitions import ROOT_DIR
@@ -31,7 +31,7 @@ def mem_act(mem_probses: jnp.ndarray, prev_mems: Tuple[int], action: int, obs: i
         random.choice(mem_key, mem_prob.shape[-1], p=mem_prob[action, obs, prev_mems[i]])
         for i, (mem_key, mem_prob) in enumerate(zip(mem_keys, mem_probses))), rand_key
 
-def collect_episodes(mdp: Union[MDP, AbstractMDP],
+def collect_episodes(mdp: Union[MDP, POMDP],
                      pi: jnp.ndarray,
                      n_episodes: int,
                      rand_key: random.PRNGKey,
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
     n_obs = amdp.observation_space.n
     n_actions = amdp.action_space.n

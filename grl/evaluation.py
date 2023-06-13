@@ -5,11 +5,11 @@ import numpy as np
 from tqdm import trange
 
 from grl.agent.rnn import RNNAgent
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.data import compress_episode_rewards
 
 def eval_episodes(agent: RNNAgent, network_params: dict,
-                  env: Union[MDP, AbstractMDP], rand_key: random.PRNGKey,
+                  env: Union[MDP, POMDP], rand_key: random.PRNGKey,
                   n_episodes: int = 1, test_eps: float = 0.,
                   max_episode_steps: int = 1000)\
         -> Tuple[dict, random.PRNGKey]:

@@ -2,10 +2,10 @@ from jax import jit
 import jax.numpy as jnp
 import numpy as np
 from typing import Union
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 
 @jit
-def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
+def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, POMDP]):
     Pi_pi = pi_ground.transpose()[..., None]
     T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
 
@@ -16,7 +16,7 @@ def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, AbstractMDP
     b = mdp.p0
     return jnp.linalg.solve(A, b)
 
-def amdp_get_occupancy(pi: jnp.ndarray, amdp: AbstractMDP):
+def amdp_get_occupancy(pi: jnp.ndarray, amdp: POMDP):
     pi_ground = amdp.phi @ pi
     return functional_get_occupancy(pi_ground, amdp)
 
@@ -32,7 +32,7 @@ def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
     return p_pi_of_s_given_o
 
 @jit
-def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: AbstractMDP):
+def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: POMDP):
     # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
     # we flip here so that we have curr_obs, next_obs (order matters).
     obs_idx_product = jnp.flip(
@@ -68,7 +68,7 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: AbstractMDP
     return T_obs_obs, R_obs_obs
 
 @jit
-def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
+def get_td_model(amdp: POMDP, pi: jnp.ndarray):
     pi_state = amdp.phi @ pi
     occupancy = functional_get_occupancy(pi_state, amdp)
 

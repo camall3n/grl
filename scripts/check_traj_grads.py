@@ -7,7 +7,7 @@ import numpy as np
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.policy_eval import lstdq_lambda
 
 from scripts.variance_calcs import collect_episodes
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     spec = load_spec(
         spec_name,
         # memory_id=str(mem),
-        memory_id=str('f'),
+        memory_id=str('fuzzy'),
         mem_leakiness=0.2,
         corridor_length=corridor_length,
         discount=discount,
@@ -62,10 +62,10 @@ if __name__ == "__main__":
         epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)

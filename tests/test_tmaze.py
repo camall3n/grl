@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.environment import tmaze_lib
 
 def test_slippery_tmaze():
@@ -9,7 +9,7 @@ def test_slippery_tmaze():
     slip_prob = 0.1
     T, R, gamma, p0, phi = tmaze_lib.slippery_tmaze(corridor_length, slip_prob=slip_prob)
     mdp = MDP(T, R, p0, gamma=1.0)
-    slip_tmaze = AbstractMDP(mdp, phi)
+    slip_tmaze = POMDP(mdp, phi)
 
     # make sure we have proper prob. dists.
     assert np.allclose(T.sum(axis=-1), 1)
@@ -44,7 +44,7 @@ def tmaze():
     corridor_length = 5
     T, R, gamma, p0, phi = tmaze_lib.tmaze(corridor_length)
     mdp = MDP(T, R, p0, gamma=1)
-    tmaze = AbstractMDP(mdp, phi)
+    tmaze = POMDP(mdp, phi)
     return tmaze
 
 def test_tmaze_start(tmaze):

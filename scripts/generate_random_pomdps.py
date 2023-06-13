@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 from time import time
 
-from grl.mdp import AbstractMDP
+from grl.mdp import POMDP
 
 def generate_pomdps(params):
     timestamp = str(time()).replace('.', '-')
@@ -15,7 +15,7 @@ def generate_pomdps(params):
         n_o = np.random.randint(params['min_n_o'], params['max_n_o'] + 1)
         n_a = np.random.randint(params['min_n_a'], params['max_n_a'] + 1)
         gamma = np.random.random()
-        amdp = AbstractMDP.generate(n_s, n_a, n_o, gamma=gamma)
+        amdp = POMDP.generate(n_s, n_a, n_o, gamma=gamma)
 
         content = f'# Generation timestamp: {timestamp}\n'
         content += f'# with seed: {args.seed}\n'

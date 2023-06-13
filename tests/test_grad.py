@@ -8,7 +8,7 @@ config.update('jax_platform_name', 'cpu')
 from grl import load_spec, RTOL
 from grl.agent.analytical import AnalyticalAgent
 from grl.memory_iteration import memory_iteration
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.math import reverse_softmax
 
 def test_example_7_p():
@@ -17,7 +17,7 @@ def test_example_7_p():
     """
     spec = load_spec('example_7')
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     rand_key = random.PRNGKey(2020)
 
     pi_known = np.array([
@@ -74,7 +74,7 @@ def test_example_7_m():
     mem_params = np.log(np.array([memory_start, memory_start]))
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     memory_end = np.array([
         [ # red

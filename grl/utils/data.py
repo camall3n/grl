@@ -60,23 +60,24 @@ def compress_episode_rewards(episode_reward: jnp.ndarray) -> dict:
 
 def uncompress_episode_rewards(ep_length: int, most_common_reward: float,
                                compressed_rewards: List):
-    rews = []
+    rewards = []
 
     if not compressed_rewards:
         return [most_common_reward] * ep_length
 
-    curr_compressed_rew_idx = 0
-    curr_compressed_rew_step, curr_compressed_rew = compressed_rewards[curr_compressed_rew_idx]
+    curr_compressed_reward_idx = 0
+    curr_compressed_reward_step, curr_compressed_reward = \
+        compressed_rewards[curr_compressed_reward_idx]
 
     for step in range(ep_length):
-        if step == curr_compressed_rew_step:
-            rews.append(curr_compressed_rew)
+        if step == curr_compressed_reward_step:
+            rews.append(curr_compressed_reward)
 
-            curr_compressed_rew_idx += 1
-            if curr_compressed_rew_idx < len(compressed_rewards):
-                curr_compressed_rew_step, curr_compressed_rew = compressed_rewards[
-                    curr_compressed_rew_idx]
+            curr_compressed_reward_idx += 1
+            if curr_compressed_reward_idx < len(compressed_rewards):
+                curr_compressed_reward_step, curr_compressed_reward = \
+                    compressed_rewards[curr_compressed_reward_idx]
         else:
-            rews.append(most_common_reward)
+            rewards.append(most_common_reward)
 
-    return rews
+    return rewards

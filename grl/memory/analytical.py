@@ -1,11 +1,11 @@
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 
 import numpy as np
 from jax import jit, nn
 import jax.numpy as jnp
 
 @jit
-def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
+def memory_cross_product(mem_params: jnp.ndarray, amdp: POMDP):
     T_mem = nn.softmax(mem_params, axis=-1)
     n_states_m = T_mem.shape[-1]
     n_states = amdp.state_space.n
@@ -32,4 +32,4 @@ def memory_cross_product(mem_params: jnp.ndarray, amdp: AbstractMDP):
     p0_x = p0_x.at[::n_states_m].set(amdp.p0)
 
     mem_aug_mdp = MDP(T_x, R_x, p0_x, gamma=amdp.gamma)
-    return AbstractMDP(mem_aug_mdp, phi_x)
+    return POMDP(mem_aug_mdp, phi_x)

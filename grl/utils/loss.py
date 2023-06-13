@@ -5,7 +5,7 @@ from functools import partial
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, lstdq_lambda, functional_solve_mdp
 from grl.memory import memory_cross_product
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 """
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
@@ -47,7 +47,7 @@ def seq_sarsa_lambda_discrep(q_td: jnp.ndarray, q_mc: jnp.ndarray, a: jnp.ndarra
 def weight_and_sum_discrep_loss(diff: jnp.ndarray,
                                 occupancy: jnp.ndarray,
                                 pi: jnp.ndarray,
-                                amdp: AbstractMDP,
+                                amdp: POMDP,
                                 value_type: str = 'q',
                                 error_type: str = 'l2',
                                 alpha: float = 1.,
@@ -90,7 +90,7 @@ def weight_and_sum_discrep_loss(diff: jnp.ndarray,
          ])
 def discrep_loss(
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # non-state args
+        amdp: POMDP, # non-state args
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
@@ -124,7 +124,7 @@ def discrep_loss(
 def mem_discrep_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        amdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
@@ -145,7 +145,7 @@ def mem_discrep_loss(
 def obs_space_mem_discrep_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        amdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
@@ -202,7 +202,7 @@ def obs_space_mem_discrep_loss(
     return loss
 
 def policy_discrep_loss(pi_params: jnp.ndarray,
-                        amdp: AbstractMDP,
+                        amdp: POMDP,
                         value_type: str = 'q',
                         error_type: str = 'l2',
                         lambda_0: float = 0.,
@@ -220,7 +220,7 @@ def policy_discrep_loss(pi_params: jnp.ndarray,
                                           flip_count_prob=flip_count_prob)
     return loss, (mc_vals, td_vals)
 
-def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
+def pg_objective_func(pi_params: jnp.ndarray, amdp: POMDP):
     """
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
@@ -239,7 +239,7 @@ def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        amdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         alpha: float = 1.,
@@ -256,7 +256,7 @@ def mem_magnitude_td_loss(
 @partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
 def magnitude_td_loss(
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # non-state args
+        amdp: POMDP, # non-state args
         value_type: str = 'q',
         error_type: str = 'l2',
         alpha: float = 1.,

@@ -7,14 +7,14 @@ import numpy as np
 from grl.agent import get_agent, RNNAgent
 from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.model import get_network
 from grl.run_sample_based import parse_arguments
 from grl.sample_trainer import Trainer
 from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
 
-def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, AbstractMDP]) \
+def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, POMDP]) \
         -> Tuple[RNNAgent, dict, jax.random.PRNGKey]:
     network = get_network(args, env.action_space.n)
 

@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.loss import obs_space_mem_discrep_loss
 from grl.utils.policy_eval import lstdq_lambda
 
@@ -193,10 +193,10 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f',
+    mem_params = get_memory('fuzzy',
                             n_obs=amdp.observation_space.n,
                             n_actions=amdp.action_space.n,
                             leakiness=0.2)

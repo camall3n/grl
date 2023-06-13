@@ -5,7 +5,7 @@ import numpy as np
 
 from definitions import ROOT_DIR
 from grl.environment.pomdp_file import POMDPFile
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.math import normalize
 from . import examples_lib
 
@@ -67,11 +67,11 @@ def load_spec(name: str, **kwargs):
 
     return spec
 
-def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> AbstractMDP:
+def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> POMDP:
     """
     Wraps a MDP/POMDP specification in a POMDP
     """
     spec = load_spec(name, rand_key=rand_key, **kwargs)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'], rand_key=rand_key)
-    amdp = AbstractMDP(mdp, spec['phi'])
+    amdp = POMDP(mdp, spec['phi'])
     return amdp, {'Pi_phi': spec['Pi_phi'][0], 'Pi_phi_x': spec['Pi_phi_x']}
