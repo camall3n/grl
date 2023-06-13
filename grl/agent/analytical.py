@@ -160,8 +160,7 @@ class AnalyticalAgent:
             self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
     @partial(jit, static_argnames=['self'])
-    def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray,
-                               amdp: POMDP):
+    def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, amdp: POMDP):
         outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, amdp)
         v_0, (td_v_vals, td_q_vals) = outs
 

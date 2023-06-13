@@ -3,10 +3,8 @@ from pathlib import Path
 exp_name = Path(__file__).stem
 
 hparams = {
-    'file_name':
-        f'runs_{exp_name}.txt',
-    'entry':
-        '-m grl.run_sample_based',
+    'file_name': f'runs_{exp_name}.txt',
+    'entry': '-m grl.run_sample_based',
     'args': [
         {
             # Env
@@ -54,10 +52,8 @@ hparams = {
     ],
     # exclusion criteria. If any of the runs match any of the
     # cross-product of all the values in the dictionary, skip
-    'exclude':
-        {
-            'multihead_loss_mode': ['td'],
-            'multihead_lambda_coeff': [-1, 1]
-        }
-
+    'exclude': {
+        'multihead_loss_mode': ['td'],
+        'multihead_lambda_coeff': [-1, 1]
+    }
 }

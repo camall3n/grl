@@ -33,7 +33,7 @@ def parse_arguments(return_defaults: bool = False):
                         choices=['rnn', 'multihead_rnn'],
                         help='Algorithm to evaluate')
     parser.add_argument('--arch', default='gru', type=str,
-                        choices=['gry', 'lstm', 'elman'],
+                        choices=['gru', 'lstm', 'elman'],
                         help='Algorithm to evaluate')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')

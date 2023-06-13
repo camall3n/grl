@@ -227,10 +227,8 @@ def check_samples():
                                        n_mem) + mem_params.shape)
 
             print(f"Calculating memory grads for update {g}")
-            for o, m in tqdm(
-                    list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
-                for a, next_m in list(product(list(range(amdp.action_space.n)),
-                                              list(range(n_mem)))):
+            for o, m in tqdm(list(product(range(amdp.observation_space.n), range(n_mem)))):
+                for a, next_m in product(range(amdp.action_space.n), range(n_mem)):
                     all_mem_grads = all_mem_grads.at[m, o, a, next_m].set(
                         mem_grad_fn(mem_params, o, a, m, next_m))
 
