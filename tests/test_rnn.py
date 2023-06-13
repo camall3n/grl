@@ -207,12 +207,12 @@ def test_actions():
 
         final_eval_rewards_compressed = final_eval_info['episode_rewards']
 
-        for compressed_ep_rews in final_eval_rewards_compressed:
-            ep_rews = uncompress_episode_rewards(compressed_ep_rews['episode_length'],
-                                                 compressed_ep_rews['most_common_reward'],
-                                                 compressed_ep_rews['compressed_rewards'])
+        for compressed_ep_rewards in final_eval_rewards_compressed:
+            ep_rewards = uncompress_episode_rewards(compressed_ep_rewards['episode_length'],
+                                                    compressed_ep_rewards['most_common_reward'],
+                                                    compressed_ep_rewards['compressed_rewards'])
 
-            assert sum(ep_rews) == 4., f"Optimal actions don't match for " \
+            assert sum(ep_rewards) == 4., f"Optimal actions don't match for " \
                                        f"loss_mode: {loss_mode}, action_mode: {action_mode}"
 
 if __name__ == "__main__":
