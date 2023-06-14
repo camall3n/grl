@@ -1,5 +1,6 @@
 import inspect
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 
@@ -67,7 +68,7 @@ def load_spec(name: str, **kwargs):
 
     return spec
 
-def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> POMDP:
+def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> Tuple[POMDP, dict]:
     """
     Wraps a MDP/POMDP specification in a POMDP
     """
