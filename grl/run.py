@@ -142,7 +142,7 @@ if __name__ == '__main__':
     if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
         logging.info(f'Pi_phi:\n {pi_dict["Pi_phi"]}')
         if args.init_pi is not None:
-            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'])
+            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'][0])
 
     results_path = results_path(args)
 
