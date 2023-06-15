@@ -222,7 +222,6 @@ class Trainer:
                     episode_info['total_episode_loss'] += info['total_loss']
                     episode_info['episode_updates'] += 1
 
-                pbar.update(1)
                 self.num_steps += 1
 
                 # Offline evaluation
@@ -266,6 +265,7 @@ class Trainer:
 
             avg_episode_loss = episode_info['total_episode_loss'] / max(
                 episode_info['episode_updates'], 1)
+            pbar.update(t + 1)
             print(self.episode_stat_string(sum(episode_reward), avg_episode_loss, t))
 
             if self.checkpoint_dir is not None and checkpoint_after_ep:
