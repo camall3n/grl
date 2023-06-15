@@ -43,8 +43,7 @@ def load_spec(name: str, **kwargs):
             file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'{name}.POMDP')
             spec = POMDPFile(file_path).get_spec()
         except FileNotFoundError as _:
-            raise NotImplementedError(
-                f'{name} not found in examples_lib.py nor pomdp_files/') from None
+            raise AttributeError
 
     # Check sizes and types
     if len(spec.keys()) < 6:

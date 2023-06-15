@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from grl.mdp import MDP, POMDP
-from grl.environment import tmaze_lib
+from grl.environment import tmaze
 
 def test_slippery_tmaze():
     corridor_length = 5

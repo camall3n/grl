@@ -285,18 +285,19 @@ def check_samples():
 
                 # repacked_mem_v_obs, grad = mem_packed_v_grad_fn(mem_params, amdp, mem_aug_pi, obs)
                 # eps_sampled_grads += (repacked_mem_v_obs - lstd_v1[obs]) * grad
+
                 # eps_sampled_grads += lambda_discrep_grad_fn(mem_params, amdp, lstd_v1, mem_aug_pi, obs)
 
-                # mem_mat = mem_probs[action, obs]
-                # mem_belief = mem_belief @ mem_mat
+                mem_mat = mem_probs[action, obs]
+                mem_belief = mem_belief @ mem_mat
 
-            # else:
-            #     obs = ep['obses'][-1]
-            #
-            #     val_diff = calc_val_diff(mem_lstd_v0_unflat, mem_belief, lstd_v1, obs)
-            #     val_grad, traj_grad = calc_all_mem_grads(mem_params, init_mem_belief, all_om_val_grads,
-            #                                              mem_lstd_v0_unflat, ep, t + 1)
-            #     eps_sampled_grads += (val_diff * (traj_grad + val_grad))
+            else:
+                obs = ep['obses'][-1]
+
+                val_diff = calc_val_diff(mem_lstd_v0_unflat, mem_belief, lstd_v1, obs)
+                val_grad, traj_grad = calc_all_mem_grads(mem_params, init_mem_belief, all_om_val_grads,
+                                                         mem_lstd_v0_unflat, ep, t + 1)
+                eps_sampled_grads += (val_diff * (traj_grad + val_grad))
 
             eps_sampled_grads /= (ep['obses'].shape[0] - 1)
             sampled_grads += eps_sampled_grads

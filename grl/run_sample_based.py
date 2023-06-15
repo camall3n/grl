@@ -124,12 +124,12 @@ if __name__ == "__main__":
     if args.seed is not None:
         np.random.seed(args.seed)
         rand_key = jax.random.PRNGKey(args.seed)
-        np_rand_key = np.random.RandomState(seed=args.seed)
+        np_rand_state = np.random.RandomState(seed=args.seed)
     else:
         rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
 
     # Load environment and env wrappers
-    env = get_env(args, rand_key=np_rand_key)
+    env = get_env(args, rand_state=np_rand_key, rand_key=rand_key)
 
     results_path = results_path(args)
     all_agents_dir = results_path.parent / 'agent'

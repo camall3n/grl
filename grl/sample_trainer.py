@@ -121,7 +121,7 @@ class Trainer:
 
     def add_returns_to_batches(self, episode_rewards: List[float],
                                episode_experiences: List[Batch]) -> List[Batch]:
-        episode_rewards = np.array(episode_rewards)
+        episode_rewards = np.array(episode_rewards, dtype=float)
         if self.normalize_rewards:
             episode_rewards *= self.reward_scale
 
@@ -187,14 +187,14 @@ class Trainer:
 
             action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs,
                                                             self._rand_key)
-            action = action.item()
+            action = action.astype(int).item()
 
             for t in range(self.max_episode_steps):
                 next_obs, reward, done, _, info = self.env.step(action,
                                                                 gamma_terminal=self.gamma_terminal)
                 next_action, self._rand_key, next_hs, qs = self.agent.act(
                     network_params, next_obs, hs, self._rand_key)
-                next_action = next_action.item()
+                next_action = next_action.astype(int).item()
 
                 experience = Batch(obs=obs,
                                    reward=reward,
