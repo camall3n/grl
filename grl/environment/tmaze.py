@@ -111,6 +111,3 @@ def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
     T += slip_T
 
     return T, R, discount, p0, phi
-
-def noisy_controller_tmaze(n: int, discount: float = 0.9, noise_prob: float = 0.2):
-    T, R, discount, p0, phi = tmaze(n, discount=discount)

@@ -295,8 +295,9 @@ def check_samples():
                 obs = ep['obses'][-1]
 
                 val_diff = calc_val_diff(mem_lstd_v0_unflat, mem_belief, lstd_v1, obs)
-                val_grad, traj_grad = calc_all_mem_grads(mem_params, init_mem_belief, all_om_val_grads,
-                                                         mem_lstd_v0_unflat, ep, t + 1)
+                val_grad, traj_grad = calc_all_mem_grads(mem_params, init_mem_belief,
+                                                         all_om_val_grads, mem_lstd_v0_unflat, ep,
+                                                         t + 1)
                 eps_sampled_grads += (val_diff * (traj_grad + val_grad))
 
             eps_sampled_grads /= (ep['obses'].shape[0] - 1)

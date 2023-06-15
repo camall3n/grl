@@ -2,12 +2,12 @@ import pytest
 import numpy as np
 
 from grl.mdp import MDP, POMDP
-from grl.environment import tmaze
+from grl.environment.tmaze import tmaze, slippery_tmaze
 
 def test_slippery_tmaze():
     corridor_length = 5
     slip_prob = 0.1
-    T, R, gamma, p0, phi = tmaze_lib.slippery_tmaze(corridor_length, slip_prob=slip_prob)
+    T, R, gamma, p0, phi = slippery_tmaze(corridor_length, slip_prob=slip_prob)
     mdp = MDP(T, R, p0, gamma=1.0)
     slip_tmaze = POMDP(mdp, phi)
 
@@ -40,20 +40,20 @@ def test_slippery_tmaze():
     assert np.allclose(success_left_ratios, 1 - slip_prob, atol=1e-2)
 
 @pytest.fixture()
-def tmaze():
+def env():
     corridor_length = 5
-    T, R, gamma, p0, phi = tmaze_lib.tmaze(corridor_length)
+    T, R, gamma, p0, phi = tmaze(corridor_length)
     mdp = MDP(T, R, p0, gamma=1)
-    tmaze = POMDP(mdp, phi)
-    return tmaze
+    env = POMDP(mdp, phi)
+    return env
 
-def test_tmaze_start(tmaze):
+def test_tmaze_start(env):
     n_samples = 10000
 
     # first we test our start states
     start_counts = np.zeros(2)
     for _ in range(n_samples):
-        ob, info = tmaze.reset()
+        ob, info = env.reset()
         s = info['state']
         start_counts[s] += 1
 
@@ -65,98 +65,97 @@ def test_tmaze_start(tmaze):
     assert np.all(
         np.isclose(start_counts / n_samples, np.zeros_like(start_counts) + 0.5, atol=1e-1))
 
-def test_tmaze_noop(tmaze):
+def test_tmaze_noop(env):
     # Now we test bumping - or self-loops/no-op actions.
-    bump_ns_states = np.arange(0, tmaze.state_space.n - 3, dtype=int)
+    bump_ns_states = np.arange(0, env.state_space.n - 3, dtype=int)
     for s in bump_ns_states:
         # test up
-        tmaze.reset(s)
-        tmaze.gamma
-        _, r, terminal, _, info = tmaze.step(0)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(0)
         next_s = info['state']
         assert next_s == s and r == 0 and not terminal
 
         # test down
-        tmaze.reset(s)
-        _, r, terminal, _, info = tmaze.step(1)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(1)
         next_s = info['state']
         assert next_s == s and r == 0 and not terminal
 
-    bump_east_states = np.array([tmaze.state_space.n - 2 - 1, tmaze.state_space.n - 1 - 1])
+    bump_east_states = np.array([env.state_space.n - 2 - 1, env.state_space.n - 1 - 1])
     bump_west_states = np.array([0, 1])
     for s in bump_east_states:
-        tmaze.reset(s)
-        _, r, terminal, _, info = tmaze.step(2)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(2)
         next_s = info['state']
         assert next_s == s and r == 0 and not terminal
 
     for s in bump_west_states:
-        tmaze.reset(s)
-        _, r, terminal, _, info = tmaze.step(3)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(3)
         next_s = info['state']
         assert next_s == s and r == 0 and not terminal
 
 # Now we test moving
-def test_tmaze_move(tmaze):
-    go_right_states = np.arange(0, tmaze.state_space.n - 3)
+def test_tmaze_move(env):
+    go_right_states = np.arange(0, env.state_space.n - 3)
     for s in go_right_states:
-        tmaze.reset(s)
-        _, r, terminal, _, info = tmaze.step(2)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(2)
         next_s = info['state']
         assert next_s == s + 2 and r == 0 and not terminal
 
-    go_left_states = np.arange(2, tmaze.state_space.n - 1)
+    go_left_states = np.arange(2, env.state_space.n - 1)
     for s in go_left_states:
-        tmaze.reset(s)
-        _, r, terminal, _, info = tmaze.step(3)
+        env.reset(s)
+        _, r, terminal, _, info = env.step(3)
         next_s = info['state']
         assert next_s == s - 2 and r == 0 and not terminal
 
-def test_tmaze_terminals(tmaze):
+def test_tmaze_terminals(env):
     # make sure our terminals are terminals
-    for i in range(tmaze.action_space.n):
-        tmaze.reset(tmaze.state_space.n - 1)
-        _, r, terminal, _, info = tmaze.step(0)
+    for i in range(env.action_space.n):
+        env.reset(env.state_space.n - 1)
+        _, r, terminal, _, info = env.step(0)
         next_s = info['state']
-        assert terminal and next_s == tmaze.state_space.n - 1 and r == 0
+        assert terminal and next_s == env.state_space.n - 1 and r == 0
 
-def test_tmaze_rewards(tmaze):
+def test_tmaze_rewards(env):
     # Test rewarding transitions
-    top_junction = tmaze.state_space.n - 2 - 1
-    bottom_junction = tmaze.state_space.n - 1 - 1
+    top_junction = env.state_space.n - 2 - 1
+    bottom_junction = env.state_space.n - 1 - 1
 
     # top rewards
-    tmaze.reset(top_junction)
-    _, r, terminal, _, info = tmaze.step(0)
+    env.reset(top_junction)
+    _, r, terminal, _, info = env.step(0)
     next_s = info['state']
-    assert terminal and next_s == tmaze.state_space.n - 1 and r == 4
+    assert terminal and next_s == env.state_space.n - 1 and r == 4
 
-    tmaze.reset(top_junction)
-    _, r, terminal, _, info = tmaze.step(1)
+    env.reset(top_junction)
+    _, r, terminal, _, info = env.step(1)
     next_s = info['state']
-    assert terminal and next_s == tmaze.state_space.n - 1 and r == -0.1
+    assert terminal and next_s == env.state_space.n - 1 and r == -0.1
 
     # Bottom rewards
-    tmaze.reset(bottom_junction)
-    _, r, terminal, _, info = tmaze.step(0)
+    env.reset(bottom_junction)
+    _, r, terminal, _, info = env.step(0)
     next_s = info['state']
-    assert terminal and next_s == tmaze.state_space.n - 1 and r == -0.1
+    assert terminal and next_s == env.state_space.n - 1 and r == -0.1
 
-    tmaze.reset(bottom_junction)
-    _, r, terminal, _, info = tmaze.step(1)
+    env.reset(bottom_junction)
+    _, r, terminal, _, info = env.step(1)
     next_s = info['state']
-    assert terminal and next_s == tmaze.state_space.n - 1 and r == 4
+    assert terminal and next_s == env.state_space.n - 1 and r == 4
 
-def test_tmaze_obs(tmaze):
+def test_tmaze_obs(env):
     all_0_obs_states = np.array([0])
     all_1_obs_states = np.array([1])
-    all_2_obs_states = np.arange(2, tmaze.state_space.n - 2 - 1)
-    all_3_obs_states = np.arange(tmaze.state_space.n - 2 - 1, tmaze.state_space.n - 1)
+    all_2_obs_states = np.arange(2, env.state_space.n - 2 - 1)
+    all_3_obs_states = np.arange(env.state_space.n - 2 - 1, env.state_space.n - 1)
 
     for i, list_s in enumerate(
         [all_0_obs_states, all_1_obs_states, all_2_obs_states, all_3_obs_states]):
         for s in list_s:
-            assert tmaze.observe(s) == i
+            assert env.observe(s) == i
 
     print("All tests passed for T-maze")
 

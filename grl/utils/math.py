@@ -104,5 +104,3 @@ def arg_mellowmax(
 
 def euclidian_dist(arr1: np.ndarray, arr2: np.ndarray):
     return jnp.linalg.norm(arr1 - arr2, 2)
-
-

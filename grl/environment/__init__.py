@@ -7,8 +7,10 @@ from .rocksample import RockSample
 from .spec import load_spec, load_pomdp
 from .wrappers import OneHotObservationWrapper, OneHotActionConcatWrapper
 
-def get_env(args: Namespace, rand_state: np.random.RandomState = None,
-            rand_key: jax.random.PRNGKey = None, **kwargs):
+def get_env(args: Namespace,
+            rand_state: np.random.RandomState = None,
+            rand_key: jax.random.PRNGKey = None,
+            **kwargs):
     # First we check our POMDP specs
     try:
         env, _ = load_pomdp(args.spec, rand_key=rand_state, **kwargs)
