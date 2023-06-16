@@ -50,8 +50,8 @@ def run_memory_iteration(amdp: POMDP,
     :param lambda_1:            What's our second lambda parameter for lambda discrep?
     :param alpha:               How uniform do we want our lambda discrep weighting?
     """
-    assert amdp.current_state is None, \
-        f"AbstractMDP should be stateless and current_state should be None, got {amdp.current_state} instead"
+    assert isinstance(amdp, POMDP) and amdp.current_state is None, \
+        f"POMDP should be stateless and current_state should be None, got {amdp.current_state} instead"
 
     # If pi_params is initialized, we start with some given
     # policy params and don't do the first policy improvement step.
