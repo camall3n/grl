@@ -129,7 +129,11 @@ if __name__ == "__main__":
         rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
 
     # Load environment and env wrappers
-    env = get_env(args, rand_state=np_rand_key, rand_key=rand_key)
+    env_key, test_env_key, rand_key = jax.random.split(rand_key, num=3)
+    env = get_env(args, rand_state=np_rand_key, rand_key=env_key)
+    test_env = None
+    if args.offline_eval_freq is not None:
+        test_env = get_env(args, rand_state=np_rand_key, rand_key=test_env_key)
 
     results_path = results_path(args)
     all_agents_dir = results_path.parent / 'agent'
@@ -144,7 +148,7 @@ if __name__ == "__main__":
     agent = get_agent(network, optimizer, env.observation_space.shape, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
-    trainer = Trainer(env, agent, trainer_key, args, checkpoint_dir=agents_dir)
+    trainer = Trainer(env, agent, trainer_key, args, test_env=test_env, checkpoint_dir=agents_dir)
 
     final_network_params, final_optimizer_params, episodes_info = trainer.train()
 
