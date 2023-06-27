@@ -22,10 +22,12 @@ def parse_arguments(return_defaults: bool = False):
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--no_gamma_terminal', action='store_true',
                         help='Do we turn OFF gamma termination?')
+    parser.add_argument('--gamma', default=None, type=int,
+                        help='Gamma value: overrides environment gamma for our environments, required for Gym environments.')
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
     parser.add_argument('--feature_encoding', default='one_hot', type=str,
-                        choices=['one_hot', 'discrete'],
+                        choices=['one_hot', 'discrete', 'env_default'],
                         help='What feature encoding do we use?')
 
     # Agent params

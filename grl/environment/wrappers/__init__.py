@@ -1,1 +1,2 @@
 from .one_hot import OneHotObservationWrapper, OneHotActionConcatWrapper
+from .gamma_terminal import GammaTerminalWrapper

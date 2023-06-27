@@ -2,6 +2,7 @@ from typing import Union, Tuple
 
 import gymnasium as gym
 from gymnasium import spaces
+from popgym.wrappers import PreviousAction
 import numpy as np
 
 from grl.utils.data import one_hot
@@ -22,7 +23,7 @@ class OneHotObservationWrapper(gym.Wrapper):
         return spaces.MultiBinary(self.env.observation_space.n)
 
     def reset(self, **kwargs) -> Tuple[np.ndarray, dict]:
-        obs_idx, info = self.env.reset()
+        obs_idx, info = self.env.reset(**kwargs)
         observation = one_hot(obs_idx, self.env.observation_space.n)
         return observation, info
 
@@ -48,16 +49,18 @@ class OneHotActionConcatWrapper(gym.Wrapper):
             return spaces.MultiDiscrete(1 + self.action_space.n)
         elif isinstance(obs_space, spaces.MultiBinary):
             return spaces.MultiBinary(obs_space.n + self.action_space.n)
+        elif isinstance(obs_space, spaces.Box):
+            return spaces.Box(low=np.concatenate([obs_space.low, np.zeros(self.action_space.n, dtype=obs_space.low.dtype)]),
+                              high=np.concatenate([obs_space.high, np.ones(self.action_space.n, dtype=obs_space.low.dtype)]))
         else:
             return NotImplementedError
 
     def reset(self, **kwargs) -> Tuple[np.ndarray, dict]:
         # If we are at the start of an episode,
-        # our action encoding is just a vector of zeros
-        action_encoding = np.zeros(self.env.action_space.n)
-        observation, info = self.env.reset()
+        # get null encoding based on the environment
+        action_encoding = one_hot(PreviousAction.get_null_action(self.env.action_space), self.action_space.n)
+        observation, info = self.env.reset(**kwargs)
         action_concat_obs = np.concatenate([observation, action_encoding])
-
         return action_concat_obs, info
 
     def step(self, action: int, **kwargs) -> Tuple[np.ndarray, float, bool, bool, dict]:
