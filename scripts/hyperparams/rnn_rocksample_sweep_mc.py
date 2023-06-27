@@ -50,7 +50,7 @@ hparams = {
     # exclusion criteria. If any of the runs match any of the
     # cross-product of all the values in the dictionary, skip
     'exclude': {
-        'multihead_loss_mode': ['td'],
+        'multihead_loss_mode': ['mc'],
         'multihead_lambda_coeff': [-1, 1]
     }
 }
