@@ -31,8 +31,7 @@ class Trainer:
         self.args = args
         self._rand_key = rand_key
 
-        self.gamma_terminal = not self.args.no_gamma_terminal
-        self.discounting = self.env.gamma if not self.gamma_terminal else 1.
+        self.discounting = self.env.gamma
 
         self.max_episode_steps = self.args.max_episode_steps
         self.total_steps = self.args.total_steps
@@ -190,8 +189,7 @@ class Trainer:
             action = action.astype(int).item()
 
             for t in range(self.max_episode_steps):
-                next_obs, reward, done, _, info = self.env.step(action,
-                                                                gamma_terminal=self.gamma_terminal)
+                next_obs, reward, done, _, info = self.env.step(action)
                 next_action, self._rand_key, next_hs, qs = self.agent.act(
                     network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.astype(int).item()

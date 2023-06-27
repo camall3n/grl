@@ -32,8 +32,7 @@ def eval_episodes(agent: RNNAgent, network_params: dict,
         ep_qs.append(qs[0, 0, action])
 
         for t in range(max_episode_steps):
-            # TODO: we have gamma_terminal as False here. Is that what we want?
-            next_obs, reward, done, _, info = env.step(action, gamma_terminal=False)
+            next_obs, reward, done, _, info = env.step(action)
 
             next_action, rand_key, next_hs, qs = agent.act(network_params, next_obs, hs, rand_key)
             next_action = next_action.item()

@@ -7,12 +7,12 @@ from jax.config import config
 from grl.agent import get_agent
 from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import POMDP, MDP
 from grl.model import get_network
 from grl.sample_trainer import Trainer
 from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
 from grl.utils.file_system import results_path, numpyify_and_save
+from grl.environment.wrappers import GammaTerminalWrapper
 
 def parse_arguments(return_defaults: bool = False):
     parser = argparse.ArgumentParser()
@@ -22,11 +22,11 @@ def parse_arguments(return_defaults: bool = False):
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--no_gamma_terminal', action='store_true',
                         help='Do we turn OFF gamma termination?')
-    parser.add_argument('--gamma', default=None, type=int,
+    parser.add_argument('--gamma', default=None, type=float,
                         help='Gamma value: overrides environment gamma for our environments, required for Gym environments.')
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
-    parser.add_argument('--feature_encoding', default='one_hot', type=str,
+    parser.add_argument('--feature_encoding', default='env_default', type=str,
                         choices=['one_hot', 'discrete', 'env_default'],
                         help='What feature encoding do we use?')
 
@@ -133,6 +133,8 @@ if __name__ == "__main__":
     # Load environment and env wrappers
     env_key, test_env_key, rand_key = jax.random.split(rand_key, num=3)
     env = get_env(args, rand_state=np_rand_key, rand_key=env_key)
+    if not args.no_gamma_terminal:
+        env = GammaTerminalWrapper(env, args.gamma)
     test_env = None
     if args.offline_eval_freq is not None:
         test_env = get_env(args, rand_state=np_rand_key, rand_key=test_env_key)
