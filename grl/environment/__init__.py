@@ -21,7 +21,7 @@ def get_env(args: Namespace,
         if args.gamma is None:
             raise AttributeError("Can't load non-native environments without passing in gamma!")
         try:
-            env = get_popgym_env(args, rand_key=rand_key, **kwargs)
+            env = get_popgym_env(args, rand_key=rand_state, **kwargs)
         except AttributeError:
             # don't have anything else implemented
             raise NotImplementedError
