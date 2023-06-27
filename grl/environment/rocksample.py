@@ -96,6 +96,7 @@ class RockSample(gym.Env):
         rock positions.
         """
         self.rock_positions, self.rand_key = self.generate_map(self.size, self.k, self.rand_key)
+        self.get_gamma_terminal = jit(self.get_gamma_terminal, static_argnames='gamma')
 
     @property
     def current_state(self):
@@ -179,10 +180,9 @@ class RockSample(gym.Env):
         return terminal
 
     @staticmethod
-    @jit
     def get_gamma_terminal(rand_key: random.PRNGKey, gamma: float):
         gamma_terminal_key, rand_key = random.split(rand_key)
-        return not random.bernoulli(gamma_terminal_key, p=gamma)
+        return 1 - random.bernoulli(gamma_terminal_key, p=gamma)
 
     def batch_get_obs(self, states: np.ndarray) -> np.ndarray:
         raise NotImplementedError()

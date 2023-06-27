@@ -1,4 +1,4 @@
-from typing import Union, Tuple, List
+from typing import Union, Tuple
 
 from jax import random
 import numpy as np
