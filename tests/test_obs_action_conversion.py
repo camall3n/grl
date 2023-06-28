@@ -16,14 +16,14 @@ def test_tiger():
 
     obs_action_mdp = MDP(obs_action_spec['T'], obs_action_spec['R'], obs_action_spec['p0'],
                          obs_action_spec['gamma'])
-    obs_action_amdp = POMDP(obs_action_mdp, obs_action_spec['phi'])
+    obs_action_pomdp = POMDP(obs_action_mdp, obs_action_spec['phi'])
 
     converted_mdp = MDP(converted_spec['T'], converted_spec['R'], converted_spec['p0'],
                         converted_spec['gamma'])
-    converted_amdp = POMDP(converted_mdp, converted_spec['phi'])
+    converted_pomdp = POMDP(converted_mdp, converted_spec['phi'])
 
     for oa_pi, c_pi in zip(obs_action_spec['Pi_phi'], converted_spec['Pi_phi']):
-        oa_state_vals, oa_mc_vals, oa_td_vals, _ = analytical_pe(oa_pi, obs_action_amdp)
+        oa_state_vals, oa_mc_vals, oa_td_vals, _ = analytical_pe(oa_pi, obs_action_pomdp)
         c_state_vals, c_mc_vals, c_td_vals, _ = analytical_pe(c_pi, converted_amdp)
 
         check_vals(oa_state_vals, c_state_vals)

@@ -16,14 +16,14 @@ from grl.utils.policy_eval import lstdq_lambda
 
 cast_as_int = lambda x: int(float(x))
 
-def log_info(agent: ActorCritic, amdp: POMDP) -> dict:
+def log_info(agent: ActorCritic, pomdp: POMDP) -> dict:
     pi = agent.policy_probs
     info = {'lambda_0': agent.lambda_0, 'lambda_1': agent.lambda_1, 'policy_probs': pi.copy()}
 
     sample_based_info = {'q0': agent.q_td.q, 'q1': agent.q_mc.q}
 
     if agent.n_mem_entries > 0:
-        amdp = memory_cross_product(agent.memory_logits, amdp)
+        pomdp = memory_cross_product(agent.memory_logits, pomdp)
         info['memory_probs'] = agent.memory_probs.copy()
 
         # save previous memory, reset and step through all obs and actions
@@ -38,8 +38,8 @@ def log_info(agent: ActorCritic, amdp: POMDP) -> dict:
         sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(
             all_obs, all_actions, memories)
 
-    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
-    lstd_v1, lstd_q1, _ = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
+    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, pomdp, lambda_=agent.lambda_0)
+    lstd_v1, lstd_q1, _ = lstdq_lambda(pi, pomdp, lambda_=agent.lambda_1)
     analytical_info = {'q0': lstd_q0, 'q1': lstd_q1}
 
     info['sample_based'] = sample_based_info
@@ -47,8 +47,8 @@ def log_info(agent: ActorCritic, amdp: POMDP) -> dict:
 
     return info
 
-def log_and_save_info(agent: ActorCritic, amdp: POMDP, save_path: Union[Path, str]):
-    info = log_info(agent, amdp)
+def log_and_save_info(agent: ActorCritic, pomdp: POMDP, save_path: Union[Path, str]):
+    info = log_info(agent, pomdp)
     numpyify_and_save(save_path, info)
 
 def parse_args():

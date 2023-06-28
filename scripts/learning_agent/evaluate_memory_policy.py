@@ -11,7 +11,7 @@ from grl import environment
 from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.math import greedify
-from grl.utils.mdp import amdp_get_occupancy
+from grl.utils.mdp import pomdp_get_occupancy
 from grl.utils.policy_eval import functional_solve_mdp
 
 #%%
@@ -51,7 +51,7 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
     amdp_mem = memory_cross_product(mem_logits, env)
 
     def expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc):
-        c_s = amdp_get_occupancy(greedify(policy), amdp_mem)
+        c_s = pomdp_get_occupancy(greedify(policy), amdp_mem)
         c_o = (c_s @ amdp_mem.phi)
         p_o = c_o / c_o.sum()
         p_oa = (policy * p_o[:, None]).T

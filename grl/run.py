@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
     # Run
     # Get POMDP definition
-    amdp, pi_dict = load_pomdp(args.spec,
+    pomdp, pi_dict = load_pomdp(args.spec,
                                memory_id=args.use_memory,
                                n_mem_states=args.n_mem_states,
                                corridor_length=args.tmaze_corridor_length,
@@ -122,15 +122,15 @@ if __name__ == '__main__':
                                mem_leakiness=args.mem_leakiness)
 
     mem_params = get_memory(args.use_memory,
-                            n_obs=amdp.observation_space.n,
-                            n_actions=amdp.action_space.n,
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
                             n_mem_states=args.n_mem_states,
                             leakiness=args.mem_leakiness)
 
     logging.info(f'spec:\n {args.spec}\n')
-    logging.info(f'T:\n {amdp.T}')
-    logging.info(f'R:\n {amdp.R}')
-    logging.info(f'gamma: {amdp.gamma}')
+    logging.info(f'T:\n {pomdp.T}')
+    logging.info(f'R:\n {pomdp.R}')
+    logging.info(f'gamma: {pomdp.gamma}')
     logging.info(f'p0:\n {amdp.p0}')
     logging.info(f'phi:\n {amdp.phi}')
 

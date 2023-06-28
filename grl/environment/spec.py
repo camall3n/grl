@@ -73,5 +73,5 @@ def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> T
     """
     spec = load_spec(name, rand_key=rand_key, **kwargs)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'], rand_key=rand_key)
-    amdp = POMDP(mdp, spec['phi'])
-    return amdp, {'Pi_phi': spec['Pi_phi'], 'Pi_phi_x': spec['Pi_phi_x']}
+    pomdp = POMDP(mdp, spec['phi'])
+    return pomdp, {'Pi_phi': spec['Pi_phi'], 'Pi_phi_x': spec['Pi_phi_x']}

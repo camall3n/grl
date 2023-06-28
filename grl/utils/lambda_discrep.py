@@ -6,12 +6,12 @@ from grl import POMDP
 from grl.utils.loss import discrep_loss
 from grl.utils.policy_eval import analytical_pe
 
-def lambda_discrep_measures(amdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
+def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
     if discrep_loss_fn is None:
         discrep_loss_fn = partial(discrep_loss, value_type='q', error_type='l2', alpha=1.)
 
-    state_vals, _, _, _ = analytical_pe(pi, amdp)
-    discrep, mc_vals, td_vals = discrep_loss_fn(pi, amdp)
+    state_vals, _, _, _ = analytical_pe(pi, pomdp)
+    discrep, mc_vals, td_vals = discrep_loss_fn(pi, pomdp)
 
     measures = {
         'discrep': discrep,
@@ -21,6 +21,6 @@ def lambda_discrep_measures(amdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Calla
         'td_vals_v': td_vals['v'],
         'state_vals_v': state_vals['v'],
         'state_vals_q': state_vals['q'],
-        'p0': amdp.p0.copy()
+        'p0': pomdp.p0.copy()
     }
     return measures

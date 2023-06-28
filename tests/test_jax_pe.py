@@ -5,8 +5,8 @@ from jax.config import config
 config.update('jax_platform_name', 'cpu')
 
 from grl import environment, MDP, POMDP
-from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, amdp_get_occupancy
-from grl.utils.policy_eval import functional_solve_amdp, functional_solve_mdp
+from grl.utils.mdp import get_p_s_given_o, functional_create_td_model, pomdp_get_occupancy
+from grl.utils.policy_eval import functional_solve_pomdp, functional_solve_mdp
 
 # Original, serial functions
 def solve_amdp(amdp, mdp_q_vals, pi_abs, occupancy):
@@ -85,9 +85,9 @@ def indv_spec_jaxify_pe_funcs(spec):
     # MC*
     pi_ground = amdp.get_ground_policy(pi)
     mdp_v, mdp_q = functional_solve_mdp(pi_ground, mdp)
-    occupancy = amdp_get_occupancy(pi, amdp)
+    occupancy = pomdp_get_occupancy(pi, amdp)
     p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    func_mc_vals = functional_solve_amdp(mdp_q, p_pi_of_s_given_o, pi)
+    func_mc_vals = functional_solve_pomdp(mdp_q, p_pi_of_s_given_o, pi)
 
     mc_vals = solve_amdp(amdp, mdp_q, pi, occupancy)
 

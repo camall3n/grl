@@ -24,11 +24,11 @@ from scripts.memory_gradient.intermediate_sample_grads import mem_func
 
 @partial(jax.jit, static_argnames=['obs', 'lambda_0'])
 def mem_packed_v(mem_params: jnp.ndarray,
-                 amdp: POMDP,
+                 pomdp: POMDP,
                  pi: jnp.ndarray,
                  obs: int,
                  lambda_0: float = 0.):
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
 
     n_mem_states = mem_params.shape[-1]
     mem_lambda_0_v_vals, mem_lambda_0_q_vals, mem_info = lstdq_lambda(pi,

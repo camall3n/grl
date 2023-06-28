@@ -178,25 +178,12 @@ class MDP(gym.Env):
         return spaces.Discrete(self.T.shape[0])
 
     def image(self, pr_x, pi=None):
-        T = self.T_pi(pi)
-        pr_next_x = pr_x @ T
-        return pr_next_x
-
-    def T_pi(self, pi):
         if pi is None:
             T_pi = np.mean(self.T, axis=0)
         else:
             T_pi = self.T[pi, np.arange(self.state_space.n), :]
-        return T_pi
-
-    def get_N(self, pi):
-        return self.T_pi(pi)
-
-    def get_I(self, pi):
-        pi_one_hot = one_hot(pi, self.action_space.n).transpose()[:, :, None]
-        N = self.get_N(pi)[None, :, :]
-        I = np.divide(self.T * pi_one_hot, N, out=np.zeros_like(self.T), where=N != 0)
-        return I
+        pr_next_x = pr_x @ T_pi
+        return pr_next_x
 
     @classmethod
     def generate(cls, n_states, n_actions, sparsity=0, gamma=0.9, Rmin=-1, Rmax=1):

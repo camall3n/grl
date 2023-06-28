@@ -31,7 +31,7 @@ def test_td_lambda():
     assert np.all(np.isclose(v[:-1], ground_truth_vals, atol=1e-2))
 
     print(f"Testing analytical solutions on Simple Chain")
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
 
     mdp_vals, mc_vals, td_vals, _ = analytical_pe(pi, amdp)

@@ -16,9 +16,9 @@ def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, POMDP]):
     b = mdp.p0
     return jnp.linalg.solve(A, b)
 
-def amdp_get_occupancy(pi: jnp.ndarray, amdp: POMDP):
-    pi_ground = amdp.phi @ pi
-    return functional_get_occupancy(pi_ground, amdp)
+def pomdp_get_occupancy(pi: jnp.ndarray, pomdp: POMDP):
+    pi_ground = pomdp.phi @ pi
+    return functional_get_occupancy(pi_ground, pomdp)
 
 @jit
 def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
@@ -32,16 +32,16 @@ def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
     return p_pi_of_s_given_o
 
 @jit
-def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: POMDP):
+def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, pomdp: POMDP):
     # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
     # we flip here so that we have curr_obs, next_obs (order matters).
     obs_idx_product = jnp.flip(
-        jnp.dstack(jnp.meshgrid(jnp.arange(amdp.phi.shape[-1]),
-                                jnp.arange(amdp.phi.shape[-1]))).reshape(-1, 2), -1)
+        jnp.dstack(jnp.meshgrid(jnp.arange(pomdp.phi.shape[-1]),
+                                jnp.arange(pomdp.phi.shape[-1]))).reshape(-1, 2), -1)
 
     # this gives us (n_obs * n_obs) x states x 1 and (n_obs * n_obs) x 1 x states
     curr_s_given_o = p_pi_of_s_given_o[:, obs_idx_product[:, 0]].T[..., None]
-    next_o_given_s = jnp.expand_dims(amdp.phi[:, obs_idx_product[:, 1]].T, 1)
+    next_o_given_s = jnp.expand_dims(pomdp.phi[:, obs_idx_product[:, 1]].T, 1)
 
     # outer product here
     o_to_next_o = jnp.expand_dims(curr_s_given_o * next_o_given_s, 1)
@@ -49,21 +49,21 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: POMDP):
     # This is p(o, s, a, s', o')
     # the probability that o goes to o', via each path (s, a) -> s'.
     # Shape is (n_obs * n_obs) x |A| x |S| x |S|
-    T_contributions = amdp.T * o_to_next_o
+    T_contributions = pomdp.T * o_to_next_o
 
     # |A| x (n_obs * n_obs)
     T_obs_obs_flat = T_contributions.sum(-1).sum(-1).T
 
     # |A| x n_obs x n_obs
-    T_obs_obs = T_obs_obs_flat.reshape(amdp.T.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
+    T_obs_obs = T_obs_obs_flat.reshape(pomdp.T.shape[0], pomdp.phi.shape[-1], pomdp.phi.shape[-1])
 
     # You want everything to sum to one
     denom = T_obs_obs_flat.T[..., None, None]
     denom_no_zero = denom + (denom == 0).astype(denom.dtype)
 
-    R_contributions = (amdp.R * T_contributions) / denom_no_zero
+    R_contributions = (pomdp.R * T_contributions) / denom_no_zero
     R_obs_obs_flat = R_contributions.sum(-1).sum(-1).T
-    R_obs_obs = R_obs_obs_flat.reshape(amdp.R.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
+    R_obs_obs = R_obs_obs_flat.reshape(pomdp.R.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
 
     return T_obs_obs, R_obs_obs
 
