@@ -21,7 +21,7 @@ def memory_cross_product(mem_params: jnp.ndarray, pomdp: POMDP):
     # Outer product that compacts the two i dimensions and the two l dimensions
     # (SxAxMxM, AxSxS -> AxSMxSM), where SM=x
     T_x = jnp.einsum('iljk,lim->lijmk', T_mem_phi, pomdp.T).reshape(pomdp.T.shape[0], n_states_x,
-                                                                   n_states_x)
+                                                                    n_states_x)
 
     # The new obs_x are the original obs times memory states
     # E.g. obs={r,b} and mem={0,1} -> obs_x={r0,r1,b0,b1}

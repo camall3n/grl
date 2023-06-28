@@ -113,13 +113,13 @@ if __name__ == '__main__':
     # Run
     # Get POMDP definition
     pomdp, pi_dict = load_pomdp(args.spec,
-                               memory_id=args.use_memory,
-                               n_mem_states=args.n_mem_states,
-                               corridor_length=args.tmaze_corridor_length,
-                               discount=args.tmaze_discount,
-                               junction_up_pi=args.tmaze_junction_up_pi,
-                               epsilon=args.epsilon,
-                               mem_leakiness=args.mem_leakiness)
+                                memory_id=args.use_memory,
+                                n_mem_states=args.n_mem_states,
+                                corridor_length=args.tmaze_corridor_length,
+                                discount=args.tmaze_discount,
+                                junction_up_pi=args.tmaze_junction_up_pi,
+                                epsilon=args.epsilon,
+                                mem_leakiness=args.mem_leakiness)
 
     mem_params = get_memory(args.use_memory,
                             n_obs=pomdp.observation_space.n,

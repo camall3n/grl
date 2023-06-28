@@ -218,7 +218,8 @@ class AnalyticalAgent:
     def memory_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pi_params: jnp.ndarray,
                       pomdp: POMDP):
         pi = softmax(pi_params / self.pi_softmax_temp, axis=-1)
-        loss, params_grad = value_and_grad(self.memory_objective_func, argnums=0)(params, pi, pomdp)
+        loss, params_grad = value_and_grad(self.memory_objective_func, argnums=0)(params, pi,
+                                                                                  pomdp)
 
         updates, optimizer_state = self.mem_optim.update(params_grad, optim_state, params)
         params = optax.apply_updates(params, updates)

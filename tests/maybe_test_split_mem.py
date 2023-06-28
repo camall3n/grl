@@ -179,7 +179,9 @@ def test_sample_based_split_mem():
     pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory(str(19), n_obs=pomdp.observation_space.n, n_actions=pomdp.action_space.n)
+    mem_params = get_memory(str(19),
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     mem_aug_pomdp = memory_cross_product(mem_params, pomdp)

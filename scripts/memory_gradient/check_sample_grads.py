@@ -212,7 +212,8 @@ def check_samples():
     for g in range(n_grad_updates):
         print(f"Calculating base \grad v(o, m)'s for update {g}")
         all_om_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
-        for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
+        for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)),
+                                      list(range(n_mem))))):
             all_om_val_grads = all_om_val_grads.at[o,
                                                    m].set(val_grad_fn(mem_params, pomdp, pi, o, m))
 

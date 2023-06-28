@@ -168,7 +168,8 @@ def obs_space_mem_discrep_loss(
     counts_mem_aug_flat_obs = mem_info['occupancy'] @ mem_aug_pomdp.phi
     counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs, pi).T # A x OM
 
-    counts_mem_aug = counts_mem_aug_flat.reshape(pomdp.action_space.n, -1, n_mem_states) # A x O x M
+    counts_mem_aug = counts_mem_aug_flat.reshape(pomdp.action_space.n, -1,
+                                                 n_mem_states) # A x O x M
 
     denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
     denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)

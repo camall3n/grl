@@ -240,7 +240,8 @@ if __name__ == "__main__":
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
 
-    expected_mem_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem_states) + mem_params.shape)
+    expected_mem_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem_states) +
+                                       mem_params.shape)
     expected_learnt_mem_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem_states) +
                                               mem_params.shape)
 
