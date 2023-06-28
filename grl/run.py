@@ -131,8 +131,8 @@ if __name__ == '__main__':
     logging.info(f'T:\n {pomdp.T}')
     logging.info(f'R:\n {pomdp.R}')
     logging.info(f'gamma: {pomdp.gamma}')
-    logging.info(f'p0:\n {amdp.p0}')
-    logging.info(f'phi:\n {amdp.phi}')
+    logging.info(f'p0:\n {pomdp.p0}')
+    logging.info(f'phi:\n {pomdp.phi}')
 
     logging.info(f'mem_params:\n {mem_params}')
 
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     results_path = results_path(args)
 
-    logs, agent = run_memory_iteration(amdp,
+    logs, agent = run_memory_iteration(pomdp,
                                        mem_params,
                                        rand_key=rand_key,
                                        mi_iterations=args.mi_iterations,

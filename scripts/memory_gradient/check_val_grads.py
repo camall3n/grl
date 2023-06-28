@@ -16,15 +16,15 @@ from definitions import ROOT_DIR
 from scripts.variance_calcs import collect_episodes
 from scripts.memory_gradient.intermediate_sample_grads import expected_val_grad, mem_func, load_mem_params
 
-def mem_obs_val_func(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, obs: int, mem: int):
+def mem_obs_val_func(mem_params: jnp.ndarray, pomdp: POMDP, pi: jnp.ndarray, obs: int, mem: int):
 
-    # T_td, R_td = get_td_model(amdp, pi)
-    # td_model = MDP(T_td, R_td, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    # T_td, R_td = get_td_model(pomdp, pi)
+    # td_model = MDP(T_td, R_td, pomdp.p0 @ pomdp.phi, gamma=pomdp.gamma)
     # v0, q0 = functional_solve_mdp(pi, td_model)
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
-    v0, q0, info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=0)
+    v0, q0, info = lstdq_lambda(mem_aug_pi, mem_aug_pomdp, lambda_=0)
     v0_unflat = v0.reshape(-1, mem_params.shape[-1])
     return v0_unflat[obs, mem]
 
@@ -50,7 +50,7 @@ def seq_calc_episode_val_grads(episode: dict,
     episode_mem_grads = batch_mem_grad_func(mem_params, obses[:-1], actions, prev_mem,
                                             next_mem) # ep_length x |mems| x *mem_shape
 
-    discounts = amdp.gamma**jnp.arange(T)
+    discounts = pomdp.gamma**jnp.arange(T)
     discounts = discounts.at[-1].set(0)
 
     om_counts = jnp.zeros((n_obs, n_mem))
@@ -147,7 +147,7 @@ def calc_episode_val_grads(episode: dict,
     episode_mem_beliefs = jnp.array(episode_mem_beliefs)
     traj_mem_vs = jnp.array(traj_mem_vs)
 
-    discounts = amdp.gamma**jnp.arange(T)
+    discounts = pomdp.gamma**jnp.arange(T)
     discounts = discounts.at[-1].set(0)
 
     # calculate grad statistics for mem
@@ -200,19 +200,19 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
     mem_params = get_memory('fuzzy',
-                            n_obs=amdp.observation_space.n,
-                            n_actions=amdp.action_space.n,
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
                             leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     grad_fn = jax.grad(mem_obs_val_func)
 
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+    learnt_mem_aug_pomdp = memory_cross_product(learnt_mem_params, pomdp)
 
     mem_probs = softmax(mem_params)
     learnt_mem_probs = softmax(learnt_mem_params)
@@ -220,18 +220,18 @@ if __name__ == "__main__":
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp,
+    sampled_episodes = collect_episodes(pomdp,
                                         pi,
                                         n_episode_samples,
                                         rand_key,
                                         mem_paramses=[mem_params, learnt_mem_params])
 
-    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
 
     mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
-        mem_aug_pi, learnt_mem_aug_amdp)
+        mem_aug_pi, learnt_mem_aug_pomdp)
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
-                                                           mem_aug_amdp,
+                                                           mem_aug_pomdp,
                                                            lambda_=lambda_0)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
@@ -240,19 +240,19 @@ if __name__ == "__main__":
     init_mem_belief = np.zeros(n_mem_states)
     init_mem_belief[0] = 1.
 
-    expected_mem_val_grads = jnp.zeros((amdp.observation_space.n, n_mem_states) + mem_params.shape)
-    expected_learnt_mem_val_grads = jnp.zeros((amdp.observation_space.n, n_mem_states) +
+    expected_mem_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem_states) + mem_params.shape)
+    expected_learnt_mem_val_grads = jnp.zeros((pomdp.observation_space.n, n_mem_states) +
                                               mem_params.shape)
 
     analytical_mem_val_grad = jnp.zeros_like(expected_mem_val_grads)
     analytical_learnt_mem_val_grad = jnp.zeros_like(expected_learnt_mem_val_grads)
 
-    for o in range(amdp.phi.shape[-1]):
+    for o in range(pomdp.phi.shape[-1]):
         for m in range(n_mem_states):
             analytical_mem_val_grad = analytical_mem_val_grad.at[o, m].set(
-                grad_fn(mem_params, amdp, pi, o, m))
+                grad_fn(mem_params, pomdp, pi, o, m))
             analytical_learnt_mem_val_grad = analytical_learnt_mem_val_grad.at[o, m].set(
-                grad_fn(learnt_mem_params, amdp, pi, o, m))
+                grad_fn(learnt_mem_params, pomdp, pi, o, m))
 
     for episode in tqdm(sampled_episodes):
 

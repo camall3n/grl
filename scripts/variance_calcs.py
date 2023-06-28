@@ -121,22 +121,22 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
-    n_obs = amdp.observation_space.n
-    n_actions = amdp.action_space.n
+    n_obs = pomdp.observation_space.n
+    n_actions = pomdp.action_space.n
     n_oa = n_obs * n_actions
 
-    analytical_v0_vals, analytical_q0_vals, info_0 = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-    analytical_v1_vals, analytical_q1_vals, info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+    analytical_v0_vals, analytical_q0_vals, info_0 = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
+    analytical_v1_vals, analytical_q1_vals, info_1 = lstdq_lambda(pi, pomdp, lambda_=lambda_1)
 
     if buffer_path.is_file():
         episode_buffer = np.load(buffer_path, allow_pickle=True).tolist()
     else:
-        episode_buffer = collect_episodes(amdp, pi, n_episodes, rand_key)
+        episode_buffer = collect_episodes(pomdp, pi, n_episodes, rand_key)
         numpyify_and_save(buffer_path, episode_buffer)
 
-    sample_v = np.zeros(amdp.observation_space.n)
+    sample_v = np.zeros(pomdp.observation_space.n)
     sample_q = np.zeros(n_oa)
     all_act_obs_counts = np.zeros_like(sample_q, dtype=int)
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     for ep in tqdm(episode_buffer):
         rewards = ep['rewards']
-        returns = rews_to_returns(rewards, amdp.gamma)
+        returns = rews_to_returns(rewards, pomdp.gamma)
         actions = ep['actions']
         obs = ep['obses'][:returns.shape[0]]
         next_obs = ep['obses'][1:]
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
         sample_q += np.bincount(act_obs_idxes, weights=returns, minlength=n_oa)
 
-        one_step_returns = rewards + amdp.gamma * analytical_v0_vals[next_obs]
+        one_step_returns = rewards + pomdp.gamma * analytical_v0_vals[next_obs]
         vars = (one_step_returns - analytical_q0_vals[actions, obs])**2
         var_q += np.bincount(act_obs_idxes, weights=vars, minlength=n_oa)
 

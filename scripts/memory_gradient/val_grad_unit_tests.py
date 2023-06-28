@@ -20,32 +20,32 @@ from scripts.memory_gradient.check_val_grads import mem_obs_val_func
 from scripts.memory_gradient.intermediate_sample_grads import mem_func
 
 ValGradInputs = namedtuple('ValGradInputs', [
-    'mem_params', 'amdp', 'pi', 'T_td', 'all_mem_grads', 'unflat_v_mem', 'all_om_grads',
+    'mem_params', 'pomdp', 'pi', 'T_td', 'all_mem_grads', 'unflat_v_mem', 'all_om_grads',
     'all_prod_grads'
 ])
 
-def get_init_belief(amdp: POMDP, pi: jnp.ndarray):
-    amdp_occupancy = pomdp_get_occupancy(pi, amdp)
-    return get_p_s_given_o(amdp.phi, amdp_occupancy)
+def get_init_belief(pomdp: POMDP, pi: jnp.ndarray):
+    pomdp_occupancy = pomdp_get_occupancy(pi, pomdp)
+    return get_p_s_given_o(pomdp.phi, pomdp_occupancy)
 
-def mem_prod_val(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
+def mem_prod_val(mem_params: jnp.ndarray, pomdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
                  action: int, next_mem: int, next_obs: int):
     return mem_func(mem_params, obs, action, mem, next_mem) * mem_obs_val_func(
-        mem_params, amdp, pi, next_obs, next_mem)
+        mem_params, pomdp, pi, next_obs, next_mem)
 
-def q_mem_val(mem_params: jnp.ndarray, amdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
+def q_mem_val(mem_params: jnp.ndarray, pomdp: POMDP, pi: jnp.ndarray, mem: int, obs: int,
               action: int):
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
-    v0, q0, info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=0)
-    q0_unflat = q0.reshape(amdp.action_space.n, -1, mem_params.shape[-1])
+    v0, q0, info = lstdq_lambda(mem_aug_pi, mem_aug_pomdp, lambda_=0)
+    q0_unflat = q0.reshape(pomdp.action_space.n, -1, mem_params.shape[-1])
     return q0_unflat[action, obs, mem]
 
 @partial(jax.jit, static_argnames='a')
-def belief_update(prev_belief: jnp.ndarray, amdp: POMDP, a: int):
-    next_belief = amdp.T[a] @ prev_belief
-    prob_next_o = next_belief @ amdp.phi
+def belief_update(prev_belief: jnp.ndarray, pomdp: POMDP, a: int):
+    next_belief = pomdp.T[a] @ prev_belief
+    prob_next_o = next_belief @ pomdp.phi
     return next_belief, prob_next_o
 
 def val_grad_unroll(obs: int,
@@ -56,13 +56,13 @@ def val_grad_unroll(obs: int,
         return val_grad_inputs.all_om_grads[obs, mem]
 
     mem_params = val_grad_inputs.mem_params
-    amdp = val_grad_inputs.amdp
+    pomdp = val_grad_inputs.pomdp
     pi = val_grad_inputs.pi
 
     cumulative_mem_grads = jnp.zeros_like(mem_params)
     mem_probs = softmax(mem_params, axis=-1)
 
-    for a in range(amdp.action_space.n):
+    for a in range(pomdp.action_space.n):
         pi_a_o = pi[obs, a]
 
         if pi_a_o == 0:
@@ -70,9 +70,9 @@ def val_grad_unroll(obs: int,
 
         all_next_obs = jnp.zeros_like(mem_params)
 
-        # next_belief, prob_next_o = belief_update(belief, amdp, a)
+        # next_belief, prob_next_o = belief_update(belief, pomdp, a)
 
-        for next_obs in range(amdp.observation_space.n):
+        for next_obs in range(pomdp.observation_space.n):
             # next_belief = belief
             p_op_o_a = val_grad_inputs.T_td[a, obs, next_obs]
             # p_op_o_a = prob_next_o[next_obs]
@@ -98,7 +98,7 @@ def val_grad_unroll(obs: int,
                     #         val_grad_unroll(next_obs, next_mem, next_belief, val_grad_inputs, unrolling_steps - 1)
 
                 all_next_mems += (cum + recur)
-            all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
+            all_next_obs += (p_op_o_a * pomdp.gamma * all_next_mems)
 
         cumulative_mem_grads += (pi_a_o * all_next_obs)
 
@@ -108,18 +108,18 @@ def prod_val_grad(obs: int, mem: int, val_grad_inputs: ValGradInputs):
     grad_fn = jax.grad(mem_prod_val)
 
     mem_params = val_grad_inputs.mem_params
-    amdp = val_grad_inputs.amdp
+    pomdp = val_grad_inputs.pomdp
     pi = val_grad_inputs.pi
 
     cumulative_mem_grads = jnp.zeros_like(mem_params)
-    for a in range(amdp.action_space.n):
+    for a in range(pomdp.action_space.n):
         pi_a_o = pi[obs, a]
         if pi_a_o == 0:
             continue
 
         all_next_obs = jnp.zeros_like(mem_params)
 
-        for next_obs in range(amdp.observation_space.n):
+        for next_obs in range(pomdp.observation_space.n):
             p_op_o_a = val_grad_inputs.T_td[a, obs, next_obs]
 
             if p_op_o_a == 0:
@@ -127,15 +127,15 @@ def prod_val_grad(obs: int, mem: int, val_grad_inputs: ValGradInputs):
 
             all_next_mems = jnp.zeros_like(mem_params)
             for next_mem in range(mem_params.shape[-1]):
-                all_next_mems += grad_fn(mem_params, amdp, pi, mem, obs, a, next_mem, next_obs)
-            all_next_obs += (p_op_o_a * amdp.gamma * all_next_mems)
+                all_next_mems += grad_fn(mem_params, pomdp, pi, mem, obs, a, next_mem, next_obs)
+            all_next_obs += (p_op_o_a * pomdp.gamma * all_next_mems)
 
         cumulative_mem_grads += (pi_a_o * all_next_obs)
 
     return cumulative_mem_grads
 
 def calc_all_unrolled_val_grads(mem_params: jnp.ndarray,
-                                amdp: POMDP,
+                                pomdp: POMDP,
                                 pi: jnp.ndarray,
                                 T_td: jnp.ndarray,
                                 unflat_v_mem: jnp.ndarray,
@@ -144,10 +144,10 @@ def calc_all_unrolled_val_grads(mem_params: jnp.ndarray,
                                 n_unrolls: int = 0):
     n_mem = mem_params.shape[-1]
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
-    all_om_n_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
+    all_om_n_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
     val_grad_inputs = {
         'mem_params': mem_params,
-        'amdp': amdp,
+        'pomdp': pomdp,
         'pi': pi,
         'T_td': T_td,
         'unflat_v_mem': unflat_v_mem,
@@ -155,94 +155,94 @@ def calc_all_unrolled_val_grads(mem_params: jnp.ndarray,
         'all_om_grads': all_om_grads
     }
     val_grad_inputs = Namespace(**val_grad_inputs)
-    for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+    for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
         all_om_n_grads = all_om_n_grads.at[o, m].set(
             val_grad_unroll(o, m, val_grad_inputs, unrolling_steps=n_unrolls))
 
     return all_om_n_grads
 
-def test_unrolling(amdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
+def test_unrolling(pomdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     mem_grad_fn = jax.grad(mem_func)
     prod_grad_fn = jax.grad(mem_prod_val)
     # q_grad_fn = jax.grad(q_mem_val)
 
-    T_td, R_td = get_td_model(amdp, pi)
+    T_td, R_td = get_td_model(pomdp, pi)
     T_td = normalize(T_td, axis=-1)
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
 
-    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp, lambda_=0.)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_pomdp, lambda_=0.)
     mem_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
-    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
+    all_grads = jnp.zeros((n_mem, pomdp.observation_space.n, pomdp.action_space.n, n_mem) +
                           mem_params.shape)
-    all_prod_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem,
-                                amdp.observation_space.n) + mem_params.shape)
-    # all_oma_grads = jnp.zeros((amdp.action_space.n, amdp.observation_space.n, n_mem) + mem_params.shape)
+    all_prod_grads = jnp.zeros((n_mem, pomdp.observation_space.n, pomdp.action_space.n, n_mem,
+                                pomdp.observation_space.n) + mem_params.shape)
+    # all_oma_grads = jnp.zeros((pomdp.action_space.n, pomdp.observation_space.n, n_mem) + mem_params.shape)
 
     for m in range(n_mem):
-        for o in range(amdp.observation_space.n):
-            for a in range(amdp.action_space.n):
-                # all_oma_grads = all_oma_grads.at[a, o, m].set(q_grad_fn(mem_params, amdp, pi, m, o, a))
+        for o in range(pomdp.observation_space.n):
+            for a in range(pomdp.action_space.n):
+                # all_oma_grads = all_oma_grads.at[a, o, m].set(q_grad_fn(mem_params, pomdp, pi, m, o, a))
                 for next_m in range(n_mem):
                     all_grads = all_grads.at[m, o, a,
                                              next_m].set(mem_grad_fn(mem_params, o, a, m, next_m))
                     # FOR PROD
-                    # for next_o in range(amdp.observation_space.n):
-                    #     all_prod_grads = all_prod_grads.at[m, o, a, next_m, next_o].set(prod_grad_fn(mem_params, amdp, pi, m, o, a, next_m, next_o))
+                    # for next_o in range(pomdp.observation_space.n):
+                    #     all_prod_grads = all_prod_grads.at[m, o, a, next_m, next_o].set(prod_grad_fn(mem_params, pomdp, pi, m, o, a, next_m, next_o))
 
     print("Calculating base \grad v(o, m)'s")
-    all_om_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
-    for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+    all_om_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
+    for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
         all_om_grads = all_om_grads.at[o, m].set(
-            jax.grad(mem_obs_val_func)(mem_params, amdp, pi, o, m))
+            jax.grad(mem_obs_val_func)(mem_params, pomdp, pi, o, m))
 
-    val_grad_inputs = ValGradInputs(mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat,
+    val_grad_inputs = ValGradInputs(mem_params, pomdp, pi, T_td, all_grads, mem_v0_unflat,
                                     all_om_grads, all_prod_grads)
 
     # with jax.disable_jit():
     n_unrolls = 2
     print(f"Calculating \grad v(o, m)'s after {n_unrolls} unrolls")
-    all_om_n_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
-    for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+    all_om_n_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
+    for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
         all_om_n_grads = all_om_n_grads.at[o, m].set(
             val_grad_unroll(o, m, val_grad_inputs, unrolling_steps=n_unrolls))
     print("are they the same???")
 
-def test_product_grad(amdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
+def test_product_grad(pomdp: POMDP, pi: jnp.ndarray, mem_params: jnp.ndarray):
     n_mem = mem_params.shape[-1]
     grad_fn = jax.grad(mem_func)
-    T_td, R_td = get_td_model(amdp, pi)
+    T_td, R_td = get_td_model(pomdp, pi)
 
     mem_aug_pi = pi.repeat(n_mem, axis=0)
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+    mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi, mem_aug_pomdp)
     mem_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
 
-    all_grads = jnp.zeros((n_mem, amdp.observation_space.n, amdp.action_space.n, n_mem) +
+    all_grads = jnp.zeros((n_mem, pomdp.observation_space.n, pomdp.action_space.n, n_mem) +
                           mem_params.shape)
 
     for m in range(n_mem):
-        for o in range(amdp.observation_space.n):
-            for a in range(amdp.action_space.n):
+        for o in range(pomdp.observation_space.n):
+            for a in range(pomdp.action_space.n):
                 for next_m in range(n_mem):
                     all_grads = all_grads.at[m, o, a,
                                              next_m].set(grad_fn(mem_params, o, a, m, next_m))
 
     print("Calculating base \grad v(o, m)'s")
-    all_om_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
-    for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+    all_om_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
+    for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
         all_om_grads = all_om_grads.at[o, m].set(
-            jax.grad(mem_obs_val_func)(mem_params, amdp, pi, o, m))
+            jax.grad(mem_obs_val_func)(mem_params, pomdp, pi, o, m))
 
-    val_grad_inputs = ValGradInputs(mem_params, amdp, pi, T_td, all_grads, mem_v0_unflat,
+    val_grad_inputs = ValGradInputs(mem_params, pomdp, pi, T_td, all_grads, mem_v0_unflat,
                                     all_om_grads)
 
     print(f"Calculating \grad v(o, m)'s after product")
-    all_om_prod_grads = jnp.zeros((amdp.observation_space.n, n_mem) + mem_params.shape)
-    for o, m in tqdm(list(product(list(range(amdp.observation_space.n)), list(range(n_mem))))):
+    all_om_prod_grads = jnp.zeros((pomdp.observation_space.n, n_mem) + mem_params.shape)
+    for o, m in tqdm(list(product(list(range(pomdp.observation_space.n)), list(range(n_mem))))):
         all_om_prod_grads = all_om_prod_grads.at[o, m].set(prod_val_grad(o, m, val_grad_inputs))
 
     print("are they the same???")
@@ -269,13 +269,13 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
     mem_params = get_memory('fuzzy',
-                            n_obs=amdp.observation_space.n,
-                            n_actions=amdp.action_space.n,
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
                             leakiness=0.2)
 
-    test_unrolling(amdp, pi, mem_params)
-    # test_product_grad(amdp, pi, mem_params)
+    test_unrolling(pomdp, pi, mem_params)
+    # test_product_grad(pomdp, pi, mem_params)

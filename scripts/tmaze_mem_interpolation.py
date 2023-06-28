@@ -28,7 +28,7 @@ if __name__ == "__main__":
     spec = load_spec(spec_name)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     og_mem_params = get_memory(str(mem_id))
     og_mem = softmax(og_mem_params, axis=-1)
     pi = spec['Pi_phi'][0].repeat(2, axis=0)
@@ -42,9 +42,9 @@ if __name__ == "__main__":
         og_mem_dist = og_mem[mem_idx].at[1 - argmax_idx].add(fuzz)
         mem_dist = og_mem_dist.at[argmax_idx].add(-fuzz)
         mem = og_mem.at[mem_idx].set(mem_dist)
-        mem_aug_amdp = memory_cross_product(reverse_softmax(mem), amdp)
+        mem_aug_pomdp = memory_cross_product(reverse_softmax(mem), pomdp)
         indv_res = {'fuzz': fuzz, 'mem': mem}
-        indv_res.update(lambda_discrep_measures(mem_aug_amdp, pi, discrep_loss_fn=loss))
+        indv_res.update(lambda_discrep_measures(mem_aug_pomdp, pi, discrep_loss_fn=loss))
         all_res.append(indv_res)
 
     numpyify_and_save(save_path, all_res)

@@ -24,7 +24,7 @@ def test_tiger():
 
     for oa_pi, c_pi in zip(obs_action_spec['Pi_phi'], converted_spec['Pi_phi']):
         oa_state_vals, oa_mc_vals, oa_td_vals, _ = analytical_pe(oa_pi, obs_action_pomdp)
-        c_state_vals, c_mc_vals, c_td_vals, _ = analytical_pe(c_pi, converted_amdp)
+        c_state_vals, c_mc_vals, c_td_vals, _ = analytical_pe(c_pi, converted_pomdp)
 
         check_vals(oa_state_vals, c_state_vals)
         check_vals(oa_mc_vals, c_mc_vals)

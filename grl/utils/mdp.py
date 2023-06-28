@@ -63,17 +63,17 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, pomdp: POMDP):
 
     R_contributions = (pomdp.R * T_contributions) / denom_no_zero
     R_obs_obs_flat = R_contributions.sum(-1).sum(-1).T
-    R_obs_obs = R_obs_obs_flat.reshape(pomdp.R.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
+    R_obs_obs = R_obs_obs_flat.reshape(pomdp.R.shape[0], pomdp.phi.shape[-1], pomdp.phi.shape[-1])
 
     return T_obs_obs, R_obs_obs
 
 @jit
-def get_td_model(amdp: POMDP, pi: jnp.ndarray):
-    pi_state = amdp.phi @ pi
-    occupancy = functional_get_occupancy(pi_state, amdp)
+def get_td_model(pomdp: POMDP, pi: jnp.ndarray):
+    pi_state = pomdp.phi @ pi
+    occupancy = functional_get_occupancy(pi_state, pomdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    return functional_create_td_model(p_pi_of_s_given_o, amdp)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy)
+    return functional_create_td_model(p_pi_of_s_given_o, pomdp)
 
 # @jit
 def all_t_discounted_returns(discounts: np.ndarray, rewards: np.ndarray):

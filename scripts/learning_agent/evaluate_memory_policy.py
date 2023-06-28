@@ -48,18 +48,18 @@ for results_dir in tqdm(glob.glob(f'results/sample_based/{experiment_name}/{env_
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
     env = POMDP(mdp, spec['phi'])
     mem_logits = jnp.log(memory + 1e-20)
-    amdp_mem = memory_cross_product(mem_logits, env)
+    pomdp_mem = memory_cross_product(mem_logits, env)
 
-    def expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc):
-        c_s = pomdp_get_occupancy(greedify(policy), amdp_mem)
-        c_o = (c_s @ amdp_mem.phi)
+    def expected_lambda_discrep(pomdp_mem, mem_logits, policy, td, mc):
+        c_s = pomdp_get_occupancy(greedify(policy), pomdp_mem)
+        c_o = (c_s @ pomdp_mem.phi)
         p_o = c_o / c_o.sum()
         p_oa = (policy * p_o[:, None]).T
         return (abs(td - mc) * p_oa).sum()
 
-    expected_lambda_discrep(amdp_mem, mem_logits, policy, td, mc)
+    expected_lambda_discrep(pomdp_mem, mem_logits, policy, td, mc)
 
-    performance = get_perf(greedify(policy), amdp_mem)
+    performance = get_perf(greedify(policy), pomdp_mem)
     results[seed] = performance
 
 for seed, performance in sorted(results.items(), key=lambda x: x[-1]):

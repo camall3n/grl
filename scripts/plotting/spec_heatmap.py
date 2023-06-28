@@ -13,7 +13,7 @@ def heatmap(spec: dict, error_type: str = 'l2', num_ticks: int = 5):
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     # Run for both v and q
     value_types = ['v', 'q']

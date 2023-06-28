@@ -78,14 +78,14 @@ def lstdq_lambda(pi: jnp.ndarray, pomdp: Union[MDP, POMDP], lambda_: float = 0.9
     R_ass = pomdp.R
 
     a, s, _ = T_ass.shape
-    phi = amdp.phi if hasattr(amdp, 'phi') else jnp.eye(s)
+    phi = pomdp.phi if hasattr(pomdp, 'phi') else jnp.eye(s)
 
     o = phi.shape[1]
     sa = s * a
     oa = o * a
 
-    gamma = amdp.gamma
-    s0 = amdp.p0
+    gamma = pomdp.gamma
+    s0 = pomdp.p0
 
     pi_sa = phi @ pi
 
@@ -123,7 +123,7 @@ def lstdq_lambda(pi: jnp.ndarray, pomdp: Union[MDP, POMDP], lambda_: float = 0.9
 
     # Convert from states to observations
     occupancy_s = occupancy_as.reshape((a, s)).sum(0)
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy_s)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy_s)
 
     Q_LSTD_lamb_ao = Q_LSTD_lamb_as @ p_pi_of_s_given_o
     V_LSTD_lamb_o = V_LSTD_lamb_s @ p_pi_of_s_given_o

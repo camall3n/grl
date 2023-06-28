@@ -48,59 +48,59 @@ def test_split_mem():
                          epsilon=epsilon)
 
         mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-        amdp = POMDP(mdp, spec['phi'])
+        pomdp = POMDP(mdp, spec['phi'])
 
         pi = spec['Pi_phi'][0]
         mem_params = get_memory(str(mem),
-                                n_obs=amdp.observation_space.n,
-                                n_actions=amdp.action_space.n)
+                                n_obs=pomdp.observation_space.n,
+                                n_actions=pomdp.action_space.n)
         mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
-        mem_aug_amdp = memory_cross_product(mem_params, amdp)
-        learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
+        mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+        learnt_mem_aug_pomdp = memory_cross_product(learnt_mem_params, pomdp)
 
         n_mem_states = mem_params.shape[-1]
 
-        lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-        lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+        lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
+        lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, pomdp, lambda_=lambda_1)
 
         mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
-            mem_aug_pi, learnt_mem_aug_amdp)
+            mem_aug_pi, learnt_mem_aug_pomdp)
         mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
-                                                               mem_aug_amdp,
+                                                               mem_aug_pomdp,
                                                                lambda_=lambda_0)
         mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi,
-                                                                 mem_aug_amdp,
+                                                                 mem_aug_pomdp,
                                                                  lambda_=lambda_1)
 
-        # undisc_mdp = MDP(amdp.T, amdp.R, amdp.p0, 1.)
-        # undisc_amdp = AbstractMDP(undisc_mdp, amdp.phi)
-        # # undisc_amdp = amdp
+        # undisc_mdp = MDP(pomdp.T, pomdp.R, pomdp.p0, 1.)
+        # undisc_pomdp = AbstractMDP(undisc_mdp, pomdp.phi)
+        # # undisc_pomdp = pomdp
         #
-        # undisc_mem_aug_amdp = memory_cross_product(mem_params, undisc_amdp)
+        # undisc_mem_aug_pomdp = memory_cross_product(mem_params, undisc_pomdp)
 
-        # counts_mem_aug_flat_obs = amdp_get_occupancy(mem_aug_pi, undisc_mem_aug_amdp) @ undisc_mem_aug_amdp.phi
-        counts_mem_aug_flat_obs = mem_lstd_info['occupancy'] @ mem_aug_amdp.phi
+        # counts_mem_aug_flat_obs = pomdp_get_occupancy(mem_aug_pi, undisc_mem_aug_pomdp) @ undisc_mem_aug_pomdp.phi
+        counts_mem_aug_flat_obs = mem_lstd_info['occupancy'] @ mem_aug_pomdp.phi
         counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs,
                                          mem_aug_pi).T # A x OM
 
-        counts_mem_aug = counts_mem_aug_flat.reshape(amdp.action_space.n, -1, 2) # A x O x M
+        counts_mem_aug = counts_mem_aug_flat.reshape(pomdp.action_space.n, -1, 2) # A x O x M
 
         denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
         denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)
         denom_counts_mem_aug = denom_counts_mem_aug_unmasked + denom_mask
         prob_mem_given_oa = counts_mem_aug / denom_counts_mem_aug
 
-        # init_obs_action = jnp.expand_dims(amdp.p0 @ amdp.phi, 0).repeat(amdp.action_space.n, 0)
+        # init_obs_action = jnp.expand_dims(pomdp.p0 @ pomdp.phi, 0).repeat(pomdp.action_space.n, 0)
         # init_obs_action = init_obs_action + (init_obs_action == 0).astype(float)
         # init_obs_action_mem = jnp.expand_dims(init_obs_action, -1).repeat(n_mem_states, -1)
         # prob_mem_given_oa = prob_mem_given_oa_less_init * init_obs_action_mem
 
-        mem_lstd_q0_unflat = mem_lstd_q0.reshape(amdp.action_space.n, -1, mem_params.shape[-1])
+        mem_lstd_q0_unflat = mem_lstd_q0.reshape(pomdp.action_space.n, -1, mem_params.shape[-1])
         reformed_q0 = (mem_lstd_q0_unflat * prob_mem_given_oa).sum(axis=-1)
 
         learnt_reformed_q0 = (
-            mem_learnt_lstd_q0.reshape(amdp.action_space.n, -1, mem_params.shape[-1]) *
+            mem_learnt_lstd_q0.reshape(pomdp.action_space.n, -1, mem_params.shape[-1]) *
             prob_mem_given_oa).sum(axis=-1)
         if target_lambda == 1:
             assert jnp.allclose(reformed_q0[:, :-1], lstd_q1[:, :-1])
@@ -176,34 +176,34 @@ def test_sample_based_split_mem():
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory(str(19), n_obs=amdp.observation_space.n, n_actions=amdp.action_space.n)
+    mem_params = get_memory(str(19), n_obs=pomdp.observation_space.n, n_actions=pomdp.action_space.n)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+    learnt_mem_aug_pomdp = memory_cross_product(learnt_mem_params, pomdp)
 
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp,
+    sampled_episodes = collect_episodes(pomdp,
                                         pi,
                                         n_episode_samples,
                                         rand_key,
                                         mem_paramses=[mem_params, learnt_mem_params])
 
-    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
+    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, pomdp, lambda_=lambda_1)
 
     mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
-        mem_aug_pi, learnt_mem_aug_amdp)
+        mem_aug_pi, learnt_mem_aug_pomdp)
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
-                                                           mem_aug_amdp,
+                                                           mem_aug_pomdp,
                                                            lambda_=lambda_0)
     mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi,
-                                                             mem_aug_amdp,
+                                                             mem_aug_pomdp,
                                                              lambda_=lambda_1)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])

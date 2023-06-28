@@ -34,7 +34,7 @@ def test_td_lambda():
     pomdp = POMDP(mdp, spec['phi'])
     pi = spec['Pi_phi'][0]
 
-    mdp_vals, mc_vals, td_vals, _ = analytical_pe(pi, amdp)
+    mdp_vals, mc_vals, td_vals, _ = analytical_pe(pi, pomdp)
 
     assert np.all(np.isclose(mdp_vals['v'][:-1], ground_truth_vals)) and np.all(
         np.isclose(mdp_vals['q'][0][:-1], ground_truth_vals))

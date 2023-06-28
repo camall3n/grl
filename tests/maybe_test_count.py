@@ -110,22 +110,22 @@ def test_count():
                      epsilon=0.2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     mem_params = get_memory(str(16))
     n_mem_states = mem_params.shape[-1]
     # def cumulative_bitwise_and(carry: Tuple, )
 
-    # id_mask = jnp.expand_dims(jnp.eye(amdp.T.shape[-1]), 0).repeat(amdp.T.shape[0], axis=0)
-    # self_loop = (id_mask * amdp.T).astype(bool)
+    # id_mask = jnp.expand_dims(jnp.eye(pomdp.T.shape[-1]), 0).repeat(pomdp.T.shape[0], axis=0)
+    # self_loop = (id_mask * pomdp.T).astype(bool)
     # absorbing_mask = lax.reduce(self_loop, jnp.array(1).astype(bool), jnp.bitwise_and, (0,))
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
 
     # Make the last two memory-augmented states absorbing as well
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -2:].set(0)
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -2, -2].set(1)
-    mem_aug_amdp.T = mem_aug_amdp.T.at[:, -1, -1].set(1)
+    mem_aug_pomdp.T = mem_aug_pomdp.T.at[:, -2:].set(0)
+    mem_aug_pomdp.T = mem_aug_pomdp.T.at[:, -2, -2].set(1)
+    mem_aug_pomdp.T = mem_aug_pomdp.T.at[:, -1, -1].set(1)
 
-    mem_aug_mdp = MDP(mem_aug_amdp.T, mem_aug_amdp.R, mem_aug_amdp.p0, mem_aug_amdp.gamma)
+    mem_aug_mdp = MDP(mem_aug_pomdp.T, mem_aug_pomdp.R, mem_aug_pomdp.p0, mem_aug_pomdp.gamma)
     pi_ground = (spec['phi'] @ spec['Pi_phi'][0]).repeat(n_mem_states, 0)
 
     print("Calculating analytical occupancy")

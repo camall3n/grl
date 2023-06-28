@@ -44,7 +44,7 @@ if __name__ == "__main__":
     mem_params = get_memory('0', n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     # corridor values
     ps = np.linspace(0., 1., num=args.n)

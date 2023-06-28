@@ -38,8 +38,8 @@ def test_po_pi_tmaze():
     print(f"Testing value iteration on T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = POMDP(mdp, spec['phi'])
-    phi_pi = po_policy_iteration(amdp)
+    pomdp = POMDP(mdp, spec['phi'])
+    phi_pi = po_policy_iteration(pomdp)
 
     print(f"Policy Iteration pi: {phi_pi}\n")
 
