@@ -14,15 +14,16 @@ class GammaTerminalWrapper(gym.Wrapper):
                 self.gamma_terminal_prob = 1. - self.env.gamma
                 self.gamma = 1.
             else:
-                raise AttributeError("If environment does not come with a gamma, need to set gamma for gamma termination")
+                raise AttributeError(
+                    "If environment does not come with a gamma, need to set gamma for gamma termination"
+                )
         else:
             self.gamma_terminal_prob = 1. - gamma
             self.gamma = 1.
 
-
     def step(self, action: int, **kwargs) -> Tuple[np.ndarray, float, bool, bool, dict]:
         observation, reward, terminal, truncated, info = self.env.step(action, **kwargs)
-        # if the env happens to have a rand_key, use that for reproducibility. 
+        # if the env happens to have a rand_key, use that for reproducibility.
         # Otherwise, just use random.uniform.
         # (By the way, this will not error because python evaluates boolean statements lazily.)
         if hasattr(self.env, 'rand_key') and self.env.rand_key is not None:
@@ -31,5 +32,5 @@ class GammaTerminalWrapper(gym.Wrapper):
             unif = np.random.uniform()
         if unif < self.gamma_terminal_prob:
             terminal = True
-            
+
         return observation, reward, terminal, truncated, info

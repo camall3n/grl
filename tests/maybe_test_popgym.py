@@ -66,8 +66,8 @@ def test_popgym_integration_discrete():
 
     for compressed_ep_rewards in final_eval_rewards_compressed:
         ep_rewards = uncompress_episode_rewards(compressed_ep_rewards['episode_length'],
-                                             compressed_ep_rewards['most_common_reward'],
-                                             compressed_ep_rewards['compressed_rewards'])
+                                                compressed_ep_rewards['most_common_reward'],
+                                                compressed_ep_rewards['compressed_rewards'])
 
         assert sum(ep_rewards) > 0., f"We're (at least) breaking even"
 
@@ -90,7 +90,6 @@ def test_popgym_integration_continuous():
     args.multihead_action_mode = 'td'
     args.lr = 0.0001
 
-
     # args.residual_obs_val_input = True
     env = get_env(args)
 
@@ -111,8 +110,8 @@ def test_popgym_integration_continuous():
 
     for compressed_ep_rewards in final_eval_rewards_compressed:
         ep_rewards = uncompress_episode_rewards(compressed_ep_rewards['episode_length'],
-                                             compressed_ep_rewards['most_common_reward'],
-                                             compressed_ep_rewards['compressed_rewards'])
+                                                compressed_ep_rewards['most_common_reward'],
+                                                compressed_ep_rewards['compressed_rewards'])
 
         # TODO again, I don't know if we expect these small-capacity models to do anything on these problems.
         # Integration seems to work but IDK what to assert.

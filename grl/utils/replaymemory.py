@@ -106,10 +106,8 @@ class ReplayMemory:
         if extension == '.json':
             fields = sorted(list(self.fields))
 
-            data = [{
-                key: serialize_np(value)
-                for key, value in experience.items()
-            } for experience in self.memory]
+            data = [{key: serialize_np(value)
+                     for key, value in experience.items()} for experience in self.memory]
             archive = {
                 'capacity': self.capacity,
                 'position': self.position,
