@@ -224,6 +224,6 @@ def test_actions():
 
 if __name__ == "__main__":
     test_gamma_terminal()
-    test_td_mc_values()
-    test_both_values()
-    test_actions()
+    # test_td_mc_values()
+    # test_both_values()
+    # test_actions()

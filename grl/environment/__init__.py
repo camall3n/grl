@@ -51,9 +51,8 @@ def get_env(args: Namespace,
                 # don't have anything else implemented
                 raise NotImplementedError
 
-        # TODO: some features are already encoded in a one-hot manner.
-        if args.feature_encoding == 'one_hot':
-            env = OneHotObservationWrapper(env)
+    if args.feature_encoding == 'one_hot':
+        env = OneHotObservationWrapper(env)
 
     if args.action_cond == 'cat':
         env = OneHotActionConcatWrapper(env)
