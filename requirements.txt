@@ -9,5 +9,6 @@ matplotlib
 tqdm
 git+https://github.com/camall3n/onager.git
 optuna==3.1.0
+mazelib-alt
 popgym
 numpy>=1.23.4

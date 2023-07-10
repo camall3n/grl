@@ -27,7 +27,7 @@ def parse_arguments(return_defaults: bool = False):
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
     parser.add_argument('--feature_encoding', default='env_default', type=str,
-                        choices=['one_hot', 'discrete', 'env_default'],
+                        choices=['one_hot', 'discrete', 'none'],
                         help='What feature encoding do we use?')
 
     # Agent params

@@ -30,7 +30,7 @@ def get_env(args: Namespace,
     # First we check our POMDP specs
     try:
         env, _ = load_pomdp(args.spec, rand_key=rand_state, **kwargs)
-    except NotImplementedError:
+    except AttributeError:
         # try to load from popgym
         # validate input: we need a custom gamma for popgym args as they don't come with a gamma
         if args.gamma is None:
