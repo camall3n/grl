@@ -120,8 +120,14 @@ class MDP(gym.Env):
         else:
             state_distr = p0
         old_distr = state_distr
+
+        if pi is None:
+            T_pi = np.mean(self.T, axis=0)
+        else:
+            T_pi = self.T[pi, np.arange(self.state_space.n), :]
+
         for t in range(max_steps):
-            state_distr = self.image(state_distr, pi)
+            state_distr = state_distr @ T_pi
             if np.allclose(state_distr, old_distr):
                 break
             old_distr = state_distr
@@ -176,14 +182,6 @@ class MDP(gym.Env):
     @property
     def action_space(self) -> spaces.Discrete:
         return spaces.Discrete(self.T.shape[0])
-
-    def image(self, pr_x, pi=None):
-        if pi is None:
-            T_pi = np.mean(self.T, axis=0)
-        else:
-            T_pi = self.T[pi, np.arange(self.state_space.n), :]
-        pr_next_x = pr_x @ T_pi
-        return pr_next_x
 
     @classmethod
     def generate(cls, n_states, n_actions, sparsity=0, gamma=0.9, Rmin=-1, Rmax=1):

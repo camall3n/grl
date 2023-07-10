@@ -134,7 +134,8 @@ if __name__ == "__main__":
     test_env = None
     if args.offline_eval_freq is not None:
         test_env = get_env(args, rand_state=np_rand_key, rand_key=test_env_key)
-        # TODO: refactor this
+        # TODO: this is here b/c rock_positions are randomly generated in the env __init__ --
+        # refactor this!
         if args.spec == 'rocksample':
             test_env.unwrapped.rock_positions = env.unwrapped.rock_positions.copy()
 
