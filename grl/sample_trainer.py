@@ -74,9 +74,13 @@ class Trainer:
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
 
+        obs_size = self.env.observation_space.shape
+        if not obs_size:
+            obs_size = (1, )
+
         self.buffer = EpisodeBuffer(replay_capacity,
                                     rand_key,
-                                    self.env.observation_space.shape,
+                                    obs_size,
                                     state_size=state_size,
                                     unpack_state=self.args.arch == 'lstm')
 

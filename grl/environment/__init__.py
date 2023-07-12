@@ -1,14 +1,15 @@
 from argparse import Namespace
 
-import jax
+import gymnasium as gym
 import numpy as np
 from numpy import random
+import popgym
 
 from .rocksample import RockSample
 from .spec import load_spec, load_pomdp
-from .wrappers import OneHotObservationWrapper, OneHotActionConcatWrapper
-import popgym
-import gymnasium as gym
+from .wrappers import OneHotObservationWrapper, OneHotActionConcatWrapper, \
+    FlattenMultiDiscreteActionWrapper, DiscreteObservationWrapper, \
+    TupleObservationWrapper
 
 def get_popgym_env(args: Namespace, rand_key: random.RandomState = None, **kwargs):
     # check to see if name exists
@@ -25,7 +26,6 @@ def get_popgym_env(args: Namespace, rand_key: random.RandomState = None, **kwarg
 
 def get_env(args: Namespace,
             rand_state: np.random.RandomState = None,
-            rand_key: jax.random.PRNGKey = None,
             **kwargs):
     # First we check our POMDP specs
     try:
@@ -46,6 +46,17 @@ def get_env(args: Namespace,
                     "Can't load non-native environments without passing in gamma!")
             try:
                 env = get_popgym_env(args, rand_key=rand_state, **kwargs)
+
+                # we might need to preprocess our action spaces
+                if isinstance(env.action_space, gym.spaces.MultiDiscrete):
+                    env = FlattenMultiDiscreteActionWrapper(env)
+
+                # also might need to preprocess our observation spaces
+                if isinstance(env.observation_space, gym.spaces.Discrete):
+                    env = DiscreteObservationWrapper(env)
+
+                if isinstance(env.observation_space, gym.spaces.Tuple):
+                    env = TupleObservationWrapper(env)
 
             except AttributeError:
                 # don't have anything else implemented

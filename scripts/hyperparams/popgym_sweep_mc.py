@@ -10,7 +10,7 @@ hparams = {
         {
             # Env
             'spec': [v['id'] for k, v in ALL_EASY.items()],
-            'no_gamma_terminal': False,
+            'no_gamma_terminal': True,
             'max_episode_steps': 1000,
             'gamma': 0.99,
 
@@ -18,7 +18,8 @@ hparams = {
             'algo': 'multihead_rnn',
             'epsilon': 0.1,
             'arch': 'gru',
-            'lr': [10**-i for i in range(2, 7)],
+            # 'lr': [10**-i for i in range(2, 7)],
+            'lr': 1e-4,
             'optimizer': 'adam',
             'feature_encoding': 'none',
 
@@ -26,27 +27,30 @@ hparams = {
             'hidden_size': 256,
             'value_head_layers': 0,
             'trunc': -1,
-            'action_cond': 'cat',
+            'action_cond': 'none',
 
             # Multihead RNN/Lambda discrep
             'multihead_action_mode': ['mc'],
-            'multihead_loss_mode': ['both', 'mc'],
-            'multihead_lambda_coeff': [-1, 0., 1.],
-            'normalize_rewards': True,
+            # 'multihead_loss_mode': ['both', 'mc'],
+            'multihead_loss_mode': 'both',
+            # 'multihead_lambda_coeff': [-1, 0., 1.],
+            'multihead_lambda_coeff': 0.,
+            # 'normalize_rewards': True,
 
             # Replay
             'replay_size': -1,
             # 'batch_size': 16,
 
             # Logging and Checkpointing
-            'offline_eval_freq': 1000,
+            'offline_eval_freq': int(1e4),
             'offline_eval_episodes': 10,
             'offline_eval_epsilon': None, # Defaults to epsilon
             'checkpoint_freq': -1, # only save last agent
 
             # Experiment
             'total_steps': int(15e6),
-            'seed': [2020 + i for i in range(5)],
+            # 'seed': [2020 + i for i in range(5)],
+            'seed': 2020,
             'study_name': exp_name
         },
     ],
