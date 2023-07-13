@@ -9,7 +9,7 @@ hparams = {
     'args': [
         {
             # Env
-            'spec': [v['id'] for k, v in ALL_EASY.items()],
+            'spec': [v['id'] for k, v in ALL_EASY.items() if 'Pendulum' not in v['id']],
             'no_gamma_terminal': True,
             'max_episode_steps': 1000,
             'gamma': 0.99,

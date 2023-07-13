@@ -4,6 +4,7 @@ import gymnasium as gym
 import numpy as np
 from numpy import random
 import popgym
+from popgym.wrappers import Flatten
 
 from .rocksample import RockSample
 from .spec import load_spec, load_pomdp
@@ -47,16 +48,11 @@ def get_env(args: Namespace,
             try:
                 env = get_popgym_env(args, rand_key=rand_state, **kwargs)
 
-                # we might need to preprocess our action spaces
-                if isinstance(env.action_space, gym.spaces.MultiDiscrete):
-                    env = FlattenMultiDiscreteActionWrapper(env)
-
                 # also might need to preprocess our observation spaces
                 if isinstance(env.observation_space, gym.spaces.Discrete):
                     env = DiscreteObservationWrapper(env)
 
-                if isinstance(env.observation_space, gym.spaces.Tuple):
-                    env = TupleObservationWrapper(env)
+                env = Flatten(env)
 
             except AttributeError:
                 # don't have anything else implemented
