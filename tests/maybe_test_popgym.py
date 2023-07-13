@@ -73,22 +73,25 @@ def test_popgym_integration_discrete():
 
 def test_popgym_integration_continuous():
     args = parse_arguments(return_defaults=True)
-    args.max_episode_steps = 1000
+    args.max_episode_steps = 200
     args.seed = 2022
 
     args.trunc = 5
+    # args.trunc = -1
     args.replay_size = 5000
     args.batch_size = 16
 
-    args.total_steps = 20000
+    args.total_steps = 60000
     args.no_gamma_terminal = True
     args.spec = 'popgym-StatelessCartPoleEasy-v0'
     args.algo = 'multihead_rnn'
-    args.gamma = 0.999
+    args.gamma = 0.99
     args.feature_encoding = 'none'
+    args.hidden_size = 32
+    args.action_cond = 'cat'
     args.multihead_loss_mode = 'td'
     args.multihead_action_mode = 'td'
-    args.lr = 0.0001
+    args.lr = 1e-4
 
     # args.residual_obs_val_input = True
     env = get_env(args)
@@ -113,10 +116,7 @@ def test_popgym_integration_continuous():
                                                 compressed_ep_rewards['most_common_reward'],
                                                 compressed_ep_rewards['compressed_rewards'])
 
-        # TODO again, I don't know if we expect these small-capacity models to do anything on these problems.
-        # Integration seems to work but IDK what to assert.
-        # assert sum(ep_rewards) > 0.1, f"Model didn't seem to learn for " \
-        #                            f"loss_mode: {loss_mode}, action_mode: {action_mode}"
+        assert sum(ep_rewards) > 0.5, "Could not keep up the pole for more than half the time"
 
 if __name__ == "__main__":
     # test_popgym_integration_discrete()

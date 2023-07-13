@@ -48,11 +48,12 @@ def get_env(args: Namespace,
             try:
                 env = get_popgym_env(args, rand_key=rand_state, **kwargs)
 
+                env = Flatten(env)
                 # also might need to preprocess our observation spaces
-                if isinstance(env.observation_space, gym.spaces.Discrete):
+                if isinstance(env.observation_space, gym.spaces.Discrete)\
+                        and args.feature_encoding != 'one_hot':
                     env = DiscreteObservationWrapper(env)
 
-                env = Flatten(env)
 
             except AttributeError:
                 # don't have anything else implemented
