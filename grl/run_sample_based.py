@@ -5,12 +5,13 @@ import jax
 from jax.config import config
 
 from grl.agent import get_agent
-from grl.environment import load_spec
+from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.model import get_network
-from grl.utils.optimizer import get_optimizer
 from grl.sample_trainer import Trainer
+from grl.utils.data import uncompress_episode_rewards
+from grl.utils.optimizer import get_optimizer
 from grl.utils.file_system import results_path, numpyify_and_save
 
 def parse_arguments(return_defaults: bool = False):
@@ -23,17 +24,23 @@ def parse_arguments(return_defaults: bool = False):
                         help='Do we turn OFF gamma termination?')
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
+    parser.add_argument('--feature_encoding', default='one_hot', type=str,
+                        choices=['one_hot', 'discrete'],
+                        help='What feature encoding do we use?')
 
     # Agent params
     parser.add_argument('--algo', default='rnn', type=str,
-                        help='Algorithm to evaluate, (rnn | multihead_rnn)')
+                        choices=['rnn', 'multihead_rnn'],
+                        help='Algorithm to evaluate')
     parser.add_argument('--arch', default='gru', type=str,
-                        help='Algorithm to evaluate, (gru | elman | lstm)')
+                        choices=['gru', 'lstm', 'elman'],
+                        help='Algorithm to evaluate')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='What epsilon do we use?')
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--optimizer', type=str, default='adam',
-                        help='What optimizer do we use? (sgd | adam | rmsprop)')
+                        choices=['sgd', 'adam', 'rmsprop'],
+                        help='What optimizer do we use?')
 
     # RNN hyperparams
     parser.add_argument('--hidden_size', default=10, type=int,
@@ -47,9 +54,11 @@ def parse_arguments(return_defaults: bool = False):
 
     # Multihead RNN/Lambda Discrep hyperparams
     parser.add_argument('--multihead_action_mode', default='td', type=str,
-                        help='What head to we use for multihead_rnn for action selection? (td | mc)')
+                        choices=['td', 'mc'],
+                        help='What head to we use for multihead_rnn for action selection?')
     parser.add_argument('--multihead_loss_mode', default='both', type=str,
-                        help='What mode do we use for the multihead RNN loss? (both | td | mc | split)')
+                        choices=['both', 'td', 'mc'],
+                        help='What mode do we use for the multihead RNN loss?')
     parser.add_argument('--residual_obs_val_input', action='store_true',
                         help='For our value function head, do we concatenate obs to the RNN hidden state as input?')
     parser.add_argument('--multihead_lambda_coeff', default=0., type=float,
@@ -79,7 +88,8 @@ def parse_arguments(return_defaults: bool = False):
     parser.add_argument('--total_steps', type=int, default=int(1e4),
                         help='How many total environment steps do we take in this experiment?')
     parser.add_argument('--platform', type=str, default='cpu',
-                        help='What platform do we use (cpu | gpu)')
+                        choices=['cpu', 'gpu'],
+                        help='What platform do we use')
     parser.add_argument('--seed', default=None, type=int,
                         help='What seed do we use to make the runs deterministic?')
     parser.add_argument('--study_name', type=str, default=None,
@@ -114,16 +124,20 @@ if __name__ == "__main__":
     if args.seed is not None:
         np.random.seed(args.seed)
         rand_key = jax.random.PRNGKey(args.seed)
-        np_rand_key = np.random.RandomState(seed=args.seed)
+        np_rand_state = np.random.RandomState(seed=args.seed)
     else:
         rand_key = jax.random.PRNGKey(np.random.randint(1, 10000))
 
-    # Run
-    # Get POMDP definition
-    spec = load_spec(args.spec)
-
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'], rand_key=np_rand_key)
-    env = AbstractMDP(mdp, spec['phi'])
+    # Load environment and env wrappers
+    env_key, test_env_key, rand_key = jax.random.split(rand_key, num=3)
+    env = get_env(args, rand_state=np_rand_key, rand_key=env_key)
+    test_env = None
+    if args.offline_eval_freq is not None:
+        test_env = get_env(args, rand_state=np_rand_key, rand_key=test_env_key)
+        # TODO: this is here b/c rock_positions are randomly generated in the env __init__ --
+        # refactor this!
+        if args.spec == 'rocksample':
+            test_env.unwrapped.rock_positions = env.unwrapped.rock_positions.copy()
 
     results_path = results_path(args)
     all_agents_dir = results_path.parent / 'agent'
@@ -131,18 +145,14 @@ if __name__ == "__main__":
 
     agents_dir = all_agents_dir / f'{results_path.stem}'
 
-    network = get_network(args, env.n_actions)
+    network = get_network(args, env.action_space.n)
 
     optimizer = get_optimizer(args.optimizer, step_size=args.lr)
 
-    features_shape = env.observation_space
-    if args.action_cond == 'cat':
-        features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions,)
-
-    agent = get_agent(network, optimizer, features_shape, env, args)
+    agent = get_agent(network, optimizer, env.observation_space.shape, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
-    trainer = Trainer(env, agent, trainer_key, args, checkpoint_dir=agents_dir)
+    trainer = Trainer(env, agent, trainer_key, args, test_env=test_env, checkpoint_dir=agents_dir)
 
     final_network_params, final_optimizer_params, episodes_info = trainer.train()
 
@@ -150,19 +160,20 @@ if __name__ == "__main__":
 
     final_eval_info, rand_key = eval_episodes(agent, final_network_params, env, rand_key,
                                               n_episodes=args.offline_eval_episodes,
-                                              test_eps=0., action_cond=args.action_cond,
+                                              test_eps=args.offline_eval_epsilon,
                                               max_episode_steps=args.max_episode_steps)
 
     summed_perf = 0
     for ep in final_eval_info['episode_rewards']:
-        summed_perf += sum(ep)
+        full_ep = uncompress_episode_rewards(ep['episode_length'], ep['most_common_reward'], ep['compressed_rewards'])
+        summed_perf += sum(full_ep)
 
     print(f"Final (averaged) greedy evaluation performance: {summed_perf / args.offline_eval_episodes}")
 
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_greedy_eval_rews': final_eval_info['episode_rewards'],
+        'final_eval_rewards': final_eval_info['episode_rewards'],
         'final_eval_qs': final_eval_info['episode_qs']
     }
 

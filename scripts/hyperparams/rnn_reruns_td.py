@@ -11,13 +11,8 @@ hparams = {
         {
             # Env
             'spec': [
-                # 'tmaze_5_two_thirds_up', 'tiger-alt-start',
-                'cheese.95',
-                'network',
-                '4x3.95',
-                'shuttle.95',
-                'paint.95',
-                'hallway'
+                'tmaze_5_two_thirds_up', 'tiger-alt-start', 'cheese.95', 'network', '4x3.95',
+                'shuttle.95', 'paint.95', 'hallway'
             ],
             'no_gamma_terminal': False,
             'max_episode_steps': 1000,
@@ -38,7 +33,9 @@ hparams = {
             # Multihead RNN/Lambda discrep
             'multihead_action_mode': 'td',
             'multihead_loss_mode': ['both', 'td'],
-            'multihead_lambda_coeff': [-1, 0., 1.],
+            # 'multihead_loss_mode': ['both'],
+            # 'multihead_lambda_coeff': [-1, 0., 1.],
+            'multihead_lambda_coeff': 0.,
             'normalize_rewards': True,
 
             # Replay

@@ -7,7 +7,7 @@ import numpy as np
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.policy_eval import lstdq_lambda
 
 from scripts.variance_calcs import collect_episodes
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     spec = load_spec(
         spec_name,
         # memory_id=str(mem),
-        memory_id=str('f'),
+        memory_id=str('fuzzy'),
         mem_leakiness=0.2,
         corridor_length=corridor_length,
         discount=discount,
@@ -62,31 +62,34 @@ if __name__ == "__main__":
         epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('fuzzy',
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     traj_grad_fn = jax.grad(mem_traj_prob)
 
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
 
     mem_probs = softmax(mem_params)
 
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp,
+    sampled_episodes = collect_episodes(pomdp,
                                         pi,
                                         n_episode_samples,
                                         rand_key,
                                         mem_paramses=[mem_params, learnt_mem_params])
 
-    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
 
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
-                                                           mem_aug_amdp,
+                                                           mem_aug_pomdp,
                                                            lambda_=lambda_0)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])

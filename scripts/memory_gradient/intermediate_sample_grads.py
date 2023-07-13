@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from grl.environment import load_spec
 from grl.memory import memory_cross_product, get_memory
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.loss import obs_space_mem_discrep_loss
 from grl.utils.policy_eval import lstdq_lambda
 
@@ -130,7 +130,7 @@ def calc_episode_grads(episode: dict,
     traj_mem_vs = jnp.array(traj_mem_vs)
     mem_diffs = jnp.array(mem_diffs)
 
-    discounts = amdp.gamma**jnp.arange(T)
+    discounts = pomdp.gamma**jnp.arange(T)
     discounts = discounts.at[-1].set(0)
 
     # calculate grad statistics for mem
@@ -193,16 +193,19 @@ if __name__ == "__main__":
                      epsilon=epsilon)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     pi = spec['Pi_phi'][0]
-    mem_params = get_memory('f', n_obs=amdp.n_obs, n_actions=amdp.n_actions, leakiness=0.2)
+    mem_params = get_memory('fuzzy',
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
+                            leakiness=0.2)
     mem_aug_pi = pi.repeat(mem_params.shape[-1], axis=0)
 
     grad_fn = jax.grad(obs_space_mem_discrep_loss)
 
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
-    learnt_mem_aug_amdp = memory_cross_product(learnt_mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+    learnt_mem_aug_pomdp = memory_cross_product(learnt_mem_params, pomdp)
 
     mem_probs = softmax(mem_params)
     learnt_mem_probs = softmax(learnt_mem_params)
@@ -210,22 +213,22 @@ if __name__ == "__main__":
     n_mem_states = mem_params.shape[-1]
 
     print(f"Sampling {n_episode_samples} episodes")
-    sampled_episodes = collect_episodes(amdp,
+    sampled_episodes = collect_episodes(pomdp,
                                         pi,
                                         n_episode_samples,
                                         rand_key,
                                         mem_paramses=[mem_params, learnt_mem_params])
 
-    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+    lstd_v0, lstd_q0, lstd_info = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
+    lstd_v1, lstd_q1, lstd_info_1 = lstdq_lambda(pi, pomdp, lambda_=lambda_1)
 
     mem_learnt_lstd_v0, mem_learnt_lstd_q0, mem_learnt_lstd_info = lstdq_lambda(
-        mem_aug_pi, learnt_mem_aug_amdp)
+        mem_aug_pi, learnt_mem_aug_pomdp)
     mem_lstd_v0, mem_lstd_q0, mem_lstd_info = lstdq_lambda(mem_aug_pi,
-                                                           mem_aug_amdp,
+                                                           mem_aug_pomdp,
                                                            lambda_=lambda_0)
     mem_lstd_v1, mem_lstd_q1, mem_lstd_info_1 = lstdq_lambda(mem_aug_pi,
-                                                             mem_aug_amdp,
+                                                             mem_aug_pomdp,
                                                              lambda_=lambda_1)
 
     mem_lstd_v0_unflat = mem_lstd_v0.reshape(-1, mem_params.shape[-1])
@@ -247,18 +250,18 @@ if __name__ == "__main__":
         expected_episode_mem_grad, mem_info \
             = calc_episode_grads(episode, init_mem_belief, mem_params,
                                  mem_lstd_v0_unflat, lstd_v1,
-                                 gamma=amdp.gamma, mem_idx=0)
+                                 gamma=pomdp.gamma, mem_idx=0)
 
         expected_mem_grad += expected_episode_mem_grad
 
         expected_episode_learnt_mem_grad, learnt_mem_info \
             = calc_episode_grads(episode, init_mem_belief, learnt_mem_params,
                                  learnt_mem_lstd_v0_unflat, lstd_v1,
-                                 gamma=amdp.gamma, mem_idx=1)
+                                 gamma=pomdp.gamma, mem_idx=1)
         expected_learnt_mem_grad += expected_episode_learnt_mem_grad
 
-    analytical_mem_grad = grad_fn(mem_params, mem_aug_pi, amdp)
-    analytical_learnt_mem_grad = grad_fn(learnt_mem_params, mem_aug_pi, amdp)
+    analytical_mem_grad = grad_fn(mem_params, mem_aug_pi, pomdp)
+    analytical_learnt_mem_grad = grad_fn(learnt_mem_params, mem_aug_pi, pomdp)
 
     expected_mem_grad /= len(sampled_episodes)
     expected_learnt_mem_grad /= len(sampled_episodes)

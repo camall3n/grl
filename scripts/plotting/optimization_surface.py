@@ -13,7 +13,7 @@ import pandas as pd
 import seaborn as sns
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.agent.actorcritic import ActorCritic
 from grl.memory.lib import get_memory
 

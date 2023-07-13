@@ -16,7 +16,7 @@ from functools import partial
 
 from grl.utils.file_system import numpyify_and_save
 from grl.environment import load_spec
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.utils.math import reverse_softmax
 from grl.utils.policy_eval import functional_solve_mdp
 from grl.agent.analytical import AnalyticalAgent
@@ -55,14 +55,14 @@ def get_perf(pi_obs: jnp.ndarray, T: jnp.ndarray, R: jnp.ndarray, p0: jnp.ndarra
     return jnp.dot(p0, state_v)
 
 def fixed_mi(pi: jnp.ndarray,
-             amdp: AbstractMDP,
+             pomdp: POMDP,
              mem_iterations: int = 30000,
              pi_iterations: int = 10000,
              seed: int = 2020):
     rand_key = jax.random.PRNGKey(seed)
     mem_params = get_memory("0",
-                            n_obs=amdp.phi.shape[-1],
-                            n_actions=amdp.T.shape[0],
+                            n_obs=pomdp.phi.shape[-1],
+                            n_actions=pomdp.T.shape[0],
                             n_mem_states=2)
     pi_params = reverse_softmax(pi)
 
@@ -75,26 +75,26 @@ def fixed_mi(pi: jnp.ndarray,
 
     agent.new_pi_over_mem()
     mem_loss = mem_improvement(agent,
-                               amdp,
+                               pomdp,
                                lr=1,
                                iterations=mem_iterations,
                                log_every=mem_iterations,
                                progress_bar=False)
 
-    amdp_mem = memory_cross_product(agent.mem_params, amdp)
+    pomdp_mem = memory_cross_product(agent.mem_params, pomdp)
 
-    agent.reset_pi_params((amdp_mem.n_obs, amdp_mem.n_actions))
+    agent.reset_pi_params((pomdp_mem.n_obs, pomdp_mem.action_space.n))
 
     # Now we improve our policy again
     policy_output = pi_improvement(agent,
-                                   amdp_mem,
+                                   pomdp_mem,
                                    lr=1,
                                    iterations=pi_iterations,
                                    log_every=pi_iterations,
                                    progress_bar=False)
-    amdp_mem = memory_cross_product(agent.mem_params, amdp)
-    return get_perf(agent.policy, amdp_mem.T, amdp_mem.R, amdp_mem.p0, amdp_mem.phi,
-                    amdp_mem.gamma)
+    pomdp_mem = memory_cross_product(agent.mem_params, pomdp)
+    return get_perf(agent.policy, pomdp_mem.T, pomdp_mem.R, pomdp_mem.p0, pomdp_mem.phi,
+                    pomdp_mem.gamma)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     spec = load_spec(args.spec, memory_id=0, n_mem_states=2)
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     study_dir = Path(ROOT_DIR, 'results', 'analytical', args.study_name)
     journal_path = study_dir / "study.journal"
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     )
     results = {}
 
-    pi_params_shape = (amdp.phi.shape[-1], amdp.T.shape[0])
+    pi_params_shape = (pomdp.phi.shape[-1], pomdp.T.shape[0])
 
     def objective(trial: optuna.Trial):
         def try_suggesting_float(i_str: str, float_low: float, float_high: float):
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
         pi = fill_in_params(required_params, pi_params_shape)
         assert not jnp.any(jnp.isnan(pi))
-        return fixed_mi(pi, amdp, seed=trial.number)
+        return fixed_mi(pi, pomdp, seed=trial.number)
         # return 1
 
     n_jobs = args.n_jobs if args.n_jobs > 0 else cpu_count()

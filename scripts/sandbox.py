@@ -5,37 +5,37 @@ import numpy as np
 from tqdm import tqdm
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
+from grl.mdp import POMDP, MDP
 from grl.agent.td_lambda import TDLambdaQFunction
 from grl.utils.replaymemory import ReplayMemory
 
 #%% Define base decision process
 spec = environment.load_spec('tmaze_2_two_thirds_up', memory_id=None)
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-amdp = AbstractMDP(mdp, spec['phi'])
+pomdp = POMDP(mdp, spec['phi'])
 pi_base = spec['Pi_phi'][0] # abstract policy over base (non-memory) actions
 n_episodes = 10000
 
 #%% Run TD-lambda until convergence
-q_td = TDLambdaQFunction(n_obs=amdp.n_obs,
-                         n_actions=amdp.n_actions,
+q_td = TDLambdaQFunction(n_obs=pomdp.observation_space.n,
+                         n_actions=pomdp.action_space.n,
                          lambda_=0,
-                         gamma=amdp.gamma,
+                         gamma=pomdp.gamma,
                          learning_rate=0.001)
-q_mc = TDLambdaQFunction(n_obs=amdp.n_obs,
-                         n_actions=amdp.n_actions,
+q_mc = TDLambdaQFunction(n_obs=pomdp.observation_space.n,
+                         n_actions=pomdp.action_space.n,
                          lambda_=0.99,
-                         gamma=amdp.gamma,
+                         gamma=pomdp.gamma,
                          learning_rate=0.001)
 replay = ReplayMemory(capacity=1000000)
 
 for i in tqdm(range(n_episodes)):
-    ob, _ = amdp.reset()
-    action = np.random.choice(mdp.n_actions, p=pi_base[ob])
+    ob, _ = pomdp.reset()
+    action = np.random.choice(mdp.action_space.n, p=pi_base[ob])
     terminal = False
     while not terminal:
-        next_ob, reward, terminal, _, info = amdp.step(action)
-        next_action = np.random.choice(mdp.n_actions, p=pi_base[next_ob])
+        next_ob, reward, terminal, _, info = pomdp.step(action)
+        next_action = np.random.choice(mdp.action_space.n, p=pi_base[next_ob])
 
         experience = {
             'obs': ob,
@@ -58,7 +58,7 @@ q_td_orig = copy.deepcopy(q_td)
 
 #%% Define memory decision process (binary memory function)
 n_mem_states = 2
-n_mem_obs = amdp.n_obs * amdp.n_actions * n_mem_states
+n_mem_obs = pomdp.observation_space.n * pomdp.action_space.n * n_mem_states
 initial_mem = 0
 # p_hold = 0.95
 # p_toggle = 1 - p_hold
@@ -66,9 +66,9 @@ initial_mem = 0
 #     [p_hold, p_toggle],
 #     [p_toggle, p_hold],
 # ]), axis=(0, 1))
-# mem_params = pi_mem_template * np.ones((amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
+# mem_params = pi_mem_template * np.ones((pomdp.action_space.n, pomdp.observation_space.n, n_mem_states, n_mem_states))
 # mem_params = np.log(mem_params + 1e-5)
-# mem_params += 0.5 * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states))
+# mem_params += 0.5 * np.random.normal(size=(pomdp.action_space.n, pomdp.observation_space.n, n_mem_states, n_mem_states))
 # Optimal memory for t-maze
 mem_16 = np.array([
     [ # we see the goal as UP
@@ -96,7 +96,7 @@ mem_16 = np.array([
 ])
 memory_16 = np.array([mem_16, mem_16, mem_16, mem_16]) # up, down, right, left
 mem_params = np.log(memory_16 + 1e-5)
-# mem_params = np.sqrt(2) * np.random.normal(size=(amdp.n_actions, amdp.n_obs, n_mem_states, n_mem_states)).round(2)
+# mem_params = np.sqrt(2) * np.random.normal(size=(pomdp.action_space.n, pomdp.observation_space.n, n_mem_states, n_mem_states)).round(2)
 lr = 0.01
 
 def pi_mem(a_base, ob_base, s_mem):
@@ -125,18 +125,18 @@ q_td = copy.deepcopy(q_td_orig)
 q_td.augment_with_memory(n_mem_states)
 q_mc.augment_with_memory(n_mem_states)
 
-pi_aug = np.stack((pi_base, np.ones_like(pi_base) / amdp.n_actions),
-                  axis=1).reshape(-1, amdp.n_actions)
+pi_aug = np.stack((pi_base, np.ones_like(pi_base) / pomdp.action_space.n),
+                  axis=1).reshape(-1, pomdp.action_space.n)
 
 #%%
 n_episodes = 10000
 for i in tqdm(range(n_episodes)):
-    ob_base, _ = amdp.reset()
+    ob_base, _ = pomdp.reset()
     s_mem = initial_mem
     ob_aug = augment_obs(ob_base, s_mem, n_mem_states)
 
-    # a_base = np.random.choice(amdp.n_actions, p=pi_base[ob_base])
-    a_base = np.random.choice(amdp.n_actions, p=pi_aug[ob_aug])
+    # a_base = np.random.choice(pomdp.action_space.n, p=pi_base[ob_base])
+    a_base = np.random.choice(pomdp.action_space.n, p=pi_aug[ob_aug])
     a_mem = np.random.choice(n_mem_states, p=pi_mem(a_base, ob_base, s_mem))
 
     param_updates = np.zeros_like(mem_params)
@@ -145,11 +145,11 @@ for i in tqdm(range(n_episodes)):
     terminal = False
     timestep = 0
     while not terminal:
-        next_ob_base, r_base, terminal, _, _ = amdp.step(a_base)
+        next_ob_base, r_base, terminal, _, _ = pomdp.step(a_base)
         next_s_mem = step_mem(s_mem, a_mem)
         next_ob_aug = augment_obs(next_ob_base, next_s_mem, n_mem_states)
 
-        next_a_base = np.random.choice(mdp.n_actions, p=pi_base[next_ob_base])
+        next_a_base = np.random.choice(mdp.action_space.n, p=pi_base[next_ob_base])
         next_a_mem = np.random.choice(n_mem_states,
                                       p=pi_mem(next_a_base, next_ob_base, next_s_mem))
 

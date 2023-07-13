@@ -80,10 +80,10 @@ class MultiheadRNNAgent(RNNAgent):
         elif loss_mode == 'both':
             td_loss = batch_td_loss(q_td, actions, batch.reward, batch.gamma, q1_td, next_actions)
             mc_loss = batch_mc_loss(q_mc, actions, batch.returns)
-            discrep_loss = lambda_coeff * batch_lambda_discrep(q_td, q_mc, actions)
+            discrep_loss = batch_lambda_discrep(q_td, q_mc, actions)
             loss = mse(td_loss, zero_mask=batch.zero_mask) + \
                    mse(mc_loss, zero_mask=batch.zero_mask) + \
-                   mse(discrep_loss, zero_mask=batch.zero_mask)
+                   lambda_coeff * mse(discrep_loss, zero_mask=batch.zero_mask)
             return loss
 
         elif loss_mode == 'discrep':
@@ -125,7 +125,8 @@ class MultiheadRNNAgent(RNNAgent):
         if self.loss_mode in ['both', 'td', 'mc']:
             loss, grad = jax.value_and_grad(self._combined_loss)(network_params,
                                                                  batch,
-                                                                 loss_mode=self.loss_mode)
+                                                                 loss_mode=self.loss_mode,
+                                                                 lambda_coeff=self.lambda_coeff)
             updates, optimizer_state = self.optimizer.update(grad, optimizer_state, network_params)
             network_params = optax.apply_updates(network_params, updates)
             info = {'total_loss': loss}

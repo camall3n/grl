@@ -1,31 +1,32 @@
 from argparse import Namespace
 from dataclasses import replace
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import List, Tuple
 import warnings
 
+import gymnasium as gym
 from jax import random
-import jax.numpy as jnp
 import numpy as np
 import optax
 from orbax import checkpoint
 from tqdm import tqdm
 
 from grl.evaluation import eval_episodes
-from grl.mdp import MDP, AbstractMDP
 from grl.agent.rnn import RNNAgent
-from grl.utils.data import Batch, one_hot, compress_episode_rewards
+from grl.utils.data import Batch, compress_episode_rewards
 from grl.utils.mdp import all_t_discounted_returns
 from grl.utils.replaymemory import EpisodeBuffer
 
 class Trainer:
     def __init__(self,
-                 env: Union[MDP, AbstractMDP],
+                 env: gym.Env,
                  agent: RNNAgent,
                  rand_key: random.PRNGKey,
                  args: Namespace,
+                 test_env: gym.Env = None,
                  checkpoint_dir: Path = None):
         self.env = env
+        self.test_env = test_env
         self.agent = agent
         self.args = args
         self._rand_key = rand_key
@@ -69,20 +70,14 @@ class Trainer:
                           f"Increasing to max_episode_steps={self.max_episode_steps}")
             replay_capacity = self.max_episode_steps
 
-        # TODO: remove all of this! Refactor MDPs/AbstractMDPs into a environment-looking thing.
-        obs_shape = self.env.observation_space
-        if self.action_cond == 'cat':
-            obs_shape = obs_shape[:-1] + (obs_shape[-1] + self.env.n_actions, )
-
-        self.one_hot_obses = isinstance(self.env, AbstractMDP) or isinstance(self.env, MDP)
-
+        # For the special case of LSTMs, we have both hidden AND cell states
         state_size = (self.args.hidden_size, )
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
 
         self.buffer = EpisodeBuffer(replay_capacity,
                                     rand_key,
-                                    obs_shape,
+                                    self.env.observation_space.shape,
                                     state_size=state_size,
                                     unpack_state=self.args.arch == 'lstm')
 
@@ -128,7 +123,7 @@ class Trainer:
 
     def add_returns_to_batches(self, episode_rewards: List[float],
                                episode_experiences: List[Batch]) -> List[Batch]:
-        episode_rewards = np.array(episode_rewards)
+        episode_rewards = np.array(episode_rewards, dtype=float)
         if self.normalize_rewards:
             episode_rewards *= self.reward_scale
 
@@ -160,20 +155,17 @@ class Trainer:
         return network_params, optimizer_params, info
 
     def evaluate(self, network_params: dict) -> dict:
-        prev_state = self.env.current_state
         test_info, self._rand_key = eval_episodes(self.agent,
                                                   network_params,
-                                                  self.env,
+                                                  self.test_env,
                                                   self._rand_key,
                                                   n_episodes=self.offline_eval_episodes,
                                                   test_eps=self.offline_eval_epsilon,
-                                                  action_cond=self.action_cond,
                                                   max_episode_steps=self.max_episode_steps)
-        self.env.current_state = prev_state
         return test_info
 
     def train(self):
-        all_logs = {'episode_infos': [], 'offline_eval': []}
+        all_logs = {'online_info': {}, 'offline_eval': []}
         pbar = tqdm(total=self.total_steps, position=0, leave=True)
 
         network_params, optimizer_params, self._rand_key = self.agent.init_params(self._rand_key)
@@ -192,30 +184,17 @@ class Trainer:
                 self.buffer.reset()
 
             obs, env_info = self.env.reset()
-            if self.one_hot_obses:
-                obs = one_hot(obs, self.env.n_obs)
-
-            if self.action_cond == 'cat': # Action conditioning for t=-1 action
-                action_encoding = np.zeros(self.env.n_actions)
-                obs = np.concatenate([obs, action_encoding], axis=-1)
 
             action, self._rand_key, hs, qs = self.agent.act(network_params, obs, prev_hs,
                                                             self._rand_key)
-            action = action.item()
+            action = action.astype(int).item()
 
             for t in range(self.max_episode_steps):
                 next_obs, reward, done, _, info = self.env.step(action,
                                                                 gamma_terminal=self.gamma_terminal)
-                if self.one_hot_obses:
-                    next_obs = one_hot(next_obs, self.env.n_obs)
-
-                if self.action_cond == 'cat': # Action conditioning
-                    action_encoding = one_hot(action, self.env.n_actions)
-                    next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
-
                 next_action, self._rand_key, next_hs, qs = self.agent.act(
                     network_params, next_obs, hs, self._rand_key)
-                next_action = next_action.item()
+                next_action = next_action.astype(int).item()
 
                 experience = Batch(obs=obs,
                                    reward=reward,
@@ -243,7 +222,6 @@ class Trainer:
                     episode_info['total_episode_loss'] += info['total_loss']
                     episode_info['episode_updates'] += 1
 
-                pbar.update(1)
                 self.num_steps += 1
 
                 # Offline evaluation
@@ -276,18 +254,28 @@ class Trainer:
                 episode_info['episode_updates'] += 1
 
             episode_info |= compress_episode_rewards(episode_reward)
-            all_logs['episode_infos'].append(episode_info)
+
+            # save all our episode info in lists
+            for k, v in episode_info.items():
+                if k not in all_logs['online_info']:
+                    all_logs['online_info'][k] = []
+                all_logs['online_info'][k].append(v)
 
             self.episode_num += 1
 
             avg_episode_loss = episode_info['total_episode_loss'] / max(
                 episode_info['episode_updates'], 1)
+            pbar.update(t + 1)
             print(self.episode_stat_string(sum(episode_reward), avg_episode_loss, t))
 
             if self.checkpoint_dir is not None and checkpoint_after_ep:
                 self.checkpoint(network_params, optimizer_params)
 
+        # at the end of training, save a checkpoint
         if self.checkpoint_dir is not None:
             self.checkpoint(network_params, optimizer_params)
+
+        if 'total_loss' in all_logs:
+            all_logs['total_loss'] = np.array(all_logs['total_loss'], dtype=np.half)
 
         return network_params, optimizer_params, all_logs

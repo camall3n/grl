@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 export CUDA_VISIBLE_DEVICES=0
 
+N_JOBS=8
+
 cd ../../
 source venv/bin/activate
-parallel --eta -u < 'scripts/runs/runs_tiger_grid_mi_pi_obs_space.txt'
+
+#TO_RUN=$(sed -n "101,800p" scripts/runs/runs_rnn_reruns_sweep_mc.txt)
+
+parallel --eta -u --jobs $N_JOBS < 'scripts/runs/runs_rnn_reruns_sweep_mc.txt'
+#parallel --eta -u < "$TO_RUN"

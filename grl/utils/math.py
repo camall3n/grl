@@ -101,3 +101,6 @@ def arg_mellowmax(
 
     softmax_last = softmax(np.expand_dims(np.asarray(batch_beta), -1) * axis_last, axis=-1)
     return np.moveaxis(softmax_last, -1, axis)
+
+def euclidian_dist(arr1: np.ndarray, arr2: np.ndarray):
+    return jnp.linalg.norm(arr1 - arr2, 2)

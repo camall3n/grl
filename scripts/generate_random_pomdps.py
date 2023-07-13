@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 from time import time
 
-from grl.mdp import AbstractMDP
+from grl.mdp import POMDP
 
 def generate_pomdps(params):
     timestamp = str(time()).replace('.', '-')
@@ -15,44 +15,44 @@ def generate_pomdps(params):
         n_o = np.random.randint(params['min_n_o'], params['max_n_o'] + 1)
         n_a = np.random.randint(params['min_n_a'], params['max_n_a'] + 1)
         gamma = np.random.random()
-        amdp = AbstractMDP.generate(n_s, n_a, n_o, gamma=gamma)
+        pomdp = POMDP.generate(n_s, n_a, n_o, gamma=gamma)
 
         content = f'# Generation timestamp: {timestamp}\n'
         content += f'# with seed: {args.seed}\n'
         content += f'# with params: {params}\n\n'
 
-        content += f'discount: {amdp.gamma}\n'
+        content += f'discount: {pomdp.gamma}\n'
         content += 'values: reward\n'
-        content += f'states: {amdp.n_states}\n'
-        content += f'actions: {amdp.n_actions}\n'
-        content += f'observations: {amdp.n_obs}\n'
-        content += f'start: {str(amdp.p0)[1:-1]}\n\n' # remove array brackets
+        content += f'states: {pomdp.state_space.n}\n'
+        content += f'actions: {pomdp.action_space.n}\n'
+        content += f'observations: {pomdp.observation_space.n}\n'
+        content += f'start: {str(pomdp.p0)[1:-1]}\n\n' # remove array brackets
 
         # T
-        for a in range(amdp.n_actions):
+        for a in range(pomdp.action_space.n):
             content += f'T: {a}\n'
-            for row in amdp.T[a]:
+            for row in pomdp.T[a]:
                 content += f'{str(row)[1:-1]}\n' # remove array brackets
 
             content += '\n'
 
         # O
         content += 'O: *\n' # phi currently same for all actions
-        for row in amdp.phi:
+        for row in pomdp.phi:
             content += f'{str(row)[1:-1]}\n' # remove array brackets
 
         content += '\n'
 
         # R
-        for a in range(amdp.n_actions):
-            for m, row in enumerate(amdp.R[a]):
+        for a in range(pomdp.action_space.n):
+            for m, row in enumerate(pomdp.R[a]):
                 for n, val in enumerate(row):
                     content += f'R: {a} : {m} : {n} : * {val}\n'
 
             content += '\n'
 
         # Pi_phi
-        policies = amdp.generate_random_policies(params['n_policies'])
+        policies = pomdp.generate_random_policies(params['n_policies'])
         for pi in policies:
             content += f'Pi_phi:\n'
             for row in pi:

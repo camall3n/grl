@@ -6,7 +6,7 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import MDP, AbstractMDP
+from grl import MDP, POMDP
 from grl.environment import load_spec
 from grl.agent.analytical import AnalyticalAgent
 from grl.utils.math import glorot_init
@@ -17,7 +17,7 @@ def test_policy_grad_fully_observable_tmaze():
     print(f"Testing analytical policy gradient on fully observable T-Maze.")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     np.random.seed(2020)
     rand_key = jax.random.PRNGKey(2020)
@@ -26,7 +26,7 @@ def test_policy_grad_fully_observable_tmaze():
     agent = AnalyticalAgent(pi_params, rand_key, pi_lr=0.01, policy_optim_alg='policy_grad')
 
     for it in trange(iterations):
-        v_0 = agent.policy_improvement(amdp)
+        v_0 = agent.policy_improvement(pomdp)
 
     learnt_pi = softmax(agent.pi_params, axis=-1)
     assert np.allclose(learnt_pi[:-3, 2], np.ones_like(learnt_pi[:-3, 2]), atol=1e-2), \
@@ -44,7 +44,7 @@ def test_policy_grad_short_corridor():
     print(f"Testing analytical policy gradient on short corridor")
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     seed = 2022
     np.random.seed(seed)
@@ -54,7 +54,7 @@ def test_policy_grad_short_corridor():
     agent = AnalyticalAgent(pi_params, rand_key, pi_lr=0.001, policy_optim_alg='policy_grad')
 
     for it in trange(iterations):
-        v_0 = agent.policy_improvement(amdp)
+        v_0 = agent.policy_improvement(pomdp)
 
     learnt_pi = softmax(agent.pi_params, axis=-1)
 
@@ -64,5 +64,5 @@ def test_policy_grad_short_corridor():
     print(f"Learnt policy: {learnt_pi}")
 
 if __name__ == "__main__":
-    # test_policy_grad_fully_observable_tmaze()
-    test_policy_grad_short_corridor()
+    test_policy_grad_fully_observable_tmaze()
+    # test_policy_grad_short_corridor()

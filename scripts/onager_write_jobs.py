@@ -20,7 +20,8 @@ def import_module_to_hparam(hparam_path: Path) -> dict:
 
 def generate_onager_runs(run_dicts: List[dict],
                          experiment_name: str,
-                         main_fname: str = 'main.py') -> None:
+                         main_fname: str = 'main.py',
+                         exclude: dict = None) -> None:
     """
     :param run_dicts: A list of dictionaries, each specifying a job to run.
     Each run_dict in this list corresponds to one call of `onager prelaunch`
@@ -60,6 +61,13 @@ def generate_onager_runs(run_dicts: List[dict],
         command += f" --study_name {experiment_name}"
 
         prelaunch_list.append(f'+command "{command}"')
+
+        if exclude is not None:
+            for k, v in exclude.items():
+                if not isinstance(v, list):
+                    v = [v]
+                prelaunch_list.append(f"+exclude --{k} {' '.join(map(str, v))}")
+
         prelaunch_list += arg_list
 
         prelaunch_string = ' '.join(prelaunch_list)
@@ -81,11 +89,11 @@ if __name__ == "__main__":
     if 'entry' in hparams:
         main_fname = hparams['entry']
 
-    pairs = None
-    if 'pairs' in hparams:
-        pairs = hparams['pairs']
+    exclude = None
+    if 'exclude' in hparams:
+        exclude = hparams['exclude']
 
     exp_name = args.hparam
     if args.study_name is not None:
         exp_name = args.study_name
-    generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname)
+    generate_onager_runs(hparams['args'], exp_name, main_fname=main_fname, exclude=exclude)

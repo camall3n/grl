@@ -2,7 +2,7 @@ import numpy as np
 from jax import numpy as jnp
 from jax.tree_util import register_pytree_node_class
 from dataclasses import dataclass, fields
-from typing import Union, Iterable
+from typing import Union, Iterable, List
 
 @register_pytree_node_class
 @dataclass(frozen=True)
@@ -57,3 +57,27 @@ def compress_episode_rewards(episode_reward: jnp.ndarray) -> dict:
         'most_common_reward': most_common_reward,
         'compressed_rewards': compressed_rewards
     }
+
+def uncompress_episode_rewards(ep_length: int, most_common_reward: float,
+                               compressed_rewards: List):
+    rewards = []
+
+    if not compressed_rewards:
+        return [most_common_reward] * ep_length
+
+    curr_compressed_reward_idx = 0
+    curr_compressed_reward_step, curr_compressed_reward = \
+        compressed_rewards[curr_compressed_reward_idx]
+
+    for step in range(ep_length):
+        if step == curr_compressed_reward_step:
+            rewards.append(curr_compressed_reward)
+
+            curr_compressed_reward_idx += 1
+            if curr_compressed_reward_idx < len(compressed_rewards):
+                curr_compressed_reward_step, curr_compressed_reward = \
+                    compressed_rewards[curr_compressed_reward_idx]
+        else:
+            rewards.append(most_common_reward)
+
+    return rewards

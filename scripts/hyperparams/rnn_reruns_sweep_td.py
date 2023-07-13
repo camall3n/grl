@@ -3,10 +3,8 @@ from pathlib import Path
 exp_name = Path(__file__).stem
 
 hparams = {
-    'file_name':
-        f'runs_{exp_name}.txt',
-    'entry':
-        '-m grl.run_sample_based',
+    'file_name': f'runs_{exp_name}.txt',
+    'entry': '-m grl.run_sample_based',
     'args': [
         {
             # Env
@@ -20,8 +18,8 @@ hparams = {
             # Agent
             'algo': 'multihead_rnn',
             'epsilon': 0.1,
-            'arch': ['lstm', 'gru'],
-            'lr': 0.001,
+            'arch': 'gru',
+            'lr': [10**-i for i in range(2, 7)],
             'optimizer': 'adam',
 
             # RNN
@@ -31,11 +29,9 @@ hparams = {
             'action_cond': 'none',
 
             # Multihead RNN/Lambda discrep
-            'multihead_action_mode': 'mc',
-            'multihead_loss_mode': ['both', 'mc'],
-            # 'multihead_loss_mode': ['both'],
-            # 'multihead_lambda_coeff': [-1, 0., 1.],
-            'multihead_lambda_coeff': 0.,
+            'multihead_action_mode': ['td'],
+            'multihead_loss_mode': ['both', 'td'],
+            'multihead_lambda_coeff': [-1, 0., 1.],
             'normalize_rewards': True,
 
             # Replay
@@ -44,14 +40,20 @@ hparams = {
 
             # Logging and Checkpointing
             'offline_eval_freq': 1000,
-            'offline_eval_episodes': 5,
+            'offline_eval_episodes': 10,
             'offline_eval_epsilon': None, # Defaults to epsilon
             'checkpoint_freq': -1, # only save last agent
 
             # Experiment
             'total_steps': 150000,
-            'seed': [2020 + i for i in range(10)],
+            'seed': [2020 + i for i in range(5)],
             'study_name': exp_name
         },
-    ]
+    ],
+    # exclusion criteria. If any of the runs match any of the
+    # cross-product of all the values in the dictionary, skip
+    'exclude': {
+        'multihead_loss_mode': ['td'],
+        'multihead_lambda_coeff': [-1, 1]
+    }
 }

@@ -5,7 +5,7 @@ from functools import partial
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, lstdq_lambda, functional_solve_mdp
 from grl.memory import memory_cross_product
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 """
 The following few functions are loss function w.r.t. memory parameters, mem_params.
 """
@@ -47,13 +47,13 @@ def seq_sarsa_lambda_discrep(q_td: jnp.ndarray, q_mc: jnp.ndarray, a: jnp.ndarra
 def weight_and_sum_discrep_loss(diff: jnp.ndarray,
                                 occupancy: jnp.ndarray,
                                 pi: jnp.ndarray,
-                                amdp: AbstractMDP,
+                                pomdp: POMDP,
                                 value_type: str = 'q',
                                 error_type: str = 'l2',
                                 alpha: float = 1.,
                                 flip_count_prob: bool = False):
     # set terminal counts to 0
-    c_o = occupancy @ amdp.phi
+    c_o = occupancy @ pomdp.phi
     count_o = c_o / c_o.sum()
 
     if flip_count_prob:
@@ -90,7 +90,7 @@ def weight_and_sum_discrep_loss(diff: jnp.ndarray,
          ])
 def discrep_loss(
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # non-state args
+        pomdp: POMDP, # non-state args
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
@@ -98,13 +98,13 @@ def discrep_loss(
         alpha: float = 1.,
         flip_count_prob: bool = False): # initialize static args
     if lambda_0 == 0. and lambda_1 == 1.:
-        _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
+        _, mc_vals, td_vals, info = analytical_pe(pi, pomdp)
         lambda_0_vals = td_vals
         lambda_1_vals = mc_vals
     else:
         # TODO: info here only contains state occupancy, which should lambda agnostic.
-        lambda_0_v_vals, lambda_0_q_vals, _ = lstdq_lambda(pi, amdp, lambda_=lambda_0)
-        lambda_1_v_vals, lambda_1_q_vals, info = lstdq_lambda(pi, amdp, lambda_=lambda_1)
+        lambda_0_v_vals, lambda_0_q_vals, _ = lstdq_lambda(pi, pomdp, lambda_=lambda_0)
+        lambda_1_v_vals, lambda_1_q_vals, info = lstdq_lambda(pi, pomdp, lambda_=lambda_1)
         lambda_0_vals = {'v': lambda_0_v_vals, 'q': lambda_0_q_vals}
         lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
 
@@ -113,7 +113,7 @@ def discrep_loss(
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
                                        pi,
-                                       amdp,
+                                       pomdp,
                                        value_type=value_type,
                                        error_type=error_type,
                                        alpha=alpha,
@@ -124,16 +124,16 @@ def discrep_loss(
 def mem_discrep_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        pomdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
         lambda_1: float = 1.,
         alpha: float = 1.,
         flip_count_prob: bool = False): # initialize with partial
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
     loss, _, _ = discrep_loss(pi,
-                              mem_aug_amdp,
+                              mem_aug_pomdp,
                               value_type,
                               error_type,
                               lambda_0=lambda_0,
@@ -145,7 +145,7 @@ def mem_discrep_loss(
 def obs_space_mem_discrep_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        pomdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         lambda_0: float = 0.,
@@ -156,26 +156,28 @@ def obs_space_mem_discrep_loss(
     Memory discrepancy loss on the TD(0) estimator over observation space.
 
     """
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
 
     n_mem_states = mem_params.shape[-1]
     pi_obs = pi[::n_mem_states]
     mem_lambda_0_v_vals, mem_lambda_0_q_vals, mem_info = lstdq_lambda(pi,
-                                                                      mem_aug_amdp,
+                                                                      mem_aug_pomdp,
                                                                       lambda_=lambda_0)
-    lambda_1_v_vals, lambda_1_q_vals, info = lstdq_lambda(pi_obs, amdp, lambda_=lambda_1)
+    lambda_1_v_vals, lambda_1_q_vals, info = lstdq_lambda(pi_obs, pomdp, lambda_=lambda_1)
 
-    counts_mem_aug_flat_obs = mem_info['occupancy'] @ mem_aug_amdp.phi
+    counts_mem_aug_flat_obs = mem_info['occupancy'] @ mem_aug_pomdp.phi
     counts_mem_aug_flat = jnp.einsum('i,ij->ij', counts_mem_aug_flat_obs, pi).T # A x OM
 
-    counts_mem_aug = counts_mem_aug_flat.reshape(amdp.n_actions, -1, n_mem_states) # A x O x M
+    counts_mem_aug = counts_mem_aug_flat.reshape(pomdp.action_space.n, -1,
+                                                 n_mem_states) # A x O x M
 
     denom_counts_mem_aug_unmasked = counts_mem_aug.sum(axis=-1, keepdims=True)
     denom_mask = (denom_counts_mem_aug_unmasked == 0).astype(float)
     denom_counts_mem_aug = denom_counts_mem_aug_unmasked + denom_mask
     prob_mem_given_oa = counts_mem_aug / denom_counts_mem_aug
 
-    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(amdp.n_actions, -1, n_mem_states)
+    unflattened_lambda_0_q_vals = mem_lambda_0_q_vals.reshape(pomdp.action_space.n, -1,
+                                                              n_mem_states)
     reformed_lambda_0_q_vals = (unflattened_lambda_0_q_vals * prob_mem_given_oa).sum(axis=-1)
 
     lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
@@ -193,7 +195,7 @@ def obs_space_mem_discrep_loss(
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
                                        pi_obs,
-                                       amdp,
+                                       pomdp,
                                        value_type=value_type,
                                        error_type=error_type,
                                        alpha=alpha,
@@ -201,7 +203,7 @@ def obs_space_mem_discrep_loss(
     return loss
 
 def policy_discrep_loss(pi_params: jnp.ndarray,
-                        amdp: AbstractMDP,
+                        pomdp: POMDP,
                         value_type: str = 'q',
                         error_type: str = 'l2',
                         lambda_0: float = 0.,
@@ -210,7 +212,7 @@ def policy_discrep_loss(pi_params: jnp.ndarray,
                         flip_count_prob: bool = False): # initialize with partial
     pi = nn.softmax(pi_params, axis=-1)
     loss, mc_vals, td_vals = discrep_loss(pi,
-                                          amdp,
+                                          pomdp,
                                           value_type,
                                           error_type,
                                           lambda_0=lambda_0,
@@ -219,33 +221,33 @@ def policy_discrep_loss(pi_params: jnp.ndarray,
                                           flip_count_prob=flip_count_prob)
     return loss, (mc_vals, td_vals)
 
-def pg_objective_func(pi_params: jnp.ndarray, amdp: AbstractMDP):
+def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     """
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
     pi_abs = nn.softmax(pi_params, axis=-1)
-    pi_ground = amdp.phi @ pi_abs
-    occupancy = functional_get_occupancy(pi_ground, amdp)
+    pi_ground = pomdp.phi @ pi_abs
+    occupancy = functional_get_occupancy(pi_ground, pomdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp)
-    td_model = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, pomdp)
+    td_model = MDP(T_obs_obs, R_obs_obs, pomdp.p0 @ pomdp.phi, gamma=pomdp.gamma)
     td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, td_model)
-    p_init_obs = amdp.p0 @ amdp.phi
+    p_init_obs = pomdp.p0 @ pomdp.phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
 
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # input non-static arrays
+        pomdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
         alpha: float = 1.,
         flip_count_prob: bool = False):
-    mem_aug_amdp = memory_cross_product(mem_params, amdp)
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
     loss, _, _ = magnitude_td_loss(pi,
-                                   mem_aug_amdp,
+                                   mem_aug_pomdp,
                                    value_type,
                                    error_type,
                                    alpha,
@@ -255,27 +257,28 @@ def mem_magnitude_td_loss(
 @partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
 def magnitude_td_loss(
         pi: jnp.ndarray,
-        amdp: AbstractMDP, # non-state args
+        pomdp: POMDP, # non-state args
         value_type: str = 'q',
         error_type: str = 'l2',
         alpha: float = 1.,
         flip_count_prob: bool = False): # initialize static args
+    n_states = pomdp.state_space.n
     # TODO: this is wrong?
-    _, mc_vals, td_vals, info = analytical_pe(pi, amdp)
+    _, mc_vals, td_vals, info = analytical_pe(pi, pomdp)
     assert value_type == 'q'
-    R_s_o = amdp.R @ amdp.phi # A x S x O
-    expanded_R_s_o = jnp.expand_dims(R_s_o, -1).repeat(amdp.n_actions, axis=-1)
+    R_s_o = pomdp.R @ pomdp.phi # A x S x O
+    expanded_R_s_o = jnp.expand_dims(R_s_o, -1).repeat(pomdp.action_space.n, axis=-1)
 
     # repeat the Q-function over A x O
     # Multiply that with p(O', A' | s, a) and sum over O' and A' dimensions.
     # P(O' | s, a) = T @ phi, P(A', O' | s, a) = P(O' | s, a) * pi (over new dimension)
-    pr_o = amdp.T @ amdp.phi
+    pr_o = pomdp.T @ pomdp.phi
     pr_o_a = jnp.einsum('ijk,kl->ijkl', pr_o, pi)
     expected_next_Q = jnp.einsum('ijkl,kl->ijkl', pr_o_a, td_vals['q'].T)
     expanded_Q = jnp.expand_dims(
         jnp.expand_dims(td_vals['q'].T, 0).repeat(pr_o_a.shape[1], axis=0),
         0).repeat(pr_o_a.shape[0], axis=0)
-    diff = expanded_R_s_o + amdp.gamma * expected_next_Q - expanded_Q
+    diff = expanded_R_s_o + pomdp.gamma * expected_next_Q - expanded_Q
 
     c_s = info['occupancy']
     # set terminal counts to 0
@@ -285,11 +288,11 @@ def magnitude_td_loss(
     if flip_count_prob:
         count_s = nn.softmax(-count_s)
 
-    uniform_s = jnp.ones(amdp.n_states) / amdp.n_states
+    uniform_s = jnp.ones(n_states) / n_states
 
     p_s = alpha * uniform_s + (1 - alpha) * count_s
 
-    pi_states = amdp.phi @ pi
+    pi_states = pomdp.phi @ pi
     weight = (pi_states * p_s[:, None]).T
     if value_type == 'v':
         weight = weight.sum(axis=0)

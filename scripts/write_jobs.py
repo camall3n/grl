@@ -5,7 +5,7 @@ where every line of the .txt file is one experiment.
 import argparse
 import numpy as np
 import importlib.util
-from typing import List
+from typing import List, Iterable
 from pathlib import Path
 from itertools import product
 
@@ -22,7 +22,8 @@ def generate_runs(run_dicts: List[dict],
                   runs_dir: Path,
                   experiment_name: str = None,
                   runs_fname: str = 'runs.txt',
-                  main_fname: str = 'main.py') -> None:
+                  main_fname: str = 'main.py',
+                  exclude_dict: dict = None) -> None:
     """
     :param run_dicts: A list of dictionaries, each specifying a job to run.
     :param runs_dir: Directory to put the runs
@@ -52,6 +53,18 @@ def generate_runs(run_dicts: List[dict],
 
             arg = {k: v for k, v in zip(keys, args)}
 
+            if exclude_dict is not None:
+                exclude = True
+                for ek, ev_list in exclude_dict.items():
+                    assert ek in arg, f'Argument {ek} not in args dict.'
+                    if not isinstance(ev_list, Iterable):
+                        ev_list = [ev_list]
+
+                    exclude &= (arg[ek] in ev_list)
+
+                if exclude:
+                    continue
+
             run_string = f"python {main_fname}"
 
             for k, v in arg.items():
@@ -63,7 +76,7 @@ def generate_runs(run_dicts: List[dict],
                 else:
                     run_string += f" --{k} {v}"
 
-            if experiment_name is not None:
+            if experiment_name is not None and 'study_name' not in run_dict:
                 run_string += f" --study_name {experiment_name}"
 
             run_string += "\n"
@@ -95,14 +108,15 @@ if __name__ == "__main__":
     if 'entry' in hparams:
         main_fname = hparams['entry']
 
-    pairs = None
-    if 'pairs' in hparams:
-        pairs = hparams['pairs']
+    exclude_dict = None
+    if 'exclude' in hparams:
+        exclude_dict = hparams['exclude']
 
     generate_runs(hparams['args'],
                   runs_dir,
                   runs_fname=hparams['file_name'],
                   main_fname=main_fname,
-                  experiment_name=args.hparam)
+                  experiment_name=args.hparam,
+                  exclude_dict=exclude_dict)
 
     print(f"Runs wrote to {runs_dir / hparams['file_name']}")

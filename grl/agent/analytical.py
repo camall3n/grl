@@ -7,7 +7,7 @@ from jax.nn import softmax
 import numpy as np
 import optax
 
-from grl.mdp import AbstractMDP
+from grl.mdp import POMDP
 from grl.utils.loss import policy_discrep_loss, pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init
@@ -160,9 +160,8 @@ class AnalyticalAgent:
             self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
 
     @partial(jit, static_argnames=['self'])
-    def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray,
-                               amdp: AbstractMDP):
-        outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, amdp)
+    def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pomdp: POMDP):
+        outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, pomdp)
         v_0, (td_v_vals, td_q_vals) = outs
 
         # We add a negative here to params_grad b/c we're trying to
@@ -176,10 +175,10 @@ class AnalyticalAgent:
     def policy_discrep_update(self,
                               params: jnp.ndarray,
                               optim_state: jnp.ndarray,
-                              amdp: AbstractMDP,
+                              pomdp: POMDP,
                               sign: bool = True):
         outs, params_grad = value_and_grad(self.policy_discrep_objective_func,
-                                           has_aux=True)(params, amdp)
+                                           has_aux=True)(params, pomdp)
         loss, (mc_vals, td_vals) = outs
 
         # it's the flip of sign b/c the optimizer already applies the negative sign
@@ -190,10 +189,10 @@ class AnalyticalAgent:
 
         return loss, mc_vals, td_vals, params
 
-    def policy_improvement(self, amdp: AbstractMDP):
+    def policy_improvement(self, pomdp: POMDP):
         if self.policy_optim_alg == 'policy_grad':
             v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = \
-                self.policy_gradient_update(self.pi_params, self.pi_optim_state, amdp)
+                self.policy_gradient_update(self.pi_params, self.pi_optim_state, pomdp)
             output = {
                 'v_0': v_0,
                 'prev_td_q_vals': prev_td_q_vals,
@@ -201,13 +200,13 @@ class AnalyticalAgent:
             }
         elif self.policy_optim_alg == 'policy_iter':
             new_pi_params, prev_td_v_vals, prev_td_q_vals = self.policy_iteration_update(
-                self.pi_params, amdp, eps=self.epsilon)
+                self.pi_params, pomdp, eps=self.epsilon)
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'discrep_max' or self.policy_optim_alg == 'discrep_min':
             loss, mc_vals, td_vals, new_pi_params = self.policy_discrep_update(
                 self.pi_params,
                 self.pi_optim_state,
-                amdp,
+                pomdp,
                 sign=(self.policy_optim_alg == 'discrep_max'))
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
@@ -217,19 +216,20 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self'])
     def memory_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pi_params: jnp.ndarray,
-                      amdp: AbstractMDP):
+                      pomdp: POMDP):
         pi = softmax(pi_params / self.pi_softmax_temp, axis=-1)
-        loss, params_grad = value_and_grad(self.memory_objective_func, argnums=0)(params, pi, amdp)
+        loss, params_grad = value_and_grad(self.memory_objective_func, argnums=0)(params, pi,
+                                                                                  pomdp)
 
         updates, optimizer_state = self.mem_optim.update(params_grad, optim_state, params)
         params = optax.apply_updates(params, updates)
 
         return loss, params
 
-    def memory_improvement(self, amdp: AbstractMDP):
+    def memory_improvement(self, pomdp: POMDP):
         assert self.mem_params is not None, 'I have no memory params'
         loss, new_mem_params = self.memory_update(self.mem_params, self.mem_optim_state,
-                                                  self.pi_params, amdp)
+                                                  self.pi_params, pomdp)
         self.mem_params = new_mem_params
         return loss
 

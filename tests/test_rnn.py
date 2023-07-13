@@ -5,27 +5,22 @@ import jax
 import numpy as np
 
 from grl.agent import get_agent, RNNAgent
-from grl.environment import load_spec
-from grl.environment.examples_lib import po_simple_chain
+from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.model import get_network
 from grl.run_sample_based import parse_arguments
 from grl.sample_trainer import Trainer
-from grl.utils.data import one_hot
+from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
 
-def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, AbstractMDP]) \
+def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, POMDP]) \
         -> Tuple[RNNAgent, dict, jax.random.PRNGKey]:
-    network = get_network(args, env.n_actions)
+    network = get_network(args, env.action_space.n)
 
     optimizer = get_optimizer(args.optimizer, step_size=args.lr)
 
-    features_shape = env.observation_space
-    if args.action_cond == 'cat':
-        features_shape = features_shape[:-1] + (features_shape[-1] + env.n_actions, )
-
-    agent = get_agent(network, optimizer, features_shape, env, args)
+    agent = get_agent(network, optimizer, env.observation_space.shape, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
     trainer = Trainer(env, agent, trainer_key, args)
@@ -36,6 +31,7 @@ def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, A
 def test_both_values():
     args = parse_arguments(return_defaults=True)
     chain_length = 5
+    args.spec = 'po_simple_chain'
     args.max_episode_steps = chain_length
     args.seed = 2020
 
@@ -48,21 +44,13 @@ def test_both_values():
     np.random.seed(args.seed)
     rand_key = jax.random.PRNGKey(args.seed)
 
-    spec = po_simple_chain(n=chain_length)
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = get_env(args, n=chain_length)
 
     agent, network_params, rand_key = train_agent(rand_key, args, env)
 
     hs, rand_key = agent.reset(rand_key)
 
     obs, env_info = env.reset()
-    obs = one_hot(obs, env.n_obs)
-
-    # Action conditioning for t=-1 action
-    if args.action_cond == 'cat':
-        action_encoding = np.zeros(env.n_actions)
-        obs = np.concatenate([obs, action_encoding], axis=-1)
 
     action, rand_key, next_hs, _ = agent.act(network_params, obs, hs, rand_key)
     new_carry, q_td, q_mc = agent.Qs(network_params,
@@ -76,12 +64,6 @@ def test_both_values():
     all_mc_qs = [q_mc.item()]
     for t in range(args.max_episode_steps):
         next_obs, reward, done, _, info = env.step(action, gamma_terminal=False)
-        next_obs = one_hot(next_obs, env.n_obs)
-
-        # Action conditioning
-        if args.action_cond == 'cat':
-            action_encoding = one_hot(action, env.n_actions)
-            next_obs = np.concatenate([next_obs, action_encoding], axis=-1)
 
         next_action, rand_key, next_hs, _ = agent.act(network_params, next_obs, hs, rand_key)
         new_carry, q_td, q_mc = agent.Qs(network_params,
@@ -114,6 +96,7 @@ def test_both_values():
 def test_gamma_terminal():
     args = parse_arguments(return_defaults=True)
     chain_length = 5
+    args.spec = 'po_simple_chain'
     args.max_episode_steps = chain_length
     args.seed = 2020
 
@@ -123,9 +106,7 @@ def test_gamma_terminal():
     np.random.seed(args.seed)
     rand_key = jax.random.PRNGKey(args.seed)
 
-    spec = po_simple_chain(n=chain_length)
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = get_env(args, n=chain_length)
 
     args.multihead_loss_mode = 'td'
     args.multihead_action_mode = 'td'
@@ -140,7 +121,6 @@ def test_gamma_terminal():
                                               rand_key,
                                               n_episodes=1,
                                               test_eps=0.,
-                                              action_cond=args.action_cond,
                                               max_episode_steps=args.max_episode_steps)
     all_qs = np.array([q.item() for q in final_eval_info['episode_qs'][0]])[:-1]
 
@@ -155,6 +135,7 @@ def test_gamma_terminal():
 def test_td_mc_values():
     args = parse_arguments(return_defaults=True)
     chain_length = 5
+    args.spec = 'po_simple_chain'
     args.max_episode_steps = chain_length
     args.seed = 2020
 
@@ -165,11 +146,9 @@ def test_td_mc_values():
     np.random.seed(args.seed)
     rand_key = jax.random.PRNGKey(args.seed)
 
-    spec = po_simple_chain(n=chain_length)
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = get_env(args, n=chain_length)
 
-    for mode, lr in zip(['td', 'mc'], [0.0001, 0.001]):
+    for mode, lr in zip(['td', 'mc'], [0.0002, 0.001]):
         args.multihead_loss_mode = mode
         args.multihead_action_mode = mode
         args.lr = lr
@@ -182,7 +161,6 @@ def test_td_mc_values():
                                                   rand_key,
                                                   n_episodes=1,
                                                   test_eps=0.,
-                                                  action_cond=args.action_cond,
                                                   max_episode_steps=args.max_episode_steps)
         all_qs = np.array([q.item() for q in final_eval_info['episode_qs'][0]])[:-1]
 
@@ -206,10 +184,8 @@ def test_actions():
 
     # args.residual_obs_val_input = True
 
-    spec = load_spec(args.spec, corridor_length=2)
+    env = get_env(args, corridor_length=2)
 
-    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
     np.random.seed(args.seed)
     rand_key = jax.random.PRNGKey(args.seed)
 
@@ -227,13 +203,16 @@ def test_actions():
                                                   rand_key,
                                                   n_episodes=5,
                                                   test_eps=0.,
-                                                  action_cond=args.action_cond,
                                                   max_episode_steps=args.max_episode_steps)
 
-        final_eval_rewards = final_eval_info['episode_rewards']
+        final_eval_rewards_compressed = final_eval_info['episode_rewards']
 
-        for ep_rews in final_eval_rewards:
-            assert sum(ep_rews) == 4., f"Optimal actions don't match for " \
+        for compressed_ep_rewards in final_eval_rewards_compressed:
+            ep_rewards = uncompress_episode_rewards(compressed_ep_rewards['episode_length'],
+                                                    compressed_ep_rewards['most_common_reward'],
+                                                    compressed_ep_rewards['compressed_rewards'])
+
+            assert sum(ep_rewards) == 4., f"Optimal actions don't match for " \
                                        f"loss_mode: {loss_mode}, action_mode: {action_mode}"
 
 if __name__ == "__main__":

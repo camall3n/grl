@@ -1,7 +1,8 @@
 numpy
+gymnasium
 gmpy2
 jax[cpu]
-flax
+flax==0.6.10
 optax
 seaborn
 matplotlib

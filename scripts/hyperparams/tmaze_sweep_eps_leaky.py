@@ -9,7 +9,7 @@ hparams = {
         'tmaze_discount': 0.9,
         'tmaze_junction_up_pi': 1.,
         'epsilon': np.linspace(0, 1, num=13),
-        'use_memory': 'f',
+        'use_memory': 'fuzzy',
         'mem_leakiness': np.linspace(0.001, 0.1, num=20),
         'value_type': 'q',
         'alpha': 1.,

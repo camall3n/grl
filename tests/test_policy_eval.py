@@ -3,21 +3,21 @@ from jax.config import config
 
 config.update('jax_platform_name', 'cpu')
 
-from grl import load_spec, MDP, AbstractMDP, memory_cross_product
+from grl import load_spec, MDP, POMDP, memory_cross_product
 from grl.utils.policy_eval import analytical_pe
 from grl.memory import get_memory
 
 def assert_pe_results(spec, answers, mem_params=None):
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     policies = spec['Pi_phi']
 
     if mem_params is not None:
-        amdp = memory_cross_product(mem_params, amdp)
+        pomdp = memory_cross_product(mem_params, pomdp)
         policies = spec['Pi_phi_x']
 
     for i, pi in enumerate(policies):
-        results = analytical_pe(pi, amdp)
+        results = analytical_pe(pi, pomdp)
 
         for k in answers.keys():
             for j, res in enumerate(results):
@@ -29,7 +29,7 @@ def test_example_3():
     answers = {
         'v': [[
             np.array([2.03125, 4.5, 0.75, 0]), # mdp
-            np.array([2.03125, 3.5625, 0]), # amdp / mc*
+            np.array([2.03125, 3.5625, 0]), # pomdp / mc*
             np.array([2.03125, 3.5625, 0]), # td
         ]],
         'q': [[
@@ -38,7 +38,7 @@ def test_example_3():
                 [1.375, 3, 3, 0]
             ]),
             np.array([
-                [2.25, 3.75, 0], # amdp
+                [2.25, 3.75, 0], # pomdp
                 [1.375, 3, 0],
             ]),
             np.array([
@@ -55,7 +55,7 @@ def test_example_7():
     answers = {
         'v': [[
             np.array([0.25, 0.5, 1., 0.]), # mdp
-            np.array([0.4, 0.5, 0.]), # amdp / mc*
+            np.array([0.4, 0.5, 0.]), # pomdp / mc*
             np.array([0.25, 0.125, 0.]), # td
         ]],
         'q': [[
@@ -64,7 +64,7 @@ def test_example_7():
                 [1.25, 0.5, 0., 0.]
             ]),
             np.array([
-                [0.4, 0.5, 0.], # amdp
+                [0.4, 0.5, 0.], # pomdp
                 [1., 0.5, 0.]
             ]),
             np.array([

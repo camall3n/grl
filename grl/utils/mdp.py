@@ -2,23 +2,23 @@ from jax import jit
 import jax.numpy as jnp
 import numpy as np
 from typing import Union
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 
 @jit
-def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
+def functional_get_occupancy(pi_ground: jnp.ndarray, mdp: Union[MDP, POMDP]):
     Pi_pi = pi_ground.transpose()[..., None]
     T_pi = (Pi_pi * mdp.T).sum(axis=0) # T^π(s'|s)
 
     # A*C_pi(s) = b
     # A = (I - \gamma (T^π)^T)
     # b = P_0
-    A = jnp.eye(mdp.T.shape[-1]) - mdp.gamma * T_pi.transpose()
+    A = jnp.eye(mdp.state_space.n) - mdp.gamma * T_pi.transpose()
     b = mdp.p0
     return jnp.linalg.solve(A, b)
 
-def amdp_get_occupancy(pi: jnp.ndarray, amdp: AbstractMDP):
-    pi_ground = amdp.phi @ pi
-    return functional_get_occupancy(pi_ground, amdp)
+def pomdp_get_occupancy(pi: jnp.ndarray, pomdp: POMDP):
+    pi_ground = pomdp.phi @ pi
+    return functional_get_occupancy(pi_ground, pomdp)
 
 @jit
 def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
@@ -32,16 +32,16 @@ def get_p_s_given_o(phi: jnp.ndarray, occupancy: jnp.ndarray):
     return p_pi_of_s_given_o
 
 @jit
-def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: AbstractMDP):
+def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, pomdp: POMDP):
     # creates an (n_obs * n_obs) x 2 array of all possible observation to observation pairs.
     # we flip here so that we have curr_obs, next_obs (order matters).
     obs_idx_product = jnp.flip(
-        jnp.dstack(jnp.meshgrid(jnp.arange(amdp.phi.shape[-1]),
-                                jnp.arange(amdp.phi.shape[-1]))).reshape(-1, 2), -1)
+        jnp.dstack(jnp.meshgrid(jnp.arange(pomdp.phi.shape[-1]),
+                                jnp.arange(pomdp.phi.shape[-1]))).reshape(-1, 2), -1)
 
     # this gives us (n_obs * n_obs) x states x 1 and (n_obs * n_obs) x 1 x states
     curr_s_given_o = p_pi_of_s_given_o[:, obs_idx_product[:, 0]].T[..., None]
-    next_o_given_s = jnp.expand_dims(amdp.phi[:, obs_idx_product[:, 1]].T, 1)
+    next_o_given_s = jnp.expand_dims(pomdp.phi[:, obs_idx_product[:, 1]].T, 1)
 
     # outer product here
     o_to_next_o = jnp.expand_dims(curr_s_given_o * next_o_given_s, 1)
@@ -49,31 +49,31 @@ def functional_create_td_model(p_pi_of_s_given_o: jnp.ndarray, amdp: AbstractMDP
     # This is p(o, s, a, s', o')
     # the probability that o goes to o', via each path (s, a) -> s'.
     # Shape is (n_obs * n_obs) x |A| x |S| x |S|
-    T_contributions = amdp.T * o_to_next_o
+    T_contributions = pomdp.T * o_to_next_o
 
     # |A| x (n_obs * n_obs)
     T_obs_obs_flat = T_contributions.sum(-1).sum(-1).T
 
     # |A| x n_obs x n_obs
-    T_obs_obs = T_obs_obs_flat.reshape(amdp.T.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
+    T_obs_obs = T_obs_obs_flat.reshape(pomdp.T.shape[0], pomdp.phi.shape[-1], pomdp.phi.shape[-1])
 
     # You want everything to sum to one
     denom = T_obs_obs_flat.T[..., None, None]
     denom_no_zero = denom + (denom == 0).astype(denom.dtype)
 
-    R_contributions = (amdp.R * T_contributions) / denom_no_zero
+    R_contributions = (pomdp.R * T_contributions) / denom_no_zero
     R_obs_obs_flat = R_contributions.sum(-1).sum(-1).T
-    R_obs_obs = R_obs_obs_flat.reshape(amdp.R.shape[0], amdp.phi.shape[-1], amdp.phi.shape[-1])
+    R_obs_obs = R_obs_obs_flat.reshape(pomdp.R.shape[0], pomdp.phi.shape[-1], pomdp.phi.shape[-1])
 
     return T_obs_obs, R_obs_obs
 
 @jit
-def get_td_model(amdp: AbstractMDP, pi: jnp.ndarray):
-    pi_state = amdp.phi @ pi
-    occupancy = functional_get_occupancy(pi_state, amdp)
+def get_td_model(pomdp: POMDP, pi: jnp.ndarray):
+    pi_state = pomdp.phi @ pi
+    occupancy = functional_get_occupancy(pi_state, pomdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    return functional_create_td_model(p_pi_of_s_given_o, amdp)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy)
+    return functional_create_td_model(p_pi_of_s_given_o, pomdp)
 
 # @jit
 def all_t_discounted_returns(discounts: np.ndarray, rewards: np.ndarray):
