@@ -18,7 +18,7 @@ hparams = {
             'algo': 'multihead_rnn',
             'epsilon': 0.1,
             'arch': 'gru',
-            'lr': [10**-i for i in range(2, 7)],
+            'lr': [10**-i for i in range(3, 7)],
             # 'lr': 1e-4,
             'optimizer': 'adam',
             'feature_encoding': 'none',
@@ -33,7 +33,7 @@ hparams = {
             'multihead_action_mode': ['td'],
             'multihead_loss_mode': ['both', 'td'],
             # 'multihead_loss_mode': 'both',
-            'multihead_lambda_coeff': [-1, 0., 1.],
+            'multihead_lambda_coeff': [0., 1.],
             # 'multihead_lambda_coeff': 0.,
             # 'normalize_rewards': True,
 

@@ -18,7 +18,7 @@ hparams = {
             'algo': 'multihead_rnn',
             'epsilon': 0.1,
             'arch': 'gru',
-            'lr': [10**-i for i in range(2, 7)],
+            'lr': [10**-i for i in range(3, 7)],
             # 'lr': 1e-4,
             'optimizer': 'adam',
             'feature_encoding': 'none',
@@ -33,7 +33,7 @@ hparams = {
             'multihead_action_mode': ['mc'],
             'multihead_loss_mode': ['both', 'mc'],
             # 'multihead_loss_mode': 'both',
-            'multihead_lambda_coeff': [-1, 0., 1.],
+            'multihead_lambda_coeff': [0., 1.],
             # 'multihead_lambda_coeff': 0.,
             # 'normalize_rewards': True,
 
@@ -49,7 +49,7 @@ hparams = {
 
             # Experiment
             'total_steps': int(15e6),
-            'seed': [2020 + i for i in range(5)],
+            'seed': [2020 + i for i in range(3)],
             # 'seed': 2020,
             'study_name': exp_name
         },
