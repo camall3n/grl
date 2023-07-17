@@ -3,7 +3,7 @@ from typing import Union, Tuple
 import gymnasium as gym
 from gymnasium.spaces import Discrete, MultiDiscrete
 
-class FlattenMultiDiscreteActionWrapper(gym.Wrapper):
+class FlattenMultiDiscreteActionWrapper(gym.ActionWrapper):
     """
     A wrapper for a gym env for multi-discrete actions.
     It flattens this action space into a gym.spaces.Discrete action space
@@ -17,7 +17,7 @@ class FlattenMultiDiscreteActionWrapper(gym.Wrapper):
 
         self.action_space = Discrete(int(n_total_actions))
 
-    def step(self, action: int, **kwargs) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def action(self, action: int) -> np.ndarray:
         multi_action = []
         act_so_far = action
         for act_space in self.env.action_space[:-1]:
@@ -25,6 +25,4 @@ class FlattenMultiDiscreteActionWrapper(gym.Wrapper):
             act_so_far = act_so_far % act_space.n
 
         multi_action.append(act_so_far)
-
-        return self.env.step(multi_action, **kwargs)
-
+        return np.array(multi_action)

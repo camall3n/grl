@@ -30,8 +30,8 @@ hparams = {
             'action_cond': 'none',
 
             # Multihead RNN/Lambda discrep
-            'multihead_action_mode': ['mc'],
-            'multihead_loss_mode': ['both', 'mc'],
+            'multihead_action_mode': ['td'],
+            'multihead_loss_mode': ['both', 'td'],
             # 'multihead_loss_mode': 'both',
             'multihead_lambda_coeff': [-1, 0., 1.],
             # 'multihead_lambda_coeff': 0.,
@@ -57,7 +57,7 @@ hparams = {
     # exclusion criteria. If any of the runs match any of the
     # cross-product of all the values in the dictionary, skip
     'exclude': {
-        'multihead_loss_mode': ['mc'],
+        'multihead_loss_mode': ['td'],
         'multihead_lambda_coeff': [-1, 1]
     }
 }

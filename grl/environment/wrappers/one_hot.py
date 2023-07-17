@@ -7,7 +7,7 @@ import numpy as np
 
 from grl.utils.data import one_hot
 
-class OneHotObservationWrapper(gym.Wrapper):
+class OneHotObservationWrapper(gym.ObservationWrapper):
     """
     One-hot observation wrapper.
     Assumes that the env passed into this wrapper has discrete-integer valued observations.
@@ -18,20 +18,12 @@ class OneHotObservationWrapper(gym.Wrapper):
         assert isinstance(self.env.observation_space, spaces.Discrete), \
             "Cannot call One-hot wrapper on non-discrete observation space."
 
+    def observation(self, observation: int) -> np.ndarray:
+        return one_hot(observation, self.env.observation_space.n)
+
     @property
     def observation_space(self) -> spaces.MultiBinary:
         return spaces.MultiBinary(self.env.observation_space.n)
-
-    def reset(self, **kwargs) -> Tuple[np.ndarray, dict]:
-        obs_idx, info = self.env.reset(**kwargs)
-        observation = one_hot(obs_idx, self.env.observation_space.n)
-        return observation, info
-
-    def step(self, action: int, **kwargs):
-        obs_idx, reward, terminal, truncated, info = self.env.step(action, **kwargs)
-
-        observation = one_hot(obs_idx, self.env.observation_space.n)
-        return observation, reward, terminal, truncated, info
 
 class OneHotActionConcatWrapper(gym.Wrapper):
     """

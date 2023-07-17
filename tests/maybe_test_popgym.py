@@ -76,18 +76,18 @@ def test_popgym_integration_continuous():
     args.max_episode_steps = 200
     args.seed = 2022
 
-    args.trunc = 5
-    # args.trunc = -1
+    # args.trunc = 5
+    args.trunc = -1
     args.replay_size = 5000
-    args.batch_size = 16
+    # args.batch_size = 16
 
-    args.total_steps = 60000
+    args.total_steps = 100000
     args.no_gamma_terminal = True
     args.spec = 'popgym-StatelessCartPoleEasy-v0'
     args.algo = 'multihead_rnn'
     args.gamma = 0.99
     args.feature_encoding = 'none'
-    args.hidden_size = 32
+    args.hidden_size = 256
     args.action_cond = 'cat'
     args.multihead_loss_mode = 'td'
     args.multihead_action_mode = 'td'

@@ -142,6 +142,9 @@ class Trainer:
         seq_len = self.agent.trunc
         if self.online_training: # online training
             sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
+        elif self.trunc < 0 and self.args.replay_size > 0:
+            # if this is the case, we do complete episode rollouts
+            sample = self.buffer.sample_full_episodes(self.batch_size)
         else:
             # sample a sequence from our buffer!
             sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
@@ -217,7 +220,8 @@ class Trainer:
                     self.buffer.push(experience)
 
                 # If we have enough things in the buffer to update
-                if self.batch_size < len(self.buffer) and self.trunc < len(self.buffer):
+                if self.trunc > 0 and \
+                        (self.batch_size < len(self.buffer) and self.trunc < len(self.buffer)):
                     network_params, optimizer_params, info = self.sample_and_update(
                         network_params, optimizer_params)
 
@@ -248,8 +252,9 @@ class Trainer:
                 for b in batch_with_returns:
                     self.buffer.push(b)
 
-            # Online MC training
-            if self.online_training and self.include_returns_in_batch:
+            # # Online MC training
+            if self.online_training:
+                # Only update at the end of an episode
                 network_params, optimizer_params, info = self.sample_and_update(
                     network_params, optimizer_params)
                 episode_info['total_episode_loss'] += info['total_loss'].item()

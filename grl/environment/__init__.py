@@ -10,7 +10,7 @@ from .rocksample import RockSample
 from .spec import load_spec, load_pomdp
 from .wrappers import OneHotObservationWrapper, OneHotActionConcatWrapper, \
     FlattenMultiDiscreteActionWrapper, DiscreteObservationWrapper, \
-    TupleObservationWrapper
+    ContinuousToDiscrete
 
 def get_popgym_env(args: Namespace, rand_key: random.RandomState = None, **kwargs):
     # check to see if name exists
@@ -27,7 +27,11 @@ def get_popgym_env(args: Namespace, rand_key: random.RandomState = None, **kwarg
 
 def get_env(args: Namespace,
             rand_state: np.random.RandomState = None,
+            action_bins: int = 6,
             **kwargs):
+    """
+    :param action_bins: If we have a continous action space, how many bins do we discretize to?
+    """
     # First we check our POMDP specs
     try:
         env, _ = load_pomdp(args.spec, rand_key=rand_state, **kwargs)
@@ -54,6 +58,9 @@ def get_env(args: Namespace,
                         and args.feature_encoding != 'one_hot':
                     env = DiscreteObservationWrapper(env)
 
+                # preprocess continous action spaces
+                if isinstance(env.action_space, gym.spaces.Box):
+                    env = ContinuousToDiscrete(env, action_bins)
 
             except AttributeError:
                 # don't have anything else implemented
