@@ -346,14 +346,14 @@ class EpisodeBuffer(ReplayBuffer):
 
     def push(self, batch: Batch):
         self.end[self._cursor] = batch.end
-        if batch.done:
-            new_done_idxes = []
-            for d in self.done_idxes:
-                new_d = d - 1
-                if new_d > 0:
-                    new_done_idxes.append(new_d)
-
-            self.done_idxes.append(self._cursor)
+        # if batch.done:
+        #     new_done_idxes = []
+        #     for d in self.done_idxes:
+        #         new_d = d - 1
+        #         if new_d > 0:
+        #             new_done_idxes.append(new_d)
+        #
+        #     self.done_idxes.append(self._cursor)
 
         super(EpisodeBuffer, self).push(batch)
 
