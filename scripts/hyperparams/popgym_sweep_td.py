@@ -49,7 +49,7 @@ hparams = {
 
             # Experiment
             'total_steps': int(15e6),
-            'seed': [2020 + i for i in range(5)],
+            'seed': [2020 + i for i in range(3)],
             # 'seed': 2020,
             'study_name': exp_name
         },
