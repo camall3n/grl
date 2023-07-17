@@ -61,6 +61,8 @@ def get_env(args: Namespace,
                 # preprocess continous action spaces
                 if isinstance(env.action_space, gym.spaces.Box):
                     env = ContinuousToDiscrete(env, action_bins)
+                elif isinstance(env.action_space, gym.spaces.MultiDiscrete):
+                    env = FlattenMultiDiscreteActionWrapper(env)
 
             except AttributeError:
                 # don't have anything else implemented
