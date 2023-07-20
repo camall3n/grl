@@ -149,7 +149,8 @@ class Trainer:
             -> Tuple[dict, optax.Params, dict]:
         seq_len = self.agent.trunc
         if self.online_training: # online training
-            seq_len = int(np.ceil(len(self.buffer) / self.interval) * self.interval)
+            seq_len = int(np.ceil(len(self.buffer) / self.interval) * self.interval) \
+                if len(self.buffer) > 10 else len(self.buffer)
             sample = self.buffer.sample_idx(np.arange(seq_len)[None, :])
         elif self.trunc < 0 and self.args.replay_size > 0:
             # if this is the case, we do complete episode rollouts
