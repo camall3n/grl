@@ -9,13 +9,7 @@ hparams = {
     'args': [
         {
             # Env
-            # 'spec': [v['id'] for k, v in ALL_EASY.items()],
-            'spec': ['popgym-LabyrinthEscapeEasy-v0',
-                     'popgym-LabyrinthExploreEasy-v0',
-                     'popgym-MineSweeperEasy-v0',
-                     'popgym-NoisyStatelessPendulumEasy-v0',
-                     'popgym-StatelessCartPoleEasy-v0',
-                     'popgym-BattleshipEasy-v0'],
+            'spec': [v['id'] for k, v in ALL_EASY.items()],
             'no_gamma_terminal': True,
             'max_episode_steps': 1000,
             'gamma': 0.99,
