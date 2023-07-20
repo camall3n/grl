@@ -24,7 +24,14 @@ class Trainer:
                  rand_key: random.PRNGKey,
                  args: Namespace,
                  test_env: gym.Env = None,
-                 checkpoint_dir: Path = None):
+                 checkpoint_dir: Path = None,
+                 seq_len_bins: int = 40):
+        """
+        :param seq_len_bins: for when args.trunc == -1. For online training,
+        we'll have variable length episode lengths, which cause a lot of cache misses
+        for the `update` function. seq_len_bins bins episode lengths into 20 bins, based on
+        max_episode_length // seq_len_bins intervals between bins.
+        """
         self.env = env
         self.test_env = test_env
         self.agent = agent
@@ -38,6 +45,7 @@ class Trainer:
 
         # For RNNs
         self.trunc = self.args.trunc
+        self.interval = self.max_episode_steps / seq_len_bins
         self.action_cond = self.args.action_cond
 
         # we train at the end of an episode only if we also need to learn an MC head.
@@ -141,7 +149,8 @@ class Trainer:
             -> Tuple[dict, optax.Params, dict]:
         seq_len = self.agent.trunc
         if self.online_training: # online training
-            sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
+            seq_len = int(np.ceil(len(self.buffer) / self.interval) * self.interval)
+            sample = self.buffer.sample_idx(np.arange(seq_len)[None, :])
         elif self.trunc < 0 and self.args.replay_size > 0:
             # if this is the case, we do complete episode rollouts
             sample = self.buffer.sample_full_episodes(self.batch_size)
