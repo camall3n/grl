@@ -42,7 +42,7 @@ hparams = {
             # 'batch_size': 16,
 
             # Logging and Checkpointing
-            'offline_eval_freq': int(1e4),
+            'offline_eval_freq': int(5e4),
             'offline_eval_episodes': 10,
             'offline_eval_epsilon': None, # Defaults to epsilon
             'checkpoint_freq': -1, # only save last agent

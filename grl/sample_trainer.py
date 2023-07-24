@@ -25,7 +25,7 @@ class Trainer:
                  args: Namespace,
                  test_env: gym.Env = None,
                  checkpoint_dir: Path = None,
-                 seq_len_bins: int = 40):
+                 seq_len_bins: int = 25):
         """
         :param seq_len_bins: for when args.trunc == -1. For online training,
         we'll have variable length episode lengths, which cause a lot of cache misses

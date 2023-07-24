@@ -170,18 +170,14 @@ if __name__ == "__main__":
                                               test_eps=args.offline_eval_epsilon,
                                               max_episode_steps=args.max_episode_steps)
 
-    summed_perf = 0
-    for ep in final_eval_info['episode_rewards']:
-        full_ep = uncompress_episode_rewards(ep['episode_length'], ep['most_common_reward'], ep['compressed_rewards'])
-        summed_perf += sum(full_ep)
+    avg_perf = final_eval_info['episode_returns'].mean()
 
-    print(f"Final (averaged) greedy evaluation performance: {summed_perf / args.offline_eval_episodes}")
+    print(f"Final (averaged) greedy evaluation performance: {avg_perf}")
 
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_eval_rewards': final_eval_info['episode_rewards'],
-        'final_eval_qs': final_eval_info['episode_qs']
+        'final_eval_info': final_eval_info
     }
 
     print(f"Saving results to {results_path}")
