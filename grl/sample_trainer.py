@@ -270,7 +270,9 @@ class Trainer:
                 episode_info['total_episode_loss'] += info['total_loss'].item()
                 episode_info['episode_updates'] += 1
 
-            episode_info |= compress_episode_rewards(episode_reward)
+            episode_reward = np.array(episode_reward)
+            episode_info['episode_returns'] = episode_reward.sum()
+            episode_info['discounted_returns'] = np.dot(episode_reward, self.discounting ** np.arange(len(episode_reward)))
 
             # save all our episode info in lists
             for k, v in episode_info.items():
