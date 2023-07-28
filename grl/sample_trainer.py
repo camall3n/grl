@@ -297,4 +297,8 @@ class Trainer:
         if 'total_loss' in all_logs:
             all_logs['total_loss'] = np.array(all_logs['total_loss'], dtype=np.half)
 
+        all_logs['online_info']['total_episode_loss'] = np.array(all_logs['online_info']['total_episode_loss'], dtype=np.float16)
+        all_logs['online_info']['episode_returns'] = np.array(all_logs['online_info']['episode_returns'], dtype=np.float16)
+        all_logs['online_info']['discounted_returns'] = np.array(all_logs['online_info']['discounted_returns'], dtype=np.float16)
+
         return network_params, optimizer_params, all_logs
