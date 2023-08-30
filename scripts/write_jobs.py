@@ -84,13 +84,13 @@ def generate_runs(run_dicts: List[dict],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hparam', default='', type=str)
+    parser.add_argument('hyperparam_file', type=str)
     parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
 
     runs_dir = Path(ROOT_DIR, 'scripts', 'runs')
 
-    hparam_path = Path(ROOT_DIR, 'scripts', 'hyperparams', args.hparam + ".py")
+    hparam_path = Path(args.hyperparam_file).resolve()
     hparams = import_module_to_var(hparam_path, 'hparams')
 
     results_dir = Path(ROOT_DIR, 'results')
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Make our directories if it doesn't exist
     runs_dir.mkdir(parents=True, exist_ok=True)
 
-    main_fname = '-m grl.run'
+    main_fname = '-m prerl.train_single_agent'
     if 'entry' in hparams:
         main_fname = hparams['entry']
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                   runs_dir,
                   runs_fname=hparams['file_name'],
                   main_fname=main_fname,
-                  experiment_name=args.hparam,
+                  experiment_name=hparam_path.stem,
                   exclude_dict=exclude_dict)
 
     print(f"Runs wrote to {runs_dir / hparams['file_name']}")
