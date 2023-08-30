@@ -5,18 +5,12 @@ into an Onager prelaunch script.
 import os
 import numpy as np
 import argparse
-import importlib.util
 from typing import List
 from pathlib import Path
 
-from definitions import ROOT_DIR
+from grl.utils.file_system import import_module_to_var
 
-def import_module_to_hparam(hparam_path: Path) -> dict:
-    spec = importlib.util.spec_from_file_location("hparam", hparam_path)
-    hparam_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hparam_module)
-    hparams = hparam_module.hparams
-    return hparams
+from definitions import ROOT_DIR
 
 def generate_onager_runs(run_dicts: List[dict],
                          experiment_name: str,
@@ -55,6 +49,7 @@ def generate_onager_runs(run_dicts: List[dict],
                 if all([isinstance(el, bool) for el in v]):
                     arg_string = f"+flag --{k}"
                 else:
+                    assert not isinstance(v[0], list), "No functionality for passing in a list"
                     arg_string = f"+arg --{k} {' '.join(map(str, v))}"
                 arg_list.append(arg_string)
 
@@ -83,7 +78,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     hparam_path = Path(ROOT_DIR, 'scripts', 'hyperparams', args.hparam + ".py")
-    hparams = import_module_to_hparam(hparam_path)
+    hparams = import_module_to_var(hparam_path, 'hparams')
 
     main_fname = '-m grl.run'
     if 'entry' in hparams:
