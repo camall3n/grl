@@ -133,7 +133,7 @@ class MDP(gym.Env):
             old_distr = state_distr
         return state_distr
 
-    def reset(self, state=None):
+    def reset(self, state=None, **kwargs):
         if state is None:
             if self.rand_key is not None:
                 state = self.rand_key.choice(self.state_space.n, p=self.p0)
@@ -153,14 +153,6 @@ class MDP(gym.Env):
         # Check if next_state is absorbing state
         is_absorbing = (self.T[:, next_state, next_state] == 1)
         terminal = is_absorbing.all() # absorbing for all actions
-        # Discounting: end episode with probability 1-gamma
-        if gamma_terminal:
-            if self.rand_key is not None:
-                unif = self.rand_key.uniform()
-            else:
-                unif = np.random.uniform()
-            if unif < (1 - self.gamma):
-                terminal = True
         truncated = False
         observation = self.observe(next_state)
         info = {'state': next_state}

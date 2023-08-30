@@ -4,19 +4,14 @@ where every line of the .txt file is one experiment.
 """
 import argparse
 import numpy as np
-import importlib.util
 from typing import List, Iterable
 from pathlib import Path
 from itertools import product
 
+from grl.utils.file_system import import_module_to_var
+
 from definitions import ROOT_DIR
 
-def import_module_to_hparam(hparam_path: Path) -> dict:
-    spec = importlib.util.spec_from_file_location("hparam", hparam_path)
-    hparam_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hparam_module)
-    hparams = hparam_module.hparams
-    return hparams
 
 def generate_runs(run_dicts: List[dict],
                   runs_dir: Path,
@@ -74,6 +69,8 @@ def generate_runs(run_dicts: List[dict],
                 elif v is False or v is None:
                     continue
                 else:
+                    if isinstance(v, list):
+                        v = ' '.join(v)
                     run_string += f" --{k} {v}"
 
             if experiment_name is not None and 'study_name' not in run_dict:
@@ -87,14 +84,14 @@ def generate_runs(run_dicts: List[dict],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hparam', default='', type=str)
+    parser.add_argument('hyperparam_file', type=str)
     parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
 
     runs_dir = Path(ROOT_DIR, 'scripts', 'runs')
 
-    hparam_path = Path(ROOT_DIR, 'scripts', 'hyperparams', args.hparam + ".py")
-    hparams = import_module_to_hparam(hparam_path)
+    hparam_path = Path(args.hyperparam_file).resolve()
+    hparams = import_module_to_var(hparam_path, 'hparams')
 
     results_dir = Path(ROOT_DIR, 'results')
     # if not args.local:
@@ -116,7 +113,7 @@ if __name__ == "__main__":
                   runs_dir,
                   runs_fname=hparams['file_name'],
                   main_fname=main_fname,
-                  experiment_name=args.hparam,
+                  experiment_name=hparam_path.stem,
                   exclude_dict=exclude_dict)
 
     print(f"Runs wrote to {runs_dir / hparams['file_name']}")
