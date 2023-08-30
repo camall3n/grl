@@ -82,7 +82,7 @@ if __name__ == "__main__":
     hparam_path = Path(args.hyperparam_file).resolve()
     hparams = import_module_to_var(hparam_path, 'hparams')
 
-    main_fname = '-m prerl.train_single_agent'
+    main_fname = '-m grl.run'
     if 'entry' in hparams:
         main_fname = hparams['entry']
 

@@ -3,6 +3,7 @@ from pathlib import Path
 exp_name = Path(__file__).stem
 
 hparams = {
+    'entry': '-m grl.run',
     'file_name':
         f'runs_{exp_name}.txt',
     'args': [{
