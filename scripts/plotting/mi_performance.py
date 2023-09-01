@@ -1,3 +1,4 @@
+# %% codecell
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -17,9 +18,11 @@ plt.rcParams.update({'font.size': 18})
 from grl.utils import load_info
 from definitions import ROOT_DIR
 
-# %%
-# results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
+# %% codecell
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
+results_dir = Path(ROOT_DIR, 'results', 'tiger_grid_mi_pi_obs_space')
+
+# results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -29,64 +32,94 @@ split_by = [arg for arg in args_to_keep if arg != 'seed']
 
 # this option allows us to compare to either the optimal belief state soln
 # or optimal state soln. ('belief' | 'state')
-compare_to = 'belief'
+# compare_to = 'belief'
+compare_to = 'state'
 
-# spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
-#                    'tiger', 'paint.95', 'cheese.95',
-#                    'network', 'shuttle.95', '4x3.95']
-spec_plot_order = [
-    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
-    'shuttle.95', '4x3.95', 'hallway'
-]
+
+# spec_plot_order = [
+#     'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
+#     'shuttle.95', '4x3.95', 'hallway'
+# ]
+# spec_plot_order = [
+#    'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
+# ]
+spec_plot_order = ['tiger-alt-start','tiger-grid']
+
+# game_name = 'prisoners_dilemma'
+# # leader_policies = ['all_d', 'extort', 'tit_for_tat', 'treasure_hunt', 'sugar', 'all_c', 'grudger2', 'alternator', 'majority3']
+
+# leader_policies = ['all_d', 'extort', 'tit_for_tat', 'treasure_hunt', 'sugar', 'grudger2', 'alternator', 'majority3']
+# leader_policy_labels = {
+#     'all_d': 'all d',
+#     'extort': 'extort',
+#     'tit_for_tat': 'tit for\ntat',
+#     'treasure_hunt': 'treasure\nhunt',
+#     'sugar':'sugar',
+#     'all_c': 'all c',
+#     'grudger2': 'grudger 2',
+#     'alternator':'alternator',
+#     'majority3':'majority 3'
+# }
+
+# spec_plot_order = []
+# prisoners_spec_map = {}
+# for leader in leader_policies:
+#     spec_id = f'{game_name}_{leader}'
+#     prisoners_spec_map[spec_id] = leader_policy_labels[leader]
+#     spec_plot_order.append(spec_id)
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
-# %%
 
-compare_to_list = []
+# %% codecell
+compare_to_dict = {}
 
-# if compare_to == 'belief':
 for spec in spec_plot_order:
-    for fname in pomdp_files_dir.iterdir():
-        if 'pomdp-solver-results' in fname.stem:
-            if (fname.stem == f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"):
-                belief_info = load_info(fname)
-                coeffs = belief_info['coeffs']
-                max_start_vals = coeffs[belief_info['max_start_idx']]
-                spec_compare_indv = {
-                    'spec': spec,
-                    'compare_perf': np.dot(max_start_vals, belief_info['p0'])
-                }
-                compare_to_list.append(spec_compare_indv)
-                break
-                # print(f"loaded results for {hparams.spec} from {fname}")
-    else:
+    if compare_to == 'belief':
+
+        for fname in pomdp_files_dir.iterdir():
+            if 'pomdp-solver-results' in fname.stem:
+                if (fname.stem ==
+                        f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
+                    ):
+                    belief_info = load_info(fname)
+                    coeffs = belief_info['coeffs']
+                    max_start_vals = coeffs[belief_info['max_start_idx']]
+                    compare_to_dict[spec] = np.dot(max_start_vals, belief_info['p0'])
+                    break
+                    # print(f"loaded results for {hparams.spec} from {fname}")
+        else:
+            for vi_path in vi_results_dir.iterdir():
+                for spec in spec_plot_order:
+                    if spec_to_belief_state.get(spec, spec) in vi_path.name:
+                        vi_info = load_info(vi_path)
+                        max_start_vals = vi_info['optimal_vs']
+                        compare_to_dict[spec] = np.dot(max_start_vals, vi_info['p0'])
+
+    elif compare_to == 'state':
         for vi_path in vi_results_dir.iterdir():
-            for spec in spec_plot_order:
-                if spec_to_belief_state.get(spec, spec) in vi_path.name:
-                    vi_info = load_info(vi_path)
-                    spec_compare_indv = {
-                        'spec': spec,
-                        'compare_perf': np.dot(max_start_vals, belief_info['p0'])
-                    }
-                    compare_to_list.append(spec_compare_indv)
+            if spec_to_belief_state.get(spec, spec) in vi_path.name:
+                vi_info = load_info(vi_path)
+                max_start_vals = vi_info['optimal_vs']
+                compare_to_dict[spec] = np.dot(max_start_vals, vi_info['p0'])
 
-# elif compare_to == 'state':
-# else:
-#     raise NotImplementedError
+#                 compare_to_list.append(spec_compare_indv)
 
-compare_to_df = pd.DataFrame(compare_to_list)
+# %% codecell
+compare_to_dict
 
-# %%
-
+# %% codecell
 all_results = []
 
 for results_path in results_dir.iterdir():
     if results_path.is_dir() or results_path.suffix != '.npy':
         continue
+
     info = load_info(results_path)
 
     args = info['args']
+    if args['spec'] not in spec_plot_order:
+        continue
 
     # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
@@ -95,13 +128,26 @@ for results_path in results_dir.iterdir():
 
     def get_perf(info: dict):
         return (info['state_vals_v'] * info['p0']).sum()
-
     single_res = {k: args[k] for k in args_to_keep}
 
+    final_mem_perf = get_perf(final_mem_info)
+    compare_to_perf = compare_to_dict[args['spec']]
+    init_policy_perf = get_perf(init_policy_info)
+    init_improvement_perf = get_perf(init_improvement_info)
+#     if (final_mem_perf > compare_to_perf):
+#         if np.isclose(final_mem_perf, compare_to_perf):
+#             final_mem_perf = compare_to_perf
+#         else:
+#             raise Exception(f"{args['spec']}, compare_to_perf: {compare_to_perf:.3f}, final_mem_perf: {final_mem_perf:.3f}")
+
+    if init_policy_perf > init_improvement_perf:
+        init_policy_perf = init_improvement_perf
+
     single_res.update({
-        'init_policy_perf': get_perf(init_policy_info),
-        'init_improvement_perf': get_perf(init_improvement_info),
-        'final_mem_perf': get_perf(final_mem_info),
+        'init_policy_perf': init_policy_perf,
+        'init_improvement_perf': init_improvement_perf,
+        'final_mem_perf': final_mem_perf,
+        'compare_to_perf': compare_to_perf,
         # 'init_policy': info['logs']['initial_policy'],
         # 'init_improvement_policy': info['logs']['initial_improvement_policy'],
         # 'final_mem': np.array(agent.memory),
@@ -109,86 +155,32 @@ for results_path in results_dir.iterdir():
     })
     all_results.append(single_res)
 
-all_res_df = pd.DataFrame(all_results)
 
-# %%
+all_res_df = pd.DataFrame(all_results)
+# %% codecell
+all_res_groups = all_res_df.groupby(split_by, as_index=False)
+all_res_means = all_res_groups.mean()
+del all_res_means['seed']
+all_res_means.to_csv(Path(ROOT_DIR, 'results', 'all_pomdps_means.csv'))
+# %% codecell
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
-merged_df = all_res_df.merge(compare_to_df, on='spec')
+# merged_df = all_res_df.merge(compare_to_df, on='spec')
+merged_df = all_res_df
 
 # for col_name in cols_to_normalize:
 
 normalized_df = merged_df.copy()
-normalized_df['init_improvement_perf'] = (
-    normalized_df['init_improvement_perf'] -
-    merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
-normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']
-                                   ) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
+normalized_df['init_improvement_perf'] = (normalized_df['init_improvement_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_to_perf'] - merged_df['init_policy_perf'])
+normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_to_perf'] - merged_df['init_policy_perf'])
 del normalized_df['init_policy_perf']
-del normalized_df['compare_perf']
+del normalized_df['compare_to_perf']
+# %% codecell
+normalized_df.loc[(normalized_df['spec'] == 'hallway') & (normalized_df['n_mem_states'] == 8), 'final_mem_perf'] = 0
 
-# all_normalized_perf_results = {}
-# for hparams, res in all_results.items():
-#     max_key = 'compare_perf'
-#     # if max_key not in res:
-#     #     max_key = 'final_mem_perf'
-#     max_v = res[max_key]
-#     min_v = res['init_policy_perf']
-#     for k, v in res.items():
-#         if '_perf' in k:
-#             all_results[hparams][k] = (v - min_v) / (max_v - min_v)
-# %%
-normalized_df.groupby(split_by).mean()
-
-# %%
-
-# all_table_results = {}
-# all_plot_results = {'x': [], 'xlabels': []}
-#
-# for i, spec in enumerate(spec_plot_order):
-#     hparams = sorted([k for k in all_results.keys() if k.spec == spec],
-#                      key=lambda hp: hp.n_mem_states)
-#
-#     first_res = all_results[hparams[0]]
-#     all_plot_results['x'].append(i)
-#     all_plot_results['xlabels'].append(spec)
-#
-#     # we first add initial and first improvement stats
-#     for k, v in first_res.items():
-#         if 'perf' in k and k != 'final_mem_perf':
-#             mean = v.mean(axis=0)
-#             std_err = v.std(axis=0) / np.sqrt(v.shape[0])
-#
-#             stripped_str = k.replace('_perf', '')
-#             if stripped_str not in all_plot_results:
-#                 all_plot_results[stripped_str] = {'mean': [], 'std_err': []}
-#             all_plot_results[stripped_str]['mean'].append(mean)
-#             all_plot_results[stripped_str]['std_err'].append(std_err)
-#
-#     # now we add final memory perf, for each n_mem_states
-#     for hparam in hparams:
-#         res = all_results[hparam]
-#         for k, v in res.items():
-#             if k == 'final_mem_perf':
-#                 mean = v.mean(axis=0)
-#                 std_err = v.std(axis=0) / np.sqrt(v.shape[0])
-#                 stripped_str = k.replace('_perf', '')
-#                 mem_label = f"mem, |ms| = {hparam.n_mem_states}"
-#                 if mem_label not in all_plot_results:
-#                     all_plot_results[mem_label] = {'mean': [], 'std_err': []}
-#                 all_plot_results[mem_label]['mean'].append(mean)
-#                 all_plot_results[mem_label]['std_err'].append(std_err)
-#
-# ordered_plot = []
-# # ordered_plot.append(('init_policy', all_plot_results['init_policy']))
-# ordered_plot.append(('init_improvement', all_plot_results['init_improvement']))
-# for k in sorted(all_plot_results.keys()):
-#     if 'mem' in k:
-#         ordered_plot.append((k, all_plot_results[k]))
-# ordered_plot.append(('state_optimal', all_plot_results['vi']))
-
-# %%
-
-# %%
+# %% codecell
+# normalized_df[normalized_df['spec'] == 'prisoners_dilemma_all_c']
+seeds = normalized_df[normalized_df['spec'] == normalized_df['spec'][0]]['seed'].unique()
+# %% codecell
 def maybe_spec_map(id: str):
     spec_map = {
         '4x3.95': '4x3',
@@ -199,41 +191,78 @@ def maybe_spec_map(id: str):
         'tmaze_5_two_thirds_up': 'tmaze',
         'tiger-alt-start': 'tiger'
     }
+
+#     spec_map |= prisoners_spec_map
+
     if id not in spec_map:
         return id
     return spec_map[id]
 
 groups = normalized_df.groupby(split_by, as_index=False)
 means = groups.mean()
+means['init_improvement_perf'].clip(lower=0, upper=1, inplace=True)
+means['final_mem_perf'].clip(lower=0, upper=1, inplace=True)
+
 std_errs = groups.std()
+std_errs['init_improvement_perf'] /= np.sqrt(len(seeds))
+std_errs['final_mem_perf'] /= np.sqrt(len(seeds))
+
+# SORTING
+sorted_mean_df = pd.DataFrame()
+sorted_std_err_df = pd.DataFrame()
+
+for spec in spec_plot_order:
+    mean_spec_df = means[means['spec'] == spec]
+    std_err_spec_df = std_errs[std_errs['spec'] == spec]
+    sorted_mean_df = pd.concat([sorted_mean_df, mean_spec_df])
+    sorted_std_err_df = pd.concat([sorted_std_err_df, std_err_spec_df])
+
+means = sorted_mean_df
+std_errs = sorted_std_err_df
+
 num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
 
 group_width = 1
 bar_width = group_width / (len(num_n_mem) + 2)
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(8, 6))
 
-x = np.arange(len(means))
-xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
+specs = means[means['n_mem_states'] == num_n_mem[0]]['spec']
+# spec_order_mapping = [spec_plot_order.index(s) for s in specs]
+spec_order_mapping = np.arange(len(specs), dtype=int)
+
+xlabels = [maybe_spec_map(l) for l in specs]
+x = np.arange(len(specs))
+
+init_improvement_perf_mean = np.array(means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'])
+init_improvement_perf_std = np.array(std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'])
 
 ax.bar(x + (0 + 1) * bar_width,
-       means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
+       init_improvement_perf_mean,
        bar_width,
-       yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
+       yerr=init_improvement_perf_std,
        label='Memoryless')
 
 for i, n_mem_states in enumerate(num_n_mem):
+    curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states]['final_mem_perf'])
+    curr_mem_std = np.array(std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'])
     ax.bar(x + (i + 2) * bar_width,
-           means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
+           curr_mem_mean,
            bar_width,
-           yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
-           label=f"{int(np.log(n_mem_states))} Memory Bits")
-ax.set_ylim([0, 1])
+           yerr=curr_mem_std,
+           label=f"{int(np.log2(n_mem_states))} Memory Bits")
+
+ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.7, 0.6), framealpha=0.95)
-ax.set_title("Performance of Memory Iteration in POMDPs")
+ax.legend(bbox_to_anchor=(0.5, 0.62), framealpha=0.95)
+# ax.set_title("Performance of Memory Iteration in POMDPs")
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
-fig.savefig(fig_path)
+fig.savefig(fig_path, bbox_inches='tight')
+# %% codecell
+sorted_mean_df
+# %% codecell
+seeds
+# %% codecell
