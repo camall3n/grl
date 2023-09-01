@@ -1,10 +1,12 @@
 from collections import defaultdict
+from functools import partial
 import json
 import marshal
 import os
 import pickle
 import types
 from typing import Tuple, Union, List
+import warnings
 
 import numpy as np
 from jax import random, jit
@@ -340,9 +342,19 @@ class EpisodeBuffer(ReplayBuffer):
                                             unpack_state=unpack_state)
         self.jitted_sampled_seq_idxes = jit(sample_seq_idxes, static_argnums=(0, 1, 2))
         self.end = np.zeros_like(self.d, dtype=bool)
+        self.done_idxes = []
 
     def push(self, batch: Batch):
         self.end[self._cursor] = batch.end
+        # if batch.done:
+        #     new_done_idxes = []
+        #     for d in self.done_idxes:
+        #         new_d = d - 1
+        #         if new_d > 0:
+        #             new_done_idxes.append(new_d)
+        #
+        #     self.done_idxes.append(self._cursor)
+
         super(EpisodeBuffer, self).push(batch)
 
     def sample_eligible_idxes(self, batch_size: int, seq_len: int) -> np.ndarray:
@@ -406,9 +418,47 @@ class EpisodeBuffer(ReplayBuffer):
 
         return Batch(**batch)
 
+    def sample_full_episodes(self, batch_size: int):
+        """
+        Samples batch_size full episodes.
+        """
+        @partial(jit, static_argnames='n')
+        def fixed_size_choice(rand_key: random.PRNGKey, n: int, elements: np.ndarray):
+            rand_key, choice_key = random.split(rand_key)
+            return random.choice(choice_key, elements, shape=(n, )), rand_key
+
+        all_start_idxes = []
+        if len(self) < self.capacity:
+            all_start_idxes.append(0)
+        # don't include last done
+        all_potential_starts = np.array(self.done_idxes[:-1], dtype=int) + 1
+
+        all_start_idxes = np.concatenate((all_start_idxes, all_potential_starts))
+
+        # figure out maximum episode length
+        episode_lengths = self.done_idxes - all_start_idxes
+        wrapped_mask = episode_lengths < 0
+        episode_lengths[wrapped_mask] += 2 * all_start_idxes[wrapped_mask]
+
+        if batch_size > len(all_start_idxes):
+            warnings.warn(f"batch_size {batch_size} < number of start indices. "
+                          f"Creating a batch of {len(all_start_idxes)} episodes.")
+            start_indices = all_start_idxes
+        else:
+            sampled_start_idxes, self.rand_key = \
+                fixed_size_choice(self.rand_key, batch_size, jnp.arange(len(all_start_idxes)))
+            start_indices = all_start_idxes[sampled_start_idxes]
+
+        max_episode_length = episode_lengths.max()
+
+        seq_range = jnp.arange(max_episode_length, dtype=int)[:, None]
+        sample_seq_idx = (start_indices + seq_range).T % self.capacity
+
+        return self.sample_idx(sample_seq_idx)
+
     def sample_k(self, batch_size: int, seq_len: int = 1, k: int = 1):
         batch = self.sample(batch_size * k, seq_len=seq_len, as_dict=True)
         for key, arr in batch.items():
-            batch[key] = np.stack(np.split(arr, k, axis=0))
+            batch[key] = np.stack(np.split(arr, k, axis=0), dtype=int)
 
         return Batch(**batch)

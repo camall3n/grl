@@ -7,12 +7,12 @@ from jax.config import config
 from grl.agent import get_agent
 from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import POMDP, MDP
 from grl.model import get_network
 from grl.sample_trainer import Trainer
 from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
 from grl.utils.file_system import results_path, numpyify_and_save
+from grl.environment.wrappers import GammaTerminalWrapper
 
 def parse_arguments(return_defaults: bool = False):
     parser = argparse.ArgumentParser()
@@ -22,10 +22,12 @@ def parse_arguments(return_defaults: bool = False):
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--no_gamma_terminal', action='store_true',
                         help='Do we turn OFF gamma termination?')
+    parser.add_argument('--gamma', default=None, type=float,
+                        help='Gamma value: overrides environment gamma for our environments, required for Gym environments.')
     parser.add_argument('--max_episode_steps', default=1000, type=int,
                         help='Maximum number of episode steps')
-    parser.add_argument('--feature_encoding', default='one_hot', type=str,
-                        choices=['one_hot', 'discrete'],
+    parser.add_argument('--feature_encoding', default='none', type=str,
+                        choices=['one_hot', 'discrete', 'none'],
                         help='What feature encoding do we use?')
 
     # Agent params
@@ -130,10 +132,12 @@ if __name__ == "__main__":
 
     # Load environment and env wrappers
     env_key, test_env_key, rand_key = jax.random.split(rand_key, num=3)
-    env = get_env(args, rand_state=np_rand_key, rand_key=env_key)
+    env = get_env(args, rand_state=np_rand_key)
+    if not args.no_gamma_terminal:
+        env = GammaTerminalWrapper(env, args.gamma)
     test_env = None
     if args.offline_eval_freq is not None:
-        test_env = get_env(args, rand_state=np_rand_key, rand_key=test_env_key)
+        test_env = get_env(args, rand_state=np_rand_key)
         # TODO: this is here b/c rock_positions are randomly generated in the env __init__ --
         # refactor this!
         if args.spec == 'rocksample':
@@ -149,7 +153,10 @@ if __name__ == "__main__":
 
     optimizer = get_optimizer(args.optimizer, step_size=args.lr)
 
-    agent = get_agent(network, optimizer, env.observation_space.shape, env, args)
+    obs_size = env.observation_space.shape
+    if not obs_size:
+        obs_size = (1, )
+    agent = get_agent(network, optimizer, obs_size, env, args)
 
     trainer_key, rand_key = jax.random.split(rand_key)
     trainer = Trainer(env, agent, trainer_key, args, test_env=test_env, checkpoint_dir=agents_dir)
@@ -163,18 +170,14 @@ if __name__ == "__main__":
                                               test_eps=args.offline_eval_epsilon,
                                               max_episode_steps=args.max_episode_steps)
 
-    summed_perf = 0
-    for ep in final_eval_info['episode_rewards']:
-        full_ep = uncompress_episode_rewards(ep['episode_length'], ep['most_common_reward'], ep['compressed_rewards'])
-        summed_perf += sum(full_ep)
+    avg_perf = final_eval_info['episode_returns'].mean()
 
-    print(f"Final (averaged) greedy evaluation performance: {summed_perf / args.offline_eval_episodes}")
+    print(f"Final (averaged) greedy evaluation performance: {avg_perf}")
 
     info = {
         'episodes_info': episodes_info,
         'args': vars(args),
-        'final_eval_rewards': final_eval_info['episode_rewards'],
-        'final_eval_qs': final_eval_info['episode_qs']
+        'final_eval_info': final_eval_info
     }
 
     print(f"Saving results to {results_path}")

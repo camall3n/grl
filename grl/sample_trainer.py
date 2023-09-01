@@ -24,21 +24,28 @@ class Trainer:
                  rand_key: random.PRNGKey,
                  args: Namespace,
                  test_env: gym.Env = None,
-                 checkpoint_dir: Path = None):
+                 checkpoint_dir: Path = None,
+                 seq_len_bins: int = 25):
+        """
+        :param seq_len_bins: for when args.trunc == -1. For online training,
+        we'll have variable length episode lengths, which cause a lot of cache misses
+        for the `update` function. seq_len_bins bins episode lengths into 20 bins, based on
+        max_episode_length // seq_len_bins intervals between bins.
+        """
         self.env = env
         self.test_env = test_env
         self.agent = agent
         self.args = args
         self._rand_key = rand_key
 
-        self.gamma_terminal = not self.args.no_gamma_terminal
-        self.discounting = self.env.gamma if not self.gamma_terminal else 1.
+        self.discounting = self.env.gamma
 
         self.max_episode_steps = self.args.max_episode_steps
         self.total_steps = self.args.total_steps
 
         # For RNNs
         self.trunc = self.args.trunc
+        self.interval = self.max_episode_steps / seq_len_bins
         self.action_cond = self.args.action_cond
 
         # we train at the end of an episode only if we also need to learn an MC head.
@@ -75,9 +82,13 @@ class Trainer:
         if self.args.arch == 'lstm':
             state_size = (2, ) + state_size
 
+        obs_size = self.env.observation_space.shape
+        if not obs_size:
+            obs_size = (1, )
+
         self.buffer = EpisodeBuffer(replay_capacity,
                                     rand_key,
-                                    self.env.observation_space.shape,
+                                    obs_size,
                                     state_size=state_size,
                                     unpack_state=self.args.arch == 'lstm')
 
@@ -138,7 +149,12 @@ class Trainer:
             -> Tuple[dict, optax.Params, dict]:
         seq_len = self.agent.trunc
         if self.online_training: # online training
-            sample = self.buffer.sample_idx(np.arange(len(self.buffer))[None, :])
+            seq_len = int(np.ceil(len(self.buffer) / self.interval) * self.interval) \
+                if len(self.buffer) > 10 else len(self.buffer)
+            sample = self.buffer.sample_idx(np.arange(seq_len)[None, :])
+        elif self.trunc < 0 and self.args.replay_size > 0:
+            # if this is the case, we do complete episode rollouts
+            sample = self.buffer.sample_full_episodes(self.batch_size)
         else:
             # sample a sequence from our buffer!
             sample = self.buffer.sample(self.batch_size, seq_len=seq_len)
@@ -190,8 +206,7 @@ class Trainer:
             action = action.astype(int).item()
 
             for t in range(self.max_episode_steps):
-                next_obs, reward, done, _, info = self.env.step(action,
-                                                                gamma_terminal=self.gamma_terminal)
+                next_obs, reward, done, _, info = self.env.step(action)
                 next_action, self._rand_key, next_hs, qs = self.agent.act(
                     network_params, next_obs, hs, self._rand_key)
                 next_action = next_action.astype(int).item()
@@ -215,7 +230,8 @@ class Trainer:
                     self.buffer.push(experience)
 
                 # If we have enough things in the buffer to update
-                if self.batch_size < len(self.buffer) and self.trunc < len(self.buffer):
+                if self.trunc > 0 and \
+                        (self.batch_size < len(self.buffer) and self.trunc < len(self.buffer)):
                     network_params, optimizer_params, info = self.sample_and_update(
                         network_params, optimizer_params)
 
@@ -246,14 +262,17 @@ class Trainer:
                 for b in batch_with_returns:
                     self.buffer.push(b)
 
-            # Online MC training
-            if self.online_training and self.include_returns_in_batch:
+            # # Online MC training
+            if self.online_training:
+                # Only update at the end of an episode
                 network_params, optimizer_params, info = self.sample_and_update(
                     network_params, optimizer_params)
                 episode_info['total_episode_loss'] += info['total_loss'].item()
                 episode_info['episode_updates'] += 1
 
-            episode_info |= compress_episode_rewards(episode_reward)
+            episode_reward = np.array(episode_reward)
+            episode_info['episode_returns'] = episode_reward.sum()
+            episode_info['discounted_returns'] = np.dot(episode_reward, self.discounting ** np.arange(len(episode_reward)))
 
             # save all our episode info in lists
             for k, v in episode_info.items():
@@ -277,5 +296,9 @@ class Trainer:
 
         if 'total_loss' in all_logs:
             all_logs['total_loss'] = np.array(all_logs['total_loss'], dtype=np.half)
+
+        all_logs['online_info']['total_episode_loss'] = np.array(all_logs['online_info']['total_episode_loss'], dtype=np.float16)
+        all_logs['online_info']['episode_returns'] = np.array(all_logs['online_info']['episode_returns'], dtype=np.float16)
+        all_logs['online_info']['discounted_returns'] = np.array(all_logs['online_info']['discounted_returns'], dtype=np.float16)
 
         return network_params, optimizer_params, all_logs

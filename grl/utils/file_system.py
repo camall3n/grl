@@ -1,11 +1,13 @@
-import numpy as np
+from argparse import Namespace
 import hashlib
-import time
+import importlib
 import jax.numpy as jnp
 from pathlib import Path
-from argparse import Namespace
-from definitions import ROOT_DIR
+import numpy as np
+import time
 from typing import Union
+
+from definitions import ROOT_DIR
 
 def results_path(args: Namespace):
     results_dir = Path(ROOT_DIR, 'results')
@@ -56,3 +58,11 @@ def make_hashable(o):
         return tuple(sorted(make_hashable(e) for e in o))
 
     return o
+
+
+def import_module_to_var(fpath: Path, var_name: str) -> Union[dict, list]:
+    spec = importlib.util.spec_from_file_location(var_name, fpath)
+    var_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(var_module)
+    instantiated_var = getattr(var_module, var_name)
+    return instantiated_var
