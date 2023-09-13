@@ -260,6 +260,7 @@ def main():
     else:
         agent.reset_policy()
 
+    initial_policy_history = None
     if not args.load_policy:
         initial_policy_history = optimize_policy(
             agent,
@@ -303,6 +304,7 @@ def main():
         print('Policy:')
         print(agent.policy_probs)
 
+        mem_opt_policy_history = None
         if not args.load_policy:
             agent.reset_policy()
             mem_opt_policy_history = optimize_policy(
