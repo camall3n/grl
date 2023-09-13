@@ -33,40 +33,34 @@ class SearchNode:
 
     def modify(self, action, obs, mem_op):
         new_probs = self.mem_probs.copy()
-        new_probs[action, obs] = mem_op
-        return SearchNode(new_probs)
-
-    def modify_rowcol(self, action, obs, mem_row, mem_col):
-        new_probs = self.mem_probs.copy()
-        new_row = np.zeros((1, self.n_mem_states))
-        new_row[0, mem_col] = 1
-        new_probs[action, obs][mem_row] = new_row
+        if action == new_probs.shape[0]:
+            action = slice(None) # update every action
+        if obs == new_probs.shape[1]:
+            obs = slice(None) # update every observation
+        to_update = new_probs[action, obs]
+        new_probs[action, obs] = np.ones_like(to_update) * mem_op
         return SearchNode(new_probs)
 
     def get_successors(self, skip_hashes=set()):
         skip_hashes.add(self.mem_hash)
+        successor_hashes = set()
         n_actions, n_obs, _, _ = self.mem_probs.shape
         successors = []
-        for a in range(n_actions):
-            for o in range(n_obs):
+        for a in range(n_actions + 1): # consider each single action as well as ALL actions
+            for o in range(n_obs + 1): # consider each single obs as well as ALL observations
                 for mem_op in self.mem_ops:
                     successor = self.modify(a, o, mem_op)
-                    if successor.mem_hash not in skip_hashes:
+                    if successor.mem_hash not in skip_hashes.union(successor_hashes):
                         successors.append(successor)
+                        successor_hashes.add(successor.mem_hash)
         return successors
 
-    def get_random_successor(self, modify_row=True):
+    def get_random_successor(self):
         n_actions, n_obs, _, _ = self.mem_probs.shape
-        a = np.random.choice(n_actions)
-        o = np.random.choice(n_obs)
+        a = np.random.choice(n_actions + 1) # consider each single action as well as ALL actions
+        o = np.random.choice(n_obs + 1) # consider each single obs as well as ALL observations
 
-        if modify_row:
-            mem_row = np.random.choice(self.n_mem_states)
-            mem_col = np.random.choice(self.n_mem_states)
-            successor = self.modify_rowcol(a, o, mem_row, mem_col)
-        else:
-            # for the original modify
-            mem_op_idx = np.random.choice(range(len(self.mem_ops)))
-            mem_op = self.mem_ops[mem_op_idx]
-            successor = self.modify(a, o, mem_op)
+        mem_op_idx = np.random.choice(range(len(self.mem_ops)))
+        mem_op = self.mem_ops[mem_op_idx]
+        successor = self.modify(a, o, mem_op)
         return successor
