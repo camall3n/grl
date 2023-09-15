@@ -1,7 +1,8 @@
 import copy
 import json
 import os
-import pprint
+from pprint import pprint
+import sys
 
 import numpy as np
 from jax.config import config
@@ -27,6 +28,10 @@ np.random.seed(args.seed)
 
 args.min_mem_opt_replay_size = args.replay_buffer_size
 del args.f
+
+if args.mem_optimizer == 'annealing' and args.annealing_tmin > args.annealing_tmax:
+    print('Annealing tmin > tmax. Skipping run.')
+    sys.exit()
 
 # args.env = 'cheese.95'
 # args.env = 'slippery-tmaze'
@@ -156,7 +161,7 @@ results = {
     'initial_discrep': initial_discrep,
     'best_discrep': info['best_discrep'],
 }
-pprint.pprint(results, sort_dicts=False)
+pprint(results, sort_dicts=False)
 results['optimizer_info'] = info
 
 dirname = f'results/discrete/{args.study_name}/{args.env}/{args.trial_id}'
