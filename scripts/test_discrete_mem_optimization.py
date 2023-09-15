@@ -35,7 +35,6 @@ del args.f
 # args.env = 'example_7'
 #
 n_pi_iterations = 1000
-args.n_memory_trials = 400
 
 reward_range_dict = {
     'cheese.95': (10.0, 0),
