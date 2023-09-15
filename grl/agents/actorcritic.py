@@ -439,6 +439,9 @@ class ActorCritic:
         return best_node, info
 
     def optimize_memory(self, n_trials):
+        prev_memory_probs = self.memory_probs
+        prev_discrep = self.evaluate_memory().item()
+
         if self.mem_optimizer == 'optuna':
             study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
             info = {'best_discrep': study.best_value}
@@ -454,6 +457,10 @@ class ActorCritic:
             )
         else:
             raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
+
+        if info['best_discrep'] > prev_discrep:
+            self.set_memory(prev_memory_probs, logits=False)
+
         return info
 
     def compute_discrepancy_loss(self, obs, actions, memories):
