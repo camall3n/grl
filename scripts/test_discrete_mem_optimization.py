@@ -36,7 +36,6 @@ del args.f
 #
 n_pi_iterations = 1000
 args.n_memory_trials = 400
-args.mem_optimizer = 'annealing'
 
 reward_range_dict = {
     'cheese.95': (10.0, 0),
