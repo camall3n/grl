@@ -72,9 +72,20 @@ def load_results(pathname):
     data = pd.DataFrame(all_results)
     return data
 
-data = load_results('results/discrete/tune07-1repeats*/*/*')
+# data = load_results('results/discrete/tune07-1repeats*/*/*')
+data = load_results('results/discrete/locality01/*/*')
 
-data.tmin.unique()
+n_tmin = len(data.tmin.unique())
+n_tmax = len(data.tmax.unique())
+n_prog = len(data.progress_fraction_at_tmin.unique())
+n_seed = len(data.seed.unique())
+n_envs = len(data.env.unique())
+
+param_counts = [n_tmin, n_tmax, n_prog, n_seed, n_envs]
+n_runs = np.prod(param_counts)
+str_counts = ' x '.join(list(map(str, param_counts)))
+print(f'Loaded {n_runs} runs: {str_counts}')
+
 #%%
 ax=None
 def histplot(env,  x, y, z, ax):
@@ -94,7 +105,7 @@ plt.tight_layout()
 plt.show()
 
 #%%
-progress_fraction_at_tmin = 0.9
+progress_fraction_at_tmin = 0.3
 def histplot(env, x, y, z, ax):
     vmin = calibrations_dict[env]['init_improvement_perf']
     vmax = calibrations_dict[env]['final_mem_perf']
