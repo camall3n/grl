@@ -79,7 +79,7 @@ data.tmin.unique()
 ax=None
 def histplot(env,  x, y, z, ax):
     subset = data.query(f'env=="tmaze_5_two_thirds_up"')
-    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(y, x, z)
+    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
@@ -100,7 +100,7 @@ def histplot(env, x, y, z, ax):
     vmax = calibrations_dict[env]['final_mem_perf']
     subset = data.query(f'env=="{env}" and progress_fraction_at_tmin=={progress_fraction_at_tmin}')
     best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
-    data_pivot = subset.loc[best_discrep].pivot(y, x, z)
+    data_pivot = subset.loc[best_discrep].pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
@@ -122,7 +122,7 @@ def histplot(frac, x, y, z, ax):
     vmax = calibrations_dict[env]['final_mem_perf']
     subset = data.query(f'env=="{env}" and progress_fraction_at_tmin=={frac}')
     best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
-    data_pivot = subset.loc[best_discrep].pivot(y, x, z)
+    data_pivot = subset.loc[best_discrep].pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
@@ -143,7 +143,7 @@ def histplot(frac, x, y, z, ax):
     vmax = calibrations_dict[env]['final_mem_perf']
     subset = data.query(f'study_name=="tune07-1repeats" and env=="{env}" and progress_fraction_at_tmin=={frac}')
     best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
-    data_pivot = subset.loc[best_discrep].pivot(y, x, z)
+    data_pivot = subset.loc[best_discrep].pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
@@ -165,7 +165,7 @@ def histplot(frac, x, y, z, ax):
     vmax = calibrations_dict[env]['final_mem_perf']
     subset = df.query(f'env=="{env}" and progress_fraction_at_tmin=={frac}')
     # best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
-    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(y, x, z)
+    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
@@ -187,7 +187,7 @@ def histplot(frac, x, y, z, ax):
     vmax = calibrations_dict[env]['final_mem_perf']
     subset = df.query(f'env=="{env}" and progress_fraction_at_tmin=={frac}')
     # best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
-    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(y, x, z)
+    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(index=y, columns=x, values=z)
 
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
