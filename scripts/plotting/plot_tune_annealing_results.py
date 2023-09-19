@@ -65,6 +65,8 @@ def load_results(pathname):
             info = json.load(f)
             trial_id = int(info['trial_id'].split('_')[-1]) % 10
             info['trial_id'] = trial_id
+            scales = calibrations_dict[info['env']]
+            info['scaled_final_value'] = (info['end_value'] - scales['init_improvement_perf']) / (scales['compare_to_perf'] - scales['init_improvement_perf'])
             if info['tmax'] < info['tmin']:
                 continue
             del info['optimizer_info']
@@ -72,6 +74,7 @@ def load_results(pathname):
     data = pd.DataFrame(all_results)
     return data
 
+#%%
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
 data = load_results('results/discrete/locality01/*/*')
 
@@ -87,25 +90,13 @@ str_counts = ' x '.join(list(map(str, param_counts)))
 print(f'Loaded {n_runs} runs: {str_counts}')
 
 #%%
-ax=None
-def histplot(env,  x, y, z, ax):
-    subset = data.query(f'env=="tmaze_5_two_thirds_up"')
-    data_pivot = subset.groupby([y, x])[z].mean().reset_index().pivot(index=y, columns=x, values=z)
-
-    # Create the heatmap
-    # plt.figure(figsize=(10, 8))
-    sns.heatmap(data_pivot, ax=ax)
-
-# fig, axes = plt.subplots(2, 4, figsize=(10,6))
-# for env, ax in zip(data.env.unique(), axes.flatten()):
-histplot(env, x='tmax', y='tmin', z='end_value', ax=ax)
-ax.set_title(env)
-
+sns.barplot(data=data, x='env', y='scaled_final_value')
 plt.tight_layout()
+plt.xticks(rotation=90)
 plt.show()
 
 #%%
-progress_fraction_at_tmin = 0.3
+progress_fraction_at_tmin = 0.7
 def histplot(env, x, y, z, ax):
     vmin = calibrations_dict[env]['init_improvement_perf']
     vmax = calibrations_dict[env]['final_mem_perf']
