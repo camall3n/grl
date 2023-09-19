@@ -52,7 +52,6 @@ def weight_and_sum_discrep_loss(diff: jnp.ndarray,
                                 error_type: str = 'l2',
                                 alpha: float = 1.,
                                 flip_count_prob: bool = False):
-    # set terminal counts to 0
     c_o = occupancy @ pomdp.phi
     count_o = c_o / c_o.sum()
 
@@ -109,7 +108,7 @@ def discrep_loss(
         lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
-    c_s = info['occupancy'].at[-2:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
                                        pi,
@@ -188,9 +187,7 @@ def obs_space_mem_discrep_loss(
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
 
-    c_s = info['occupancy']
-    # set terminal counts to 0
-    c_s = c_s.at[-1:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
 
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
@@ -280,9 +277,7 @@ def magnitude_td_loss(
         0).repeat(pr_o_a.shape[0], axis=0)
     diff = expanded_R_s_o + pomdp.gamma * expected_next_Q - expanded_Q
 
-    c_s = info['occupancy']
-    # set terminal counts to 0
-    c_s = c_s.at[-2:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     count_s = c_s / c_s.sum()
 
     if flip_count_prob:
@@ -336,9 +331,7 @@ def value_error(pi: jnp.ndarray,
     expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T
     diff = state_vals - expanded_obs_vals
 
-    c_s = info['occupancy']
-    # set terminal counts to 0
-    c_s = c_s.at[-2:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     p_s = c_s / c_s.sum()
 
     pi_s = pomdp.phi @ pi
