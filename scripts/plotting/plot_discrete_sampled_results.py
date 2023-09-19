@@ -11,7 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils import load_info
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.discrete_search import generate_hold_mem_fn
@@ -46,7 +46,7 @@ calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
 def get_start_obs_value(env_name, policy_probs, memory_logits=None):
     spec = load_spec(env_name, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = POMDP(mdp, spec['phi'])
 
     if memory_logits is not None:
         env = memory_cross_product(memory_logits, env)

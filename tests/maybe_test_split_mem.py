@@ -74,7 +74,7 @@ def test_split_mem():
                                                                  lambda_=lambda_1)
 
         # undisc_mdp = MDP(pomdp.T, pomdp.R, pomdp.p0, 1.)
-        # undisc_pomdp = AbstractMDP(undisc_mdp, pomdp.phi)
+        # undisc_pomdp = POMDP(undisc_mdp, pomdp.phi)
         # # undisc_pomdp = pomdp
         #
         # undisc_mem_aug_pomdp = memory_cross_product(mem_params, undisc_pomdp)

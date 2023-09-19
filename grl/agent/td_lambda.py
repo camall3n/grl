@@ -89,7 +89,7 @@ def run_td_lambda_on_mdp(
     alpha=1,
     n_episodes=1000,
 ):
-    # If AMDP, convert to pi_ground
+    # If POMDP, convert to pi_ground
     if hasattr(mdp, 'phi'):
         pi_ground = mdp.get_ground_policy(pi)
     else:
