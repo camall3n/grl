@@ -39,7 +39,15 @@ class TDLambdaQFunction:
     def _reset_eligibility(self):
         self.eligibility = np.zeros((self.n_actions, self.n_obs))
 
-    def update(self, obs, action, reward, terminal, next_obs, next_action, aug_obs=None, next_aug_obs=None):
+    def update(self,
+               obs,
+               action,
+               reward,
+               terminal,
+               next_obs,
+               next_action,
+               aug_obs=None,
+               next_aug_obs=None):
         # Because mdp.step() terminates with probability (1-γ),
         # we have already factored in the γ that we would normally
         # use to decay the eligibility.

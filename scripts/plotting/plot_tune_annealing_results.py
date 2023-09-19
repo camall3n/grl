@@ -66,7 +66,8 @@ def load_results(pathname):
             trial_id = int(info['trial_id'].split('_')[-1]) % 10
             info['trial_id'] = trial_id
             scales = calibrations_dict[info['env']]
-            info['scaled_final_value'] = (info['end_value'] - scales['init_improvement_perf']) / (scales['compare_to_perf'] - scales['init_improvement_perf'])
+            info['scaled_final_value'] = (info['end_value'] - scales['init_improvement_perf']) / (
+                scales['compare_to_perf'] - scales['init_improvement_perf'])
             if info['tmax'] < info['tmin']:
                 continue
             del info['optimizer_info']
@@ -97,6 +98,7 @@ plt.show()
 
 #%%
 progress_fraction_at_tmin = 0.7
+
 def histplot(env, x, y, z, ax):
     vmin = calibrations_dict[env]['init_improvement_perf']
     vmax = calibrations_dict[env]['final_mem_perf']
@@ -107,8 +109,9 @@ def histplot(env, x, y, z, ax):
     # Create the heatmap
     # plt.figure(figsize=(10, 8))
     sns.heatmap(data_pivot, ax=ax, vmin=vmin, vmax=vmax)
+
 data.columns
-fig, axes = plt.subplots(2, 4, figsize=(16,12))
+fig, axes = plt.subplots(2, 4, figsize=(16, 12))
 for env, ax in zip(data.env.unique(), axes.flatten()):
     histplot(env, x='tmax', y='tmin', z='end_value', ax=ax)
     ax.set_title(f'{env}')
@@ -130,7 +133,7 @@ def histplot(frac, x, y, z, ax):
     # plt.figure(figsize=(10, 8))
     sns.heatmap(data_pivot, ax=ax, vmin=vmin, vmax=vmax)
 
-fig, axes = plt.subplots(1, 4, figsize=(16,6))
+fig, axes = plt.subplots(1, 4, figsize=(16, 6))
 for frac, ax in zip(sorted(data.progress_fraction_at_tmin.unique()), axes.flatten()):
     histplot(frac, x='tmax', y='tmin', z='end_value', ax=ax)
     ax.set_title(f'shuttle ({frac})')
@@ -143,7 +146,8 @@ def histplot(frac, x, y, z, ax):
     env = 'network'
     vmin = calibrations_dict[env]['init_improvement_perf']
     vmax = calibrations_dict[env]['final_mem_perf']
-    subset = data.query(f'study_name=="tune07-1repeats" and env=="{env}" and progress_fraction_at_tmin=={frac}')
+    subset = data.query(
+        f'study_name=="tune07-1repeats" and env=="{env}" and progress_fraction_at_tmin=={frac}')
     best_discrep = subset.groupby([y, x])['best_discrep'].idxmin()
     data_pivot = subset.loc[best_discrep].pivot(index=y, columns=x, values=z)
 
@@ -160,7 +164,8 @@ plt.tight_layout()
 plt.show()
 
 #%%
-df = data#.query('study_name=="tune07-1repeats-ctd"')
+df = data #.query('study_name=="tune07-1repeats-ctd"')
+
 def histplot(frac, x, y, z, ax):
     env = 'network'
     vmin = calibrations_dict[env]['init_improvement_perf']
@@ -173,7 +178,7 @@ def histplot(frac, x, y, z, ax):
     # plt.figure(figsize=(10, 8))
     sns.heatmap(data_pivot, ax=ax, vmin=vmin, vmax=vmax)
 
-fig, axes = plt.subplots(1, 4, figsize=(16,6))
+fig, axes = plt.subplots(1, 4, figsize=(16, 6))
 for frac, ax in zip(sorted(df.progress_fraction_at_tmin.unique()), axes.flatten()):
     histplot(frac, x='tmax', y='tmin', z='end_value', ax=ax)
     ax.set_title(f'network ({frac})')
@@ -183,6 +188,7 @@ plt.show()
 
 #%%
 df = data.query('study_name=="tune07-1repeats"')
+
 def histplot(frac, x, y, z, ax):
     env = 'network'
     vmin = calibrations_dict[env]['init_improvement_perf']
@@ -195,7 +201,7 @@ def histplot(frac, x, y, z, ax):
     # plt.figure(figsize=(10, 8))
     sns.heatmap(data_pivot, ax=ax, vmin=vmin, vmax=vmax)
 
-fig, axes = plt.subplots(1, 4, figsize=(16,6))
+fig, axes = plt.subplots(1, 4, figsize=(16, 6))
 for frac, ax in zip(sorted(df.progress_fraction_at_tmin.unique()), axes.flatten()):
     histplot(frac, x='tmax', y='tmin', z='end_value', ax=ax)
     ax.set_title(f'network ({frac})')

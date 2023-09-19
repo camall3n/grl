@@ -139,7 +139,8 @@ def load_sampled_results(pathname: str, use_epsilon: bool = False):
         try:
             initial_discrep = info['initial_discrep']
         except KeyError:
-            initial_discrep = load_info(results_dir + '/initial_mem_info.pkl.npy')['sample_based']['discrepancy_loss']
+            initial_discrep = load_info(
+                results_dir + '/initial_mem_info.pkl.npy')['sample_based']['discrepancy_loss']
         result = {
             'policy_up_prob': info['policy_up_prob'],
             'policy_epsilon': info['policy_epsilon'] if 'policy_epsilon' in info else np.nan,
@@ -287,10 +288,10 @@ plot_sweep(planning_data,
            title='SGD (analytical)',
            add_colorbar=False)
 plot_sweep(learning_data_oracle,
-          ax=axes[1],
-          x='policy_epsilon',
-          title='Optuna (oracle)',
-          add_colorbar=False)
+           ax=axes[1],
+           x='policy_epsilon',
+           title='Optuna (oracle)',
+           add_colorbar=False)
 plot_sweep(learning_data,
            ax=axes[2],
            x='policy_epsilon',

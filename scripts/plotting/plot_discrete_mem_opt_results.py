@@ -24,7 +24,9 @@ for filename in glob.glob('results/discrete/discrete05*/*/*/discrete_oracle.json
         discrete_data.append(results)
 
 discrete_df = pd.DataFrame(discrete_data).groupby('spec').mean()
-discrete_df['end_value_std'] = pd.DataFrame(discrete_data).groupby('spec').std()['end_value'] / np.sqrt(pd.DataFrame(discrete_data).groupby('spec').count()['seed'])
+discrete_df['end_value_std'] = (
+    pd.DataFrame(discrete_data).groupby('spec').std()['end_value'] /
+    np.sqrt(pd.DataFrame(discrete_data).groupby('spec').count()['seed']))
 
 # %%
 compare_to = 'belief'
@@ -33,8 +35,10 @@ calibration_df = pd.read_csv('results/discrete/all_pomdps_means.csv')
 merged_df = calibration_df.merge(discrete_df, how='inner', on='spec')
 
 normalized_df = merged_df.copy()
+
 def normalize(data, col, ref_data, low_col, high_col):
     data[col] = (data[col] - ref_data[low_col]) / (ref_data[high_col] - ref_data[low_col])
+
 normalize(normalized_df, 'init_improvement_perf', merged_df, 'init_policy_perf', 'compare_to_perf')
 normalize(normalized_df, 'final_mem_perf', merged_df, 'init_policy_perf', 'compare_to_perf')
 normalize(normalized_df, 'end_value', merged_df, 'init_policy_perf', 'compare_to_perf')

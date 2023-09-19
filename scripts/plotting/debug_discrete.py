@@ -12,7 +12,7 @@ import pandas as pd
 import seaborn as sns
 
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils import load_info
 from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.discrete_search import generate_hold_mem_fn
@@ -20,7 +20,6 @@ from grl.memory import memory_cross_product
 from definitions import ROOT_DIR
 
 config.update('jax_platform_name', 'cpu')
-
 
 def load_results(pathname):
     all_results = []
@@ -48,8 +47,33 @@ data = data.explode(['accept_probs', 'temps', 'discreps', 'optim_steps'], ignore
 data.tmax.unique()
 subset = data.query('tmax>=1e-2 and tmax<0.3 and tmin <= 1e-6')
 
-sns.relplot(data=subset, x='optim_steps', y='discreps', col='env', col_wrap=4, facet_kws={'sharey': False}, hue='tmin', style='tmax', kind='line', units='seed', estimator=None)
-sns.relplot(data=subset, x='optim_steps', y='discreps', col='env', col_wrap=4, facet_kws={'sharey': False}, hue='tmin', style='tmax', kind='line')
+sns.relplot(data=subset,
+            x='optim_steps',
+            y='discreps',
+            col='env',
+            col_wrap=4,
+            facet_kws={'sharey': False},
+            hue='tmin',
+            style='tmax',
+            kind='line',
+            units='seed',
+            estimator=None)
+sns.relplot(data=subset,
+            x='optim_steps',
+            y='discreps',
+            col='env',
+            col_wrap=4,
+            facet_kws={'sharey': False},
+            hue='tmin',
+            style='tmax',
+            kind='line')
 
-
-sns.relplot(data=data, x='optim_steps', y='discreps', col='env', col_wrap=4, facet_kws={'sharey': False}, hue='tmin', style='tmax', kind='line')
+sns.relplot(data=data,
+            x='optim_steps',
+            y='discreps',
+            col='env',
+            col_wrap=4,
+            facet_kws={'sharey': False},
+            hue='tmin',
+            style='tmax',
+            kind='line')
