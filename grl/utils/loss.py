@@ -317,9 +317,11 @@ def magnitude_td_loss(
     return loss, mc_vals, td_vals
 
 @partial(jit, static_argnames=['value_type', 'error_type', 'lambda_'])
-def value_error(pi: jnp.ndarray, pomdp: POMDP,  # non-state args
-                value_type: str = 'q', error_type: str = 'l2', lambda_: float = 1.0): # initialize static args
-
+def value_error(pi: jnp.ndarray,
+                pomdp: POMDP,
+                value_type: str = 'q',
+                error_type: str = 'l2',
+                lambda_: float = 1.0):
     state_vals, mc_vals, td_vals, info = analytical_pe(pi, pomdp)
     if lambda_ == 0.0:
         obs_vals = td_vals
@@ -329,7 +331,9 @@ def value_error(pi: jnp.ndarray, pomdp: POMDP,  # non-state args
         v_vals, q_vals, _ = lstdq_lambda(pi, pomdp, lambda_=lambda_)
         obs_vals = {'v': v_vals, 'q': q_vals}
 
-    expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T # (a,o) @ (o,s) => (a,s);  (o,) @ (o,s) => (s,)
+    # Expand observation (q-)value function to state (q-)value function
+    # (a,o) @ (o,s) => (a,s);  (o,) @ (o,s) => (s,)
+    expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T
     diff = state_vals - expanded_obs_vals
 
     c_s = info['occupancy']
@@ -348,7 +352,8 @@ def value_error(pi: jnp.ndarray, pomdp: POMDP,  # non-state args
     elif error_type == 'abs':
         unweighted_err = jnp.abs(diff)
     else:
-        raise NotImplementedError(f"error_type {error_type} not implemented yet in value_error fn.")
+        raise NotImplementedError(
+            f"error_type {error_type} not implemented yet in value_error fn.")
 
     weighted_err = weight * unweighted_err
     if value_type == 'q':
