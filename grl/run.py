@@ -7,9 +7,10 @@ import numpy as np
 import jax
 from jax.config import config
 
-from grl.environment import load_spec
+from grl.environment import load_pomdp
 from grl.environment.policy_lib import get_start_pi
 from grl.utils.file_system import results_path, numpyify_and_save
+from grl.memory import get_memory
 from grl.memory_iteration import run_memory_iteration
 
 def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
@@ -45,6 +46,8 @@ if __name__ == '__main__':
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         help='policy improvement algorithm to use. "policy_iter" - policy iteration, "policy_grad" - policy gradient, '
                              '"discrep_max" - discrepancy maximization, "discrep_min" - discrepancy minimization')
+    parser.add_argument('--optimizer', type=str, default='adam',
+                        help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
                         help='Do we initialize our policy to something?')
     parser.add_argument('--use_memory', default=None, type=str,
@@ -53,6 +56,10 @@ if __name__ == '__main__':
                         help='For the leaky identity memory function, how leaky is it?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
+    parser.add_argument('--lambda_0', default=0., type=float,
+                        help='First lambda parameter for lambda-discrep')
+    parser.add_argument('--lambda_1', default=1., type=float,
+                        help='Second lambda parameter for lambda-discrep')
     parser.add_argument('--alpha', default=1., type=float,
                         help='Temperature parameter, for how uniform our lambda-discrep weighting is')
     parser.add_argument('--flip_count_prob', action='store_true',
@@ -62,7 +69,7 @@ if __name__ == '__main__':
     parser.add_argument('--error_type', default='l2', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--objective', default='discrep', type=str,
-                        help='What objective are we trying to optimize? (discrep | magnitude)')
+                        help='What objective are we trying to optimize? (discrep | magnitude | obs_space)')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
@@ -105,52 +112,62 @@ if __name__ == '__main__':
 
     # Run
     # Get POMDP definition
-    spec = load_spec(args.spec,
-                     memory_id=args.use_memory,
-                     n_mem_states=args.n_mem_states,
-                     corridor_length=args.tmaze_corridor_length,
-                     discount=args.tmaze_discount,
-                     junction_up_pi=args.tmaze_junction_up_pi,
-                     epsilon=args.epsilon,
-                     mem_leakiness=args.mem_leakiness)
+    pomdp, pi_dict = load_pomdp(args.spec,
+                                memory_id=args.use_memory,
+                                n_mem_states=args.n_mem_states,
+                                corridor_length=args.tmaze_corridor_length,
+                                discount=args.tmaze_discount,
+                                junction_up_pi=args.tmaze_junction_up_pi,
+                                epsilon=args.epsilon,
+                                mem_leakiness=args.mem_leakiness)
+
+    mem_params = get_memory(args.use_memory,
+                            n_obs=pomdp.observation_space.n,
+                            n_actions=pomdp.action_space.n,
+                            n_mem_states=args.n_mem_states,
+                            leakiness=args.mem_leakiness)
 
     logging.info(f'spec:\n {args.spec}\n')
-    logging.info(f'T:\n {spec["T"]}')
-    logging.info(f'R:\n {spec["R"]}')
-    logging.info(f'gamma: {spec["gamma"]}')
-    logging.info(f'p0:\n {spec["p0"]}')
-    logging.info(f'phi:\n {spec["phi"]}')
+    logging.info(f'T:\n {pomdp.T}')
+    logging.info(f'R:\n {pomdp.R}')
+    logging.info(f'gamma: {pomdp.gamma}')
+    logging.info(f'p0:\n {pomdp.p0}')
+    logging.info(f'phi:\n {pomdp.phi}')
 
-    if 'mem_params' in spec.keys():
-        logging.info(f'mem_params:\n {spec["mem_params"]}')
-    if 'Pi_phi_x' in spec.keys():
-        logging.info(f'Pi_phi_x:\n {spec["Pi_phi_x"]}')
-    if 'Pi_phi' in spec and spec['Pi_phi'] is not None:
-        logging.info(f'Pi_phi:\n {spec["Pi_phi"]}')
+    logging.info(f'mem_params:\n {mem_params}')
+
+    pi_params = None
+    if 'Pi_phi_x' in pi_dict and pi_dict['Pi_phi_x']:
+        logging.info(f'Pi_phi_x:\n {pi_dict["Pi_phi_x"]}')
+    if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
+        logging.info(f'Pi_phi:\n {pi_dict["Pi_phi"]}')
+        if args.init_pi is not None:
+            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'][0])
 
     results_path = results_path(args)
 
-    pi_params = None
-    if args.init_pi is not None:
-        pi_params = get_start_pi(args.init_pi, spec=spec)
-    logs, agent = run_memory_iteration(spec,
-                                       pi_lr=args.lr,
-                                       mi_lr=args.lr,
+    logs, agent = run_memory_iteration(pomdp,
+                                       mem_params,
                                        rand_key=rand_key,
                                        mi_iterations=args.mi_iterations,
                                        policy_optim_alg=args.policy_optim_alg,
+                                       optimizer_str=args.optimizer,
+                                       pi_lr=args.lr,
+                                       mi_lr=args.lr,
                                        mi_steps=args.mi_steps,
                                        pi_steps=args.pi_steps,
                                        value_type=args.value_type,
                                        error_type=args.error_type,
                                        objective=args.objective,
+                                       lambda_0=args.lambda_0,
+                                       lambda_1=args.lambda_1,
                                        alpha=args.alpha,
                                        epsilon=args.epsilon,
                                        pi_params=pi_params,
                                        flip_count_prob=args.flip_count_prob)
 
     info = {'logs': logs, 'args': args.__dict__}
-    agents_dir = results_path.parent / 'agents'
+    agents_dir = results_path.parent / 'agent'
     agents_dir.mkdir(exist_ok=True)
 
     agents_path = agents_dir / f'{results_path.stem}.pkl'

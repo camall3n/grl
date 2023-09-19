@@ -1,16 +1,18 @@
-import numpy as np
-from pathlib import Path
 import inspect
+from pathlib import Path
+from typing import Tuple
 
-from . import examples_lib
-from .memory_lib import get_memory
-from .pomdp_file import POMDPFile
-from grl.utils.math import normalize
+import numpy as np
+
 from definitions import ROOT_DIR
+from grl.environment.pomdp_file import POMDPFile
+from grl.mdp import MDP, POMDP
+from grl.utils.math import normalize
+from . import examples_lib
 
-def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness: float = 0.1, **kwargs):
+def load_spec(name: str, **kwargs):
     """
-    Loads a pre-defined POMDP
+    Loads a pre-defined POMDP specification, as well as policies.
     :param name:            The name of the function or .POMDP file defining the POMDP.
     :param memory_id:       ID of memory function to use.
     :param n_mem_states:    Number of memory states allowed.
@@ -33,7 +35,7 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness:
         kwargs = {k: v for k, v in kwargs.items() if v is not None and k in arg_names}
         spec = spec_fn(**kwargs)
 
-    except AttributeError as _:
+    except AttributeError:
         pass
 
     if spec is None:
@@ -41,8 +43,7 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness:
             file_path = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files', f'{name}.POMDP')
             spec = POMDPFile(file_path).get_spec()
         except FileNotFoundError as _:
-            raise NotImplementedError(
-                f'{name} not found in examples_lib.py nor pomdp_files/') from None
+            raise AttributeError
 
     # Check sizes and types
     if len(spec.keys()) < 6:
@@ -58,13 +59,6 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness:
         if not np.all(len(spec['T']) == np.array([len(spec['R']), len(spec['Pi_phi'][0][0])])):
             raise ValueError("T, R, and Pi_phi must contain the same number of actions")
 
-    if memory_id is not None:
-        spec['mem_params'] = get_memory(memory_id,
-                                        n_obs=spec['phi'].shape[-1],
-                                        n_actions=spec['T'].shape[0],
-                                        n_mem_states=n_mem_states,
-                                        leakiness=mem_leakiness)
-
     # Make sure probs sum to 1
     # e.g. if they are [0.333, 0.333, 0.333], normalizing will do so
     spec['T'] = normalize(spec['T']) # terminal states had all zeros -> nan
@@ -72,3 +66,12 @@ def load_spec(name, memory_id: str = None, n_mem_states: int = 2, mem_leakiness:
     spec['phi'] = normalize(spec['phi'])
 
     return spec
+
+def load_pomdp(name: str, rand_key: np.random.RandomState = None, **kwargs) -> Tuple[POMDP, dict]:
+    """
+    Wraps a MDP/POMDP specification in a POMDP
+    """
+    spec = load_spec(name, rand_key=rand_key, **kwargs)
+    mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'], rand_key=rand_key)
+    pomdp = POMDP(mdp, spec['phi'])
+    return pomdp, {'Pi_phi': spec['Pi_phi'], 'Pi_phi_x': spec['Pi_phi_x']}

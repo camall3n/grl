@@ -31,7 +31,7 @@ def rollout(mdp, s, a, pi, max_steps=None):
         oa_pairs.append((o_t, a_t))
         s_t = next_s
         o_t = next_obs
-        a_t = np.random.choice(mdp.n_actions, p=pi[s_t])
+        a_t = np.random.choice(mdp.action_space.n, p=pi[s_t])
         t += 1
         if max_steps is not None and t >= max_steps:
             break
@@ -56,20 +56,20 @@ def mc(mdp,
         pi_ground = mdp.get_ground_policy(pi)
     else:
         pi_ground = pi
-    if pi_ground.shape[0] != mdp.n_states:
+    if pi_ground.shape[0] != mdp.state_space.n:
         raise ValueError("pi must be a valid policy for the ground mdp")
 
-    if p0 is not None and len(p0) != mdp.n_states:
+    if p0 is not None and len(p0) != mdp.state_space.n:
         raise ValueError("p0 must be a valid distribution over ground states")
 
-    q = [np.zeros(mdp.n_obs) for _ in range(mdp.n_actions)]
+    q = [np.zeros(mdp.observation_space.n) for _ in range(mdp.action_space.n)]
     for i in range(n_steps):
-        s = np.random.choice(mdp.n_states, p=p0)
+        s = np.random.choice(mdp.state_space.n, p=p0)
         # use epsilon-greedy action selection for first state
         if np.random.uniform() > epsilon:
-            a = np.random.choice(mdp.n_actions, p=pi_ground[s])
+            a = np.random.choice(mdp.action_space.n, p=pi_ground[s])
         else:
-            a = np.random.choice(mdp.n_actions)
+            a = np.random.choice(mdp.action_space.n)
         mc_returns = rollout(mdp, s, a, pi_ground, max_rollout_steps)
 
         if i % (n_steps / 10) == 0:

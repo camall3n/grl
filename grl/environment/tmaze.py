@@ -1,4 +1,5 @@
 import numpy as np
+from grl.utils.math import normalize
 
 START_UP = 0
 START_DOWN = 1

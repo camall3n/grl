@@ -3,13 +3,12 @@ import pickle
 
 import numpy as np
 from jax.config import config
-from pathlib import Path
 
-from grl.agents.actorcritic import ActorCritic
+from grl.agent.actorcritic import ActorCritic
 from grl.environment import load_spec
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.policy_eval import lstdq_lambda
-from grl.memory import memory_cross_product
+from grl.memory import memory_cross_product, get_memory
 from scripts.learning_agent.memory_iteration import converge_value_functions, parse_args
 
 np.set_printoptions(precision=3, suppress=True)
@@ -29,19 +28,18 @@ error_type = 'mse'
 
 print(f"Running sample-based and analytical comparison for Q-values on {spec_name}")
 spec = load_spec(spec_name,
-                 memory_id=str(16),
                  corridor_length=corridor_length,
                  discount=discount,
                  junction_up_pi=junction_up_pi,
                  epsilon=epsilon)
 
 mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-env = AbstractMDP(mdp, spec['phi'])
+env = POMDP(mdp, spec['phi'])
 pi = spec['Pi_phi'][0]
 
 agent = ActorCritic(
-    n_obs=env.n_obs,
-    n_actions=env.n_actions,
+    n_obs=env.observation_space.n,
+    n_actions=env.action_space.n,
     gamma=env.gamma,
     lambda_0=args.lambda0,
     lambda_1=args.lambda1,
@@ -58,14 +56,15 @@ agent.set_policy(pi, logits=False)
 agent.add_memory()
 # agent.reset_memory()
 # mem_params = agent.memory_logits
-mem_params = spec['mem_params']
+
+mem_params = get_memory(str(16))
 agent.set_memory(mem_params, logits=True)
 mem_aug_mdp = memory_cross_product(mem_params, env)
 
 # analytical_state_vals, analytical_mc_vals, analytical_td_vals, info = analytical_pe(pi.repeat(2, axis=0), mem_aug_mdp)
 # analytical_state_vals, analytical_mc_vals, analytical_td_vals, info = analytical_pe(pi, env)
-lstd_v0, lstd_q0 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda0)
-lstd_v1, lstd_q1 = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda1)
+lstd_v0, lstd_q0, _ = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda0)
+lstd_v1, lstd_q1, _ = lstdq_lambda(pi.repeat(2, axis=0), mem_aug_mdp, lambda_=args.lambda1)
 
 converge_value_functions(agent, env, args.n_samples_per_policy)
 

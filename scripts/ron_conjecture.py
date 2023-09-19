@@ -2,7 +2,6 @@ import numpy as np
 
 from grl.environment import load_spec
 
-
 spec_name = 'tmaze_5_two_thirds_up'
 lamb = 0
 
@@ -18,17 +17,17 @@ n = Tsas.shape[0]
 pi = spec['Pi_phi'][0]
 
 pis = phi @ pi
-P = np.einsum('ik,ikj->ij',pis, Tsas)
+P = np.einsum('ik,ikj->ij', pis, Tsas)
 
-Rsa = np.einsum('ijl,ijl->ij',Tsas,Rsas)
+Rsa = np.einsum('ijl,ijl->ij', Tsas, Rsas)
 Rpisa = pis * Rsa
-r = np.einsum('ij->i',Rpisa)
+r = np.einsum('ij->i', Rpisa)
 
 I = np.eye(n)
 
 # TODO: this is functional_get_occupancy
-mu = np.linalg.inv(I-gamma*P.T) @ s0
-mu = mu/np.sum(mu)
+mu = np.linalg.inv(I - gamma * P.T) @ s0
+mu = mu / np.sum(mu)
 
 D_mu = np.diag(mu)
 Pi_D_mu = phi @ np.linalg.inv(phi.T @ D_mu @ phi) @ phi.T @ D_mu
@@ -36,7 +35,6 @@ Pi_D_mu = phi @ np.linalg.inv(phi.T @ D_mu @ phi) @ phi.T @ D_mu
 A = phi.T @ D_mu @ (I - gamma * P) @ np.linalg.inv(I - gamma * lamb * P) @ phi
 b = phi.T @ D_mu @ np.linalg.inv(I - gamma * lamb * P) @ r
 V_LSTD_lamb = phi @ np.linalg.inv(A) @ b
-
 
 def bellman(v):
     return r + gamma * P @ v

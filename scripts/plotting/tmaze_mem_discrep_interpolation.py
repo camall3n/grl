@@ -13,10 +13,7 @@ res_list = np.load(data_path, allow_pickle=True).tolist()
 # %%
 list_for_df = []
 for res in res_list:
-    indv_res = {
-        'fuzz': res['fuzz'].item(),
-        'discrep': res['discrep'].item()
-    }
+    indv_res = {'fuzz': res['fuzz'].item(), 'discrep': res['discrep'].item()}
     list_for_df.append(indv_res)
 
 df = pd.DataFrame(list_for_df)

@@ -1,6 +1,4 @@
 import copy
-from functools import partial
-from itertools import repeat
 import math
 from multiprocessing import Pool, freeze_support
 import os
@@ -15,10 +13,10 @@ import optuna
 from optuna.storages import JournalStorage, JournalFileStorage
 from tqdm import tqdm
 
-from grl.agents.td_lambda import TDLambdaQFunction
-from grl.agents.replaymemory import ReplayMemory
 from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
 from grl.utils.loss import mem_discrep_loss
+from grl.agent.td_lambda import TDLambdaQFunction
+from grl.utils.replaymemory import ReplayMemory
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful

@@ -4,25 +4,25 @@ from typing import Union
 from jax import jit
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 
 @jit
-def analytical_pe(pi_obs: jnp.ndarray, amdp: AbstractMDP):
+def analytical_pe(pi_obs: jnp.ndarray, pomdp: POMDP):
     # observation policy, but expanded over states
-    pi_state = amdp.phi @ pi_obs
+    pi_state = pomdp.phi @ pi_obs
 
     # MC*
-    state_v, state_q = functional_solve_mdp(pi_state, amdp)
+    state_v, state_q = functional_solve_mdp(pi_state, pomdp)
     state_vals = {'v': state_v, 'q': state_q}
 
-    occupancy = functional_get_occupancy(pi_state, amdp)
+    occupancy = functional_get_occupancy(pi_state, pomdp)
 
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy)
-    mc_vals = functional_solve_amdp(state_q, p_pi_of_s_given_o, pi_obs)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy)
+    mc_vals = functional_solve_pomdp(state_q, p_pi_of_s_given_o, pi_obs)
 
     # TD
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, amdp)
-    td_model = MDP(T_obs_obs, R_obs_obs, amdp.p0 @ amdp.phi, gamma=amdp.gamma)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, pomdp)
+    td_model = MDP(T_obs_obs, R_obs_obs, pomdp.p0 @ pomdp.phi, gamma=pomdp.gamma)
     td_v_vals, td_q_vals = functional_solve_mdp(pi_obs, td_model)
     td_vals = {'v': td_v_vals, 'q': td_q_vals}
 
@@ -33,7 +33,7 @@ def analytical_pe(pi_obs: jnp.ndarray, amdp: AbstractMDP):
     }
 
 @jit
-def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
+def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, POMDP]):
     """
     Solves for V using linear equations.
     For all s, V_pi(s) = sum_s' sum_a[T(s'|s,a) * pi(a|s) * (R(s,a,s') + gamma * V_pi(s'))]
@@ -45,7 +45,7 @@ def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
     # A*V_pi(s) = b
     # A = (I - \gamma (T^π))
     # b = R^π
-    A = (jnp.eye(mdp.T.shape[-1]) - mdp.gamma * T_pi)
+    A = (jnp.eye(mdp.state_space.n) - mdp.gamma * T_pi)
     b = R_pi
     v_vals = jnp.linalg.solve(A, b)
 
@@ -55,18 +55,18 @@ def functional_solve_mdp(pi: jnp.ndarray, mdp: Union[MDP, AbstractMDP]):
     return v_vals, q_vals
 
 @jit
-def functional_solve_amdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
-                          pi_abs: jnp.ndarray):
+def functional_solve_pomdp(mdp_q_vals: jnp.ndarray, p_pi_of_s_given_o: jnp.ndarray,
+                           pi_abs: jnp.ndarray):
     # Q vals
-    amdp_q_vals = mdp_q_vals @ p_pi_of_s_given_o
+    pomdp_q_vals = mdp_q_vals @ p_pi_of_s_given_o
 
     # V vals
-    amdp_v_vals = (amdp_q_vals * pi_abs.T).sum(0)
+    pomdp_v_vals = (pomdp_q_vals * pi_abs.T).sum(0)
 
-    return {'v': amdp_v_vals, 'q': amdp_q_vals}
+    return {'v': pomdp_v_vals, 'q': pomdp_q_vals}
 
 @partial(jit, static_argnames='lambda_')
-def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float = 0.9):
+def lstdq_lambda(pi: jnp.ndarray, pomdp: Union[MDP, POMDP], lambda_: float = 0.9):
     """Solve for V, Q using LSTD(λ)
 
     For the definition of LSTD(λ) see https://arxiv.org/pdf/1405.3229.pdf
@@ -74,18 +74,18 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     We replace state features with state-action features as described in section 2 of
     https://arxiv.org/pdf/1511.08495.pdf
     """
-    T_ass = amdp.T
-    R_ass = amdp.R
+    T_ass = pomdp.T
+    R_ass = pomdp.R
 
     a, s, _ = T_ass.shape
-    phi = amdp.phi if hasattr(amdp, 'phi') else jnp.eye(s)
+    phi = pomdp.phi if hasattr(pomdp, 'phi') else jnp.eye(s)
 
     o = phi.shape[1]
     sa = s * a
     oa = o * a
 
-    gamma = amdp.gamma
-    s0 = amdp.p0
+    gamma = pomdp.gamma
+    s0 = pomdp.p0
 
     pi_sa = phi @ pi
 
@@ -100,7 +100,7 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
 
     # Compute the state-action distribution as a diagonal matrix
     I = jnp.eye(sa)
-    occupancy_as = jnp.linalg.inv(I - gamma * P_as_as.T) @ as_0
+    occupancy_as = jnp.linalg.solve((I - gamma * P_as_as.T), as_0)
     mu = occupancy_as / jnp.sum(occupancy_as)
     D_mu = jnp.diag(mu)
 
@@ -112,19 +112,20 @@ def lstdq_lambda(pi: jnp.ndarray, amdp: Union[MDP, AbstractMDP], lambda_: float 
     #
     # See section 2 of https://arxiv.org/pdf/1511.08495.pdf
     D_eps_ao = 1e-10 * jnp.eye(oa)
-    A = (phi_as_ao.T @ D_mu @ (I - gamma * P_as_as) @ jnp.linalg.inv(I - gamma * lambda_ * P_as_as)
-         @ phi_as_ao)
-    b = phi_as_ao.T @ D_mu @ jnp.linalg.inv(I - gamma * lambda_ * P_as_as) @ R_as
-    Q_LSTD_lamb_as = (phi_as_ao @ jnp.linalg.inv(A + D_eps_ao) @ b).reshape((a, s))
+    phi_D_mu = phi_as_ao.T @ D_mu
+    A = (phi_D_mu @ (I - gamma * P_as_as) @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as,
+                                                             phi_as_ao))
+    b = phi_D_mu @ jnp.linalg.solve(I - gamma * lambda_ * P_as_as, R_as)
+    Q_LSTD_lamb_as = (phi_as_ao @ jnp.linalg.solve(A + D_eps_ao, b)).reshape((a, s))
 
     # Compute V(s)
     V_LSTD_lamb_s = jnp.einsum('ij,ji->j', Q_LSTD_lamb_as, pi_sa)
 
     # Convert from states to observations
     occupancy_s = occupancy_as.reshape((a, s)).sum(0)
-    p_pi_of_s_given_o = get_p_s_given_o(amdp.phi, occupancy_s)
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy_s)
 
     Q_LSTD_lamb_ao = Q_LSTD_lamb_as @ p_pi_of_s_given_o
     V_LSTD_lamb_o = V_LSTD_lamb_s @ p_pi_of_s_given_o
 
-    return V_LSTD_lamb_o, Q_LSTD_lamb_ao
+    return V_LSTD_lamb_o, Q_LSTD_lamb_ao, {'occupancy': occupancy_s}

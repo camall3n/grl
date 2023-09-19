@@ -8,7 +8,7 @@ hparams = {
         'spec': 'tmaze_hyperparams',
         'tmaze_corridor_length': 5,
         'tmaze_discount': 0.9,
-        'tmaze_junction_up_pi': 2/3,
+        'tmaze_junction_up_pi': 2 / 3,
         'epsilon': 0.,
         'method': 'a',
         'use_memory': 0,

@@ -13,14 +13,15 @@ import pandas as pd
 import seaborn as sns
 
 from grl import environment
-from grl.mdp import AbstractMDP, MDP
-from grl.agents.actorcritic import ActorCritic
-from grl.environment.memory_lib import get_memory
+from grl.mdp import POMDP, MDP
+from grl.agent.actorcritic import ActorCritic
+from grl.memory.lib import get_memory
 
 #%%
 summary_filepath = 'results/sample_based/exp12-tmaze_2_two_thirds_up-summary.pkl'
 data = pd.read_pickle(summary_filepath)
-samples = np.concatenate((np.array(data['mem_coords'].tolist()), data['value'].to_numpy().reshape(-1,1)), axis=-1)
+samples = np.concatenate(
+    (np.array(data['mem_coords'].tolist()), data['value'].to_numpy().reshape(-1, 1)), axis=-1)
 df_sampled = pd.DataFrame(data=samples, columns=['y', 'p1', 'p2', 'D'])
 
 #%%
@@ -37,17 +38,17 @@ def plot_optimization_surface(df, y_range=[0, 0.05], ax=None):
     z = frame_data['D'].to_numpy()
     if ax is None:
         fig, ax = plt.subplots()
-    ax.tricontourf(x,y,z, levels=np.linspace(vmin, vmax, 10), vmin=vmin, vmax=vmax)
+    ax.tricontourf(x, y, z, levels=np.linspace(vmin, vmax, 10), vmin=vmin, vmax=vmax)
     ax.tick_params(axis='both', which='both', direction='in', labelcolor='w')
     ax.set_xlabel("$p1$")
     ax.set_ylabel("$p2$")
     ax.set_title(f"$y \in [{','.join(map(str, np.array(y_range).round(2)))}]$")
-    ax.set_xlim([0,1])
-    ax.set_ylim([0,1])
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
     ax.axis('square')
 
 def plot_surface_slices(df):
-    fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(12,12))
+    fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(12, 12))
     y_bins = np.linspace(0, 1, 10)
     for ax, ymin, ymax in zip(axes.flatten(), y_bins[:-1], y_bins[1:]):
         try:
@@ -79,8 +80,8 @@ for i in range(D.shape[-1]):
     fig = Figure()
     canvas = FigureCanvas(fig)
     ax = fig.gca()
-    ax.contourf(p1[:,:,0], p2[:,:,0], D[:,:,i], levels=np.linspace(vmin, vmax, 20))
-    canvas.draw()       # draw the canvas, cache the renderer
+    ax.contourf(p1[:, :, 0], p2[:, :, 0], D[:, :, i], levels=np.linspace(vmin, vmax, 20))
+    canvas.draw() # draw the canvas, cache the renderer
     # image = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')
     width, height = fig.get_size_inches() * fig.get_dpi()
     image = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
@@ -89,7 +90,8 @@ imageio.mimwrite('foo.mp4', frames)
 
 #%%
 x, y = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
-z =  3*(1-x)**2*np.exp(-(x**2) - (y+1)**2) - 10*(x/5 - x**3 - y**5)*np.exp(-x**2-y**2) - 1/3*np.exp(-(x+1)**2 - y**2)
-plt.contourf(x,y,z, levels=20)
+z = 3 * (1 - x)**2 * np.exp(-(x**2) - (y + 1)**2) - 10 * (
+    x / 5 - x**3 - y**5) * np.exp(-x**2 - y**2) - 1 / 3 * np.exp(-(x + 1)**2 - y**2)
+plt.contourf(x, y, z, levels=20)
 
 sns.kdeplot(data=df, x='y', clip=[0, 1])

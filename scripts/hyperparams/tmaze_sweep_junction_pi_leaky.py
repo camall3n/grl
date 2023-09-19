@@ -8,7 +8,7 @@ hparams = {
         'tmaze_corridor_length': 5,
         'tmaze_discount': 0.9,
         'tmaze_junction_up_pi': np.linspace(0, 0.5, num=13),
-        'use_memory': 'f',
+        'use_memory': 'fuzzy',
         'mem_leakiness': np.linspace(0, 0.5, num=10),
         'value_type': 'q',
         'alpha': 1.,

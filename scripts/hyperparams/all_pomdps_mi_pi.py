@@ -1,18 +1,20 @@
+from pathlib import Path
+
+exp_name = Path(__file__).stem
+
 hparams = {
     'file_name':
-        'runs_all_pomdps_mi_pi.txt',
+        f'runs_{exp_name}.txt',
     'args': [{
         'spec': [
-            'tiger-alt-start', 'network'
-            'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95', 'network',
-            'shuttle.95',
-            'paint.95'
-            # 'bridge-repair',
+            'tiger-alt-start', 'network', 'tmaze_5_two_thirds_up', 'example_7', '4x3.95',
+            'cheese.95', 'network', 'shuttle.95', 'paint.95'
             # 'hallway'
+            # 'bridge-repair',
         ],
         'policy_optim_alg': 'policy_iter',
         'value_type': 'q',
-        'error_type': 'abs',
+        'error_type': 'l2',
         'method': 'a',
         'mi_steps': 400000,
         'pi_steps': 400000,

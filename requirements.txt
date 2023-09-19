@@ -1,10 +1,12 @@
 numpy
+gymnasium
 gmpy2
 jax[cpu]
+flax==0.6.10
+optax
 seaborn
 matplotlib
 -e .
 tqdm
-onager
+git+https://github.com/camall3n/onager.git
 optuna==3.1.0
-

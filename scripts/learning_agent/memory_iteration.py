@@ -8,8 +8,8 @@ import numpy as np
 from tqdm import tqdm
 
 from grl import environment
-from grl.agents.actorcritic import ActorCritic
-from grl.mdp import AbstractMDP, MDP
+from grl.agent.actorcritic import ActorCritic
+from grl.mdp import POMDP, MDP
 from grl.memory import memory_cross_product
 from grl.utils.file_system import numpyify_and_save
 from grl.utils.policy_eval import lstdq_lambda
@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--policy_epsilon', type=float, default=0.1)
     parser.add_argument('--lambda0', type=float, default=0.0)
-    parser.add_argument('--lambda1', type=float, default=0.99)
+    parser.add_argument('--lambda1', type=float, default=0.99999)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--trial_id', default=1)
     parser.add_argument('--seed', type=int, default=42)
@@ -55,11 +55,11 @@ def parse_args():
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)
-    parser.add_argument('--n_samples_per_policy', type=cast_as_int, default=1e7)
-    parser.add_argument('--min_mem_opt_replay_size', type=cast_as_int, default=1e7,
+    parser.add_argument('--n_samples_per_policy', type=int, default=2e6)
+    parser.add_argument('--min_mem_opt_replay_size', type=int, default=2e6,
         help="Minimum number of experiences in replay buffer for memory optimization")
     # parser.add_argument('--use_min_replay_num_samples', action='store_true')
-    parser.add_argument('--replay_buffer_size', type=cast_as_int, default=2e7)
+    parser.add_argument('--replay_buffer_size', type=cast_as_int, default=4e6)
     parser.add_argument('--mellowmax_beta', type=float, default=50.)
     parser.add_argument('--use_existing_study', action='store_true')
     parser.add_argument('--discrep_loss', type=str, default='mse', choices=['abs', 'mse'])
@@ -176,14 +176,14 @@ def get_n_workers(n_tasks, args):
         n_workers = min(n_workers, args.max_jobs)
     return n_workers
 
-def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
+def log_info(agent: ActorCritic, pomdp: POMDP) -> dict:
     pi = agent.policy_probs
     info = {'lambda_0': agent.lambda_0, 'lambda_1': agent.lambda_1, 'policy_probs': pi.copy()}
 
     sample_based_info = {'q0': agent.q_td.q, 'q1': agent.q_mc.q}
 
     if agent.n_mem_entries > 0:
-        amdp = memory_cross_product(agent.memory_logits, amdp)
+        pomdp = memory_cross_product(agent.memory_logits, pomdp)
         info['memory_probs'] = agent.memory_probs.copy()
 
         # save previous memory, reset and step through all obs and actions
@@ -198,8 +198,8 @@ def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
         sample_based_info['discrepancy_loss'] = agent.compute_discrepancy_loss(
             all_obs, all_actions, memories)
 
-    lstd_v0, lstd_q0 = lstdq_lambda(pi, amdp, lambda_=agent.lambda_0)
-    lstd_v1, lstd_q1 = lstdq_lambda(pi, amdp, lambda_=agent.lambda_1)
+    lstd_v0, lstd_q0, _ = lstdq_lambda(pi, pomdp, lambda_=agent.lambda_0)
+    lstd_v1, lstd_q1, _ = lstdq_lambda(pi, pomdp, lambda_=agent.lambda_1)
     analytical_info = {'q0': lstd_q0, 'q1': lstd_q1}
 
     info['sample_based'] = sample_based_info
@@ -207,8 +207,8 @@ def log_info(agent: ActorCritic, amdp: AbstractMDP) -> dict:
 
     return info
 
-def log_and_save_info(agent: ActorCritic, amdp: AbstractMDP, save_path: Union[Path, str]):
-    info = log_info(agent, amdp)
+def log_and_save_info(agent: ActorCritic, pomdp: POMDP, save_path: Union[Path, str]):
+    info = log_info(agent, pomdp)
     numpyify_and_save(save_path, info)
 
 def main():
@@ -222,15 +222,15 @@ def main():
     #     args.min_mem_opt_replay_size = args.replay_buffer_size
     spec = environment.load_spec(args.env, memory_id=None)
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    env = AbstractMDP(mdp, spec['phi'])
+    env = POMDP(mdp, spec['phi'])
 
     reward_scale = args.reward_scale
     if args.normalize_reward_range and args.env in reward_range_dict:
         reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
 
     agent = ActorCritic(
-        n_obs=env.n_obs,
-        n_actions=env.n_actions,
+        n_obs=env.observation_space.n,
+        n_actions=env.action_space.n,
         gamma=env.gamma,
         n_mem_entries=0,
         policy_epsilon=args.policy_epsilon,
@@ -262,13 +262,7 @@ def main():
 
     initial_policy_history = None
     if not args.load_policy:
-        initial_policy_history = optimize_policy(
-            agent,
-            env,
-            args.n_policy_iterations,
-            args.n_samples_per_policy,
-            reward_scale=reward_scale,
-        )
+        optimize_policy(agent, env, args=args)
 
     agent.add_memory()
     agent.reset_memory()
@@ -339,7 +333,7 @@ def main():
     np.save(agent.study_dir + '/policy.npy', agent.policy_probs)
     np.save(agent.study_dir + '/q_mc.npy', agent.q_mc.q)
     np.save(agent.study_dir + '/q_td.npy', agent.q_td.q)
-    info = {
+    info.update({
         'final_params': agent.memory_logits,
         'initial_discrep': discrep_start,
         'final_discrep': optim_results['best_discrep'],
@@ -352,7 +346,7 @@ def main():
             '1': agent.q_mc.q.copy()
         },
         'policy_epsilon': args.policy_epsilon,
-    }
+    })
     np.save(agent.study_dir + '/info.npy', info)
 
 if __name__ == '__main__':

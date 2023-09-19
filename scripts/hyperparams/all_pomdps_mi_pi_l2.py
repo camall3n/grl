@@ -4,10 +4,8 @@ hparams = {
     'args': [{
         'algo': 'mi',
         'spec': [
-            'tiger-alt-start', 'network',
-            'tmaze_5_two_thirds_up', 'example_7', '4x3.95', 'cheese.95',
-            'shuttle.95',
-            'paint.95'
+            'tiger-alt-start', 'network', 'tmaze_5_two_thirds_up', 'example_7', '4x3.95',
+            'cheese.95', 'shuttle.95', 'paint.95'
             # 'bridge-repair',
             # 'hallway'
         ],

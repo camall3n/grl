@@ -84,7 +84,7 @@ def arg_mellowmax(
     axis_last = np.moveaxis(x, axis, -1)
     mm = mellowmax(axis_last, beta=beta, axis=-1)
     batch_adv = axis_last - np.broadcast_to(np.expand_dims(mm, -1), axis_last.shape)
-    batch_beta = np.empty(mm.shape, dtype=np.float32)
+    batch_beta = np.empty(mm.shape, dtype=float)
 
     # Beta is computed as the root of this function
     def f(y, adv):
@@ -101,3 +101,6 @@ def arg_mellowmax(
 
     softmax_last = softmax(np.expand_dims(np.asarray(batch_beta), -1) * axis_last, axis=-1)
     return np.moveaxis(softmax_last, -1, axis)
+
+def euclidian_dist(arr1: np.ndarray, arr2: np.ndarray):
+    return jnp.linalg.norm(arr1 - arr2, 2)

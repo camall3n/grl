@@ -7,6 +7,7 @@ import numpy as np
 from jax.config import config
 from jax.nn import softmax
 from pathlib import Path
+
 config.update('jax_platform_name', 'cpu')
 
 from grl.utils import load_info
@@ -19,7 +20,6 @@ args_to_extract = ['spec', 'algo', 'n_mem_states', 'flip_count_prob', 'alpha', '
 group_by_args = [arg for arg in args_to_extract if arg != 'seed']
 # %% codecell
 results_path = list(results_dir.iterdir())[40]
-
 
 info = load_info(results_path)
 
@@ -67,7 +67,7 @@ for results_path in list(results_dir.iterdir()):
         continue
 
     info = load_info(results_path)
-    agent_path = Path(results_path.parent, 'agents', f"{results_path.stem}.pkl.npy")
+    agent_path = Path(results_path.parent, 'agent', f"{results_path.stem}.pkl.npy")
     agent = load_info(agent_path)
 
     args = info['args']
@@ -98,22 +98,22 @@ df = pd.DataFrame(list_for_df)
 df.groupby(group_by_args).mean()
 # %% codecell
 
-g = sns.relplot(
-    data=df,
-    x='alpha', y='is_optimal', col='flip_count_prob',
-    kind='line',
-    facet_kws={'sharex': False}
-)
+g = sns.relplot(data=df,
+                x='alpha',
+                y='is_optimal',
+                col='flip_count_prob',
+                kind='line',
+                facet_kws={'sharex': False})
 g.set(yscale='log')
 g.axes[0, 1].invert_xaxis()
 
 # %%
 
-g = sns.relplot(
-    data=df,
-    x='alpha', y='final_mem_discrep', col='flip_count_prob',
-    kind='line',
-    facet_kws={'sharex': False}
-)
+g = sns.relplot(data=df,
+                x='alpha',
+                y='final_mem_discrep',
+                col='flip_count_prob',
+                kind='line',
+                facet_kws={'sharex': False})
 g.set(yscale='log')
 g.axes[0, 1].invert_xaxis()

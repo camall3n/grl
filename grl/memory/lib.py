@@ -1,15 +1,9 @@
-import numpy as np
 from itertools import product
 
+import numpy as np
+from tqdm import tqdm
+
 from grl.utils.math import glorot_init, reverse_softmax
-"""
-1 bit memory functions with three obs: r, b, t
-and 2 actions: up, down
-
-Dimensions: AxZxMxM
-
-"f" - fuzzy identity memory function
-"""
 
 def get_memory(memory_id: str,
                n_obs: int = None,
@@ -30,7 +24,7 @@ def get_memory(memory_id: str,
                 mem_params = reverse_softmax(T_mem)
             else:
                 raise NotImplementedError(f'{mem_name} not found in memory_lib.py') from None
-    elif memory_id == 'f':
+    elif memory_id == 'fuzzy':
         assert (n_obs is not None) and (n_actions is not None), \
             f"Either arguments n_obs and n_actions cannot be None for glorot_init. Got {n_obs} and {n_actions} respectively."
         identity = np.eye(n_mem_states)
@@ -44,12 +38,74 @@ def get_memory(memory_id: str,
         raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
 
+def generate_1bit_mem_fns(n_obs, n_actions):
+    """
+    Generates all possible deterministic 1 bit memory functions with given number of obs and actions.
+    There are M^(MZA) memory functions.
+    1 bit means M=2.
+
+    Example:
+    For 2 obs (r, b) and 2 actions (up, down), binary_mp=10011000 looks like:
+
+    m o_a    mp
+    -----------
+    0 r_up   1
+    0 r_down 0
+    0 b_up   0
+    0 b_down 1
+    1 r_up   1
+    1 r_down 0
+    1 b_up   0
+    1 b_down 0
+
+    """
+    # TODO: add tests
+    n_mem_states = 2
+    fns = []
+
+    MZA = n_mem_states * n_obs * n_actions
+    for i in tqdm(range(n_mem_states**(MZA))):
+        T_mem = generate_mem_fn(i, n_mem_states, n_obs, n_actions)
+        fns.append(T_mem)
+
+    return fns
+
+def generate_mem_fn(mem_fn_id, n_mem_states, n_obs, n_actions):
+    """Generate the AxZxMxM memory function transition matrix for the given
+    mem_fn_id and sizes.
+
+    :param mem_fn_id: a decimal number whose binary representation is m'
+    """
+
+    MZA = n_mem_states * n_obs * n_actions
+    n_valid_mem_fns = n_mem_states**MZA
+    if mem_fn_id is not None and (mem_fn_id >= n_valid_mem_fns or mem_fn_id < 0):
+        raise ValueError(f'Unknown mem_fn_id: {mem_fn_id}')
+
+    binary_mp = format(mem_fn_id, 'b').zfill(MZA)
+    T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+    for m in range(n_mem_states):
+        for ob in range(n_obs):
+            for a in range(n_actions):
+                mp = int(binary_mp[m * n_obs * n_actions + ob * n_actions + a])
+                T_mem[a, ob, m, mp] = 1
+    return T_mem
+
 def all_n_state_deterministic_memory(n_mem_states: int):
     id = np.eye(n_mem_states)
     idxes = [list(range(n_mem_states))]
     all_idxes = list(product(*(n_mem_states * idxes)))
     all_mem_funcs = id[all_idxes]
     return all_mem_funcs
+
+"""
+1 bit memory functions with three obs: r, b, t
+and 2 actions: up, down
+
+Dimensions: AxZxMxM
+
+"f" - fuzzy identity memory function
+"""
 
 mem_1 = np.array([
     [ # red
@@ -343,3 +399,5 @@ mem_18 = np.array([
     ],
 ])
 memory_18 = np.array([mem_18, mem_18, mem_18, mem_18]) # up, down, right, left
+
+memory_19 = np.zeros_like(memory_18) + 1 / memory_18.shape[-1]

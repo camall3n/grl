@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.environment import load_spec
 from grl.utils.loss import discrep_loss
 
@@ -13,7 +13,7 @@ def heatmap(spec: dict, error_type: str = 'l2', num_ticks: int = 5):
     (Currently have to adjust discrep_type and num_ticks above directly)
     """
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     # Run for both v and q
     value_types = ['v', 'q']
@@ -46,12 +46,15 @@ def heatmap(spec: dict, error_type: str = 'l2', num_ticks: int = 5):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec',
+                        default='example_11',
+                        type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
-    parser.add_argument('--error_type', default='l2', type=str,
+    parser.add_argument('--error_type',
+                        default='l2',
+                        type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
-    parser.add_argument('--num_ticks', default=5, type=int,
-                        help='Number of ticks in our heatmap')
+    parser.add_argument('--num_ticks', default=5, type=int, help='Number of ticks in our heatmap')
 
     global args
     args = parser.parse_args()

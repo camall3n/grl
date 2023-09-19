@@ -6,9 +6,9 @@ from jax.config import config
 config.update('jax_platform_name', 'cpu')
 
 from grl import load_spec, RTOL
-from grl.agents.analytical import AnalyticalAgent
+from grl.agent.analytical import AnalyticalAgent
 from grl.memory_iteration import memory_iteration
-from grl.mdp import MDP, AbstractMDP
+from grl.mdp import MDP, POMDP
 from grl.utils.math import reverse_softmax
 
 def test_example_7_p():
@@ -17,7 +17,7 @@ def test_example_7_p():
     """
     spec = load_spec('example_7')
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
     rand_key = random.PRNGKey(2020)
 
     pi_known = np.array([
@@ -32,12 +32,18 @@ def test_example_7_p():
                             error_type='l2',
                             value_type='q',
                             policy_optim_alg='discrep_min',
+                            pi_lr=0.001,
                             alpha=1.)
-    info, agent = memory_iteration(agent, amdp, mi_iterations=1, mi_per_step=0,
-                                   pi_per_step=int(5e4), init_pi_improvement=False)
+    info, agent = memory_iteration(agent,
+                                   pomdp,
+                                   mi_iterations=1,
+                                   mi_per_step=0,
+                                   pi_per_step=int(1e3),
+                                   init_pi_improvement=False)
     final_lambda_discrep_min_policy = softmax(info['final_discrep_min_pi_params'], axis=-1)
 
-    assert np.allclose(pi_known[0], final_lambda_discrep_min_policy[0], rtol=RTOL) # just assert the red obs policy
+    assert np.allclose(pi_known[0], final_lambda_discrep_min_policy[0],
+                       rtol=RTOL) # just assert the red obs policy
 
 def test_example_7_m():
     """
@@ -65,10 +71,10 @@ def test_example_7_m():
     memory_start[memory_start == 0] += 1e-5
     memory_start[1, 0, 0] -= 1e-2
     memory_start[1, 0, 1] += 1e-2
-    spec['mem_params'] = np.log(np.array([memory_start, memory_start]))
+    mem_params = np.log(np.array([memory_start, memory_start]))
 
     mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    amdp = AbstractMDP(mdp, spec['phi'])
+    pomdp = POMDP(mdp, spec['phi'])
 
     memory_end = np.array([
         [ # red
@@ -92,16 +98,23 @@ def test_example_7_m():
         [1, 0],
         [1, 0],
     ])
-    agent = AnalyticalAgent(reverse_softmax(pi),
-                            rand_key,
-                            mem_params=spec['mem_params'],
-                            error_type='l2',
-                            value_type='q',
-                            alpha=1.)
-    info, agent = memory_iteration(agent, amdp, mi_iterations=1, pi_per_step=0,
-                                   mi_per_step=int(5e4), init_pi_improvement=False)
+    agent = AnalyticalAgent(
+        reverse_softmax(pi),
+        rand_key,
+        optim_str='sgd',
+        mem_params=mem_params,
+        error_type='l2',
+        value_type='q',
+        # mi_lr=0.001,
+        alpha=1.)
+    info, agent = memory_iteration(agent,
+                                   pomdp,
+                                   mi_iterations=1,
+                                   pi_per_step=0,
+                                   mi_per_step=int(5e4),
+                                   init_pi_improvement=False)
 
     assert np.allclose(memory_end, agent.memory, atol=1e-2)
 
 if __name__ == "__main__":
-    test_example_7_p()
+    test_example_7_m()

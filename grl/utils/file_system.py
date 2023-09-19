@@ -14,8 +14,8 @@ def results_path(args: Namespace):
     args_hash = make_hash_md5(args.__dict__)
     time_str = time.strftime("%Y%m%d-%H%M%S")
 
-    if args.experiment_name is not None:
-        results_dir /= args.experiment_name
+    if args.study_name is not None:
+        results_dir /= args.study_name
     results_dir.mkdir(exist_ok=True)
     results_path = results_dir / f"{args.spec}_seed({args.seed})_time({time_str})_{args_hash}.npy"
     return results_path
@@ -31,7 +31,7 @@ def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
     elif isinstance(info, list):
         return [numpyify_dict(i) for i in info]
     elif isinstance(info, tuple):
-        return (numpyify_dict(i) for i in info)
+        return tuple(numpyify_dict(i) for i in info)
 
     return info
 
@@ -50,7 +50,7 @@ def make_hashable(o):
         return tuple((make_hashable(e) for e in o))
 
     if isinstance(o, dict):
-        return tuple(sorted((k,make_hashable(v)) for k,v in o.items()))
+        return tuple(sorted((k, make_hashable(v)) for k, v in o.items()))
 
     if isinstance(o, (set, frozenset)):
         return tuple(sorted(make_hashable(e) for e in o))
