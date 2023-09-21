@@ -39,7 +39,15 @@ class TDLambdaQFunction:
     def _reset_eligibility(self):
         self.eligibility = np.zeros((self.n_actions, self.n_obs))
 
-    def update(self, obs, action, reward, terminal, next_obs, next_action):
+    def update(self,
+               obs,
+               action,
+               reward,
+               terminal,
+               next_obs,
+               next_action,
+               aug_obs=None,
+               next_aug_obs=None):
         # Because mdp.step() terminates with probability (1-γ),
         # we have already factored in the γ that we would normally
         # use to decay the eligibility.
@@ -50,6 +58,11 @@ class TDLambdaQFunction:
         # probability γ.
         #
         # Thus we simply decay eligibility by λ.
+        if aug_obs is not None:
+            obs = aug_obs
+        if next_aug_obs is not None:
+            next_obs = next_aug_obs
+
         self.eligibility *= self.lambda_
         if self.trace_type == 'accumulating':
             self.eligibility[action, obs] += 1
@@ -84,7 +97,7 @@ def run_td_lambda_on_mdp(
     alpha=1,
     n_episodes=1000,
 ):
-    # If AMDP, convert to pi_ground
+    # If POMDP, convert to pi_ground
     if hasattr(mdp, 'phi'):
         pi_ground = mdp.get_ground_policy(pi)
     else:

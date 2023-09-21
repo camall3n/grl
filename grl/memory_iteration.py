@@ -212,7 +212,7 @@ def memory_iteration(
             print(f"Learnt memory for iteration {mem_it}: \n"
                   f"{agent.memory}")
 
-            # Make a NEW memory AMDP
+            # Make a NEW memory POMDP
             pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
         if pi_per_step > 0:
@@ -275,7 +275,10 @@ def pi_improvement(agent: AnalyticalAgent,
     if progress_bar:
         to_iterate = trange(iterations)
     for it in to_iterate:
+        old_policy = agent.pi_params.copy()
         output = agent.policy_improvement(pomdp)
+        new_policy = agent.pi_params
+        did_change = not np.allclose(old_policy, new_policy, atol=0.01)
         if it % log_every == 0:
             if agent.policy_optim_alg == 'policy_grad':
                 print(f"initial state value for iteration {it}: {output['v_0'].item():.4f}")
@@ -283,6 +286,8 @@ def pi_improvement(agent: AnalyticalAgent,
                 print(f"discrep for pi iteration {it}: {output['loss'].item():.4f}")
             # elif agent.policy_optim_alg == 'policy_iter':
             #     outputs.append(output)
+        if not did_change:
+            break
     return output
 
 def mem_improvement(agent: AnalyticalAgent,

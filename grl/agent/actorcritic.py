@@ -1,4 +1,5 @@
 import copy
+import math
 from multiprocessing import Pool, freeze_support
 import os
 import shutil
@@ -10,13 +11,16 @@ from scipy.special import softmax
 import numpy as np
 import optuna
 from optuna.storages import JournalStorage, JournalFileStorage
+from tqdm import tqdm
 
+from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
+from grl.utils.loss import mem_discrep_loss
 from grl.agent.td_lambda import TDLambdaQFunction
 from grl.utils.replaymemory import ReplayMemory
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
 from grl.utils.math import glorot_init as normal_init
 from grl.utils.optuna import until_successful
-from grl.utils.loss import mem_discrep_loss
+from grl.utils.priorityqueue import PriorityQueue
 
 class ActorCritic:
     def __init__(
@@ -33,11 +37,20 @@ class ActorCritic:
         policy_epsilon: float = 0.10,
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
+        mem_optimizer='queue', # [queue, annealing, optuna]
+        prune_if_parent_suboptimal=False, # search queue pruning
+        ignore_queue_priority=False, # search queue priority
+        annealing_tmax=3.16e-3,
+        annealing_tmin=1e-7,
+        annealing_progress_fraction_at_tmin=0.3,
+        n_annealing_repeats=10,
         study_name='default_study',
         use_existing_study=False,
+        n_optuna_workers=1,
         discrep_loss='abs',
         disable_importance_sampling=False,
         override_mem_eval_with_analytical_env=None,
+        analytical_lambda_discrep_noise=0.0,
     ) -> None:
         self.n_obs = n_obs
         self.n_actions = n_actions
@@ -48,12 +61,27 @@ class ActorCritic:
         self.n_mem_states = n_mem_values**n_mem_entries
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
-        self.study_name = study_name
+        self.mem_optimizer = mem_optimizer
+        self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
+        self.ignore_queue_priority = ignore_queue_priority
+        self.annealing_tmax = annealing_tmax
+        self.annealing_tmin = annealing_tmin
+        self.annealing_progress_fraction_at_tmin = annealing_progress_fraction_at_tmin
+        self.n_annealing_repeats = n_annealing_repeats
         self.study_dir = f'./results/sample_based/{study_name}'
-        self.build_study(use_existing=use_existing_study)
+        os.makedirs(self.study_dir, exist_ok=True)
+        if mem_optimizer == 'optuna':
+            self.study_name = study_name
+            self.n_optuna_workers = n_optuna_workers
+            self.build_study(use_existing=use_existing_study)
+        elif mem_optimizer in ['queue', 'annealing']:
+            pass
+        else:
+            raise NotImplementedError(f'Unknown mem_optimizer: {mem_optimizer}')
         self.discrep_loss = discrep_loss
         self.disable_importance_sampling = disable_importance_sampling
         self.override_mem_eval_with_analytical_env = override_mem_eval_with_analytical_env
+        self.analytical_lambda_discrep_noise = analytical_lambda_discrep_noise
 
         self.reset_policy()
         self.reset_memory()
@@ -91,10 +119,14 @@ class ActorCritic:
         return action
 
     def step_memory(self, obs, action):
-        next_memory = np.random.choice(
-            self.n_mem_states,
-            p=self.memory_probs[action, obs, self.memory],
-        )
+        mem_dynamics = self.memory_probs[action, obs, self.memory]
+        if self.is_deterministic_binary_memory:
+            next_memory = int(mem_dynamics[-1])
+        else:
+            next_memory = np.random.choice(
+                self.n_mem_states,
+                p=mem_dynamics,
+            )
         self.prev_memory = self.memory
         self.memory = next_memory
 
@@ -156,6 +188,11 @@ class ActorCritic:
             self.memory_probs = params
             self.memory_logits = np.log(self.memory_probs + 1e-20)
 
+        self.is_deterministic_binary_memory = False
+        if np.allclose(self.memory_probs, np.round(self.memory_probs)):
+            if self.n_mem_values == 2 and self.n_mem_entries > 0:
+                self.is_deterministic_binary_memory = True
+
     def reset_policy(self):
         self.policy_logits = None
         self.policy_probs = None
@@ -164,7 +201,10 @@ class ActorCritic:
 
     def reset_memory(self):
         mem_shape = (self.n_actions, self.n_obs, self.n_mem_states, self.n_mem_states)
-        self.set_memory(normal_init(mem_shape))
+        if self.mem_optimizer == 'optuna':
+            self.set_memory(normal_init(mem_shape))
+        else:
+            self.set_memory(generate_hold_mem_fn(*mem_shape[:-1]), logits=False)
 
     def fill_in_params(self, required_params):
         required_params_shape = self.memory_logits.shape[:-1] + (self.n_mem_values - 1, )
@@ -249,7 +289,7 @@ class ActorCritic:
         study = self.build_study(seed)
         study.optimize(self.objective, n_trials=n_trials, callbacks=[self.on_trial_end_callback])
 
-    def optimize_memory(
+    def optimize_memory_optuna(
         self,
         n_trials=500,
         n_jobs=1,
@@ -282,6 +322,145 @@ class ActorCritic:
 
         return study
 
+    def optimize_memory_prio_queue(self, max_iterations=None):
+        s = SearchNode(self.memory_probs)
+
+        visited = set()
+        best_discrep = np.inf
+        frontier = PriorityQueue(highest_priority_first=False)
+
+        def maybe_filter(discrep):
+            if self.ignore_queue_priority:
+                return 0
+            return discrep
+
+        frontier.push(s, maybe_filter(best_discrep))
+        best_node = None
+        n_evals = 0
+        discreps = []
+
+        pbar = tqdm(total=max_iterations)
+        while frontier:
+            if max_iterations is not None and n_evals >= max_iterations:
+                break
+            node, parent_discrep = frontier.pop(return_priority=True)
+            if self.prune_if_parent_suboptimal and parent_discrep > best_discrep:
+                continue
+            self.set_memory(node.mem_probs, logits=False)
+            discrep = self.evaluate_memory().item()
+            discreps.append(discrep)
+            n_evals += 1
+            # print(f'discrep = {discrep}')
+            visited.add(node.mem_hash)
+
+            if discrep < best_discrep:
+                # print(f'New best discrep: {discrep}')
+                best_discrep = discrep
+                best_node = node
+                successors = node.get_successors(skip_hashes=visited)
+                for s in successors:
+                    frontier.push(s, maybe_filter(discrep))
+            pbar.update(1)
+        if max_iterations is not None and n_evals < max_iterations:
+            pbar.update(max_iterations - n_evals)
+
+        self.set_memory(best_node.mem_probs, logits=False)
+        info = {
+            'n_evals': n_evals,
+            'discreps': discreps,
+            'best_discrep': best_discrep,
+        }
+        return best_node, info
+
+    def optimize_memory_annealing(self,
+                                  n_iter=200,
+                                  tmax=1e-3,
+                                  tmin=1e-6,
+                                  progress_fraction_at_tmin=0.5,
+                                  n_repeats=1):
+        # simulated annealing
+        decay_rate = np.log(tmax / tmin) / ((1 - progress_fraction_at_tmin) * n_iter)
+
+        start = SearchNode(self.memory_probs)
+
+        discreps = []
+        temps = []
+        accept_probs = []
+        best_node = None
+        best_discrep = np.inf
+        pbar = tqdm(total=n_repeats * n_iter)
+        for i in range(n_repeats):
+            node = start
+            self.set_memory(node.mem_probs, logits=False)
+            discrep = self.evaluate_memory().item()
+            if best_node is None:
+                best_node = node
+            temp = tmax
+
+            for i in range(n_iter):
+                successor = node.get_random_successor()
+                self.set_memory(successor.mem_probs, logits=False)
+                next_discrep = self.evaluate_memory().item()
+                delta = next_discrep - discrep
+                if next_discrep == discrep:
+                    accept = 0
+                elif next_discrep < discrep:
+                    accept = 1
+                else:
+                    accept = math.exp(-delta / temp)
+                accept_probs.append(accept)
+                # decide whether to accept the transition
+                if delta <= 0:
+                    node = successor
+                    discrep = next_discrep
+                    if discrep < best_discrep:
+                        best_discrep = discrep
+                        best_node = node
+                elif np.random.random() < accept:
+                    node = successor
+                    discrep = next_discrep
+                if i % 1 == 0:
+                    discreps.append(discrep)
+                    temps.append(temp)
+                temp = max(tmin, temp * np.exp(-decay_rate))
+                pbar.update(1)
+
+        self.set_memory(best_node.mem_probs, logits=False)
+        info = {
+            'accept_probs': accept_probs,
+            'best_discrep': best_discrep,
+            'temps': temps,
+            'discreps': discreps,
+            'temp': temp,
+            'n': n_iter,
+        }
+        return best_node, info
+
+    def optimize_memory(self, n_trials):
+        prev_memory_probs = self.memory_probs
+        prev_discrep = self.evaluate_memory().item()
+
+        if self.mem_optimizer == 'optuna':
+            study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
+            info = {'best_discrep': study.best_value}
+        elif self.mem_optimizer == 'queue':
+            _, info = self.optimize_memory_prio_queue(max_iterations=n_trials)
+        elif self.mem_optimizer == 'annealing':
+            _, info = self.optimize_memory_annealing(
+                n_iter=n_trials,
+                tmax=self.annealing_tmax,
+                tmin=self.annealing_tmin,
+                progress_fraction_at_tmin=self.annealing_progress_fraction_at_tmin,
+                n_repeats=self.n_annealing_repeats,
+            )
+        else:
+            raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
+
+        if info['best_discrep'] > prev_discrep:
+            self.set_memory(prev_memory_probs, logits=False)
+
+        return info
+
     def compute_discrepancy_loss(self, obs, actions, memories):
         if self.discrep_loss == 'mse':
             discrepancies = (self.q_mc.q - self.q_td.q)**2
@@ -304,8 +483,12 @@ class ActorCritic:
             return weighted_discreps.mean()
 
     def evaluate_memory_analytical(self):
-        return mem_discrep_loss(self.memory_logits, self.policy_probs,
-                                self.override_mem_eval_with_analytical_env)
+        noise = 0
+        if self.analytical_lambda_discrep_noise > 0:
+            noise = np.random.normal(loc=0, scale=self.analytical_lambda_discrep_noise)
+        discrep = mem_discrep_loss(self.memory_logits, self.policy_probs,
+                                   self.override_mem_eval_with_analytical_env)
+        return discrep + noise
 
     def evaluate_memory(self):
         if self.override_mem_eval_with_analytical_env is not None:
@@ -341,10 +524,10 @@ class ActorCritic:
         return obs_augmented
 
     def augment_experience(self, experience: dict) -> dict:
-        augmented_experience = copy.deepcopy(experience)
-        augmented_experience['obs'] = self.augment_obs(experience['obs'], self.prev_memory)
-        augmented_experience['next_obs'] = self.augment_obs(experience['next_obs'], self.memory)
-        return augmented_experience
+        # augmented_experience = copy.deepcopy(experience)
+        experience['aug_obs'] = self.augment_obs(experience['obs'], self.prev_memory)
+        experience['next_aug_obs'] = self.augment_obs(experience['next_obs'], self.memory)
+        return experience
 
     def augment_policy(self, n_mem_states: int):
         """

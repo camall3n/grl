@@ -51,7 +51,7 @@ def mc(mdp,
     if mc_states not in ['all', 'first']:
         raise ValueError("mc_states must be either 'all' or 'first'")
 
-    # If AMDP, convert to pi_ground
+    # If POMDP, convert to pi_ground
     if hasattr(mdp, 'phi'):
         pi_ground = mdp.get_ground_policy(pi)
     else:
