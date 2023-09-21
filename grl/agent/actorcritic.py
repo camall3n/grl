@@ -40,6 +40,7 @@ class ActorCritic:
         mem_optimizer='queue', # [queue, annealing, optuna]
         prune_if_parent_suboptimal=False, # search queue pruning
         ignore_queue_priority=False, # search queue priority
+        annealing_should_sample_hyperparams=False,
         annealing_tmax=3.16e-3,
         annealing_tmin=1e-7,
         annealing_progress_fraction_at_tmin=0.3,
@@ -64,6 +65,7 @@ class ActorCritic:
         self.mem_optimizer = mem_optimizer
         self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
         self.ignore_queue_priority = ignore_queue_priority
+        self.annealing_should_sample_hyperparams = annealing_should_sample_hyperparams
         self.annealing_tmax = annealing_tmax
         self.annealing_tmin = annealing_tmin
         self.annealing_progress_fraction_at_tmin = annealing_progress_fraction_at_tmin
@@ -432,13 +434,40 @@ class ActorCritic:
         return best_node, info
 
     @staticmethod
-    def extend_info(info, other_info):
+    def extend_info(info: dict, other_info: dict):
+        if info is None:
+            return other_info
         for key in ['accept_probs', 'temps', 'discreps']:
             info[key].extend(other_info[key])
         info['best_discrep'] = min(info['best_discrep'], other_info['best_discrep'])
         info['temp'] = other_info['temp']
         info['n'] += other_info['n']
         return info
+
+    def suggest_annealing_hyperparams(self):
+        def sample_temp():
+            log_ubound = np.log(self.annealing_tmax)
+            log_lbound = np.log(self.annealing_tmin)
+            return np.exp((log_ubound - log_lbound) * np.random.sample() + log_lbound)
+
+        tmax = sample_temp()
+        tmin = sample_temp()
+        if tmin > tmax:
+            raise RuntimeError('Sampled tmin > tmax.')
+
+        progress_fraction_at_tmin = np.random.sample()
+        return tmax, tmin, progress_fraction_at_tmin
+
+    def get_next_annealing_hyperparams(self):
+        if self.annealing_should_sample_hyperparams:
+            tmax, tmin, progress_fraction_at_tmin = until_successful(
+                self.suggest_annealing_hyperparams)
+            print(
+                f'Sampled tmax={tmax}, tmin={tmin}, progress_fraction_at_tmin={progress_fraction_at_tmin}'
+            )
+            return tmax, tmin, progress_fraction_at_tmin
+        else:
+            return self.annealing_tmax, self.annealing_tmin, self.annealing_progress_fraction_at_tmin
 
     def optimize_memory(self, n_trials):
         prev_memory_probs = self.memory_probs
@@ -452,16 +481,14 @@ class ActorCritic:
         elif self.mem_optimizer == 'annealing':
             info = None
             for _ in range(self.n_annealing_repeats):
+                tmax, tmin, progress_fraction_at_tmin = self.get_next_annealing_hyperparams()
                 _, latest_info = self.optimize_memory_annealing(
                     n_iter=n_trials,
-                    tmax=self.annealing_tmax,
-                    tmin=self.annealing_tmin,
-                    progress_fraction_at_tmin=self.annealing_progress_fraction_at_tmin,
+                    tmax=tmax,
+                    tmin=tmin,
+                    progress_fraction_at_tmin=progress_fraction_at_tmin,
                 )
-                if info is None:
-                    info = latest_info
-                else:
-                    self.extend_info(info, latest_info)
+                info = self.extend_info(info, latest_info)
         else:
             raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
 

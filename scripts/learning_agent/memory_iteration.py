@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument('--mem_optimizer', type=str, default='queue',
                         choices=['queue', 'annealing', 'optuna'])
     parser.add_argument('--enable_priority_queue', action='store_true')
+    parser.add_argument('--annealing_should_sample_hyperparams', action='store_true')
     parser.add_argument('--annealing_tmax', type=float, default=3.16e-3)
     parser.add_argument('--annealing_tmin', type=float, default=1e-7)
     parser.add_argument('--annealing_progress_fraction_at_tmin', type=float, default=0.3)
@@ -237,6 +238,12 @@ def main():
         replay_buffer_size=args.replay_buffer_size,
         mem_optimizer=args.mem_optimizer,
         ignore_queue_priority=(not args.enable_priority_queue),
+        annealing_should_sample_hyperparams=args.annealing_should_sample_hyperparams,
+        annealing_tmax=args.annealing_tmax,
+        annealing_tmin=args.annealing_tmin,
+        annealing_progress_fraction_at_tmin=args.annealing_progress_fraction_at_tmin,
+        n_annealing_repeats=args.n_annealing_repeats,
+        prune_if_parent_suboptimal=False,
         mellowmax_beta=args.mellowmax_beta,
         study_name=f'{args.study_name}/{args.env}/{args.trial_id}',
         use_existing_study=args.use_existing_study,

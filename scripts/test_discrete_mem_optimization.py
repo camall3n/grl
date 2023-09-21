@@ -63,8 +63,8 @@ mdp.R *= reward_scale
 env = POMDP(mdp, spec['phi'])
 
 learning_agent = ActorCritic(
-    n_obs=env.n_obs,
-    n_actions=env.n_actions,
+    n_obs=env.observation_space.n,
+    n_actions=env.action_space.n,
     gamma=env.gamma,
     lambda_0=args.lambda0,
     lambda_1=args.lambda1,
@@ -73,6 +73,7 @@ learning_agent = ActorCritic(
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
     ignore_queue_priority=(not args.enable_priority_queue),
+    annealing_should_sample_hyperparams=args.annealing_should_sample_hyperparams,
     annealing_tmax=args.annealing_tmax,
     annealing_tmin=args.annealing_tmin,
     annealing_progress_fraction_at_tmin=args.annealing_progress_fraction_at_tmin,
@@ -93,7 +94,7 @@ planning_agent = AnalyticalAgent(
 )
 
 # Policy stuff
-pi_improvement(planning_agent, env, iterations=n_pi_iterations, lr=0.1)
+pi_improvement(planning_agent, env, iterations=n_pi_iterations)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 learning_agent.add_memory()
 pi_aug = learning_agent.policy_probs
@@ -108,7 +109,7 @@ mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 def get_start_obs_value(pi, mdp):
     mdp = copy.deepcopy(mdp)
     mdp.R /= reward_scale
-    value_fn, _ = lstdq_lambda(pi, mdp, lambda_=args.lambda1)
+    value_fn, _, _ = lstdq_lambda(pi, mdp, lambda_=args.lambda1)
     return (value_fn @ (mdp.p0 @ mdp.phi)).item()
 
 start_value = get_start_obs_value(pi_aug, mem_aug_mdp)
@@ -136,7 +137,7 @@ print(f'Best discrep: {info["best_discrep"]}')
 learning_agent.reset_policy()
 planning_agent.pi_params = learning_agent.policy_logits
 mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
-pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations, lr=0.1)
+pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
 end_value = get_start_obs_value(learning_agent.policy_probs, mem_aug_mdp)
