@@ -34,6 +34,14 @@ def get_memory(memory_id: str,
         mem_func = fuzzy_expanded_identity.repeat(n_obs, axis=1).repeat(n_actions, axis=0)
 
         mem_params = reverse_softmax(mem_func)
+    elif memory_id == 'random_uniform':
+        mem_func = generate_random_uniform_memory_fn(n_mem_states, n_obs, n_actions)
+
+        mem_params = reverse_softmax(mem_func)
+    elif memory_id == 'random_discrete':
+        mem_func = generate_random_discrete_memory_fn(n_mem_states, n_obs, n_actions)
+
+        mem_params = reverse_softmax(mem_func)
     else:
         raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
@@ -97,6 +105,28 @@ def all_n_state_deterministic_memory(n_mem_states: int):
     all_idxes = list(product(*(n_mem_states * idxes)))
     all_mem_funcs = id[all_idxes]
     return all_mem_funcs
+
+def unif_simplex(n: int):
+    """
+    Samples uniformly random vector from a simplex in n-dimensions.
+    Taken from https://stackoverflow.com/questions/65154622/sample-uniformly-at-random-from-a-simplex-in-python
+    """
+    logits = np.random.exponential(scale=1., size=n)
+    return logits / sum(logits)
+
+def generate_random_uniform_memory_fn(n_mem_states: int, n_obs: int, n_actions: int):
+    T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
+
+    for a in range(n_actions):
+        for ob in range(n_obs):
+            for m in range(n_mem_states):
+                T_mem[a, ob, m] = unif_simplex(n_mem_states)
+    return T_mem
+
+def generate_random_discrete_memory_fn(n_mem_states: int, n_obs: int, n_actions: int):
+    unif_mem = generate_random_uniform_memory_fn(n_mem_states, n_obs, n_actions)
+    discrete_mem = (np.expand_dims(np.max(unif_mem, axis=-1), -1) == unif_mem).astype(float)
+    return discrete_mem
 
 """
 1 bit memory functions with three obs: r, b, t

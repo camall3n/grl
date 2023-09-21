@@ -65,7 +65,7 @@ def test_both_values():
     all_td_qs = [q_td.item()]
     all_mc_qs = [q_mc.item()]
     for t in range(args.max_episode_steps):
-        next_obs, reward, done, _, info = env.step(action, gamma_terminal=False)
+        next_obs, reward, done, _, info = env.step(action)
 
         next_action, rand_key, next_hs, _ = agent.act(network_params, next_obs, hs, rand_key)
         new_carry, q_td, q_mc = agent.Qs(network_params,
@@ -223,7 +223,7 @@ def test_actions():
                                        f"loss_mode: {loss_mode}, action_mode: {action_mode}"
 
 if __name__ == "__main__":
-    test_gamma_terminal()
+    # test_gamma_terminal()
     # test_td_mc_values()
-    # test_both_values()
+    test_both_values()
     # test_actions()

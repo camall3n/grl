@@ -59,9 +59,9 @@ def weight_and_sum_discrep_loss(diff: jnp.ndarray,
     if flip_count_prob:
         count_o = nn.softmax(-count_o)
 
-    # count_mask = (1 - jnp.isclose(count_o, 0, atol=1e-12)).astype(float)
-    # uniform_o = (jnp.ones(pi.shape[0]) / count_mask.sum()) * count_mask
-    uniform_o = jnp.ones(pi.shape[0])
+    count_mask = (1 - jnp.isclose(count_o, 0, atol=1e-12)).astype(float)
+    uniform_o = (jnp.ones(pi.shape[0]) / count_mask.sum()) * count_mask
+    # uniform_o = jnp.ones(pi.shape[0])
 
     p_o = alpha * uniform_o + (1 - alpha) * count_o
 
