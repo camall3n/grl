@@ -376,65 +376,69 @@ class ActorCritic:
                                   n_iter=200,
                                   tmax=1e-3,
                                   tmin=1e-6,
-                                  progress_fraction_at_tmin=0.5,
-                                  n_repeats=1):
+                                  progress_fraction_at_tmin=0.5):
         # simulated annealing
         decay_rate = np.log(tmax / tmin) / ((1 - progress_fraction_at_tmin) * n_iter)
 
-        start = SearchNode(self.memory_probs)
+        current_node = SearchNode(self.memory_probs)
+        current_discrep = self.evaluate_memory().item()
+        current_temp = tmax
 
-        discreps = []
-        temps = []
-        accept_probs = []
-        best_node = None
-        best_discrep = np.inf
-        pbar = tqdm(total=n_repeats * n_iter)
-        for i in range(n_repeats):
-            node = start
-            self.set_memory(node.mem_probs, logits=False)
-            discrep = self.evaluate_memory().item()
-            if best_node is None:
-                best_node = node
-            temp = tmax
+        discreps = [current_discrep]
+        temps = [current_temp]
+        accept_probs = [1]
 
-            for i in range(n_iter):
-                successor = node.get_random_successor()
-                self.set_memory(successor.mem_probs, logits=False)
-                next_discrep = self.evaluate_memory().item()
-                delta = next_discrep - discrep
-                if next_discrep == discrep:
-                    accept = 0
-                elif next_discrep < discrep:
-                    accept = 1
-                else:
-                    accept = math.exp(-delta / temp)
-                accept_probs.append(accept)
-                # decide whether to accept the transition
-                if delta <= 0:
-                    node = successor
-                    discrep = next_discrep
-                    if discrep < best_discrep:
-                        best_discrep = discrep
-                        best_node = node
-                elif np.random.random() < accept:
-                    node = successor
-                    discrep = next_discrep
-                if i % 1 == 0:
-                    discreps.append(discrep)
-                    temps.append(temp)
-                temp = max(tmin, temp * np.exp(-decay_rate))
-                pbar.update(1)
+        best_node = current_node
+        best_discrep = self.evaluate_memory().item()
+
+        pbar = tqdm(total=n_iter)
+        for i in range(n_iter):
+            successor = current_node.get_random_successor()
+            self.set_memory(successor.mem_probs, logits=False)
+            next_discrep = self.evaluate_memory().item()
+            delta = next_discrep - current_discrep
+            if next_discrep == current_discrep:
+                accept = 0
+            elif next_discrep < current_discrep:
+                accept = 1
+            else:
+                accept = math.exp(-delta / current_temp)
+            accept_probs.append(accept)
+            # decide whether to accept the transition
+            if delta <= 0:
+                current_node = successor
+                current_discrep = next_discrep
+                if current_discrep < best_discrep:
+                    best_discrep = current_discrep
+                    best_node = current_node
+            elif np.random.random() < accept:
+                current_node = successor
+                current_discrep = next_discrep
+            if i % 1 == 0:
+                discreps.append(current_discrep)
+                temps.append(current_temp)
+            current_temp = max(tmin, current_temp * np.exp(-decay_rate))
+            pbar.update(1)
 
         self.set_memory(best_node.mem_probs, logits=False)
         info = {
             'accept_probs': accept_probs,
-            'best_discrep': best_discrep,
             'temps': temps,
             'discreps': discreps,
-            'temp': temp,
+            'best_discrep': best_discrep,
+            'temp': current_temp,
             'n': n_iter,
         }
         return best_node, info
+
+    @staticmethod
+    def extend_info(info, other_info):
+        for key in ['accept_probs', 'temps', 'discreps']:
+            info[key].extend(other_info[key])
+        info['best_discrep'] = min(info['best_discrep'], other_info['best_discrep'])
+        info['temp'] = other_info['temp']
+        info['n'] += other_info['n']
+        return info
 
     def optimize_memory(self, n_trials):
         prev_memory_probs = self.memory_probs
@@ -446,13 +450,18 @@ class ActorCritic:
         elif self.mem_optimizer == 'queue':
             _, info = self.optimize_memory_prio_queue(max_iterations=n_trials)
         elif self.mem_optimizer == 'annealing':
-            _, info = self.optimize_memory_annealing(
-                n_iter=n_trials,
-                tmax=self.annealing_tmax,
-                tmin=self.annealing_tmin,
-                progress_fraction_at_tmin=self.annealing_progress_fraction_at_tmin,
-                n_repeats=self.n_annealing_repeats,
-            )
+            info = None
+            for _ in range(self.n_annealing_repeats):
+                _, latest_info = self.optimize_memory_annealing(
+                    n_iter=n_trials,
+                    tmax=self.annealing_tmax,
+                    tmin=self.annealing_tmin,
+                    progress_fraction_at_tmin=self.annealing_progress_fraction_at_tmin,
+                )
+                if info is None:
+                    info = latest_info
+                else:
+                    self.extend_info(info, latest_info)
         else:
             raise NotImplementedError(f'Unknown memory optimizer: {self.mem_optimizer}')
 
