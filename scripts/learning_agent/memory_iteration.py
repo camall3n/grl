@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--study_name', type=str, default='test')
     parser.add_argument('--max_jobs', type=int, default=None)
     parser.add_argument('--load_policy', action='store_true')
+    parser.add_argument('--policy_optimization', type=str, default='td',
+                        choices=['td', 'mc', 'none'])
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--policy_epsilon', type=float, default=0.1)
     parser.add_argument('--lambda0', type=float, default=0.0)
@@ -268,8 +270,15 @@ def main():
         agent.reset_policy()
 
     initial_policy_history = None
-    if not args.load_policy:
-        optimize_policy(agent, env, args=args)
+    if not args.load_policy and args.policy_optimization in ['td', 'mc']:
+        optimize_policy(
+            agent,
+            env,
+            n_policy_iterations=args.n_policy_iterations,
+            n_samples_per_policy=args.n_samples_per_policy,
+            mode=args.policy_optimization,
+            reward_scale=reward_scale,
+        )
 
     agent.add_memory()
     agent.reset_memory()

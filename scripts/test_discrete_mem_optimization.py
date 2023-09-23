@@ -94,8 +94,15 @@ planning_agent = AnalyticalAgent(
 )
 
 # Policy stuff
-pi_improvement(planning_agent, env, iterations=n_pi_iterations)
-learning_agent.set_policy(planning_agent.pi_params, logits=True)
+if args.policy_optimization == 'td':
+    pi_improvement(planning_agent, env, iterations=n_pi_iterations)
+    learning_agent.set_policy(planning_agent.pi_params, logits=True)
+elif args.policy_optimization == 'mc':
+    raise NotImplementedError('Analytical policy improvement currently only uses TD')
+elif args.policy_optimization == 'none':
+    learning_agent.reset_policy()
+else:
+    raise NotImplementedError(f'Unknown policy optimization type: {args.policy_optimization}')
 learning_agent.add_memory()
 pi_aug = learning_agent.policy_probs
 
