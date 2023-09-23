@@ -19,7 +19,7 @@ from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
+results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -34,10 +34,15 @@ compare_to = 'belief'
 # spec_plot_order = ['example_7', 'slippery_tmaze_5_two_thirds_up',
 #                    'tiger', 'paint.95', 'cheese.95',
 #                    'network', 'shuttle.95', '4x3.95']
+# spec_plot_order = [
+#     'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
+#     'shuttle.95', '4x3.95', 'hallway'
+# ]
 spec_plot_order = [
-    'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
-    'shuttle.95', '4x3.95', 'hallway'
+     'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
+
 ]
+
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
@@ -113,7 +118,7 @@ all_res_df = pd.DataFrame(all_results)
 
 # %%
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
-merged_df = all_res_df.merge(compare_to_df, on='spec')
+merged_df = compare_to_df.merge(all_res_df, on='spec')
 
 # for col_name in cols_to_normalize:
 
@@ -203,7 +208,7 @@ def maybe_spec_map(id: str):
         return id
     return spec_map[id]
 
-groups = normalized_df.groupby(split_by, as_index=False)
+groups = normalized_df.groupby(split_by, sort=False, as_index=False)
 means = groups.mean()
 std_errs = groups.std()
 num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
@@ -215,23 +220,28 @@ fig, ax = plt.subplots(figsize=(12, 6))
 x = np.arange(len(means))
 xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
 
-ax.bar(x + (0 + 1) * bar_width,
+ax.bar(x[:len(means)//3] + (0 + 1) * bar_width,
        means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
        bar_width,
        yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
-       label='Memoryless')
+       label='Memoryless',
+       color='#5B97E0')
+bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
+bar_colors = ['#E0B625', '#DD8453', '#C44E52']
+# bar_colors = ['#', '#E05B5D', 'tab:orange']
 
 for i, n_mem_states in enumerate(num_n_mem):
-    ax.bar(x + (i + 2) * bar_width,
+    ax.bar(x[:len(means)//3] + (i + 2) * bar_width,
            means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
            bar_width,
            yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
-           label=f"{int(np.log(n_mem_states))} Memory Bits")
+           label=f"{int(np.log(n_mem_states))+1} Memory Bits",
+           color=bar_colors[i])
 ax.set_ylim([0, 1])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
-ax.set_xticks(x + group_width / 2)
-ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.7, 0.6), framealpha=0.95)
+ax.set_xticks(x[:len(means)//3] + group_width / 2)
+ax.set_xticklabels(xlabels[::3])
+ax.legend(loc='upper left', framealpha=0.95)
 ax.set_title("Performance of Memory Iteration in POMDPs")
 
 downloads = Path().home() / 'Downloads'
