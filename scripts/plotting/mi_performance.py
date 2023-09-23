@@ -19,8 +19,11 @@ from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
-results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
+# results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
+results_dir = Path(ROOT_DIR, 'results', 'final_analytical') # analytical-optimized mem fn
+# results_dir = Path(ROOT_DIR, 'results', 'random_discrete_analytical') # determ. random mem fn
+# results_dir = Path(ROOT_DIR, 'results', 'random_uniform_analytical') # stoch. random mem fn
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
