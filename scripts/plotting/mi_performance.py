@@ -1,21 +1,31 @@
-import numpy as np
+from collections import namedtuple
+import glob
+import json
+import os
+from pathlib import Path
+
 import jax.numpy as jnp
+from jax.nn import softmax
+from jax.config import config
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pandas as pd
+import seaborn as sns
 
-from jax.nn import softmax
-from jax.config import config
-from pathlib import Path
-from collections import namedtuple
+from definitions import ROOT_DIR
+from grl.environment import load_spec
+from grl.mdp import MDP, POMDP
+from grl.utils import load_info
+from grl.utils.policy_eval import lstdq_lambda
+from grl.utils.discrete_search import generate_hold_mem_fn
+from grl.memory import memory_cross_product
 
 config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
-from grl.utils import load_info
-from definitions import ROOT_DIR
 
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
@@ -42,8 +52,7 @@ compare_to = 'belief'
 #     'shuttle.95', '4x3.95', 'hallway'
 # ]
 spec_plot_order = [
-     'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
-
+    'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
 ]
 
 
@@ -220,7 +229,7 @@ group_width = 1
 bar_width = group_width / (len(num_n_mem) + 2)
 fig, ax = plt.subplots(figsize=(12, 6))
 
-x = np.arange(len(means))
+x = np.arange(len(means)//3)
 xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
 
 ax.bar(x[:len(means)//3] + (0 + 1) * bar_width,
@@ -234,7 +243,7 @@ bar_colors = ['#E0B625', '#DD8453', '#C44E52']
 # bar_colors = ['#', '#E05B5D', 'tab:orange']
 
 for i, n_mem_states in enumerate(num_n_mem):
-    ax.bar(x[:len(means)//3] + (i + 2) * bar_width,
+    ax.bar(x + (i + 2) * bar_width,
            means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
            bar_width,
            yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
@@ -242,7 +251,7 @@ for i, n_mem_states in enumerate(num_n_mem):
            color=bar_colors[i])
 ax.set_ylim([0, 1])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
-ax.set_xticks(x[:len(means)//3] + group_width / 2)
+ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels[::3])
 ax.legend(loc='upper left', framealpha=0.95)
 ax.set_title("Performance of Memory Iteration in POMDPs")
@@ -250,3 +259,101 @@ ax.set_title("Performance of Memory Iteration in POMDPs")
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
 fig.savefig(fig_path)
+
+#%%
+
+calibrations_data = pd.read_csv('results/discrete/all_pomdps_means.csv', index_col='spec')
+calibrations_dict = calibrations_data.to_dict('index')
+# calibrations_data = calibrations_data.reset_index()
+# scale_low = calibrations_data['init_policy_perf']
+# scale_high = calibrations_data['compare_to_perf']
+# scaled_final_values = (calibrations_data['final_mem_perf'] - scale_low) / (scale_high - scale_low)
+# calibrations_data['scaled_final_value'] = scaled_final_values
+# calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
+
+
+def load_results(pathname):
+    all_results = []
+    results_dirs = glob.glob(pathname)
+    for results_dir in results_dirs:
+        results_file = results_dir + '/discrete_oracle.json'
+        with open(results_file, 'r') as f:
+            info = json.load(f)
+            trial_id = int(info['trial_id'].split('_')[-1]) % 10
+            info['trial_id'] = trial_id
+            scales = calibrations_dict[info['env']]
+            info['final_mem_perf'] = (info['end_value'] - scales['init_policy_perf']) / (
+                scales['compare_to_perf'] - scales['init_policy_perf'])
+            if info['tmax'] < info['tmin']:
+                continue
+            del info['optimizer_info']
+            all_results.append(info)
+    data = pd.DataFrame(all_results)
+    return data
+
+# data = load_results('results/discrete/tune07-1repeats*/*/*')
+discrete_oracle_data = load_results('results/discrete/locality03*/*/*')
+discrete_oracle_data['spec'] = discrete_oracle_data['env']#.map(maybe_spec_map)
+discrete_oracle_data['n_mem_states'] = 1
+del discrete_oracle_data['env']
+del discrete_oracle_data['study_name']
+del discrete_oracle_data['mem_optimizer']
+spec_plot_order = [
+    'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
+]
+discrete_oracle_data['spec'] = discrete_oracle_data['spec'].sort_values()
+group = discrete_oracle_data.groupby(split_by, sort=False, as_index=False)
+
+def sort_specs(series):
+    return pd.Series([spec_plot_order.index(x) for x in series])
+
+discrete_oracle_means = group.mean().sort_values(by='spec', key=sort_specs, ignore_index=True)
+discrete_oracle_std_errs = group.std().sort_values(by='spec', key=sort_specs, ignore_index=True)
+
+means_with_discrete = pd.concat([means, discrete_oracle_means])
+std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
+
+# sns.barplot(data=normalized_df, x='spec', y='final_mem_perf', hue='n_mem_states')
+# plt.tight_layout()
+# plt.xticks(rotation=90)
+# plt.show()
+
+
+
+#%%
+x = np.arange(len(means['spec'].unique()))
+num_n_mem = list(sorted(means_with_discrete['n_mem_states'].unique()))
+xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
+bar_width=.16
+
+fig, ax = plt.subplots(figsize=(12, 6))
+ax.bar(x[:len(means_with_discrete)//3] + (0 + 1) * bar_width,
+       means_with_discrete[means_with_discrete['n_mem_states'] == num_n_mem[1]]['init_improvement_perf'],
+       bar_width,
+       yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == num_n_mem[1]]['init_improvement_perf'],
+       label='Memoryless',
+       color='#5B97E0')
+# bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
+bar_colors = ['#E0B625', '#E0B625', '#DD8453', '#C44E52']
+# bar_colors = ['#', '#E05B5D', 'tab:orange']
+hatching = ['//', None, None, None]
+
+for i, n_mem_states in enumerate(num_n_mem):
+    ax.bar(x + (i + 2) * bar_width,
+           means_with_discrete[means_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
+           bar_width,
+           yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
+           label=f"{int(np.log(n_mem_states))+1} Memory Bits",
+           color=bar_colors[i],
+           hatch=hatching[i])
+ax.set_ylim([0, 1.5])
+ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
+ax.set_xticks(x + group_width / 2)
+ax.set_xticklabels(xlabels)
+ax.legend(loc='upper left', framealpha=0.95, ncols=2)
+ax.set_title("Performance of Memory Iteration in POMDPs")
+
+downloads = Path().home() / 'Downloads'
+fig_path = downloads / f"{results_dir.stem}.pdf"
+fig.savefig(fig_path)
+fig.show()
