@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--policy_optimization', type=str, default='td',
                         choices=['td', 'mc', 'none'])
+    parser.add_argument('--n_random_policies', type=int, default=400)
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)
     parser.add_argument('--policy_epsilon', type=float, default=0.1)
     parser.add_argument('--lambda0', type=float, default=0.0)
