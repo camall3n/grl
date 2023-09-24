@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 from jax.config import config
+from tqdm import tqdm, trange
 
 from grl.agent.actorcritic import ActorCritic
 from grl.agent.analytical import AnalyticalAgent
@@ -94,8 +95,24 @@ planning_agent = AnalyticalAgent(
 )
 
 # Policy stuff
-pi_improvement(planning_agent, env, iterations=n_pi_iterations)
-learning_agent.set_policy(planning_agent.pi_params, logits=True)
+if args.policy_optimization == 'td':
+    pi_improvement(planning_agent, env, iterations=n_pi_iterations)
+    learning_agent.set_policy(planning_agent.pi_params, logits=True)
+elif args.policy_optimization == 'mc':
+    raise NotImplementedError('Analytical policy improvement currently only uses TD')
+elif args.policy_optimization == 'none':
+    largest_discrep = 0
+    largest_discrep_policy = None
+    for i in trange(args.n_random_policies):
+        learning_agent.reset_policy()
+        policy = learning_agent.policy_probs
+        policy_lamdba_discrep = discrep_loss(policy, env)[0].item()
+        if policy_lamdba_discrep > largest_discrep:
+            largest_discrep = policy_lamdba_discrep
+            largest_discrep_policy = policy
+    learning_agent.set_policy(policy, logits=False)
+else:
+    raise NotImplementedError(f'Unknown policy optimization type: {args.policy_optimization}')
 learning_agent.add_memory()
 pi_aug = learning_agent.policy_probs
 
@@ -150,6 +167,8 @@ results = {
     'study_name': args.study_name,
     'trial_id': args.trial_id,
     'seed': args.seed,
+    'policy_optimization': args.policy_optimization,
+    'n_random_policies': args.n_random_policies,
     'mem_optimizer': args.mem_optimizer,
     'enable_priority_queue': args.enable_priority_queue,
     'tmax': args.annealing_tmax,
