@@ -26,7 +26,6 @@ np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
-
 # %%
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
 # results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
@@ -52,9 +51,15 @@ compare_to = 'belief'
 #     'shuttle.95', '4x3.95', 'hallway'
 # ]
 spec_plot_order = [
-    'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
+    'network',
+    'paint.95',
+    '4x3.95',
+    'tiger-alt-start',
+    'shuttle.95',
+    'cheese.95',
+    'tmaze_5_two_thirds_up',
+    'example_7',
 ]
-
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
@@ -229,10 +234,10 @@ group_width = 1
 bar_width = group_width / (len(num_n_mem) + 2)
 fig, ax = plt.subplots(figsize=(12, 6))
 
-x = np.arange(len(means)//3)
+x = np.arange(len(means['spec'].unique()))
 xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
 
-ax.bar(x[:len(means)//3] + (0 + 1) * bar_width,
+ax.bar(x[:len(means) // 3] + (0 + 1) * bar_width,
        means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
        bar_width,
        yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
@@ -271,7 +276,6 @@ calibrations_dict = calibrations_data.to_dict('index')
 # calibrations_data['scaled_final_value'] = scaled_final_values
 # calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
 
-
 def load_results(pathname):
     all_results = []
     results_dirs = glob.glob(pathname)
@@ -293,13 +297,20 @@ def load_results(pathname):
 
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
 discrete_oracle_data = load_results('results/discrete/locality03*/*/*')
-discrete_oracle_data['spec'] = discrete_oracle_data['env']#.map(maybe_spec_map)
+discrete_oracle_data['spec'] = discrete_oracle_data['env'] #.map(maybe_spec_map)
 discrete_oracle_data['n_mem_states'] = 1
 del discrete_oracle_data['env']
 del discrete_oracle_data['study_name']
 del discrete_oracle_data['mem_optimizer']
 spec_plot_order = [
-    'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up', 'example_7',
+    'network',
+    'paint.95',
+    '4x3.95',
+    'tiger-alt-start',
+    'shuttle.95',
+    'cheese.95',
+    'tmaze_5_two_thirds_up',
+    'example_7',
 ]
 discrete_oracle_data['spec'] = discrete_oracle_data['spec'].sort_values()
 group = discrete_oracle_data.groupby(split_by, sort=False, as_index=False)
@@ -318,19 +329,19 @@ std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
 # plt.xticks(rotation=90)
 # plt.show()
 
-
-
 #%%
 x = np.arange(len(means['spec'].unique()))
 num_n_mem = list(sorted(means_with_discrete['n_mem_states'].unique()))
 xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
-bar_width=.16
+bar_width = .16
 
 fig, ax = plt.subplots(figsize=(12, 6))
-ax.bar(x[:len(means_with_discrete)//3] + (0 + 1) * bar_width,
-       means_with_discrete[means_with_discrete['n_mem_states'] == num_n_mem[1]]['init_improvement_perf'],
+ax.bar(x[:len(means_with_discrete) // 3] + (0 + 1) * bar_width,
+       means_with_discrete[means_with_discrete['n_mem_states'] ==
+                           num_n_mem[1]]['init_improvement_perf'],
        bar_width,
-       yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == num_n_mem[1]]['init_improvement_perf'],
+       yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == num_n_mem[1]]
+       ['init_improvement_perf'],
        label='Memoryless',
        color='#5B97E0')
 # bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
@@ -339,13 +350,15 @@ bar_colors = ['#E0B625', '#E0B625', '#DD8453', '#C44E52']
 hatching = ['//', None, None, None]
 
 for i, n_mem_states in enumerate(num_n_mem):
-    ax.bar(x + (i + 2) * bar_width,
-           means_with_discrete[means_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
-           bar_width,
-           yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
-           label=f"{int(np.log(n_mem_states))+1} Memory Bits",
-           color=bar_colors[i],
-           hatch=hatching[i])
+    ax.bar(
+        x + (i + 2) * bar_width,
+        means_with_discrete[means_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
+        bar_width,
+        yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] ==
+                                    n_mem_states]['final_mem_perf'],
+        label=f"{int(np.log(n_mem_states))+1} Memory Bits",
+        color=bar_colors[i],
+        hatch=hatching[i])
 ax.set_ylim([0, 1.5])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
