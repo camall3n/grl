@@ -71,6 +71,7 @@ learning_agent = ActorCritic(
     lambda_1=args.lambda1,
     learning_rate=args.learning_rate,
     n_mem_entries=0,
+    n_mem_values=args.n_memory_states,
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
     ignore_queue_priority=(not args.enable_priority_queue),

@@ -58,6 +58,7 @@ def parse_args():
     parser.add_argument('--n_annealing_repeats', type=int, default=10)
     parser.add_argument('--n_memory_trials', type=int, default=500)
     parser.add_argument('--n_memory_iterations', type=int, default=2)
+    parser.add_argument('--n_memory_states', type=int, default=2)
     parser.add_argument('--n_policy_iterations', type=int, default=10)
     parser.add_argument('--n_samples_per_policy', type=int, default=2e6)
     parser.add_argument('--min_mem_opt_replay_size', type=int, default=2e6,
@@ -237,6 +238,7 @@ def main():
         n_actions=env.action_space.n,
         gamma=env.gamma,
         n_mem_entries=0,
+        n_mem_values=args.n_memory_states,
         policy_epsilon=args.policy_epsilon,
         replay_buffer_size=args.replay_buffer_size,
         mem_optimizer=args.mem_optimizer,
