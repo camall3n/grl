@@ -49,11 +49,11 @@ except:
         'bridge-repair': (4018, 0),
         'hallway': (1.0, 0),
     }
-    reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
 
     dfs = []
 
     for env_name in envs:
+        reward_scale = 1 / (reward_range_dict[env_name][0] - reward_range_dict[env_name][1])
         spec = load_spec(env_name, memory_id=None)
         mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
         mdp.R *= reward_scale
