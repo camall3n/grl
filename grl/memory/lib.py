@@ -141,7 +141,7 @@ def tiger_alt_start_1bit_optimal():
             [0, 1],
             [0, 1]
         ],
-        [  # tiger-left
+        [  # tiger-right
             [1, 0],
             [1, 0]
         ],
