@@ -168,6 +168,7 @@ results = {
     'study_name': args.study_name,
     'trial_id': args.trial_id,
     'seed': args.seed,
+    'n_mem_states': args.n_memory_states,
     'policy_optimization': args.policy_optimization,
     'n_random_policies': args.n_random_policies,
     'mem_optimizer': args.mem_optimizer,
