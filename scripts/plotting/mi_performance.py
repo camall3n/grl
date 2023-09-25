@@ -296,12 +296,13 @@ def load_results(pathname):
     return data
 
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
-discrete_oracle_data = load_results('results/discrete/locality03*/*/*')
+discrete_oracle_data = load_results('results/discrete/locality05*/*/*')
 discrete_oracle_data['spec'] = discrete_oracle_data['env'] #.map(maybe_spec_map)
-discrete_oracle_data['n_mem_states'] = 1
 del discrete_oracle_data['env']
-del discrete_oracle_data['study_name']
-del discrete_oracle_data['mem_optimizer']
+# discrete_oracle_data['n_mem_states'] = 1
+# del discrete_oracle_data['study_name']
+# del discrete_oracle_data['mem_optimizer']
+# del discrete_oracle_data['policy_optimization']
 spec_plot_order = [
     'network',
     'paint.95',
@@ -313,16 +314,26 @@ spec_plot_order = [
     'example_7',
 ]
 discrete_oracle_data['spec'] = discrete_oracle_data['spec'].sort_values()
+split_by = ['spec', 'n_mem_states', 'policy_optimization', 'mem_optimizer']
 group = discrete_oracle_data.groupby(split_by, sort=False, as_index=False)
 
 def sort_specs(series):
     return pd.Series([spec_plot_order.index(x) for x in series])
 
-discrete_oracle_means = group.mean().sort_values(by='spec', key=sort_specs, ignore_index=True)
-discrete_oracle_std_errs = group.std().sort_values(by='spec', key=sort_specs, ignore_index=True)
+discrete_oracle_means = group.mean(numeric_only=True).sort_values(by='spec',
+                                                                  key=sort_specs,
+                                                                  ignore_index=True)
+discrete_oracle_std_errs = group.std(numeric_only=True).sort_values(by='spec',
+                                                                    key=sort_specs,
+                                                                    ignore_index=True)
 
 means_with_discrete = pd.concat([means, discrete_oracle_means])
 std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
+
+means_with_discrete['policy_optimization'].fillna('td', inplace=True)
+means_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
+std_errs_with_discrete['policy_optimization'].fillna('td', inplace=True)
+std_errs_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
 
 # sns.barplot(data=normalized_df, x='spec', y='final_mem_perf', hue='n_mem_states')
 # plt.tight_layout()
@@ -333,32 +344,54 @@ std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
 x = np.arange(len(means['spec'].unique()))
 num_n_mem = list(sorted(means_with_discrete['n_mem_states'].unique()))
 xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
-bar_width = .16
+
+unique_runs = sorted(
+    pd.unique(
+        list(
+            map(
+                str, means_with_discrete[['n_mem_states', 'policy_optimization',
+                                          'mem_optimizer']].values))))
+n_bars = len(unique_runs) + 1
+bar_width = 1 / (n_bars + 2)
 
 fig, ax = plt.subplots(figsize=(12, 6))
-ax.bar(x[:len(means_with_discrete) // 3] + (0 + 1) * bar_width,
-       means_with_discrete[means_with_discrete['n_mem_states'] ==
-                           num_n_mem[1]]['init_improvement_perf'],
+query = 'n_mem_states == 2 and mem_optimizer == "analytical"'
+ax.bar(x + (0 + 1) * bar_width,
+       means_with_discrete.query(query)['init_improvement_perf'],
        bar_width,
-       yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] == num_n_mem[1]]
-       ['init_improvement_perf'],
+       yerr=std_errs_with_discrete.query(query)['init_improvement_perf'],
        label='Memoryless',
        color='#5B97E0')
 # bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
-bar_colors = ['#E0B625', '#E0B625', '#DD8453', '#C44E52']
+bar_colors = ['#E0B625', '#DD8453', '#C44E52']
 # bar_colors = ['#', '#E05B5D', 'tab:orange']
 hatching = ['//', None, None, None]
 
-for i, n_mem_states in enumerate(num_n_mem):
-    ax.bar(
-        x + (i + 2) * bar_width,
-        means_with_discrete[means_with_discrete['n_mem_states'] == n_mem_states]['final_mem_perf'],
-        bar_width,
-        yerr=std_errs_with_discrete[std_errs_with_discrete['n_mem_states'] ==
-                                    n_mem_states]['final_mem_perf'],
-        label=f"{int(np.log(n_mem_states))+1} Memory Bits",
-        color=bar_colors[i],
-        hatch=hatching[i])
+settings_list = [('annealing', 'none', '+'), ('annealing', 'td', 'X'), ('analytical', 'td', '')]
+
+for chunk, (mem_optimizer, policy_optimization, hatching) in enumerate(settings_list):
+    for i, n_mem_states in enumerate(num_n_mem):
+        query = (f'n_mem_states == {n_mem_states} '
+                 f'and mem_optimizer == "{mem_optimizer}" '
+                 f'and policy_optimization == "{policy_optimization}"')
+        try:
+            plt.bar(x + (3 * chunk + i + 2) * bar_width,
+                    means_with_discrete.query(query)['final_mem_perf'],
+                    bar_width,
+                    yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
+                    label=f"{int(np.log(n_mem_states))+1} Memory Bits",
+                    color=bar_colors[i],
+                    hatch=hatching)
+        except ValueError as e:
+            x_alt = np.array([0, 3, 4, 7])
+            plt.bar(x_alt + (3 * chunk + i + 2) * bar_width,
+                    means_with_discrete.query(query)['final_mem_perf'],
+                    bar_width,
+                    yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
+                    label=f"{int(np.log(n_mem_states))+1} Memory Bits",
+                    color=bar_colors[i],
+                    hatch=hatching)
+
 ax.set_ylim([0, 1.5])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
