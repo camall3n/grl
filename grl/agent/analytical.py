@@ -143,6 +143,7 @@ class AnalyticalAgent:
         if pi_shape is None:
             pi_shape = self.pi_params.shape
         self.pi_params = glorot_init(pi_shape)
+        self.pi_optim_state = self.pi_optim.init(self.pi_params)
 
     def new_pi_over_mem(self):
         if self.pi_params.shape[0] != self.og_n_obs:

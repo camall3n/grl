@@ -31,6 +31,7 @@ def add_tmaze_hyperparams(parser: argparse.ArgumentParser):
 
 if __name__ == '__main__':
     start_time = time()
+    # jax.disable_jit(True)
 
     # Args
     parser = argparse.ArgumentParser()
