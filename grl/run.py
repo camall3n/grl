@@ -35,13 +35,13 @@ if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec', default='tmaze_5_two_thirds_up', type=str,
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='For memory iteration, how many iterations of memory iterations do we do?')
-    parser.add_argument('--mi_steps', type=int, default=50000,
+    parser.add_argument('--mi_steps', type=int, default=20000,
                         help='For memory iteration, how many steps of memory improvement do we do per iteration?')
-    parser.add_argument('--pi_steps', type=int, default=50000,
+    parser.add_argument('--pi_steps', type=int, default=10000,
                         help='For memory iteration, how many steps of policy improvement do we do per iteration?')
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         help='policy improvement algorithm to use. "policy_iter" - policy iteration, "policy_grad" - policy gradient, '
@@ -50,7 +50,7 @@ if __name__ == '__main__':
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
                         help='Do we initialize our policy to something?')
-    parser.add_argument('--use_memory', default=None, type=str,
+    parser.add_argument('--use_memory', default='0', type=str,
         help='use memory function during policy eval if set')
     parser.add_argument('--mem_leakiness', default=0.1, type=float,
                         help='For the leaky identity memory function, how leaky is it?')
@@ -68,9 +68,9 @@ if __name__ == '__main__':
                         help='Do we use (v | q) for our discrepancies?')
     parser.add_argument('--error_type', default='l2', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
-    parser.add_argument('--objective', default='discrep', type=str,
+    parser.add_argument('--objective', default='obs_space', type=str,
                         help='What objective are we trying to optimize? (discrep | magnitude | obs_space)')
-    parser.add_argument('--lr', default=1, type=float)
+    parser.add_argument('--lr', default=0.01, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--log', action='store_true',
