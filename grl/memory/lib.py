@@ -42,6 +42,9 @@ def get_memory(memory_id: str,
         mem_func = generate_random_discrete_memory_fn(n_mem_states, n_obs, n_actions)
 
         mem_params = reverse_softmax(mem_func)
+    elif memory_id == 'tiger_alt_start_1bit_optimal':
+        mem_func = tiger_alt_start_1bit_optimal()
+        mem_params = reverse_softmax(mem_func)
     else:
         raise NotImplementedError(f"No memory of id {memory_id} exists.")
     return mem_params
@@ -127,6 +130,31 @@ def generate_random_discrete_memory_fn(n_mem_states: int, n_obs: int, n_actions:
     unif_mem = generate_random_uniform_memory_fn(n_mem_states, n_obs, n_actions)
     discrete_mem = (np.expand_dims(np.max(unif_mem, axis=-1), -1) == unif_mem).astype(float)
     return discrete_mem
+
+def tiger_alt_start_1bit_optimal():
+    T_mem_listen = np.array([
+        [  # init
+            [1, 0],
+            [0, 1]
+        ],
+        [  # tiger-left
+            [0, 1],
+            [0, 1]
+        ],
+        [  # tiger-left
+            [1, 0],
+            [1, 0]
+        ],
+        [  # terminal
+            [1, 0],
+            [0, 1]
+        ],
+    ])
+
+    # Other two options don't matter, since you terminate after taking them.
+    T_mem = np.stack([T_mem_listen, T_mem_listen, T_mem_listen])
+    return T_mem
+
 
 """
 1 bit memory functions with three obs: r, b, t
