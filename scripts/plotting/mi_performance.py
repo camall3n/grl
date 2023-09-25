@@ -20,7 +20,7 @@ from definitions import ROOT_DIR
 
 # %% codecell
 # results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
-results_dir = Path(ROOT_DIR, 'results', 'tiger_grid_mi_pi_obs_space')
+results_dir = Path(ROOT_DIR, 'results', 'memoryless_analytical')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
@@ -32,18 +32,18 @@ split_by = [arg for arg in args_to_keep if arg != 'seed']
 
 # this option allows us to compare to either the optimal belief state soln
 # or optimal state soln. ('belief' | 'state')
-# compare_to = 'belief'
-compare_to = 'state'
+compare_to = 'belief'
+# compare_to = 'state'
 
 
 # spec_plot_order = [
 #     'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
 #     'shuttle.95', '4x3.95', 'hallway'
 # ]
-# spec_plot_order = [
-#    'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
-# ]
-spec_plot_order = ['tiger-alt-start','tiger-grid']
+spec_plot_order = [
+   'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
+]
+# spec_plot_order = ['tiger-alt-start','tiger-grid']
 
 # game_name = 'prisoners_dilemma'
 # # leader_policies = ['all_d', 'extort', 'tit_for_tat', 'treasure_hunt', 'sugar', 'all_c', 'grudger2', 'alternator', 'majority3']
@@ -157,7 +157,7 @@ for results_path in results_dir.iterdir():
 
 
 all_res_df = pd.DataFrame(all_results)
-# %% codecell
+    # %% codecell
 all_res_groups = all_res_df.groupby(split_by, as_index=False)
 all_res_means = all_res_groups.mean()
 del all_res_means['seed']
