@@ -9,6 +9,8 @@ from jax.config import config
 import numpy as np
 from tqdm import tqdm, trange
 
+jax.disable_jit(True)
+
 from grl.agent.actorcritic import ActorCritic
 from grl.agent.analytical import AnalyticalAgent
 from grl.memory_iteration import pi_improvement
