@@ -58,7 +58,9 @@ reward_range_dict = {
     'bridge-repair': (4018, 0),
     'hallway': (1.0, 0),
 }
-reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
+reward_scale = args.reward_scale
+if args.normalize_reward_range and args.env in reward_range_dict:
+    reward_scale = 1 / (reward_range_dict[args.env][0] - reward_range_dict[args.env][1])
 
 # Env stuff
 spec = load_spec(args.env, memory_id=None)
