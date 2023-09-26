@@ -9,7 +9,7 @@ from jax.config import config
 import numpy as np
 from tqdm import tqdm, trange
 
-jax.disable_jit(True)
+jax.config.update("jax_enable_x64", True)
 
 from grl.agent.actorcritic import ActorCritic
 from grl.agent.analytical import AnalyticalAgent
