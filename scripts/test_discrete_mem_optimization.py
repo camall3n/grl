@@ -160,6 +160,7 @@ planning_agent = AnalyticalAgent(
     value_type='q',
     policy_optim_alg=args.policy_optim_alg,
 )
+planning_agent.reset_pi_params((mem_aug_mdp.observation_space.n, mem_aug_mdp.action_space.n))
 pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
