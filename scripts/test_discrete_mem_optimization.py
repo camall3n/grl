@@ -43,7 +43,7 @@ if args.mem_optimizer == 'annealing' and args.annealing_tmin > args.annealing_tm
 # args.env = 'shuttle.95'
 # args.env = 'example_7'
 #
-n_pi_iterations = 1000
+n_pi_iterations = 100000
 
 reward_range_dict = {
     'cheese.95': (10.0, 0),

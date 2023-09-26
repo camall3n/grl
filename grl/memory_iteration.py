@@ -280,7 +280,7 @@ def pi_improvement(agent: AnalyticalAgent,
         old_policy = agent.pi_params.copy()
         output = agent.policy_improvement(pomdp)
         new_policy = agent.pi_params
-        did_change = not np.allclose(old_policy, new_policy, atol=0.01)
+        did_change = not np.allclose(old_policy, new_policy, atol=(0.01 * agent.pi_lr))
         if it % log_every == 0:
             if agent.policy_optim_alg == 'policy_grad':
                 print(f"initial state value for iteration {it}: {output['v_0'].item():.4f}")
