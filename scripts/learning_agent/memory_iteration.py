@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--load_policy', action='store_true')
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         choices=['policy_iter', 'policy_grad'])
-    parser.add_argument('--policy_optim_lr', type=float, default=1e-3)
+    parser.add_argument('--policy_optim_lr', type=float, default=0.01)
     parser.add_argument('--init_policy_randomly', action='store_true')
     parser.add_argument('--n_random_policies', type=int, default=400)
     parser.add_argument('--policy_junction_up_prob', type=float, default=None)

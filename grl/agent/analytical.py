@@ -143,6 +143,7 @@ class AnalyticalAgent:
         if pi_shape is None:
             pi_shape = self.pi_params.shape
         self.pi_params = glorot_init(pi_shape)
+        self.pi_optim_state = self.pi_optim.init(self.pi_params)
 
     def new_pi_over_mem(self):
         if self.pi_params.shape[0] != self.og_n_obs:
@@ -161,8 +162,11 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self'])
     def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pomdp: POMDP):
+        # import jax
+        # jax.debug.breakpoint()
         outs, params_grad = value_and_grad(self.pg_objective_func, has_aux=True)(params, pomdp)
         v_0, (td_v_vals, td_q_vals) = outs
+        # jax.debug.breakpoint()
 
         # We add a negative here to params_grad b/c we're trying to
         # maximize the PG objective (value of start state).

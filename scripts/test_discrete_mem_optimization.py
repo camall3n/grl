@@ -9,6 +9,8 @@ from jax.config import config
 import numpy as np
 from tqdm import tqdm, trange
 
+jax.config.update("jax_enable_x64", True)
+
 from grl.agent.actorcritic import ActorCritic
 from grl.agent.analytical import AnalyticalAgent
 from grl.memory_iteration import pi_improvement
@@ -41,7 +43,7 @@ if args.mem_optimizer == 'annealing' and args.annealing_tmin > args.annealing_tm
 # args.env = 'shuttle.95'
 # args.env = 'example_7'
 #
-n_pi_iterations = 1000
+n_pi_iterations = 100000
 
 reward_range_dict = {
     'cheese.95': (10.0, 0),
@@ -160,6 +162,7 @@ planning_agent = AnalyticalAgent(
     value_type='q',
     policy_optim_alg=args.policy_optim_alg,
 )
+planning_agent.reset_pi_params((mem_aug_mdp.observation_space.n, mem_aug_mdp.action_space.n))
 pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
