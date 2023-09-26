@@ -223,6 +223,8 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
+    # import jax
+    # jax.debug.breakpoint()
     pi_abs = nn.softmax(pi_params, axis=-1)
     pi_ground = pomdp.phi @ pi_abs
     occupancy = functional_get_occupancy(pi_ground, pomdp)
