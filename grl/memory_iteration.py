@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from jax.nn import softmax
 from tqdm import trange
 from functools import partial
+from typing import Callable
 
 from grl.agent.analytical import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
@@ -31,6 +32,7 @@ def run_memory_iteration(pomdp: POMDP,
                          lambda_1: float = 1.,
                          alpha: float = 1.,
                          pi_params: jnp.ndarray = None,
+                         kitchen_sink_policies: int = 0,
                          epsilon: float = 0.1,
                          flip_count_prob: bool = False):
     """
@@ -77,17 +79,20 @@ def run_memory_iteration(pomdp: POMDP,
                             epsilon=epsilon,
                             flip_count_prob=flip_count_prob)
 
+    discrep_loss_fn = partial(discrep_loss,
+                              value_type=value_type,
+                              error_type=error_type,
+                              alpha=alpha)
+
     info, agent = memory_iteration(agent,
                                    pomdp,
                                    mi_iterations=mi_iterations,
                                    pi_per_step=pi_steps,
                                    mi_per_step=mi_steps,
-                                   init_pi_improvement=init_pi_improvement)
+                                   init_pi_improvement=init_pi_improvement,
+                                   kitchen_sink_policies=kitchen_sink_policies,
+                                   discrep_loss=discrep_loss_fn)
 
-    discrep_loss_fn = partial(discrep_loss,
-                              value_type=value_type,
-                              error_type=error_type,
-                              alpha=alpha)
     get_measures = partial(lambda_discrep_measures, discrep_loss_fn=discrep_loss_fn)
 
     info['initial_policy'] = initial_policy
@@ -95,7 +100,9 @@ def run_memory_iteration(pomdp: POMDP,
     # initial policy lambda-discrepancy
     info['initial_policy_stats'] = get_measures(pomdp, initial_policy)
     info['initial_improvement_stats'] = get_measures(pomdp, info['initial_improvement_policy'])
-    greedy_initial_improvement_policy = greedify(info['initial_improvement_policy'])
+    greedy_initial_improvement_policy = info['initial_improvement_policy']
+    if policy_optim_alg == 'policy_iter':
+        greedy_initial_improvement_policy = greedify(info['initial_improvement_policy'])
     info['greedy_initial_improvement_stats'] = get_measures(pomdp,
                                                             greedy_initial_improvement_policy)
 
@@ -141,6 +148,8 @@ def memory_iteration(
     mi_per_step: int = 50000,
     mi_iterations: int = 1,
     init_pi_improvement: bool = True,
+    kitchen_sink_policies: int = 0,
+    discrep_loss: Callable = None,
     log_every: int = 1000,
 ):
     """
@@ -155,6 +164,7 @@ def memory_iteration(
     :param mi_per_step:         Number of memory improvement steps PER memory iteration step.
     :param mi_iterations:       Number of steps of memory iteration to perform.
     :param init_pi_improvement: Do we start out with an initial policy improvement step?
+    :param kitchen_sink_policies: Do we select our initial policy based on randomly selected policies + TD optimal?
     :param log_every:           How often do we log stats?
     """
     info = {'policy_improvement_outputs': [], 'mem_loss': []}
@@ -185,8 +195,24 @@ def memory_iteration(
                                          iterations=pi_per_step,
                                          log_every=log_every)
         info['policy_improvement_outputs'].append(initial_outputs)
+        info['initial_improvement_policy'] = agent.policy.copy()
 
-    info['initial_improvement_policy'] = agent.policy.copy()
+        # here we test random policies
+        if kitchen_sink_policies > 0:
+            best_lambda_discrep = discrep_loss(agent.policy, init_pomdp)[0].item()
+            best_pi_params = agent.pi_params
+
+            print(f"Finding the argmax LD over {kitchen_sink_policies} random policies")
+            for i in range(kitchen_sink_policies):
+                agent.reset_pi_params()
+                lambda_discrep = discrep_loss(agent.policy, init_pomdp)[0].item()
+                if lambda_discrep > best_lambda_discrep:
+                    best_pi_params = agent.pi_params
+                    best_lambda_discrep = lambda_discrep
+            agent.pi_params = best_pi_params
+
+        info['starting_policy'] = agent.policy.copy()
+
     print(f"Starting (unexpanded) policy: \n{agent.policy}\n")
 
     if agent.mem_params is not None:

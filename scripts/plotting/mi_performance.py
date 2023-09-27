@@ -41,7 +41,7 @@ compare_to = 'belief'
 #     'shuttle.95', '4x3.95', 'hallway'
 # ]
 spec_plot_order = [
-   'hallway', 'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
+    'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
 ]
 # spec_plot_order = ['tiger-alt-start','tiger-grid']
 
@@ -222,7 +222,7 @@ num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
 
 group_width = 1
 bar_width = group_width / (len(num_n_mem) + 2)
-fig, ax = plt.subplots(figsize=(8, 6))
+fig, ax = plt.subplots(figsize=(12, 6))
 
 specs = means[means['n_mem_states'] == num_n_mem[0]]['spec']
 # spec_order_mapping = [spec_plot_order.index(s) for s in specs]
@@ -238,7 +238,10 @@ ax.bar(x + (0 + 1) * bar_width,
        init_improvement_perf_mean,
        bar_width,
        yerr=init_improvement_perf_std,
-       label='Memoryless')
+       label='Memoryless',
+       color='#5B97E0')
+
+mem_colors = ['#E0B625', '#DD8453', '#C44E52']
 
 for i, n_mem_states in enumerate(num_n_mem):
     curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states]['final_mem_perf'])
@@ -247,20 +250,17 @@ for i, n_mem_states in enumerate(num_n_mem):
            curr_mem_mean,
            bar_width,
            yerr=curr_mem_std,
-           label=f"{int(np.log2(n_mem_states))} Memory Bits")
+           label=f"{int(np.log2(n_mem_states))} Memory Bits",
+           color=mem_colors[i])
 
 ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.55, 0.62), framealpha=0.95)
-ax.set_title(f"{results_dir.stem}")
+# ax.legend(bbox_to_anchor=(0.317, 0.62), framealpha=0.95)
+# ax.set_title("Memory Iteration (Policy Iteration, O space)")
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
 fig.savefig(fig_path, bbox_inches='tight')
-# %% codecell
-sorted_mean_df
-# %% codecell
-seeds
 # %% codecell

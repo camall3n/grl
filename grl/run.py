@@ -50,7 +50,10 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
-                        help='Do we initialize our policy to something?')
+                        help='Do we initialize our policy to something? if kitchen_sink, randomly choose a policy,'
+                             'and take max over randomly chosen/TD optimal.')
+    parser.add_argument('--kitchen_sink_policies', default=0, type=int,
+                        help='Do we initialize the policy to max LD over n random policies + TD optimal?')
     parser.add_argument('--use_memory', default=None, type=str,
         help='use memory function during policy eval if set')
     parser.add_argument('--mem_leakiness', default=0.1, type=float,
@@ -143,7 +146,9 @@ if __name__ == '__main__':
     if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
         logging.info(f'Pi_phi:\n {pi_dict["Pi_phi"]}')
         if args.init_pi is not None:
-            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'][0])
+            pi_params = get_start_pi(args.init_pi,
+                                     pi_phi=pi_dict['Pi_phi'][0],
+                                     pomdp=pomdp)
 
     results_path = results_path(args)
 
@@ -165,6 +170,7 @@ if __name__ == '__main__':
                                        alpha=args.alpha,
                                        epsilon=args.epsilon,
                                        pi_params=pi_params,
+                                       kitchen_sink_policies=args.kitchen_sink_policies,
                                        flip_count_prob=args.flip_count_prob)
 
     info = {'logs': logs, 'args': args.__dict__}
