@@ -99,24 +99,27 @@ planning_agent = AnalyticalAgent(
     pi_lr=args.policy_optim_lr,
     mem_params=learning_agent.memory_logits,
     value_type='q',
-    policy_optim_alg=(None if args.init_policy_randomly else args.policy_optim_alg),
+    policy_optim_alg=args.policy_optim_alg,
 )
 
 # Policy stuff
-if not args.init_policy_randomly:
-    pi_improvement(planning_agent, env, iterations=n_pi_iterations)
-    learning_agent.set_policy(planning_agent.pi_params, logits=True)
-else:
-    largest_discrep = 0
-    largest_discrep_policy = None
-    for i in trange(args.n_random_policies):
-        learning_agent.reset_policy()
-        policy = learning_agent.policy_probs
-        policy_lamdba_discrep = discrep_loss(policy, env)[0].item()
-        if policy_lamdba_discrep > largest_discrep:
-            largest_discrep = policy_lamdba_discrep
-            largest_discrep_policy = policy
-    learning_agent.set_policy(policy, logits=False)
+
+# first try to optimize the policy normally and measure lambda discrep
+pi_improvement(planning_agent, env, iterations=n_pi_iterations)
+learning_agent.set_policy(planning_agent.pi_params, logits=True)
+largest_discrep_policy = learning_agent.policy_probs
+largest_discrep = discrep_loss(largest_discrep_policy, env)[0].item()
+
+# then try random stochastic policies and see if any leads to larger discrepancy
+for i in trange(args.n_random_policies):
+    learning_agent.reset_policy()
+    policy = learning_agent.policy_probs
+    policy_lamdba_discrep = discrep_loss(policy, env)[0].item()
+    if policy_lamdba_discrep > largest_discrep:
+        largest_discrep = policy_lamdba_discrep
+        largest_discrep_policy = policy
+
+learning_agent.set_policy(largest_discrep_policy, logits=False)
 learning_agent.add_memory()
 pi_aug = learning_agent.policy_probs
 
@@ -135,6 +138,9 @@ def get_start_obs_value(pi, mdp):
 
 start_value = get_start_obs_value(pi_aug, mem_aug_mdp)
 initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
+
+print(f'Start value: {start_value}')
+print(f'Initial discrep: {initial_discrep}')
 
 # Search stuff
 info = learning_agent.optimize_memory(args.n_memory_trials)
