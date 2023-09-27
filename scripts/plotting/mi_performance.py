@@ -283,7 +283,7 @@ def load_results(pathname):
         results_file = results_dir + '/discrete_oracle.json'
         with open(results_file, 'r') as f:
             info = json.load(f)
-            trial_id = int(info['trial_id'].split('_')[-1]) % 10
+            trial_id = int(info['trial_id'].split('_')[1]) % 10
             info['trial_id'] = trial_id
             scales = calibrations_dict[info['env']]
             info['final_mem_perf'] = (info['end_value'] - scales['init_policy_perf']) / (
@@ -296,7 +296,7 @@ def load_results(pathname):
     return data
 
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
-discrete_oracle_data = load_results('results/discrete/locality05*/*/*')
+discrete_oracle_data = load_results('results/discrete/locality06*/*/*')
 discrete_oracle_data['spec'] = discrete_oracle_data['env'] #.map(maybe_spec_map)
 del discrete_oracle_data['env']
 # discrete_oracle_data['n_mem_states'] = 1
@@ -314,7 +314,7 @@ spec_plot_order = [
     'example_7',
 ]
 discrete_oracle_data['spec'] = discrete_oracle_data['spec'].sort_values()
-split_by = ['spec', 'n_mem_states', 'policy_optimization', 'mem_optimizer']
+split_by = ['spec', 'n_mem_states', 'policy_optim_alg', 'mem_optimizer', 'init_policy_randomly']
 group = discrete_oracle_data.groupby(split_by, sort=False, as_index=False)
 
 def sort_specs(series):
@@ -330,10 +330,12 @@ discrete_oracle_std_errs = group.std(numeric_only=True).sort_values(by='spec',
 means_with_discrete = pd.concat([means, discrete_oracle_means])
 std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
 
-means_with_discrete['policy_optimization'].fillna('td', inplace=True)
+means_with_discrete['policy_optim_alg'].fillna('policy_iter', inplace=True)
 means_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
-std_errs_with_discrete['policy_optimization'].fillna('td', inplace=True)
+means_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
+std_errs_with_discrete['policy_optim_alg'].fillna('policy_iter', inplace=True)
 std_errs_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
+std_errs_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
 
 # sns.barplot(data=normalized_df, x='spec', y='final_mem_perf', hue='n_mem_states')
 # plt.tight_layout()
@@ -349,8 +351,8 @@ unique_runs = sorted(
     pd.unique(
         list(
             map(
-                str, means_with_discrete[['n_mem_states', 'policy_optimization',
-                                          'mem_optimizer']].values))))
+                str, means_with_discrete[['n_mem_states',
+                                          'mem_optimizer', 'init_policy_randomly']].values))))
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
 
@@ -367,13 +369,23 @@ bar_colors = ['#E0B625', '#DD8453', '#C44E52']
 # bar_colors = ['#', '#E05B5D', 'tab:orange']
 hatching = ['//', None, None, None]
 
-settings_list = [('annealing', 'none', '+'), ('annealing', 'td', 'X'), ('analytical', 'td', '')]
+# settings_list = [
+#     ('annealing', 'none', '+'),
+#     ('annealing', 'td', 'X'),
+#     ('analytical', 'td', ''),
+# ]
 
-for chunk, (mem_optimizer, policy_optimization, hatching) in enumerate(settings_list):
+settings_list = [
+    ('annealing', False, '+'),
+    ('annealing', True, 'X'),
+    ('analytical', False, ''),
+]
+
+for chunk, (mem_optimizer, init_policy_randomly, hatching) in enumerate(settings_list):
     for i, n_mem_states in enumerate(num_n_mem):
         query = (f'n_mem_states == {n_mem_states} '
                  f'and mem_optimizer == "{mem_optimizer}" '
-                 f'and policy_optimization == "{policy_optimization}"')
+                 f'and init_policy_randomly == {init_policy_randomly}')
         try:
             plt.bar(x + (3 * chunk + i + 2) * bar_width,
                     means_with_discrete.query(query)['final_mem_perf'],
