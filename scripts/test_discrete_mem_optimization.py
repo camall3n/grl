@@ -156,6 +156,7 @@ print(f'Best discrep: {info["best_discrep"]}')
 
 # Final performance stuff
 learning_agent.reset_policy()
+mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
 planning_agent = AnalyticalAgent(
     pi_params=learning_agent.policy_logits,
     rand_key=jax.random.PRNGKey(args.seed + 10000),
