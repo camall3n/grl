@@ -24,7 +24,7 @@ from grl.memory import memory_cross_product
 
 plot_dir = 'results/plots/iclr2023/'
 os.makedirs(plot_dir, exist_ok=True)
-policy_optim_alg = 'policy_grad'
+policy_optim_alg = 'policy_iter'
 
 title_note = 'PI' if policy_optim_alg == 'policy_iter' else 'PG'
 
@@ -59,11 +59,11 @@ compare_to = 'belief'
 #     'shuttle.95', '4x3.95', 'hallway'
 # ]
 spec_plot_order = [
-    'network',
     'paint.95',
-    '4x3.95',
     'tiger-alt-start',
     'shuttle.95',
+    'network',
+    '4x3.95',
     'cheese.95',
     'tmaze_5_two_thirds_up',
     # 'example_7',
@@ -366,7 +366,7 @@ xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
 
 settings_list = [
     ('analytical', ''),
-    ('annealing', '//'),
+    ('annealing', '\\\\'),
 ]
 
 subset = f'policy_optim_alg == "{policy_optim_alg}"'
@@ -389,7 +389,6 @@ ax.bar(x + (0 + 1) * bar_width,
 # bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
 bar_colors = ['#E0B625', '#DD8453', '#C44E52']
 # bar_colors = ['#', '#E05B5D', 'tab:orange']
-hatching = ['//', None, None, None]
 
 # settings_list = [
 #     ('annealing', 'none', '+'),
