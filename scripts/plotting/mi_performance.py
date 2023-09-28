@@ -431,7 +431,7 @@ labels = [val for tup in zip(*[first_labels, last_labels]) for val in tup]
 ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.5, -.1))
 
 ax.set_ylim([0, 1.05])
-ax.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
+ax.set_ylabel(f'Normalized Return')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 # ax.legend(
@@ -439,7 +439,7 @@ ax.set_xticklabels(xlabels)
 #     framealpha=0.8,
 #     ncols=2,
 # )
-ax.set_title(f"Hill-Climbing vs. Gradient-Based Memory Optimization ({title_note})")
+ax.set_title(f"Performance with Memory Optimization")
 ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
 
 plt.tight_layout()
