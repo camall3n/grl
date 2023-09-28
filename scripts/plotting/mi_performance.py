@@ -24,6 +24,9 @@ from grl.memory import memory_cross_product
 
 plot_dir = 'results/plots/iclr2023/'
 os.makedirs(plot_dir, exist_ok=True)
+policy_optim_alg = 'policy_grad'
+
+title_note = 'PI' if policy_optim_alg == 'policy_iter' else 'PG'
 
 config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
@@ -34,7 +37,8 @@ plt.rcParams.update({'font.size': 18})
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_pi')
 # results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
-results_dir = Path(ROOT_DIR, 'results', 'final_analytical') # analytical-optimized mem fn
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical') # analytical-optimized mem fn
+results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks') # analytical-optimized mem fn
 # results_dir = Path(ROOT_DIR, 'results', 'random_discrete_analytical') # determ. random mem fn
 # results_dir = Path(ROOT_DIR, 'results', 'random_uniform_analytical') # stoch. random mem fn
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
@@ -66,9 +70,7 @@ spec_plot_order = [
 ]
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
-
-calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv',
-                                index_col='spec')
+calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed.csv').query('n_mem_states==2').set_index('spec')
 calibrations_dict = calibrations_data.to_dict('index')
 # calibrations_data = calibrations_data.reset_index()
 # scale_low = calibrations_data['init_policy_perf']
@@ -123,6 +125,9 @@ for results_path in results_dir.iterdir():
     info = load_info(results_path)
 
     args = info['args']
+
+    if args['policy_optim_alg'] != policy_optim_alg:
+        continue
 
     # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
@@ -246,7 +251,7 @@ def maybe_spec_map(id: str):
 
 groups = normalized_df.groupby(split_by, sort=False, as_index=False)
 means = groups.mean()
-std_errs = groups.std()
+std_errs = groups.sem()
 num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
 
 group_width = 1
@@ -279,16 +284,17 @@ ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_
 
 ax.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
 
-ax.set_title("Gradient-Based Memory Optimization")
+ax.set_title(f"Gradient-Based Memory Optimization ({title_note})")
 
-ax.set_ylim([0, 1])
+ax.set_ylim([0, 1.05])
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels[::3])
+ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
 
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.2)
 
-fig_path = plot_dir + '/analytical-pi.pdf'
+fig_path = plot_dir + f'/analytical_{policy_optim_alg}.pdf'
 fig.savefig(fig_path)
 
 #%%
@@ -300,6 +306,8 @@ def load_results(pathname):
         results_file = results_dir + '/discrete_oracle.json'
         with open(results_file, 'r') as f:
             info = json.load(f)
+            if info['env'] not in spec_plot_order:
+                continue
             trial_id = int(info['trial_id'].split('_')[1]) % 10
             info['trial_id'] = trial_id
             scales = calibrations_dict[info['env']]
@@ -332,17 +340,17 @@ def sort_specs(series):
 discrete_oracle_means = group.mean(numeric_only=True).sort_values(by='spec',
                                                                   key=sort_specs,
                                                                   ignore_index=True)
-discrete_oracle_std_errs = group.std(numeric_only=True).sort_values(by='spec',
+discrete_oracle_std_errs = group.sem(numeric_only=True).sort_values(by='spec',
                                                                     key=sort_specs,
                                                                     ignore_index=True)
 
 means_with_discrete = pd.concat([means, discrete_oracle_means])
 std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
 
-means_with_discrete['policy_optim_alg'].fillna('policy_iter', inplace=True)
+means_with_discrete['policy_optim_alg'].fillna(policy_optim_alg, inplace=True)
 means_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
 means_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
-std_errs_with_discrete['policy_optim_alg'].fillna('policy_iter', inplace=True)
+std_errs_with_discrete['policy_optim_alg'].fillna(policy_optim_alg, inplace=True)
 std_errs_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
 std_errs_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
 
@@ -356,7 +364,6 @@ x = np.arange(len(means['spec'].unique()))
 num_n_mem = list(sorted(means_with_discrete['n_mem_states'].unique()))
 xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
 
-policy_optim_alg = 'policy_iter'
 settings_list = [
     ('analytical', ''),
     ('annealing', '//'),
@@ -422,9 +429,9 @@ first_handles, last_handles = handles[:len(handles)//2], handles[len(handles)//2
 first_labels, last_labels = labels[:len(labels)//2], labels[len(labels)//2:]
 handles = [val for tup in zip(*[first_handles, last_handles]) for val in tup]
 labels = [val for tup in zip(*[first_labels, last_labels]) for val in tup]
-ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.45, -.1))
+ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.5, -.1))
 
-ax.set_ylim([0, 1])
+ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
@@ -433,12 +440,12 @@ ax.set_xticklabels(xlabels)
 #     framealpha=0.8,
 #     ncols=2,
 # )
-ax.set_title("Hill-Climbing vs. Gradient-Based Memory Optimization")
-# ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k')
+ax.set_title(f"Hill-Climbing vs. Gradient-Based Memory Optimization ({title_note})")
+ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
 
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.25)
 
-fig_path = plot_dir + '/annealing-pi.pdf'
+fig_path = plot_dir + f'annealing_{policy_optim_alg}.pdf'
 fig.savefig(fig_path)
 fig.show()
