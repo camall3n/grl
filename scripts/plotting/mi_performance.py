@@ -63,7 +63,8 @@ spec_plot_order = [
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
-calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv', index_col='spec')
+calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv',
+                                index_col='spec')
 calibrations_dict = calibrations_data.to_dict('index')
 # calibrations_data = calibrations_data.reset_index()
 # scale_low = calibrations_data['init_policy_perf']
@@ -71,7 +72,6 @@ calibrations_dict = calibrations_data.to_dict('index')
 # scaled_final_values = (calibrations_data['final_mem_perf'] - scale_low) / (scale_high - scale_low)
 # calibrations_data['scaled_final_value'] = scaled_final_values
 # calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
-
 
 # %%
 
@@ -152,12 +152,13 @@ merged_df = compare_to_df.merge(all_res_df, on='spec')
 normalized_df = merged_df.copy()
 for env in spec_plot_order:
     scales = calibrations_dict[env]
-    idx = normalized_df['spec']==env
-    normalized_df.loc[idx,'init_improvement_perf'] = (
-    normalized_df[idx]['init_improvement_perf'] -
-    scales['init_policy_perf']) / (scales['compare_to_perf'] - scales['init_policy_perf'])
-    normalized_df.loc[idx,'final_mem_perf'] = (normalized_df[idx]['final_mem_perf'] - scales['init_policy_perf']) / (
-                    scales['compare_to_perf'] - scales['init_policy_perf'])
+    idx = normalized_df['spec'] == env
+    normalized_df.loc[idx, 'init_improvement_perf'] = (
+        normalized_df[idx]['init_improvement_perf'] -
+        scales['init_policy_perf']) / (scales['compare_to_perf'] - scales['init_policy_perf'])
+    normalized_df.loc[idx, 'final_mem_perf'] = (
+        normalized_df[idx]['final_mem_perf'] -
+        scales['init_policy_perf']) / (scales['compare_to_perf'] - scales['init_policy_perf'])
 
 # del normalized_df['init_policy_perf']
 # del normalized_df['compare_perf']
@@ -281,7 +282,6 @@ fig.savefig(fig_path)
 
 #%%
 
-
 def load_results(pathname):
     all_results = []
     results_dirs = glob.glob(pathname)
@@ -356,8 +356,7 @@ xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
 unique_runs = sorted(
     pd.unique(
         list(
-            map(
-                str, means_with_discrete[['n_mem_states', 'policy_optim_alg',
+            map(str, means_with_discrete[['n_mem_states', 'policy_optim_alg',
                                           'mem_optimizer']].values))))
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
@@ -401,7 +400,7 @@ for chunk, (mem_optimizer, policy_optim_alg, hatching) in enumerate(settings_lis
                     color=bar_colors[i],
                     hatch=hatching)
         except ValueError as e:
-            x_alt = np.array([0, 3, 4, 7])
+            x_alt = np.array([0, 1, 2, 3, 4, 7])
             plt.bar(x_alt + (3 * chunk + i + 2) * bar_width,
                     means_with_discrete.query(query)['final_mem_perf'],
                     bar_width,
@@ -414,9 +413,13 @@ ax.set_ylim([0, 1.8])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(loc='upper left', framealpha=0.8, ncols=3, )
+ax.legend(
+    loc='upper left',
+    framealpha=0.8,
+    ncols=3,
+)
 ax.set_title("Performance of Memory Iteration in POMDPs")
-ax.hlines(1, x.min(), x.max()+1, ls='--', color='k')
+ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k')
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
