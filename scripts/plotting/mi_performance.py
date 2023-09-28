@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.nn import softmax
 from jax.config import config
 import numpy as np
+import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -378,6 +379,7 @@ unique_runs = sorted(
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
 
+mpl.rcParams['hatch.color'] = 'k'
 fig, ax = plt.subplots(figsize=(12, 6))
 query = 'n_mem_states == 2 and mem_optimizer == "analytical"'
 ax.bar(x + (0 + 1) * bar_width,
