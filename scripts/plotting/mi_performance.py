@@ -63,6 +63,16 @@ spec_plot_order = [
 
 spec_to_belief_state = {'tmaze_5_two_thirds_up': 'tmaze5'}
 
+calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv', index_col='spec')
+calibrations_dict = calibrations_data.to_dict('index')
+# calibrations_data = calibrations_data.reset_index()
+# scale_low = calibrations_data['init_policy_perf']
+# scale_high = calibrations_data['compare_to_perf']
+# scaled_final_values = (calibrations_data['final_mem_perf'] - scale_low) / (scale_high - scale_low)
+# calibrations_data['scaled_final_value'] = scaled_final_values
+# calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
+
+
 # %%
 
 compare_to_list = []
@@ -140,13 +150,17 @@ merged_df = compare_to_df.merge(all_res_df, on='spec')
 # for col_name in cols_to_normalize:
 
 normalized_df = merged_df.copy()
-normalized_df['init_improvement_perf'] = (
-    normalized_df['init_improvement_perf'] -
-    merged_df['init_policy_perf']) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
-normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']
-                                   ) / (merged_df['compare_perf'] - merged_df['init_policy_perf'])
-del normalized_df['init_policy_perf']
-del normalized_df['compare_perf']
+for env in spec_plot_order:
+    scales = calibrations_dict[env]
+    idx = normalized_df['spec']==env
+    normalized_df.loc[idx,'init_improvement_perf'] = (
+    normalized_df[idx]['init_improvement_perf'] -
+    scales['init_policy_perf']) / (scales['compare_to_perf'] - scales['init_policy_perf'])
+    normalized_df.loc[idx,'final_mem_perf'] = (normalized_df[idx]['final_mem_perf'] - scales['init_policy_perf']) / (
+                    scales['compare_to_perf'] - scales['init_policy_perf'])
+
+# del normalized_df['init_policy_perf']
+# del normalized_df['compare_perf']
 
 # all_normalized_perf_results = {}
 # for hparams, res in all_results.items():
@@ -267,14 +281,6 @@ fig.savefig(fig_path)
 
 #%%
 
-calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv', index_col='spec')
-calibrations_dict = calibrations_data.to_dict('index')
-# calibrations_data = calibrations_data.reset_index()
-# scale_low = calibrations_data['init_policy_perf']
-# scale_high = calibrations_data['compare_to_perf']
-# scaled_final_values = (calibrations_data['final_mem_perf'] - scale_low) / (scale_high - scale_low)
-# calibrations_data['scaled_final_value'] = scaled_final_values
-# calibrations_data['env'] = calibrations_data['spec'].map(maybe_spec_map)
 
 def load_results(pathname):
     all_results = []
