@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.nn import softmax
 from jax.config import config
 import numpy as np
+import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -24,7 +25,7 @@ from grl.memory import memory_cross_product
 
 plot_dir = 'results/plots/iclr2023/'
 os.makedirs(plot_dir, exist_ok=True)
-policy_optim_alg = 'policy_iter'
+policy_optim_alg = 'policy_grad'
 
 title_note = 'PI' if policy_optim_alg == 'policy_iter' else 'PG'
 
@@ -256,40 +257,43 @@ num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
 
 group_width = 1
 bar_width = group_width / (len(num_n_mem) + 2)
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6))
 
-x = np.arange(len(means['spec'].unique()))
-xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
+for ax in (ax1, ax2):
+    x = np.arange(len(means['spec'].unique()))
+    xlabels = [maybe_spec_map(l) for l in list(means['spec'])]
 
-ax.bar(x[:len(means) // 3] + (0 + 1) * bar_width,
-       means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
-       bar_width,
-       yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
-       label='Memoryless',
-       color='#5B97E0')
-bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
-bar_colors = ['#E0B625', '#DD8453', '#C44E52']
-# bar_colors = ['#', '#E05B5D', 'tab:orange']
-
-for i, n_mem_states in enumerate(num_n_mem):
-    ax.bar(x + (i + 2) * bar_width,
-           means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
+    ax.bar(x[:len(means) // 3] + (0 + 1) * bar_width,
+           means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
            bar_width,
-           yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
-           label=f"{int(np.log(n_mem_states))+1} Bit"+('s' if i > 0 else ''),
-           color=bar_colors[i])
+           yerr=std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'],
+           label='Memoryless',
+           color='#5B97E0')
+    bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
+    bar_colors = ['#E0B625', '#DD8453', '#C44E52']
+    # bar_colors = ['#', '#E05B5D', 'tab:orange']
 
-handles, labels = plt.gca().get_legend_handles_labels() # get existing handles and labels
+    for i, n_mem_states in enumerate(num_n_mem):
+        ax.bar(x + (i + 2) * bar_width,
+               means[means['n_mem_states'] == n_mem_states]['final_mem_perf'],
+               bar_width,
+               yerr=std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'],
+               label=f"{int(np.log(n_mem_states))+1} Bit"+('s' if i > 0 else ''),
+               color=bar_colors[i])
+
+ax1.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
+ax2.set_xticks(x + group_width / 2)
+ax2.set_xticklabels(xlabels[::3])
+
+ax1.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
+ax1.set_title(f"Gradient-Based Memory Optimization ({title_note})")
+
+ax = plt.gca()
+handles, labels = ax.get_legend_handles_labels() # get existing handles and labels
 ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.45, -.1))
 
-ax.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
-
-ax.set_title(f"Gradient-Based Memory Optimization ({title_note})")
-
-ax.set_ylim([0, 1.05])
-ax.set_xticks(x + group_width / 2)
-ax.set_xticklabels(xlabels[::3])
-ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
+ax1.set_ylim([0.4, 1.05])
+ax2.set_ylim([0.0, 0.1])
 
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.2)
@@ -369,6 +373,9 @@ settings_list = [
     ('annealing', '\\\\'),
 ]
 
+# {'/', '\', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+
+
 subset = f'policy_optim_alg == "{policy_optim_alg}"'
 
 unique_runs = sorted(
@@ -378,47 +385,56 @@ unique_runs = sorted(
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
 
-fig, ax = plt.subplots(figsize=(12, 6))
-query = 'n_mem_states == 2 and mem_optimizer == "analytical"'
-ax.bar(x + (0 + 1) * bar_width,
-       means_with_discrete.query(subset).query(query)['init_improvement_perf'],
-       bar_width,
-       yerr=std_errs_with_discrete.query(subset).query(query)['init_improvement_perf'],
-       label='Memoryless',
-       color='#5B97E0')
-# bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
-bar_colors = ['#E0B625', '#DD8453', '#C44E52']
-# bar_colors = ['#', '#E05B5D', 'tab:orange']
+ax1_lim = [0.45, 1.02]
+ax2_lim = [0, 0.05]
+ax1_rng = ax1_lim[1] - ax1_lim[0]
+ax2_rng = ax2_lim[1] - ax2_lim[0]
 
-# settings_list = [
-#     ('annealing', 'none', '+'),
-#     ('annealing', 'td', 'X'),
-#     ('analytical', 'td', ''),
-# ]
+mpl.rcParams["hatch.color"] = 'k'
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex=True, gridspec_kw={'height_ratios': [ax1_rng, ax2_rng]})
 
-for chunk, (mem_optimizer, hatching) in enumerate(settings_list):
-    for i, n_mem_states in enumerate(num_n_mem):
-        query = (f'n_mem_states == {n_mem_states} '
-                 f'and mem_optimizer == "{mem_optimizer}" '
-                 f'and policy_optim_alg == "{policy_optim_alg}"')
-        optim_name = {'annealing': 'HC', 'analytical': 'Grad'}[mem_optimizer]
-        try:
-            plt.bar(x + (3 * chunk + i + 2) * bar_width,
-                    means_with_discrete.query(query)['final_mem_perf'],
-                    bar_width,
-                    yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
-                    label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
-                    color=bar_colors[i],
-                    hatch=hatching)
-        except ValueError as e:
-            x_alt = np.array([0, 1, 2, 3, 4, 7])
-            plt.bar(x_alt + (3 * chunk + i + 2) * bar_width,
-                    means_with_discrete.query(query)['final_mem_perf'],
-                    bar_width,
-                    yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
-                    label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
-                    color=bar_colors[i],
-                    hatch=hatching)
+for ax in (ax1, ax2):
+
+    query = 'n_mem_states == 2 and mem_optimizer == "analytical"'
+    ax.bar(x + (0 + 1) * bar_width,
+           means_with_discrete.query(subset).query(query)['init_improvement_perf'],
+           bar_width,
+           yerr=std_errs_with_discrete.query(subset).query(query)['init_improvement_perf'],
+           label='Memoryless',
+           color='#5B97E0')
+    # bar_colors = ['xkcd:goldenrod', 'tab:orange', '#E05B5D']
+    bar_colors = ['#E0B625', '#DD8453', '#C44E52']
+    # bar_colors = ['#', '#E05B5D', 'tab:orange']
+
+    # settings_list = [
+    #     ('annealing', 'none', '+'),
+    #     ('annealing', 'td', 'X'),
+    #     ('analytical', 'td', ''),
+    # ]
+
+    for chunk, (mem_optimizer, hatching) in enumerate(settings_list):
+        for i, n_mem_states in enumerate(num_n_mem):
+            query = (f'n_mem_states == {n_mem_states} '
+                     f'and mem_optimizer == "{mem_optimizer}" '
+                     f'and policy_optim_alg == "{policy_optim_alg}"')
+            optim_name = {'annealing': 'HC', 'analytical': 'Grad'}[mem_optimizer]
+            try:
+                ax.bar(x + (3 * chunk + i + 2) * bar_width,
+                        means_with_discrete.query(query)['final_mem_perf'],
+                        bar_width,
+                        yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
+                        label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
+                        color=bar_colors[i],
+                        hatch=hatching)
+            except ValueError as e:
+                x_alt = np.array([0, 1, 2, 3, 4, 7])
+                ax.bar(x_alt + (3 * chunk + i + 2) * bar_width,
+                        means_with_discrete.query(query)['final_mem_perf'],
+                        bar_width,
+                        yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
+                        label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
+                        color=bar_colors[i],
+                        hatch=hatching)
 
 handles, labels = plt.gca().get_legend_handles_labels() # get existing handles and labels
 empty_patch = mpatches.Patch(color='none')
@@ -428,22 +444,57 @@ first_handles, last_handles = handles[:len(handles)//2], handles[len(handles)//2
 first_labels, last_labels = labels[:len(labels)//2], labels[len(labels)//2:]
 handles = [val for tup in zip(*[first_handles, last_handles]) for val in tup]
 labels = [val for tup in zip(*[first_labels, last_labels]) for val in tup]
-ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.5, -.1))
+ax2.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.5, -1.1))
 
-ax.set_ylim([0, 1.05])
-ax.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
-ax.set_xticks(x + group_width / 2)
-ax.set_xticklabels(xlabels)
+ax1.set_ylim(ax1_lim)
+ax2.set_ylim(ax2_lim)
+ax1.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
+ax1.yaxis.set_label_coords(-0.06, 0.43)
+
+ax1.set_xticks([])
+ax2.set_xticks(x + group_width / 2)
+ax2.set_xticklabels(xlabels)
+ax2.set_yticks([0])
 # ax.legend(
 #     loc='upper left',
 #     framealpha=0.8,
 #     ncols=2,
 # )
-ax.set_title(f"Hill-Climbing vs. Gradient-Based Memory Optimization ({title_note})")
-ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
+ax1.set_title(f"Hill-Climbing vs. Gradient-Based Memory Optimization ({title_note})")
+ax1.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
+
+ax1.spines['bottom'].set_visible(False)
+ax2.spines['top'].set_visible(False)
+# ax1.xaxis.tick_top()
+# ax1.tick_params(labeltop='off')  # don't put tick labels at the top
+ax1.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are off
+
+d = .01  # how big to make the diagonal lines in axes coordinates
+# arguments to pass to plot, just so we don't keep repeating them
+kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+# ax1.plot((-d, +d), (-d/ax1_rng, +d/ax1_rng), **kwargs)        # top-left diagonal
+# ax1.plot((1 - d, 1 + d), (-d/ax1_rng, +d/ax1_rng), **kwargs)  # top-right diagonal
+
+kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
+ax2.plot((-d, +d), (1 - d/ax2_rng, 1 + d/ax2_rng), **kwargs)  # bottom-left diagonal
+ax2.plot((1 - d, 1 + d), (1 - d/ax2_rng, 1 + d/ax2_rng), **kwargs)  # bottom-right diagonal
+ax2.plot((-d, +d), (0.8 - d/ax2_rng, 0.8 + d/ax2_rng), **kwargs)  # bottom-left diagonal
+ax2.plot((1 - d, 1 + d), (0.8 - d/ax2_rng, 0.8 + d/ax2_rng), **kwargs)  # bottom-right diagonal
+
+
+mpl.rcParams["hatch.color"] = '#888'
+ax.get_ylim()
+for bar_x in range(7):
+    rect = mpatches.Rectangle((bar_x+0.5-4*bar_width, 0.04), width=bar_width*7, height=0.01, angle=0, rotation_point='center', facecolor='w', alpha=0.8, hatch='//')
+    ax2.add_patch(rect)
 
 plt.tight_layout()
-plt.subplots_adjust(bottom=0.25)
+plt.subplots_adjust(bottom=0.25, hspace=0.0)
 
 fig_path = plot_dir + f'annealing_{policy_optim_alg}.pdf'
 fig.savefig(fig_path)
