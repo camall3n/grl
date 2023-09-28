@@ -448,7 +448,7 @@ ax2.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to
 
 ax1.set_ylim(ax1_lim)
 ax2.set_ylim(ax2_lim)
-ax1.set_ylabel(f'Normalized Return\n (0 = random, 1 = belief-states)')
+ax1.set_ylabel(f'Normalized Return')
 ax1.yaxis.set_label_coords(-0.06, 0.43)
 
 ax1.set_xticks([])
@@ -460,7 +460,7 @@ ax2.set_yticks([0])
 #     framealpha=0.8,
 #     ncols=2,
 # )
-ax1.set_title(f"Hill-Climbing vs. Gradient-Based Memory Optimization ({title_note})")
+ax1.set_title(f"Performance with Memory Optimization ")
 ax1.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
 
 ax1.spines['bottom'].set_visible(False)
