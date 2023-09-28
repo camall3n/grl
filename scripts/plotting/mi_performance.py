@@ -267,7 +267,7 @@ fig.savefig(fig_path)
 
 #%%
 
-calibrations_data = pd.read_csv('results/discrete/all_pomdps_means.csv', index_col='spec')
+calibrations_data = pd.read_csv('results/discrete/all_pomdps_means_fixed_tmaze.csv', index_col='spec')
 calibrations_dict = calibrations_data.to_dict('index')
 # calibrations_data = calibrations_data.reset_index()
 # scale_low = calibrations_data['init_policy_perf']
@@ -296,7 +296,7 @@ def load_results(pathname):
     return data
 
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
-discrete_oracle_data = load_results('results/discrete/locality06*/*/*')
+discrete_oracle_data = load_results('results/discrete/locality07*/*/*')
 discrete_oracle_data['spec'] = discrete_oracle_data['env'] #.map(maybe_spec_map)
 del discrete_oracle_data['env']
 # discrete_oracle_data['n_mem_states'] = 1
@@ -351,8 +351,8 @@ unique_runs = sorted(
     pd.unique(
         list(
             map(
-                str, means_with_discrete[['n_mem_states',
-                                          'mem_optimizer', 'init_policy_randomly']].values))))
+                str, means_with_discrete[['n_mem_states', 'policy_optim_alg',
+                                          'mem_optimizer']].values))))
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
 
@@ -376,16 +376,16 @@ hatching = ['//', None, None, None]
 # ]
 
 settings_list = [
-    ('annealing', False, '+'),
-    ('annealing', True, 'X'),
-    ('analytical', False, ''),
+    ('annealing', 'policy_iter', '+'),
+    ('annealing', 'policy_grad', 'X'),
+    ('analytical', 'policy_iter', ''),
 ]
 
-for chunk, (mem_optimizer, init_policy_randomly, hatching) in enumerate(settings_list):
+for chunk, (mem_optimizer, policy_optim_alg, hatching) in enumerate(settings_list):
     for i, n_mem_states in enumerate(num_n_mem):
         query = (f'n_mem_states == {n_mem_states} '
                  f'and mem_optimizer == "{mem_optimizer}" '
-                 f'and init_policy_randomly == {init_policy_randomly}')
+                 f'and policy_optim_alg == "{policy_optim_alg}"')
         try:
             plt.bar(x + (3 * chunk + i + 2) * bar_width,
                     means_with_discrete.query(query)['final_mem_perf'],
@@ -404,12 +404,13 @@ for chunk, (mem_optimizer, init_policy_randomly, hatching) in enumerate(settings
                     color=bar_colors[i],
                     hatch=hatching)
 
-ax.set_ylim([0, 1.5])
+ax.set_ylim([0, 1.8])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(loc='upper left', framealpha=0.95, ncols=2)
+ax.legend(loc='upper left', framealpha=0.8, ncols=3, )
 ax.set_title("Performance of Memory Iteration in POMDPs")
+ax.hlines(1, x.min(), x.max()+1, ls='--', color='k')
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
