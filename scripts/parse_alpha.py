@@ -7,7 +7,21 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-from grl.environment.pomdp_file import POMDPFile
+from grl.environment import load_pomdp
+
+
+def get_max_val(b0: np.ndarray, coeffs: np.ndarray):
+    max_start_val = -float('inf')
+    max_start_idx = 0
+    for i, coeff in enumerate(coeffs):
+        piece_start_val = np.dot(coeff, b0)
+        if piece_start_val > max_start_val:
+            max_start_val = piece_start_val
+            max_start_idx = i
+
+    return max_start_val, max_start_idx
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str, help='name of .alpha file to parse')
@@ -36,22 +50,33 @@ if __name__ == '__main__':
     coeffs = np.array(coeffs)
 
     pomdp_name = '-'.join(filename.stem.split('-')[:-1])
-    pomdp = POMDPFile(filename.parent / f"{pomdp_name}.POMDP")
-    p0 = pomdp.start
 
-    max_start_val = -float('inf')
-    max_start_idx = 0
-    for i, coeff in enumerate(coeffs):
-        piece_start_val = np.dot(coeff, p0)
-        if piece_start_val > max_start_val:
-            max_start_val = piece_start_val
-            max_start_idx = i
+    pomdp, _ = load_pomdp(pomdp_name)
+    all_start_beliefs = []
+    b0 = pomdp.p0
 
-    res = {'p0': p0, 'actions': actions, 'coeffs': coeffs, 'max_start_idx': max_start_idx}
+    start_val = 0
+    for s, p0_s in enumerate(pomdp.p0):
+        if p0_s > 0:
+            obs_p = pomdp.phi[s]
+            for o, p0_o in enumerate(obs_p):
+                w = np.zeros_like(b0)
+                for new_s in range(pomdp.state_space.n):
+                    w[new_s] = pomdp.phi[new_s, o] * b0[new_s]
+
+                if np.all(w == 0):
+                    continue
+                initial_belief = w / np.sum(w)
+                all_start_beliefs.append((initial_belief, s, o))
+                max_start_val, max_start_idx = get_max_val(initial_belief, coeffs)
+                start_val += p0_s * p0_o * max_start_val
+
+
+    res = {'all_start_beliefs': all_start_beliefs, 'start_val': start_val, 'coeffs': coeffs}
 
     res_file = filename.parent / f"{pomdp_name}-pomdp-solver-results.npy"
 
-    print(f"Maximum start val for pomdp soln.: {max_start_val}")
+    print(f"Maximum start val for pomdp soln.: {start_val}")
     print(f"Saving results to {res_file}")
 
     np.save(res_file, res)

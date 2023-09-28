@@ -19,8 +19,8 @@ from grl.utils import load_info
 from definitions import ROOT_DIR
 
 # %% codecell
-# results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
-results_dir = Path(ROOT_DIR, 'results', 'memoryless_analytical')
+results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_discrep')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
@@ -83,9 +83,7 @@ for spec in spec_plot_order:
                         f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"
                     ):
                     belief_info = load_info(fname)
-                    coeffs = belief_info['coeffs']
-                    max_start_vals = coeffs[belief_info['max_start_idx']]
-                    compare_to_dict[spec] = np.dot(max_start_vals, belief_info['p0'])
+                    compare_to_dict[spec] = belief_info['start_val']
                     break
                     # print(f"loaded results for {hparams.spec} from {fname}")
         else:
@@ -255,8 +253,8 @@ ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-ax.legend(bbox_to_anchor=(0.5, 0.62), framealpha=0.95)
-# ax.set_title("Performance of Memory Iteration in POMDPs")
+ax.legend(bbox_to_anchor=(0.55, 0.62), framealpha=0.95)
+ax.set_title(f"{results_dir.stem}")
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"

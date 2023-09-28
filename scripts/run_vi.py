@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
+
 from grl.environment import load_spec
 from grl.mdp import MDP
 from grl.utils.file_system import numpyify_and_save
