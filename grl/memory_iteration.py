@@ -228,7 +228,7 @@ def memory_iteration(
     pomdp = copy.deepcopy(init_pomdp)
 
     for mem_it in range(mi_iterations):
-        if agent.mem_params is not None and mi_per_step > 0:
+        if agent.mem_params is not None:
             print(f"Start MI {mem_it}")
             mem_loss = mem_improvement(agent,
                                        init_pomdp,
