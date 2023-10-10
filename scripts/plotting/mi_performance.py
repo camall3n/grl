@@ -19,8 +19,8 @@ from grl.utils import load_info
 from definitions import ROOT_DIR
 
 # %% codecell
-results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
-# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_discrep')
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
+results_dir = Path(ROOT_DIR, 'results', 'memoryless_kitchen_sinks')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
@@ -34,6 +34,9 @@ split_by = [arg for arg in args_to_keep if arg != 'seed']
 # or optimal state soln. ('belief' | 'state')
 compare_to = 'belief'
 # compare_to = 'state'
+
+policy_optim_alg = 'policy_grad'
+use_memory = 'random_uniform'
 
 
 # spec_plot_order = [
@@ -117,6 +120,12 @@ for results_path in results_dir.iterdir():
 
     args = info['args']
     if args['spec'] not in spec_plot_order:
+        continue
+
+    if args['policy_optim_alg'] != policy_optim_alg:
+        continue
+
+    if args['use_memory'] != use_memory:
         continue
 
     # agent = info['agent']
@@ -257,8 +266,9 @@ ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
 ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
-# ax.legend(bbox_to_anchor=(0.317, 0.62), framealpha=0.95)
-# ax.set_title("Memory Iteration (Policy Iteration, O space)")
+# ax.legend(bbox_to_anchor=(0.317, 0.62), framexalpha=0.95)
+# ax.set_title(f"Memory Iteration ({policy_optim_alg})")
+ax.set_title(f"Memory: {use_memory} ({policy_optim_alg})")
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}.pdf"
