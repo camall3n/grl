@@ -241,6 +241,7 @@ class POMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
+        assert self.phi[s].sum() == 1
         if self.rand_key is not None:
             return self.rand_key.choice(self.observation_space.n, p=self.phi[s])
 
