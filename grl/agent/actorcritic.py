@@ -12,9 +12,9 @@ import numpy as np
 import optuna
 from optuna.storages import JournalStorage, JournalFileStorage
 from tqdm import tqdm
-
+from grl.memory.analytical import memory_cross_product
 from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
-from grl.utils.loss import mem_discrep_loss
+from grl.utils.loss import mem_discrep_loss, value_error
 from grl.agent.td_lambda import TDLambdaQFunction
 from grl.utils.replaymemory import ReplayMemory
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
@@ -278,7 +278,7 @@ class ActorCritic:
             required_params.append(x)
 
         self.set_memory(self.fill_in_params(required_params), logits=False)
-        result = self.evaluate_memory()
+        result, _ = self.evaluate_memory()
 
         with open(os.path.join(self.study_dir, 'output.txt'), 'a') as file:
             file.write(f'Trial: {trial.number}\n')
@@ -349,7 +349,7 @@ class ActorCritic:
             if self.prune_if_parent_suboptimal and parent_discrep > best_discrep:
                 continue
             self.set_memory(node.mem_probs, logits=False)
-            discrep = self.evaluate_memory().item()
+            discrep, value_err = self.evaluate_memory()
             discreps.append(discrep)
             n_evals += 1
             # print(f'discrep = {discrep}')
@@ -383,21 +383,24 @@ class ActorCritic:
         decay_rate = np.log(tmax / tmin) / ((1 - progress_fraction_at_tmin) * n_iter)
 
         current_node = SearchNode(self.memory_probs)
-        current_discrep = self.evaluate_memory().item()
+        current_discrep, current_value_err = self.evaluate_memory()
         current_temp = tmax
 
         discreps = [current_discrep]
         temps = [current_temp]
+        value_errs = [current_value_err]
+
         accept_probs = [1]
 
         best_node = current_node
-        best_discrep = self.evaluate_memory().item()
+        best_discrep = current_discrep
 
         pbar = tqdm(total=n_iter)
         for i in range(n_iter):
             successor = current_node.get_random_successor()
             self.set_memory(successor.mem_probs, logits=False)
-            next_discrep = self.evaluate_memory().item()
+            next_discrep, next_value_err = self.evaluate_memory()
+
             delta = next_discrep - current_discrep
             if next_discrep == current_discrep:
                 accept = 0
@@ -410,15 +413,18 @@ class ActorCritic:
             if delta <= 0:
                 current_node = successor
                 current_discrep = next_discrep
+                current_value_err = next_value_err
                 if current_discrep < best_discrep:
                     best_discrep = current_discrep
                     best_node = current_node
             elif np.random.random() < accept:
                 current_node = successor
                 current_discrep = next_discrep
+                current_value_err = next_value_err
             if i % 1 == 0:
                 discreps.append(current_discrep)
                 temps.append(current_temp)
+                value_errs.append(current_value_err)
             current_temp = max(tmin, current_temp * np.exp(-decay_rate))
             pbar.update(1)
 
@@ -427,9 +433,11 @@ class ActorCritic:
             'accept_probs': accept_probs,
             'temps': temps,
             'discreps': discreps,
+            'value_errs': value_errs,
             'best_discrep': best_discrep,
             'temp': current_temp,
-            'n': n_iter,
+            'n_iter': n_iter,
+            'n_repeats': [1],
         }
         return best_node, info
 
@@ -437,11 +445,12 @@ class ActorCritic:
     def extend_info(info: dict, other_info: dict):
         if info is None:
             return other_info
-        for key in ['accept_probs', 'temps', 'discreps']:
+        for key in ['accept_probs', 'temps', 'discreps', 'value_errs']:
             info[key].extend(other_info[key])
         info['best_discrep'] = min(info['best_discrep'], other_info['best_discrep'])
         info['temp'] = other_info['temp']
-        info['n'] += other_info['n']
+        info['n_iter'] += other_info['n_iter']
+        info['n_repeats'] = info['n_repeats'] + [info['n_repeats'][-1] + 1]
         return info
 
     def suggest_annealing_hyperparams(self):
@@ -471,7 +480,7 @@ class ActorCritic:
 
     def optimize_memory(self, n_trials):
         prev_memory_probs = self.memory_probs
-        prev_discrep = self.evaluate_memory().item()
+        prev_discrep, prev_value_err = self.evaluate_memory()
 
         if self.mem_optimizer == 'optuna':
             study = self.optimize_memory_optuna(n_trials=n_trials, n_jobs=self.n_optuna_workers)
@@ -528,7 +537,10 @@ class ActorCritic:
 
     def evaluate_memory(self):
         if self.override_mem_eval_with_analytical_env is not None:
-            return self.evaluate_memory_analytical()
+            discrep = self.evaluate_memory_analytical().item()
+            mem_aug_pomdp = memory_cross_product(self.memory_logits, self.override_mem_eval_with_analytical_env)
+            value_err = value_error(self.policy_probs, mem_aug_pomdp)[0].item()
+            return discrep, value_err
 
         assert len(self.replay.memory) > 0
         self.reset_memory_state()
@@ -548,7 +560,7 @@ class ActorCritic:
                 # Don't update for first episode since it might be partial
                 self.update_critic(e)
         obs, actions = self.replay.retrieve(fields=['obs', 'action'])
-        return self.compute_discrepancy_loss(obs, actions, memories)
+        return self.compute_discrepancy_loss(obs, actions, memories).item(), np.nan
 
     def augment_obs(self,
                     obs: Union[int, np.ndarray],

@@ -331,7 +331,7 @@ def value_error(pi: jnp.ndarray,
     # Expand observation (q-)value function to state (q-)value function
     # (a,o) @ (o,s) => (a,s);  (o,) @ (o,s) => (s,)
     expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T
-    diff = state_vals - expanded_obs_vals
+    diff = state_vals[value_type] - expanded_obs_vals
 
     c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     p_s = c_s / c_s.sum()

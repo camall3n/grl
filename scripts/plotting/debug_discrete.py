@@ -28,52 +28,35 @@ def load_results(pathname):
         results_file = results_dir + '/discrete_oracle.json'
         with open(results_file, 'r') as f:
             info = json.load(f)
+            info2 = info.copy()
+            del info2['optimizer_info']
             trial_id = int(info['trial_id'].split('_')[-1]) % 10
             info['trial_id'] = trial_id
             if info['tmax'] < info['tmin']:
                 continue
-            info['accept_probs'] = info['optimizer_info']['accept_probs']
+            info['accept_prob'] = info['optimizer_info']['accept_probs']
             info['best_discrep'] = info['optimizer_info']['best_discrep']
-            info['temps'] = info['optimizer_info']['temps']
-            info['discreps'] = info['optimizer_info']['discreps']
-            info['optim_steps'] = np.arange(len(info['discreps']))
+            info['temp'] = info['optimizer_info']['temps']
+            info['discrep'] = info['optimizer_info']['discreps']
+            info['value_err'] = info['optimizer_info']['value_errs']
+            info['optim_step'] = np.arange(len(info['discrep']))
+            info['repeat'] = [x for l in [np.ones(info['n_iters']+1) * i for i in info['optimizer_info']['n_repeats']] for x in l]
+            info['iter'] = [x for l in [np.ones(info['n_repeats']) * i for i in np.arange(info['n_iters']+1)] for x in l]
+            len(info['iter'])
             del info['optimizer_info']
             all_results.append(info)
     data = pd.DataFrame(all_results)
     return data
+len(data.iter)
+data = load_results('results/discrete/value-err-logging/*/*')
+data = data.explode(['accept_prob', 'temp', 'discrep', 'value_err', 'optim_step', 'repeat', 'iter'], ignore_index=True)
+data.value_err.unique()
+subset = data.query('value_err<1')
 
-data = load_results('results/discrete/locality01/*/*')
-data = data.explode(['accept_probs', 'temps', 'discreps', 'optim_steps'], ignore_index=True)
-data.tmax.unique()
-subset = data.query('tmax>=1e-2 and tmax<0.3 and tmin <= 1e-6')
-
-sns.relplot(data=subset,
-            x='optim_steps',
-            y='discreps',
-            col='env',
-            col_wrap=4,
-            facet_kws={'sharey': False},
-            hue='tmin',
-            style='tmax',
-            kind='line',
-            units='seed',
-            estimator=None)
-sns.relplot(data=subset,
-            x='optim_steps',
-            y='discreps',
-            col='env',
-            col_wrap=4,
-            facet_kws={'sharey': False},
-            hue='tmin',
-            style='tmax',
-            kind='line')
-
-sns.relplot(data=data,
-            x='optim_steps',
-            y='discreps',
-            col='env',
-            col_wrap=4,
-            facet_kws={'sharey': False},
-            hue='tmin',
-            style='tmax',
-            kind='line')
+sns.scatterplot(
+    data=subset,
+    x='value_err',
+    y='discrep',
+)
+# plt.xscale('log')
+# plt.yscale('log')
