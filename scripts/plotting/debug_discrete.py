@@ -48,15 +48,33 @@ def load_results(pathname):
     data = pd.DataFrame(all_results)
     return data
 len(data.iter)
-data = load_results('results/discrete/value-err-logging/*/*')
+data = load_results('results/discrete/value-err-01/*/*')
 data = data.explode(['accept_prob', 'temp', 'discrep', 'value_err', 'optim_step', 'repeat', 'iter'], ignore_index=True)
 data.value_err.unique()
-subset = data.query('value_err<1')
 
-sns.scatterplot(
-    data=subset,
-    x='value_err',
-    y='discrep',
-)
-# plt.xscale('log')
-# plt.yscale('log')
+#%%
+envs_and_names = [
+    ('4x3.95', '4x3'),
+    ('cheese.95', 'cheese'),
+    ('network', 'network'),
+    ('paint.95', 'paint'),
+    ('shuttle.95', 'shuttle'),
+    ('tiger-alt-start', 'tiger'),
+    ('tmaze_5_two_thirds_up', 'tmaze'),
+]
+fig, axes = plt.subplots(2, 4, figsize=(12,4))
+for (env, name), ax in zip(envs_and_names, axes.flatten()):
+    subset = data.query(f'env=="{env}"').copy()
+    subset['value_err'] = pd.to_numeric(subset['value_err'], errors='coerce')
+    subset['discrep'] = pd.to_numeric(subset['discrep'], errors='coerce')
+    scatter_kwargs = {'s': 10, 'alpha': 0.05, 'marker': 'x'}
+    sns.scatterplot(data=subset, x='value_err', y='discrep', ax=ax, **scatter_kwargs)
+    sns.regplot(data=subset, x='value_err', y='discrep', scatter=False, ci=False, line_kws={'color': '#dd2244'}, ax=ax)
+    ax.set_title(name)
+axes.flatten()[-1].axis('off')
+for row in axes:
+    for i, ax in enumerate(row):
+        if i>0:
+            ax.set_ylabel('')
+fig.tight_layout()
+plt.show()
