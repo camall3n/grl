@@ -3,7 +3,7 @@ import numpy as np
 from grl.utils import softmax, reverse_softmax
 
 # mem_probs are shape AOM->M
-# policy_probs are shape OM->(A+M)
+# policy_probs are shape OM->(A*M)
 
 # P(m' | o, a, m) = P(a, m' | o, m) / P(a | o, m)
 #                 = P(a, m' | o, m) / sum_m' P(a, m' | o, m)
@@ -16,6 +16,8 @@ O = 4
 aug_policy_probs = softmax(np.random.normal(size=np.prod([A, O, M, M])).reshape([O, M, A*M]), axis=-1)
 
 def deconstruct_aug_policy(aug_policy_probs):
+    O, M, AM = aug_policy_probs.shape
+    A = AM // M
     aug_policy_probs_omam = aug_policy_probs.reshape([O, M, A, M])
     action_policy_probs_oma1 = aug_policy_probs_omam.sum(-1, keepdims=1) # (O, M, A, 1)
                                                                          #     pr(^|*)
@@ -31,6 +33,7 @@ def deconstruct_aug_policy(aug_policy_probs):
     return mem_logits, action_policy_probs
 
 def construct_aug_policy(mem_logits, action_policy_probs):
+    A, O, M, _ = mem_logits.shape
     mem_probs = softmax(mem_logits, axis=-1) # (A, O, M, M)
     mem_probs_omam = np.moveaxis(mem_probs, 0, -2) # (O, M, A, M)
 
