@@ -14,12 +14,12 @@ def convert_arr_to_lines(arr: np.ndarray) -> Union[str, list]:
         raise NotImplementedError
 
 if __name__ == '__main__':
-    # spec_name = 'tmaze_hyperparams'
-    spec_name = 'paint.95'
-    spec = load_spec(spec_name)
+    spec_name = 'tmaze_hyperparams'
+    # spec_name = 'paint.95'
+    spec = load_spec(spec_name, corridor_length=2)
     pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
-    # pomdp_path = pomdp_files_dir / 'tmaze5.POMDP'
-    pomdp_path = pomdp_files_dir / 'paint.95-action-cross.POMDP'
+    pomdp_path = pomdp_files_dir / 'tmaze2.POMDP'
+    # pomdp_path = pomdp_files_dir / 'paint.95-action-cross.POMDP'
 
     lines = [f"# Converted POMDP file for {spec_name}"]
     lines.append('')
