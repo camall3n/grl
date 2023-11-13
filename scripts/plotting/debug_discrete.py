@@ -47,23 +47,23 @@ def load_results(pathname):
             all_results.append(info)
     data = pd.DataFrame(all_results)
     return data
-len(data.iter)
+
 data = load_results('results/discrete/value-err-01/*/*')
 data = data.explode(['accept_prob', 'temp', 'discrep', 'value_err', 'optim_step', 'repeat', 'iter'], ignore_index=True)
 data.value_err.unique()
 
 #%%
-envs_and_names = [
-    ('4x3.95', '4x3'),
-    ('cheese.95', 'cheese'),
-    ('network', 'network'),
-    ('paint.95', 'paint'),
-    ('shuttle.95', 'shuttle'),
-    ('tiger-alt-start', 'tiger'),
-    ('tmaze_5_two_thirds_up', 'tmaze'),
+envs_and_names_and_ylims = [
+    ('4x3.95', '4x3', [-0.04, 0.404]),
+    ('cheese.95', 'cheese', None),
+    ('network', 'network', [-100, 2600]),
+    ('paint.95', 'paint', [-0.02, 0.304]),
+    ('shuttle.95', 'shuttle', [-1, 6]),
+    ('tiger-alt-start', 'tiger', None),
+    ('tmaze_5_two_thirds_up', 'tmaze', None),
 ]
 fig, axes = plt.subplots(2, 4, figsize=(12,4))
-for (env, name), ax in zip(envs_and_names, axes.flatten()):
+for (env, name, ylims), ax in zip(envs_and_names_and_ylims, axes.flatten()):
     subset = data.query(f'env=="{env}"').copy()
     subset['value_err'] = pd.to_numeric(subset['value_err'], errors='coerce')
     subset['discrep'] = pd.to_numeric(subset['discrep'], errors='coerce')
@@ -71,6 +71,7 @@ for (env, name), ax in zip(envs_and_names, axes.flatten()):
     sns.scatterplot(data=subset, x='value_err', y='discrep', ax=ax, **scatter_kwargs)
     sns.regplot(data=subset, x='value_err', y='discrep', scatter=False, ci=False, line_kws={'color': '#dd2244'}, ax=ax)
     ax.set_title(name)
+    ax.set_ylim(ylims)
 axes.flatten()[-1].axis('off')
 for row in axes:
     for i, ax in enumerate(row):
