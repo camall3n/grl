@@ -9,7 +9,6 @@ from grl.environment import get_env
 from grl.evaluation import eval_episodes
 from grl.model import get_network
 from grl.sample_trainer import Trainer
-from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
 from grl.utils.file_system import results_path, numpyify_and_save
 from grl.environment.wrappers import GammaTerminalWrapper

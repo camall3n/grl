@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pandas as pd
 
+from argparse import Namespace
 from jax.nn import softmax
 from jax.config import config
 from pathlib import Path
@@ -15,7 +16,11 @@ np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
+from grl.environment import load_pomdp
+from grl.memory.analytical import memory_cross_product
 from grl.utils import load_info
+from grl.utils.math import greedify
+from grl.utils.lambda_discrep import lambda_discrep_measures
 from definitions import ROOT_DIR
 
 # %% codecell
@@ -36,7 +41,7 @@ compare_to = 'belief'
 # compare_to = 'state'
 
 policy_optim_alg = 'policy_grad'
-use_memory = 'random_uniform'
+use_memory = 'random_discrete'
 
 
 # spec_plot_order = [
@@ -109,6 +114,7 @@ for spec in spec_plot_order:
 # %% codecell
 compare_to_dict
 
+
 # %% codecell
 all_results = []
 
@@ -128,6 +134,17 @@ for results_path in results_dir.iterdir():
     if args['use_memory'] != use_memory:
         continue
 
+    agent_path = results_path.parent / 'agent' / f'{results_path.stem}.pkl.npy'
+    agent = load_info(agent_path)
+
+    pomdp, _ = load_pomdp(args['spec'])
+    final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
+
+    greedy_policy = greedify(agent.policy)
+
+    greedy_measures = lambda_discrep_measures(final_mem_pomdp, greedy_policy)
+
+
     # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
     init_improvement_info = info['logs']['greedy_initial_improvement_stats']
@@ -137,7 +154,9 @@ for results_path in results_dir.iterdir():
         return (info['state_vals_v'] * info['p0']).sum()
     single_res = {k: args[k] for k in args_to_keep}
 
-    final_mem_perf = get_perf(final_mem_info)
+    # final_mem_perf = get_perf(final_mem_info)
+    final_mem_perf = float(get_perf(greedy_measures))
+
     compare_to_perf = compare_to_dict[args['spec']]
     init_policy_perf = get_perf(init_policy_info)
     init_improvement_perf = get_perf(init_improvement_info)
@@ -154,6 +173,7 @@ for results_path in results_dir.iterdir():
         'init_policy_perf': init_policy_perf,
         'init_improvement_perf': init_improvement_perf,
         'final_mem_perf': final_mem_perf,
+        'greedy_perf': greedy_perf,
         'compare_to_perf': compare_to_perf,
         # 'init_policy': info['logs']['initial_policy'],
         # 'init_improvement_policy': info['logs']['initial_improvement_policy'],
@@ -268,9 +288,9 @@ ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 # ax.legend(bbox_to_anchor=(0.317, 0.62), framexalpha=0.95)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
-ax.set_title(f"Memory: {use_memory} ({policy_optim_alg})")
+ax.set_title(f"Memory: Greedy {use_memory} ({policy_optim_alg})")
 
 downloads = Path().home() / 'Downloads'
-fig_path = downloads / f"{results_dir.stem}.pdf"
+fig_path = downloads / f"greedy_{results_dir.stem}.pdf"
 fig.savefig(fig_path, bbox_inches='tight')
 # %% codecell

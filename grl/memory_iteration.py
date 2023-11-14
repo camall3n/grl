@@ -9,7 +9,7 @@ from typing import Callable
 
 from grl.agent.analytical import AnalyticalAgent
 from grl.utils.lambda_discrep import lambda_discrep_measures
-from grl.mdp import POMDP, MDP
+from grl.mdp import POMDP
 from grl.memory import memory_cross_product
 from grl.utils.math import glorot_init, greedify
 from grl.utils.loss import discrep_loss
