@@ -72,5 +72,9 @@ mem_params = get_memory('18',
 inp_aug_pi = np.expand_dims(pi, axis=1).repeat(mem_params.shape[-1], axis=1)
 
 aug_policy = construct_aug_policy(mem_params, inp_aug_pi)
-mem_logits, deconstr_aug_pi = deconstruct_aug_policy(aug_policy)
+mem_logits_reconstr, deconstr_aug_pi = deconstruct_aug_policy(aug_policy)
+
+softmax(mem_logits_reconstr, -1).round(3)
+softmax(mem_params, -1).round(3)
+
 print()
