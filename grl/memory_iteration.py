@@ -8,11 +8,12 @@ from functools import partial
 from typing import Callable
 
 from grl.agent.analytical import AnalyticalAgent
-from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.mdp import POMDP
 from grl.memory import memory_cross_product
-from grl.utils.math import glorot_init, greedify
-from grl.utils.loss import discrep_loss
+from grl.utils.augment_policy import deconstruct_aug_policy
+from grl.utils.math import glorot_init, greedify, reverse_softmax
+from grl.utils.lambda_discrep import lambda_discrep_measures
+from grl.utils.loss import discrep_loss, pg_objective_func
 from grl.vi import td_pe
 
 def run_memory_iteration(pomdp: POMDP,
@@ -171,7 +172,8 @@ def memory_iteration(
     td_v_vals, td_q_vals = td_pe(agent.policy, init_pomdp)
     info['initial_values'] = {'v': td_v_vals, 'q': td_q_vals}
 
-    if agent.policy_optim_alg in ['discrep_max', 'discrep_min'] or not init_pi_improvement:
+    if agent.policy_optim_alg in ['discrep_max', 'discrep_min'] or \
+            (not init_pi_improvement and agent.policy_optim_alg not in ['policy_grad', 'policy_mem_grad']):
         initial_pi_params = agent.pi_params.copy()
 
         og_policy_optim_algo = agent.policy_optim_alg
@@ -189,13 +191,26 @@ def memory_iteration(
 
     if init_pi_improvement:
         # initial policy improvement
+        poa = agent.policy_optim_alg
+        prev_optim = agent.pi_optim_state
+        prev_obj_func = agent.pg_objective_func
+        if agent.policy_optim_alg == 'policy_mem_grad':
+            agent.policy_optim_alg = 'policy_grad'
+            agent.pg_objective_func = jax.jit(pg_objective_func)
+            agent.pi_optim_state = agent.pi_optim.init(agent.pi_params)
+
         print("Initial policy improvement step")
         initial_outputs = pi_improvement(agent,
                                          init_pomdp,
                                          iterations=pi_per_step,
                                          log_every=log_every)
+
         info['policy_improvement_outputs'].append(initial_outputs)
         info['initial_improvement_policy'] = agent.policy.copy()
+        if poa != agent.policy_optim_alg:
+            agent.policy_optim_alg = poa
+            agent.pg_objective_func = prev_obj_func
+            agent.pi_optim_state = prev_optim
 
         # here we test random policies
         if kitchen_sink_policies > 0:
@@ -215,7 +230,7 @@ def memory_iteration(
 
     print(f"Starting (unexpanded) policy: \n{agent.policy}\n")
 
-    if agent.mem_params is not None:
+    if agent.mem_params is not None and agent.policy_optim_alg != 'policy_mem_grad':
         # we have to set our policy over our memory MDP now
         # we do so with a random/copied policy given new memory bit
         info['initial_mem_params'] = agent.mem_params
@@ -228,7 +243,7 @@ def memory_iteration(
     pomdp = copy.deepcopy(init_pomdp)
 
     for mem_it in range(mi_iterations):
-        if agent.mem_params is not None:
+        if agent.mem_params is not None and agent.policy_optim_alg != 'policy_mem_grad':
             print(f"Start MI {mem_it}")
             mem_loss = mem_improvement(agent,
                                        init_pomdp,
@@ -244,8 +259,9 @@ def memory_iteration(
             pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
         if pi_per_step > 0:
-            # reset our policy parameters
-            agent.reset_pi_params((pomdp.observation_space.n, pomdp.action_space.n))
+            if agent.policy_optim_alg != 'policy_mem_grad':
+                # reset our policy parameters
+                agent.reset_pi_params((pomdp.observation_space.n, pomdp.action_space.n))
 
             # Now we improve our policy again
             policy_output = pi_improvement(agent,
@@ -254,9 +270,17 @@ def memory_iteration(
                                            log_every=log_every)
             info['policy_improvement_outputs'].append(policy_output)
 
+            policy = agent.policy
+            if agent.policy_optim_alg == 'policy_mem_grad':
+                agent.mem_params, unflat_policy = deconstruct_aug_policy(agent.pi_aug_params)
+
+                O, M, A = unflat_policy.shape
+                policy = unflat_policy.reshape(O * M, A)
+                agent.pi_params = reverse_softmax(policy)
+
             # Plotting for policy improvement
             print(f"Learnt policy for iteration {mem_it}: \n"
-                  f"{agent.policy}")
+                  f"{policy}")
 
     final_pomdp = pomdp
 
@@ -278,6 +302,9 @@ def memory_iteration(
 
         # change our mode back
         agent.policy_optim_alg = og_policy_optim_algo
+
+    if agent.policy_optim_alg == 'policy_mem_grad':
+        final_pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
     # here we calculate our value function for our final policy and final memory
     td_v_vals, td_q_vals = td_pe(agent.policy, final_pomdp)
@@ -305,7 +332,7 @@ def pi_improvement(agent: AnalyticalAgent,
     for it in to_iterate:
         output = agent.policy_improvement(pomdp)
         if it % log_every == 0:
-            if agent.policy_optim_alg == 'policy_grad':
+            if agent.policy_optim_alg in ['policy_grad', 'policy_mem_grad']:
                 print(f"initial state value for iteration {it}: {output['v_0'].item():.4f}")
             if agent.policy_optim_alg in ['discrep_min', 'discrep_max']:
                 print(f"discrep for pi iteration {it}: {output['loss'].item():.4f}")
