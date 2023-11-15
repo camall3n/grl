@@ -244,7 +244,7 @@ def mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
     mem_logits, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs)
     mem_aug_mdp = memory_cross_product(mem_logits, pomdp)
     O, M, A = action_policy_probs.shape
-    return pg_objective_func(action_policy_probs.reshape(O * M, A), mem_aug_mdp)
+    return pg_objective_func(reverse_softmax(action_policy_probs).reshape(O * M, A), mem_aug_mdp)
 
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
