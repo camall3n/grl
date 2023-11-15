@@ -272,11 +272,15 @@ def memory_iteration(
 
             policy = agent.policy
             if agent.policy_optim_alg == 'policy_mem_grad':
-                agent.mem_params, unflat_policy = deconstruct_aug_policy(agent.pi_aug_params)
+                agent.mem_params, unflat_policy = deconstruct_aug_policy(softmax(agent.pi_aug_params, axis=-1))
 
                 O, M, A = unflat_policy.shape
                 policy = unflat_policy.reshape(O * M, A)
                 agent.pi_params = reverse_softmax(policy)
+
+                # Plotting for memory iteration
+                print(f"Learnt memory for iteration {mem_it}: \n"
+                      f"{agent.memory}")
 
             # Plotting for policy improvement
             print(f"Learnt policy for iteration {mem_it}: \n"
