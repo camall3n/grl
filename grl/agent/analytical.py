@@ -8,8 +8,8 @@ import numpy as np
 import optax
 
 from grl.mdp import POMDP
-from grl.utils.augment_policy import construct_aug_policy, deconstruct_aug_policy
-from grl.utils.loss import policy_discrep_loss, pg_objective_func
+from grl.utils.augment_policy import construct_aug_policy
+from grl.utils.loss import policy_discrep_loss, pg_objective_func, mem_pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.optimizer import get_optimizer
@@ -59,6 +59,7 @@ class AnalyticalAgent:
         self.og_n_obs = self.pi_params.shape[0]
 
         self.pg_objective_func = jit(pg_objective_func)
+        self.mem_pg_objective_func = jit(mem_pg_objective_func)
 
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
         self.epsilon = epsilon
@@ -181,6 +182,15 @@ class AnalyticalAgent:
 
     @partial(jit, static_argnames=['self'])
     def policy_mem_pg_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pomdp: POMDP):
+        outs, params_grad = value_and_grad(self.mem_pg_objective_func, has_aux=True)(params, pomdp)
+        v_0, (td_v_vals, td_q_vals) = outs
+
+        # We add a negative here to params_grad b/c we're trying to
+        # maximize the PG objective (value of start state).
+        params_grad = -params_grad
+        updates, optimizer_state = self.pi_optim.update(params_grad, optim_state, params)
+        params = optax.apply_updates(params, updates)
+        return v_0, td_v_vals, td_q_vals, params
 
     @partial(jit, static_argnames=['self', 'sign'])
     def policy_discrep_update(self,
@@ -257,6 +267,7 @@ class AnalyticalAgent:
 
         # delete unpickleable jitted functions
         del state['pg_objective_func']
+        del state['mem_pg_objective_func']
         del state['policy_iteration_update']
         del state['policy_discrep_objective_func']
         del state['memory_objective_func']
@@ -273,6 +284,7 @@ class AnalyticalAgent:
 
         # restore jitted functions
         self.pg_objective_func = jit(pg_objective_func)
+        self.mem_pg_objective_func = jit(mem_pg_objective_func)
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
 
         if 'optim_str' not in state:

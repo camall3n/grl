@@ -2,6 +2,8 @@ import jax.numpy as jnp
 from jax import nn, lax, jit
 from functools import partial
 
+from grl.utils.augment_policy import deconstruct_aug_policy
+from grl.utils.math import reverse_softmax
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, lstdq_lambda, functional_solve_mdp
 from grl.memory import memory_cross_product
@@ -236,6 +238,13 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, td_model)
     p_init_obs = pomdp.p0 @ pomdp.phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
+
+def mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
+    augmented_pi_probs = nn.softmax(augmented_pi_params)
+    mem_probs, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs)
+    mem_logits = reverse_softmax(mem_probs)
+    mem_aug_mdp = memory_cross_product(mem_logits, pomdp)
+    return pg_objective_func(action_policy_probs, mem_aug_mdp)
 
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
