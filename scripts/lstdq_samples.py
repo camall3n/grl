@@ -143,7 +143,7 @@ if __name__ == "__main__":
     check_lstdq_samples()
     # spec = load_spec('tmaze_eps_hyperparams', epsilon=0)
     # mdp = MDP(spec['T'], spec['R'], spec['p0'], spec['gamma'])
-    # env = AbstractMDP(mdp, spec['phi'])
+    # env = POMDP(mdp, spec['phi'])
     #
     # pi = spec['Pi_phi'][0]
     # pi[3, 0] = 1

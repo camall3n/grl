@@ -1,4 +1,6 @@
-def until_successful(func, *args, **kwargs) -> float:
+from typing import Any
+
+def until_successful(func, *args, **kwargs) -> Any:
     """Repeatedly try calling function until successful.
 
     Returns:

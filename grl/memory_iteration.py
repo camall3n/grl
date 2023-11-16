@@ -113,7 +113,9 @@ def run_memory_iteration(pomdp: POMDP,
     # Final memory w/ final policy discrep
     final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
     info['final_mem_stats'] = get_measures(final_mem_pomdp, agent.policy)
-    greedy_final_policy = greedify(agent.policy)
+    greedy_final_policy = agent.policy
+    if policy_optim_alg == 'policy_iter':
+        greedy_final_policy = greedify(agent.policy)
     info['greedy_final_mem_stats'] = get_measures(final_mem_pomdp, greedy_final_policy)
 
     def perf_from_stats(stats: dict) -> float:
@@ -212,7 +214,7 @@ def memory_iteration(
             print(f"Learnt memory for iteration {mem_it}: \n"
                   f"{agent.memory}")
 
-            # Make a NEW memory AMDP
+            # Make a NEW memory POMDP
             pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
         if pi_per_step > 0:

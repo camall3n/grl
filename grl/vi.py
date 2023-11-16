@@ -97,7 +97,7 @@ def policy_iteration_step(pi_params: jnp.ndarray, pomdp: POMDP, eps: float = 0.1
 def po_policy_iteration(pomdp: POMDP, eps: float = 0.1) -> jnp.ndarray:
     """
     Value iteration over observations.
-    :param pomdp: AbstractMDP
+    :param pomdp: POMDP
     :param tol: tolerance for error
     :return Value function for optimal policy.
     """

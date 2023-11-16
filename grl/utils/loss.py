@@ -4,6 +4,8 @@ from functools import partial
 
 from grl.utils.mdp import functional_get_occupancy, get_p_s_given_o, functional_create_td_model
 from grl.utils.policy_eval import analytical_pe, lstdq_lambda, functional_solve_mdp
+from grl.utils.augmented_policy import construct_aug_policy, deconstruct_aug_policy
+from grl.utils import softmax, reverse_softmax
 from grl.memory import memory_cross_product
 from grl.mdp import MDP, POMDP
 """
@@ -52,7 +54,6 @@ def weight_and_sum_discrep_loss(diff: jnp.ndarray,
                                 error_type: str = 'l2',
                                 alpha: float = 1.,
                                 flip_count_prob: bool = False):
-    # set terminal counts to 0
     c_o = occupancy @ pomdp.phi
     count_o = c_o / c_o.sum()
 
@@ -109,7 +110,7 @@ def discrep_loss(
         lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
-    c_s = info['occupancy'].at[-2:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
                                        pi,
@@ -188,9 +189,7 @@ def obs_space_mem_discrep_loss(
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
 
-    c_s = info['occupancy']
-    # set terminal counts to 0
-    c_s = c_s.at[-1:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
 
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
@@ -226,6 +225,8 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
+    # import jax
+    # jax.debug.breakpoint()
     pi_abs = nn.softmax(pi_params, axis=-1)
     pi_ground = pomdp.phi @ pi_abs
     occupancy = functional_get_occupancy(pi_ground, pomdp)
@@ -236,6 +237,19 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     td_v_vals, td_q_vals = functional_solve_mdp(pi_abs, td_model)
     p_init_obs = pomdp.p0 @ pomdp.phi
     return jnp.dot(p_init_obs, td_v_vals), (td_v_vals, td_q_vals)
+
+def augmented_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
+    """
+    Policy gradient objective function:
+    sum_{s_0} p(s_0) v_pi(s_0)
+    """
+    # import jax
+    # jax.debug.breakpoint()
+    augmented_pi_probs = nn.softmax(augmented_pi_params)
+    mem_probs, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs)
+    mem_logits = reverse_softmax(mem_probs)
+    mem_aug_mdp = memory_cross_product(mem_logits, pomdp)
+    return pg_objective_func(action_policy_probs, mem_aug_mdp)
 
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
@@ -280,9 +294,7 @@ def magnitude_td_loss(
         0).repeat(pr_o_a.shape[0], axis=0)
     diff = expanded_R_s_o + pomdp.gamma * expected_next_Q - expanded_Q
 
-    c_s = info['occupancy']
-    # set terminal counts to 0
-    c_s = c_s.at[-2:].set(0)
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
     count_s = c_s / c_s.sum()
 
     if flip_count_prob:
@@ -315,3 +327,48 @@ def magnitude_td_loss(
     loss = weighted_err.sum()
 
     return loss, mc_vals, td_vals
+
+@partial(jit, static_argnames=['value_type', 'error_type', 'lambda_'])
+def value_error(pi: jnp.ndarray,
+                pomdp: POMDP,
+                value_type: str = 'q',
+                error_type: str = 'l2',
+                lambda_: float = 1.0):
+    state_vals, mc_vals, td_vals, info = analytical_pe(pi, pomdp)
+    if lambda_ == 0.0:
+        obs_vals = td_vals
+    elif lambda_ == 1.0:
+        obs_vals = mc_vals
+    else:
+        v_vals, q_vals, _ = lstdq_lambda(pi, pomdp, lambda_=lambda_)
+        obs_vals = {'v': v_vals, 'q': q_vals}
+
+    # Expand observation (q-)value function to state (q-)value function
+    # (a,o) @ (o,s) => (a,s);  (o,) @ (o,s) => (s,)
+    expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T
+    diff = state_vals[value_type] - expanded_obs_vals
+
+    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
+    p_s = c_s / c_s.sum()
+
+    pi_s = pomdp.phi @ pi
+    weight = (pi_s * p_s[:, None]).T
+    if value_type == 'v':
+        weight = weight.sum(axis=0)
+    weight = lax.stop_gradient(weight)
+
+    if error_type == 'l2':
+        unweighted_err = (diff**2)
+    elif error_type == 'abs':
+        unweighted_err = jnp.abs(diff)
+    else:
+        raise NotImplementedError(
+            f"error_type {error_type} not implemented yet in value_error fn.")
+
+    weighted_err = weight * unweighted_err
+    if value_type == 'q':
+        weighted_err = weighted_err.sum(axis=0)
+
+    loss = weighted_err.sum()
+
+    return loss, state_vals, expanded_obs_vals

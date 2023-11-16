@@ -36,6 +36,16 @@ def tiger_alt_start_cam(**kwargs) -> jnp.ndarray:
     pi_params = reverse_softmax(pi_phi)
     return pi_params
 
+def tiger_alt_start_known_ld(**kwargs) -> jnp.ndarray:
+    pi_phi = jnp.array([
+        [.9, 0.05, 0.05],
+        [.5, .125, .375],
+        [.25, .125, .625],
+        [1, 0, 0],
+    ])
+    pi_params = reverse_softmax(pi_phi)
+    return pi_params
+
 def get_start_pi(pi_name: str, pi_phi: jnp.ndarray = None, **kwargs):
     if pi_phi is not None:
         return reverse_softmax(pi_phi)
@@ -46,5 +56,7 @@ def get_start_pi(pi_name: str, pi_phi: jnp.ndarray = None, **kwargs):
 
     except KeyError as _:
         raise KeyError(f"No policy of the name {pi_name} found in policy_lib")
+    else:
+        print(f'Loaded policy "{pi_name}"')
 
     return pi_params
