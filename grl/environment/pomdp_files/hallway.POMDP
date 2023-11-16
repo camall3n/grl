@@ -25,6 +25,7 @@
 #
 # - Observations are relative to the agent, not the world; the agent has no "compass" to determine where north is.
 # - Most observations are noisy, so the agent only observes the "correct" wall arrangement with probability ~0.7.
+# - If there were no sensor noise, observations 0, 3, 6, 9, 12, 15 would never occur in this maze.
 # - When the agent is facing south at a junction (states 10, 18, 26, and 34), it perfectly observes the label of the room below (1, 2, 3, *).
 # - When the agent is in the ~~goal room~~ (states 56, 57, 58, 59), it perfectly observes "Goal".
 #
