@@ -1,3 +1,51 @@
+# Hallway
+#
+# From Littman, Cassandra, and Kaelbling () Learning policies for partially observable environments: Scaling up.
+# - (short) https://static.aminer.org/pdf/PDF/000/335/265/learning_policies_for_partially_observable_environments_scaling_up.pdf
+# - (long) https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=0c02d473ae301bab2d61cd196183fa0853c5bcda
+#
+#  States:
+#  +========+========+========+========+========+========+========+========+========+========+========+
+#  ║   00       04       08       12       16       20       24       28       32       36       40   ║
+#  ║ 03..01   07..05   11..09   15..13   19..17   23..21   27..25   31..29   35..33   39..37   43..41 ║
+#  ║   02       06       10       14       18       22       26       30       34       38       42   ║
+#  +========+========+        +========+        +========+        +========+~~~~~~~~+========+========+
+#                    ║   44   ║        ║   48   ║        ║   52   ║        ~   56   ~
+#                    ║ 47..45 ║        ║ 51..49 ║        ║ 55..53 ║        ~ 59..57 ~
+#                    ║   46   ║        ║   50   ║        ║   54   ║        ~   58   ~
+#                    +=========+       +========+        +========+        ~~~~~~~~~~
+#
+# Observations:  (^^ agent faces this way ^^)
+# +      + +      + +      + +      + +      + +      + +      + +      + +======+ +======+ +======+ +======+ +======+ +======+ +======+ +======+
+#          ║                 ║               ║ ║      ║        ║ ║      ║          ║                 ║               ║ ║      ║        ║ ║      ║
+#          ║                 ║               ║ ║      ║        ║ ║      ║          ║                 ║               ║ ║      ║        ║ ║      ║
+# +      + +      + +======+ +======+ +      + +      + +======+ +======+ +      + +      + +======+ +======+ +      + +      + +======+ +======+
+#  [0000]   [0001]   [0010]   [0011]   [0100]   [0101]   [0110]   [0111]   [1000]   [1001]   [1010]   [1011]   [1100]   [1101]   [1110]   [1111]   "1"  "2"  "3"  "*"  Goal
+#
+# - Observations are relative to the agent, not the world; the agent has no "compass" to determine where north is.
+# - Most observations are noisy, so the agent only observes the "correct" wall arrangement with probability ~0.7.
+# - When the agent is facing south at a junction (states 10, 18, 26, and 34), it perfectly observes the label of the room below (1, 2, 3, *).
+# - When the agent is in the ~~goal room~~ (states 56, 57, 58, 59), it perfectly observes "Goal".
+#
+# This leads to the following observation-signature map (each unique number has a distinct observation distribution):
+# +========+========+========+========+========+========+========+========+========+========+========+
+# ║   00       04       08       04       08       04       08       04       08       04       02   ║
+# ║ 03..01   05..05   11..09   05..05   11..09   05..05   11..09   05..05   11..09   05..05   01..03 ║
+# ║   02       04       16       04       17       04       18       04       19       04       00   ║
+# +========+========+        +========+        +========+        +========~        ~========+========+
+#                   ║   01   ║        ║   01   ║        ║   01   ║        ~   20   ~
+#                   ║ 00..02 ║        ║ 00..02 ║        ║ 00..02 ║        ~ 20..20 ~
+#                   ║   03   ║        ║   03   ║        ║   03   ║        ~   20   ~
+#                   +=========+       +========+        +========+        ~~~~~~~~~~
+#
+# Transitions:
+#
+# 0: (no-op) remains in the current state 100%
+# 1: (forward) moves forward 95%, fails 5%
+# 2: (turn right) successful 70%, fails 30% (uniform over other orientations)
+# 3: (turn around) successful 60%, partial turn 20% (uniform left/right), fails 10% (no-op)
+# 4: (turn left)  successful 70%, fails 30% (uniform over other orientations)
+
 # POMDP file for the following grid world
 # I made the goal states their own observation.
 
