@@ -194,7 +194,7 @@ def memory_iteration(
         poa = agent.policy_optim_alg
         prev_optim = agent.pi_optim_state
         prev_obj_func = agent.pg_objective_func
-        if agent.policy_optim_alg == 'policy_mem_grad':
+        if agent.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             agent.policy_optim_alg = 'policy_grad'
             agent.pg_objective_func = jax.jit(pg_objective_func)
             agent.pi_optim_state = agent.pi_optim.init(agent.pi_params)
@@ -230,7 +230,7 @@ def memory_iteration(
 
     print(f"Starting (unexpanded) policy: \n{agent.policy}\n")
 
-    if agent.mem_params is not None and agent.policy_optim_alg != 'policy_mem_grad':
+    if agent.mem_params is not None and agent.policy_optim_alg not in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
         # we have to set our policy over our memory MDP now
         # we do so with a random/copied policy given new memory bit
         info['initial_mem_params'] = agent.mem_params
@@ -243,7 +243,7 @@ def memory_iteration(
     pomdp = copy.deepcopy(init_pomdp)
 
     for mem_it in range(mi_iterations):
-        if agent.mem_params is not None and agent.policy_optim_alg != 'policy_mem_grad':
+        if agent.mem_params is not None and agent.policy_optim_alg not in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             print(f"Start MI {mem_it}")
             mem_loss = mem_improvement(agent,
                                        init_pomdp,
@@ -259,7 +259,7 @@ def memory_iteration(
             pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
         if pi_per_step > 0:
-            if agent.policy_optim_alg != 'policy_mem_grad':
+            if agent.policy_optim_alg not in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
                 # reset our policy parameters
                 agent.reset_pi_params((pomdp.observation_space.n, pomdp.action_space.n))
 
@@ -271,7 +271,7 @@ def memory_iteration(
             info['policy_improvement_outputs'].append(policy_output)
 
             policy = agent.policy
-            if agent.policy_optim_alg == 'policy_mem_grad':
+            if agent.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
                 agent.mem_params, unflat_policy = deconstruct_aug_policy(softmax(agent.pi_aug_params, axis=-1))
 
                 O, M, A = unflat_policy.shape
@@ -307,7 +307,7 @@ def memory_iteration(
         # change our mode back
         agent.policy_optim_alg = og_policy_optim_algo
 
-    if agent.policy_optim_alg == 'policy_mem_grad':
+    if agent.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
         final_pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
     # here we calculate our value function for our final policy and final memory

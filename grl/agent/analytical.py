@@ -8,8 +8,9 @@ import numpy as np
 import optax
 
 from grl.mdp import POMDP
-from grl.utils.augment_policy import construct_aug_policy, deconstruct_aug_policy
-from grl.utils.loss import policy_discrep_loss, pg_objective_func, mem_pg_objective_func
+from grl.utils.augment_policy import construct_aug_policy
+from grl.utils.loss import policy_discrep_loss, pg_objective_func, \
+    mem_pg_objective_func, unrolled_mem_pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_magnitude_td_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.optimizer import get_optimizer
@@ -61,6 +62,8 @@ class AnalyticalAgent:
         self.pg_objective_func = jit(pg_objective_func)
         if self.policy_optim_alg == 'policy_mem_grad':
             self.pg_objective_func = jit(mem_pg_objective_func)
+        elif self.policy_optim_alg == 'policy_mem_grad_unrolled':
+            self.pg_objective_func = jit(unrolled_mem_pg_objective_func)
 
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
         self.epsilon = epsilon
@@ -84,7 +87,7 @@ class AnalyticalAgent:
         if mem_params is not None:
             self.mem_params = mem_params
 
-            if self.policy_optim_alg == 'policy_mem_grad':
+            if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
                 mem_probs, pi_probs = softmax(self.mem_params, -1), softmax(self.pi_params, -1)
                 aug_policy = construct_aug_policy(mem_probs, pi_probs)
                 self.pi_aug_params = reverse_softmax(aug_policy)
@@ -99,7 +102,7 @@ class AnalyticalAgent:
         self.pi_optim = get_optimizer(optim_str, self.pi_lr)
 
         pi_params_to_optimize = self.pi_params
-        if self.policy_optim_alg == 'policy_mem_grad':
+        if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             pi_params_to_optimize = self.pi_aug_params
         self.pi_optim_state = self.pi_optim.init(pi_params_to_optimize)
 
@@ -204,9 +207,9 @@ class AnalyticalAgent:
         return loss, mc_vals, td_vals, params
 
     def policy_improvement(self, pomdp: POMDP):
-        if self.policy_optim_alg in ['policy_grad', 'policy_mem_grad']:
+        if self.policy_optim_alg in ['policy_grad', 'policy_mem_grad', 'policy_mem_grad_unrolled']:
             policy_params = self.pi_params
-            if self.policy_optim_alg == 'policy_mem_grad':
+            if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
                 policy_params = self.pi_aug_params
             v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = \
                 self.policy_gradient_update(policy_params, self.pi_optim_state, pomdp)
@@ -228,7 +231,7 @@ class AnalyticalAgent:
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError
-        if self.policy_optim_alg == 'policy_mem_grad':
+        if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             self.pi_aug_params = new_pi_params
         else:
             self.pi_params = new_pi_params
@@ -276,7 +279,8 @@ class AnalyticalAgent:
         self.pg_objective_func = jit(pg_objective_func)
         if self.policy_optim_alg == 'policy_mem_grad':
             self.pg_objective_func = jit(mem_pg_objective_func)
-        self.mem_pg_objective_func = jit(mem_pg_objective_func)
+        elif self.policy_optim_alg == 'policy_mem_grad_unrolled':
+            self.pg_objective_func = jit(unrolled_mem_pg_objective_func)
         self.policy_iteration_update = jit(policy_iteration_step, static_argnames=['eps'])
 
         if 'optim_str' not in state:

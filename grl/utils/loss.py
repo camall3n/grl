@@ -246,6 +246,37 @@ def mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
     O, M, A = action_policy_probs.shape
     return pg_objective_func(reverse_softmax(action_policy_probs).reshape(O * M, A), mem_aug_mdp)
 
+def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
+    augmented_pi_probs_unflat = nn.softmax(augmented_pi_params, axis=-1)
+    mem_logits, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs_unflat)
+    O, M, A = action_policy_probs.shape
+    mem_aug_mdp = memory_cross_product(mem_logits, pomdp)
+
+    pi_probs = action_policy_probs.reshape(O * M, A)
+    aug_pi_probs = augmented_pi_probs_unflat.reshape(O * M, A * M)
+
+    pi_ground = mem_aug_mdp.phi @ pi_probs  # pi: (S * M, A)
+    occupancy = functional_get_occupancy(pi_ground, mem_aug_mdp)  # eta: S * M
+    om_occupancy = occupancy @ mem_aug_mdp.phi  # om_eta: O * M
+
+    # Calculate our Q vals over A x O * M
+    p_pi_of_s_given_o = get_p_s_given_o(mem_aug_mdp.phi, occupancy)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, mem_aug_mdp)
+    td_model = MDP(T_obs_obs, R_obs_obs, mem_aug_mdp.p0 @ mem_aug_mdp.phi, gamma=mem_aug_mdp.gamma)
+    td_v_vals, td_q_vals = functional_solve_mdp(pi_probs, td_model)  # q: (A, O * M)
+
+    # expand over A * M
+    mem_probs = nn.softmax(mem_logits, axis=-1)
+    mem_probs_omam = jnp.moveaxis(mem_probs, 0, -2)  # (O, M, A, M)
+    mem_probs_omam = mem_probs_omam.reshape(O * M, A, M)  # (O * M, A, M)
+    am_q_vals = mem_probs_omam * jnp.expand_dims(td_q_vals.T, -1)  # (O * M, A)
+    am_q_vals = am_q_vals.reshape(O * M, A * M)  # (O * M, A * M)
+
+    # Don't take gradients over eta or Q
+    weighted_am_q_vals = jnp.expand_dims(om_occupancy, -1) * am_q_vals
+    weighted_am_q_vals = lax.stop_gradient(weighted_am_q_vals)
+    return (weighted_am_q_vals * jnp.log(aug_pi_probs)).sum(), (td_v_vals, td_q_vals)
+
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
