@@ -275,7 +275,7 @@ def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMD
     # Don't take gradients over eta or Q
     weighted_am_q_vals = jnp.expand_dims(om_occupancy, -1) * am_q_vals
     weighted_am_q_vals = lax.stop_gradient(weighted_am_q_vals)
-    return (weighted_am_q_vals * jnp.log(aug_pi_probs)).sum(), (td_v_vals, td_q_vals)
+    return (weighted_am_q_vals * aug_pi_probs).sum(), (td_v_vals, td_q_vals)
 
 def mem_magnitude_td_loss(
         mem_params: jnp.ndarray,

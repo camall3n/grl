@@ -336,7 +336,7 @@ def pi_improvement(agent: AnalyticalAgent,
     for it in to_iterate:
         output = agent.policy_improvement(pomdp)
         if it % log_every == 0:
-            if agent.policy_optim_alg in ['policy_grad', 'policy_mem_grad']:
+            if 'v_0' in output:
                 print(f"initial state value for iteration {it}: {output['v_0'].item():.4f}")
             if agent.policy_optim_alg in ['discrep_min', 'discrep_max']:
                 print(f"discrep for pi iteration {it}: {output['loss'].item():.4f}")
