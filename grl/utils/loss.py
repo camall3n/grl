@@ -246,9 +246,9 @@ def mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
     O, M, A = action_policy_probs.shape
     return pg_objective_func(reverse_softmax(action_policy_probs).reshape(O * M, A), mem_aug_mdp)
 
-def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
+def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):# O, M, AM
     augmented_pi_probs_unflat = nn.softmax(augmented_pi_params, axis=-1)
-    mem_logits, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs_unflat)
+    mem_logits, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs_unflat)# A,O,M->M ; O,M->A
     O, M, A = action_policy_probs.shape
     mem_aug_mdp = memory_cross_product(mem_logits, pomdp)
 
@@ -260,17 +260,18 @@ def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMD
     om_occupancy = occupancy @ mem_aug_mdp.phi  # om_eta: O * M
 
     # Calculate our Q vals over A x O * M
-    p_pi_of_s_given_o = get_p_s_given_o(mem_aug_mdp.phi, occupancy)
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, mem_aug_mdp)
+    p_pi_of_s_given_o = get_p_s_given_o(mem_aug_mdp.phi, occupancy) # P(SM|OM)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, mem_aug_mdp) # T(O'M'|O,M,A); R(O,M,A)
     td_model = MDP(T_obs_obs, R_obs_obs, mem_aug_mdp.p0 @ mem_aug_mdp.phi, gamma=mem_aug_mdp.gamma)
     td_v_vals, td_q_vals = functional_solve_mdp(pi_probs, td_model)  # q: (A, O * M)
 
     # expand over A * M
-    mem_probs = nn.softmax(mem_logits, axis=-1)
+    mem_probs = nn.softmax(mem_logits, axis=-1) # (A, O, M, M)
     mem_probs_omam = jnp.moveaxis(mem_probs, 0, -2)  # (O, M, A, M)
-    mem_probs_omam = mem_probs_omam.reshape(O * M, A, M)  # (O * M, A, M)
-    am_q_vals = mem_probs_omam * jnp.expand_dims(td_q_vals.T, -1)  # (O * M, A)
-    am_q_vals = am_q_vals.reshape(O * M, A * M)  # (O * M, A * M)
+    mem_probs_omam = mem_probs_omam.reshape(O * M, A, M)  # (OM, A, M)
+                #(OM,A,M)                        #(A, OM)^T => (OM, A) => (OM, A, 1)
+    am_q_vals = mem_probs_omam * jnp.expand_dims(td_q_vals.T, -1)  # (OM, A, M)
+    am_q_vals = am_q_vals.reshape(O * M, A * M)  # (OM, AM)
 
     # Don't take gradients over eta or Q
     weighted_am_q_vals = jnp.expand_dims(om_occupancy, -1) * am_q_vals
