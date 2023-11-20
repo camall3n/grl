@@ -24,8 +24,8 @@ from grl.utils.lambda_discrep import lambda_discrep_measures
 from definitions import ROOT_DIR
 
 # %% codecell
-# results_dir = Path(ROOT_DIR, 'results', 'final_analytical')
-results_dir = Path(ROOT_DIR, 'results', 'memoryless_kitchen_sinks')
+results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_pg_mem')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
@@ -41,7 +41,7 @@ compare_to = 'belief'
 # compare_to = 'state'
 
 policy_optim_alg = 'policy_grad'
-use_memory = 'random_discrete'
+# use_memory = 'random_discrete'
 
 
 # spec_plot_order = [
@@ -131,8 +131,8 @@ for results_path in results_dir.iterdir():
     if args['policy_optim_alg'] != policy_optim_alg:
         continue
 
-    if args['use_memory'] != use_memory:
-        continue
+    # if args['use_memory'] != use_memory:
+    #     continue
 
     agent_path = results_path.parent / 'agent' / f'{results_path.stem}.pkl.npy'
     agent = load_info(agent_path)
@@ -173,7 +173,7 @@ for results_path in results_dir.iterdir():
         'init_policy_perf': init_policy_perf,
         'init_improvement_perf': init_improvement_perf,
         'final_mem_perf': final_mem_perf,
-        'greedy_perf': greedy_perf,
+        # 'greedy_perf': greedy_perf,
         'compare_to_perf': compare_to_perf,
         # 'init_policy': info['logs']['initial_policy'],
         # 'init_improvement_policy': info['logs']['initial_improvement_policy'],
@@ -288,9 +288,9 @@ ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 # ax.legend(bbox_to_anchor=(0.317, 0.62), framexalpha=0.95)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
-ax.set_title(f"Memory: Greedy {use_memory} ({policy_optim_alg})")
+ax.set_title(f"Memory: ({policy_optim_alg})")
 
 downloads = Path().home() / 'Downloads'
-fig_path = downloads / f"greedy_{results_dir.stem}.pdf"
+fig_path = downloads / f"{results_dir.stem}.pdf"
 fig.savefig(fig_path, bbox_inches='tight')
 # %% codecell
