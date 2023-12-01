@@ -23,7 +23,7 @@ from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.discrete_search import generate_hold_mem_fn
 from grl.memory import memory_cross_product
 
-plot_dir = 'results/plots/iclr2023/'
+plot_dir = 'results/plots/iclr2024/'
 os.makedirs(plot_dir, exist_ok=True)
 policy_optim_alg = 'policy_grad'
 
@@ -39,7 +39,8 @@ plt.rcParams.update({'font.size': 18})
 # results_dir = Path(ROOT_DIR, 'results', 'all_pomdps_mi_pi_obs_space')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 # results_dir = Path(ROOT_DIR, 'results', 'final_analytical') # analytical-optimized mem fn
-results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks') # analytical-optimized mem fn
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks') # analytical-optimized mem fn
+results_dir = Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg') # analytical-optimized mem fn
 # results_dir = Path(ROOT_DIR, 'results', 'random_discrete_analytical') # determ. random mem fn
 # results_dir = Path(ROOT_DIR, 'results', 'random_uniform_analytical') # stoch. random mem fn
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
