@@ -24,8 +24,8 @@ from grl.utils.lambda_discrep import lambda_discrep_measures
 from definitions import ROOT_DIR
 
 # %% codecell
-results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
-# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_pg_mem')
+# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
+results_dir = Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
@@ -40,6 +40,7 @@ split_by = [arg for arg in args_to_keep if arg != 'seed']
 compare_to = 'belief'
 # compare_to = 'state'
 
+# policy_optim_alg = 'policy_grad'
 policy_optim_alg = 'policy_grad'
 # use_memory = 'random_discrete'
 
@@ -184,7 +185,7 @@ for results_path in results_dir.iterdir():
 
 
 all_res_df = pd.DataFrame(all_results)
-    # %% codecell
+# %% codecell
 all_res_groups = all_res_df.groupby(split_by, as_index=False)
 all_res_means = all_res_groups.mean()
 del all_res_means['seed']

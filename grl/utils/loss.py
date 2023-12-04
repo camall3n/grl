@@ -284,6 +284,8 @@ def mem_magnitude_td_loss(
         pomdp: POMDP, # input non-static arrays
         value_type: str = 'q',
         error_type: str = 'l2',
+        lambda_0: float = 0,
+        lambda_1: float = 1.,  # NOT CURRENTLY USED!
         alpha: float = 1.,
         flip_count_prob: bool = False):
     mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
@@ -292,6 +294,7 @@ def mem_magnitude_td_loss(
                                    value_type,
                                    error_type,
                                    alpha,
+                                   lambda_=lambda_0,
                                    flip_count_prob=flip_count_prob)
     return loss
 
@@ -302,57 +305,51 @@ def magnitude_td_loss(
         value_type: str = 'q',
         error_type: str = 'l2',
         alpha: float = 1.,
+        lambda_: float = 0.,
         flip_count_prob: bool = False): # initialize static args
-    n_states = pomdp.state_space.n
-    # TODO: this is wrong?
-    _, mc_vals, td_vals, info = analytical_pe(pi, pomdp)
+
+    # First, calculate our TD(0) Q-values
+    v_vals, q_vals, info = lstdq_lambda(pi, pomdp, lambda_=lambda_)
+    vals = {'v': v_vals, 'q': q_vals}
     assert value_type == 'q'
-    R_s_o = pomdp.R @ pomdp.phi # A x S x O
-    expanded_R_s_o = jnp.expand_dims(R_s_o, -1).repeat(pomdp.action_space.n, axis=-1)
+
+    c_s = info['occupancy']
+    # Make TD(0) model
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, c_s)
+    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, pomdp)
+
+    # Tensor for AxOxOxA (obs action to obs action)
+    T_o_a = jnp.einsum('ijk,kl->ijkl', T_obs_obs, pi)
+    R_obs = R_obs_obs.sum(axis=-1)
+
+    # Calculate the expected next action-vals
+    expected_next_Q = jnp.einsum('ijkl,kl->ij', T_o_a, q_vals.T)
+
+    # Our TD error
+    diff = R_obs + pomdp.gamma * expected_next_Q - q_vals
+
+    # R_s_o = pomdp.R @ pomdp.phi  # A x S x O
+
+    # expanded_R_s_o = R_s_o[..., None].repeat(pomdp.action_space.n, axis=-1)  # A x S x O x A
 
     # repeat the Q-function over A x O
     # Multiply that with p(O', A' | s, a) and sum over O' and A' dimensions.
     # P(O' | s, a) = T @ phi, P(A', O' | s, a) = P(O' | s, a) * pi (over new dimension)
-    pr_o = pomdp.T @ pomdp.phi
-    pr_o_a = jnp.einsum('ijk,kl->ijkl', pr_o, pi)
-    expected_next_Q = jnp.einsum('ijkl,kl->ijkl', pr_o_a, td_vals['q'].T)
-    expanded_Q = jnp.expand_dims(
-        jnp.expand_dims(td_vals['q'].T, 0).repeat(pr_o_a.shape[1], axis=0),
-        0).repeat(pr_o_a.shape[0], axis=0)
-    diff = expanded_R_s_o + pomdp.gamma * expected_next_Q - expanded_Q
+    # pr_o = pomdp.T @ pomdp.phi
+    # pr_o_a = jnp.einsum('ijk,kl->ijkl', pr_o, pi)
+    # expected_next_Q = jnp.einsum('ijkl,kl->ijkl', pr_o_a, q_vals.T)
+    # expanded_Q = jnp.expand_dims(
+    #     jnp.expand_dims(q_vals.T, 0).repeat(pr_o_a.shape[1], axis=0),
+    #     0).repeat(pr_o_a.shape[0], axis=0)  # Repeat over OxA -> O x A x O x A
+    # diff = expanded_R_s_o + pomdp.gamma * expected_next_Q - expanded_Q
 
-    c_s = info['occupancy']
+
     # set terminal counts to 0
     c_s = c_s.at[-2:].set(0)
-    count_s = c_s / c_s.sum()
+    loss = weight_and_sum_discrep_loss(diff, c_s, pi, pomdp,
+                                       value_type=value_type,
+                                       error_type=error_type,
+                                       alpha=alpha,
+                                       flip_count_prob=flip_count_prob)
 
-    if flip_count_prob:
-        count_s = nn.softmax(-count_s)
-
-    uniform_s = jnp.ones(n_states) / n_states
-
-    p_s = alpha * uniform_s + (1 - alpha) * count_s
-
-    pi_states = pomdp.phi @ pi
-    weight = (pi_states * p_s[:, None]).T
-    if value_type == 'v':
-        weight = weight.sum(axis=0)
-    weight = lax.stop_gradient(weight)
-
-    if error_type == 'l2':
-        unweighted_err = (diff**2)
-    elif error_type == 'abs':
-        unweighted_err = jnp.abs(diff)
-    else:
-        raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
-
-    expanded_weight = jnp.expand_dims(
-        jnp.expand_dims(weight, -1).repeat(pr_o_a.shape[2], axis=-1), -1).repeat(pr_o_a.shape[-1],
-                                                                                 axis=-1)
-    weighted_err = expanded_weight * unweighted_err
-    if value_type == 'q':
-        weighted_err = weighted_err.sum(axis=0)
-
-    loss = weighted_err.sum()
-
-    return loss, mc_vals, td_vals
+    return loss, vals, vals
