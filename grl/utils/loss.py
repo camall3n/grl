@@ -278,7 +278,7 @@ def unrolled_mem_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMD
     weighted_am_q_vals = lax.stop_gradient(weighted_am_q_vals)
     return (weighted_am_q_vals * aug_pi_probs).sum(), (td_v_vals, td_q_vals)
 
-def mem_magnitude_td_loss(
+def mem_bellman_loss(
         mem_params: jnp.ndarray,
         pi: jnp.ndarray,
         pomdp: POMDP, # input non-static arrays
@@ -289,17 +289,17 @@ def mem_magnitude_td_loss(
         alpha: float = 1.,
         flip_count_prob: bool = False):
     mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
-    loss, _, _ = magnitude_td_loss(pi,
-                                   mem_aug_pomdp,
-                                   value_type,
-                                   error_type,
-                                   alpha,
-                                   lambda_=lambda_0,
-                                   flip_count_prob=flip_count_prob)
+    loss, _, _ = bellman_loss(pi,
+                              mem_aug_pomdp,
+                              value_type,
+                              error_type,
+                              alpha,
+                              lambda_=lambda_0,
+                              flip_count_prob=flip_count_prob)
     return loss
 
 @partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
-def magnitude_td_loss(
+def bellman_loss(
         pi: jnp.ndarray,
         pomdp: POMDP, # non-state args
         value_type: str = 'q',
@@ -316,17 +316,17 @@ def magnitude_td_loss(
     c_s = info['occupancy']
     # Make TD(0) model
     p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, c_s)
-    T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, pomdp)
+    T_aoo, R_aoo = functional_create_td_model(p_pi_of_s_given_o, pomdp)
 
     # Tensor for AxOxOxA (obs action to obs action)
-    T_o_a = jnp.einsum('ijk,kl->ijkl', T_obs_obs, pi)
-    R_obs = R_obs_obs.sum(axis=-1)
+    T_pi_aooa = jnp.einsum('ijk,kl->ijkl', T_aoo, pi)
+    R_ao = R_aoo.sum(axis=-1)
 
-    # Calculate the expected next action-vals
-    expected_next_Q = jnp.einsum('ijkl,kl->ij', T_o_a, q_vals.T)
+    # Calculate the expected next value for each (a, o) pair
+    expected_next_V_given_ao = jnp.einsum('ijkl,kl->ij', T_pi_aooa, q_vals.T)  # A x O
 
-    # Our TD error
-    diff = R_obs + pomdp.gamma * expected_next_Q - q_vals
+    # Our Bellman error
+    diff = R_ao + pomdp.gamma * expected_next_V_given_ao - q_vals
 
     # R_s_o = pomdp.R @ pomdp.phi  # A x S x O
 
@@ -353,3 +353,20 @@ def magnitude_td_loss(
                                        flip_count_prob=flip_count_prob)
 
     return loss, vals, vals
+
+@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
+def mstd_err(
+        pi: jnp.ndarray,
+        pomdp: POMDP, # non-state args
+        value_type: str = 'q',
+        error_type: str = 'l2',
+        alpha: float = 1.,
+        lambda_: float = 0.,
+        flip_count_prob: bool = False): # initialize static args
+
+    # TODO: First, calculate all "potential" next q-values by repeating at the front.
+    # TODO: Then, calculate target R + gamma * next_qs and stop_grad it.
+    # TODO: subtract off q_vals.
+    # TODO: weight over T_pi_aooa.
+    # TODO: do your normal weighting with weight_and_sum_discrep_loss
+    pass
