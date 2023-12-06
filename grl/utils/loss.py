@@ -392,10 +392,48 @@ def mstd_err(
         lambda_: float = 0.,
         residual: bool = False,
         flip_count_prob: bool = False): # initialize static args
+    # First, calculate our TD(0) Q-values
+    v_vals, q_vals, info = lstdq_lambda(pi, pomdp, lambda_=lambda_)
+    vals = {'v': v_vals, 'q': q_vals}
+    assert value_type == 'q'
 
-    # TODO: First, calculate all "potential" next q-values by repeating at the front.
-    # TODO: Then, calculate target R + gamma * next_qs and stop_grad it.
-    # TODO: subtract off q_vals.
-    # TODO: weight over T_pi_aooa.
-    # TODO: do your normal weighting with weight_and_sum_discrep_loss
-    pass
+    c_s = info['occupancy']
+    # Make TD(0) model
+    p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, c_s)
+    T_aoo, R_aoo = functional_create_td_model(p_pi_of_s_given_o, pomdp)
+
+    # Tensor for AxOxOxA (obs action to obs action)
+    T_pi_aooa = jnp.einsum('ijk,kl->ijkl', T_aoo, pi)
+
+    n_actions, n_obs = q_vals.shape
+
+    # Expanded and repeated reward tensor
+    R_aooa = R_aoo[..., None].repeat(n_actions, axis=-1)
+
+    # Calculate all "potential" next q-values by repeating at the front.
+    q_ooa = q_vals.T[None, ...].repeat(n_obs, axis=0)
+    q_aooa = q_ooa[None, ...].repeat(n_actions, axis=0)
+
+    # Calculate target R + gamma * next_qs and stop_grad it.
+    target = R_aooa + pomdp.gamma * q_aooa
+    if not residual:
+        target = lax.stop_gradient(target)
+
+    # Subtract off q_vals.
+    diff = target - q_aooa
+
+    # Weight over T_pi_aooa.
+    weighted_diff = T_pi_aooa * diff
+    weighted_diff = jnp.einsum('ijkl->ij', weighted_diff)
+
+    # Do your normal weighting with weight_and_sum_discrep_loss
+    # set terminal counts to 0
+    c_s = c_s.at[-2:].set(0)
+    loss = weight_and_sum_discrep_loss(weighted_diff, c_s, pi, pomdp,
+                                       value_type=value_type,
+                                       error_type=error_type,
+                                       alpha=alpha,
+                                       flip_count_prob=flip_count_prob)
+
+    return loss, vals, vals
+
