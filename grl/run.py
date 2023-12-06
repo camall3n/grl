@@ -74,6 +74,8 @@ if __name__ == '__main__':
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--objective', default='discrep', type=str,
                         help='What objective are we trying to optimize? (discrep | bellman | tde | obs_space)')
+    parser.add_argument('--residual', action='store_true',
+                        help='For Bellman and TD errors, do we add the residual term?')
     parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
@@ -165,6 +167,7 @@ if __name__ == '__main__':
                                        value_type=args.value_type,
                                        error_type=args.error_type,
                                        objective=args.objective,
+                                       residual=args.residual,
                                        lambda_0=args.lambda_0,
                                        lambda_1=args.lambda_1,
                                        alpha=args.alpha,

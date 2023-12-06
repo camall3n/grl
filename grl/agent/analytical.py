@@ -11,7 +11,7 @@ from grl.mdp import POMDP
 from grl.utils.augment_policy import construct_aug_policy
 from grl.utils.loss import policy_discrep_loss, pg_objective_func, \
     mem_pg_objective_func, unrolled_mem_pg_objective_func
-from grl.utils.loss import mem_discrep_loss, mem_bellman_loss, obs_space_mem_discrep_loss
+from grl.utils.loss import mem_discrep_loss, mem_bellman_loss, mem_tde_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.optimizer import get_optimizer
 from grl.vi import policy_iteration_step
@@ -31,6 +31,7 @@ class AnalyticalAgent:
                  value_type: str = 'v',
                  error_type: str = 'l2',
                  objective: str = 'discrep',
+                 residual: bool = False,
                  lambda_0: float = 0.,
                  lambda_1: float = 1.,
                  alpha: float = 1.,
@@ -71,6 +72,7 @@ class AnalyticalAgent:
         self.val_type = value_type
         self.error_type = error_type
         self.objective = objective
+        self.residual = residual
         self.lambda_0 = lambda_0
         self.lambda_1 = lambda_1
         self.alpha = alpha
@@ -129,19 +131,25 @@ class AnalyticalAgent:
         self.policy_discrep_objective_func = jit(partial_policy_discrep_loss)
 
         mem_loss_fn = mem_discrep_loss
+        partial_kwargs = {
+            'value_type': self.val_type,
+            'error_type': self.error_type,
+            'lambda_0': self.lambda_0,
+            'lambda_1': self.lambda_1,
+            'alpha': self.alpha,
+            'flip_count_prob': self.flip_count_prob
+        }
         if hasattr(self, 'objective'):
             if self.objective == 'bellman':
                 mem_loss_fn = mem_bellman_loss
+                partial_kwargs['residual'] = self.residual
+            elif self.objective == 'tde':
+                mem_loss_fn = mem_tde_loss
+                partial_kwargs['residual'] = self.residual
             elif self.objective == 'obs_space':
                 mem_loss_fn = obs_space_mem_discrep_loss
 
-        partial_mem_discrep_loss = partial(mem_loss_fn,
-                                           value_type=self.val_type,
-                                           error_type=self.error_type,
-                                           lambda_0=self.lambda_0,
-                                           lambda_1=self.lambda_1,
-                                           alpha=self.alpha,
-                                           flip_count_prob=self.flip_count_prob)
+        partial_mem_discrep_loss = partial(mem_loss_fn, **partial_kwargs)
         self.memory_objective_func = jit(partial_mem_discrep_loss)
 
     @property

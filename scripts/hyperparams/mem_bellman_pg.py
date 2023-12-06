@@ -19,6 +19,7 @@ hparams = {
         'alpha': 0.,
         # 'objective': 'obs_space',
         'objective': 'bellman',
+        'residual': [True, False],
         'mi_steps': 20000,
         'pi_steps': 10000,
         'optimizer': 'adam',

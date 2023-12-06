@@ -286,6 +286,7 @@ def mem_bellman_loss(
         error_type: str = 'l2',
         lambda_0: float = 0,
         lambda_1: float = 1.,  # NOT CURRENTLY USED!
+        residual: bool = False,
         alpha: float = 1.,
         flip_count_prob: bool = False):
     mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
@@ -295,10 +296,11 @@ def mem_bellman_loss(
                               error_type,
                               alpha,
                               lambda_=lambda_0,
+                              residual=residual,
                               flip_count_prob=flip_count_prob)
     return loss
 
-@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
+@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'residual', 'flip_count_prob'])
 def bellman_loss(
         pi: jnp.ndarray,
         pomdp: POMDP, # non-state args
@@ -306,6 +308,7 @@ def bellman_loss(
         error_type: str = 'l2',
         alpha: float = 1.,
         lambda_: float = 0.,
+        residual: bool = False,
         flip_count_prob: bool = False): # initialize static args
 
     # First, calculate our TD(0) Q-values
@@ -326,7 +329,10 @@ def bellman_loss(
     expected_next_V_given_ao = jnp.einsum('ijkl,kl->ij', T_pi_aooa, q_vals.T)  # A x O
 
     # Our Bellman error
-    diff = R_ao + pomdp.gamma * expected_next_V_given_ao - q_vals
+    target = R_ao + pomdp.gamma * expected_next_V_given_ao
+    if not residual:
+        target = lax.stop_gradient(target)
+    diff = target - q_vals
 
     # R_s_o = pomdp.R @ pomdp.phi  # A x S x O
 
@@ -354,7 +360,29 @@ def bellman_loss(
 
     return loss, vals, vals
 
-@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'flip_count_prob'])
+def mem_tde_loss(
+        mem_params: jnp.ndarray,
+        pi: jnp.ndarray,
+        pomdp: POMDP, # input non-static arrays
+        value_type: str = 'q',
+        error_type: str = 'l2',
+        lambda_0: float = 0,
+        lambda_1: float = 1.,  # NOT CURRENTLY USED!
+        residual: bool = False,
+        alpha: float = 1.,
+        flip_count_prob: bool = False):
+    mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
+    loss, _, _ = mstd_err(pi,
+                          mem_aug_pomdp,
+                          value_type,
+                          error_type,
+                          alpha,
+                          lambda_=lambda_0,
+                          residual=residual,
+                          flip_count_prob=flip_count_prob)
+    return loss
+
+@partial(jit, static_argnames=['value_type', 'error_type', 'alpha', 'residual', 'flip_count_prob'])
 def mstd_err(
         pi: jnp.ndarray,
         pomdp: POMDP, # non-state args
@@ -362,6 +390,7 @@ def mstd_err(
         error_type: str = 'l2',
         alpha: float = 1.,
         lambda_: float = 0.,
+        residual: bool = False,
         flip_count_prob: bool = False): # initialize static args
 
     # TODO: First, calculate all "potential" next q-values by repeating at the front.
