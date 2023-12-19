@@ -216,16 +216,22 @@ def memory_iteration(
 
         # here we test random policies
         if kitchen_sink_policies > 0:
-            best_lambda_discrep = discrep_loss(agent.policy, init_pomdp)[0].item()
+            def get_measure():
+                constant_mem = jnp.zeros_like(agent.mem_params)
+                constant_mem = constant_mem.at[..., 0].set(1)
+                repeated_pi = softmax(agent.pi_params.repeat(constant_mem.shape[-1], axis=0), axis=-1)
+                return agent.memory_objective_func(constant_mem, repeated_pi, init_pomdp).item()
+            best_measure = get_measure()
+            # best_lambda_discrep = discrep_loss(agent.policy, init_pomdp)[0].item()
             best_pi_params = agent.pi_params
 
-            print(f"Finding the argmax LD over {kitchen_sink_policies} random policies")
+            print(f"Finding the argmax {agent.objective} over {kitchen_sink_policies} random policies")
             for i in range(kitchen_sink_policies):
                 agent.reset_pi_params()
-                lambda_discrep = discrep_loss(agent.policy, init_pomdp)[0].item()
-                if lambda_discrep > best_lambda_discrep:
+                measure = get_measure()
+                if measure > best_measure:
                     best_pi_params = agent.pi_params
-                    best_lambda_discrep = lambda_discrep
+                    best_measure = measure
             agent.pi_params = best_pi_params
 
         info['starting_policy'] = agent.policy.copy()

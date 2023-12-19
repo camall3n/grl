@@ -10,6 +10,7 @@ from jax.nn import softmax
 from jax.config import config
 from pathlib import Path
 from collections import namedtuple
+from tqdm import tqdm
 
 config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
@@ -25,14 +26,14 @@ from definitions import ROOT_DIR
 
 # %% codecell
 # results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
-results_dir = Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg')
+results_dir = Path(ROOT_DIR, 'results', 'mem_tde_pg')
 
 # results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
 # results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
-args_to_keep = ['spec', 'n_mem_states', 'seed']
+args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual']
 split_by = [arg for arg in args_to_keep if arg != 'seed']
 
 # this option allows us to compare to either the optimal belief state soln
@@ -43,7 +44,6 @@ compare_to = 'belief'
 # policy_optim_alg = 'policy_grad'
 policy_optim_alg = 'policy_grad'
 # use_memory = 'random_discrete'
-
 
 # spec_plot_order = [
 #     'example_7', 'tmaze_5_two_thirds_up', 'tiger-alt-start', 'paint.95', 'cheese.95', 'network',
@@ -118,8 +118,9 @@ compare_to_dict
 
 # %% codecell
 all_results = []
+all_results_paths = list(results_dir.iterdir())
 
-for results_path in results_dir.iterdir():
+for results_path in tqdm(all_results_paths):
     if results_path.is_dir() or results_path.suffix != '.npy':
         continue
 
@@ -185,15 +186,24 @@ for results_path in results_dir.iterdir():
 
 
 all_res_df = pd.DataFrame(all_results)
+
 # %% codecell
-all_res_groups = all_res_df.groupby(split_by, as_index=False)
+
+# FILTER OUT for what we want to plot
+alpha = 1.
+
+residual = True
+filtered_df = all_res_df[(all_res_df['alpha'] == alpha) & (all_res_df['residual'] == residual)].reset_index()
+
+# %% codecell
+all_res_groups = filtered_df.groupby(split_by, as_index=False)
 all_res_means = all_res_groups.mean()
 del all_res_means['seed']
 all_res_means.to_csv(Path(ROOT_DIR, 'results', 'all_pomdps_means.csv'))
 # %% codecell
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
-# merged_df = all_res_df.merge(compare_to_df, on='spec')
-merged_df = all_res_df
+# merged_df = filtered_df.merge(compare_to_df, on='spec')
+merged_df = filtered_df
 
 # for col_name in cols_to_normalize:
 
@@ -289,9 +299,11 @@ ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 # ax.legend(bbox_to_anchor=(0.317, 0.62), framexalpha=0.95)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
-ax.set_title(f"Memory: ({policy_optim_alg})")
+alpha_str = 'uniform' if alpha == 1. else 'occupancy'
+residual_str = 'semi_grad' if not residual else 'residual'
+ax.set_title(f"Memory: (MSTDE w/ {policy_optim_alg} ({residual_str}, {alpha_str}))")
 
 downloads = Path().home() / 'Downloads'
-fig_path = downloads / f"{results_dir.stem}.pdf"
+fig_path = downloads / f"{results_dir.stem}_{residual_str}_{alpha_str}.pdf"
 fig.savefig(fig_path, bbox_inches='tight')
 # %% codecell
