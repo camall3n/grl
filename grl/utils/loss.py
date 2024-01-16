@@ -376,7 +376,7 @@ def mem_tde_loss(
                           mem_aug_pomdp,
                           # value_type,
                           error_type,
-                          alpha,
+                          # alpha,
                           lambda_=lambda_0,
                           residual=residual,
                           # flip_count_prob=flip_count_prob

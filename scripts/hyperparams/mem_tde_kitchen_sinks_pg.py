@@ -16,7 +16,7 @@ hparams = {
         'value_type': 'q',
         'error_type': 'l2',
         'kitchen_sink_policies': 400,
-        'alpha': [0., 1.],
+        # 'alpha': [0., 1.],
         # 'alpha': 0.,
         'objective': 'tde',
         'residual': [True, False],
