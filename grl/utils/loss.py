@@ -376,18 +376,18 @@ def mem_tde_loss(
                           mem_aug_pomdp,
                           # value_type,
                           error_type,
-                          # alpha,
+                          alpha,
                           lambda_=lambda_0,
                           residual=residual,
                           # flip_count_prob=flip_count_prob
                           )
     return loss
 
-@partial(jit, static_argnames=['value_type', 'residual'])
+@partial(jit, static_argnames=['error_type', 'residual'])
 def mstd_err(
         pi: jnp.ndarray,
         pomdp: POMDP, # non-state args
-        value_type: str = 'q',
+        error_type: str = 'l2',
         lambda_: float = 0.,
         residual: bool = False): # initialize static args
     # First, calculate our TD(0) Q-values
@@ -433,9 +433,15 @@ def mstd_err(
     if not residual:
         targets = lax.stop_gradient(targets)
 
-    # Compute squared errors
+    # Compute errors
     tde_soasoa = (targets - q_soasoa)
-    sq_tde_soasoa = tde_soasoa**2
+
+    if error_type == 'l2':
+        mag_tde_soasoa = (tde_soasoa**2)
+    elif error_type == 'abs':
+        mag_tde_soasoa = jnp.abs(tde_soasoa)
+    else:
+        raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
     # set terminal count to 0 and compute Pr(s)
     c_s = info['occupancy']
@@ -459,7 +465,7 @@ def mstd_err(
     )
 
     # Reweight squared errors according to Pr(s,o,a,s',o',a')
-    weighted_sq_tde_soasoa = pr_soasoa * sq_tde_soasoa
+    weighted_sq_tde_soasoa = pr_soasoa * mag_tde_soasoa
 
     # Sum over all dimensions
     loss = weighted_sq_tde_soasoa.sum()
