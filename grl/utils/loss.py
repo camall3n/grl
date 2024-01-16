@@ -374,12 +374,13 @@ def mem_tde_loss(
     mem_aug_pomdp = memory_cross_product(mem_params, pomdp)
     loss, _, _ = mstd_err(pi,
                           mem_aug_pomdp,
-                          value_type,
+                          # value_type,
                           error_type,
-                          alpha,
+                          # alpha,
                           lambda_=lambda_0,
                           residual=residual,
-                          flip_count_prob=flip_count_prob)
+                          # flip_count_prob=flip_count_prob
+                          )
     return loss
 
 @partial(jit, static_argnames=['value_type', 'residual'])
@@ -392,7 +393,7 @@ def mstd_err(
     # First, calculate our TD(0) Q-values
     v_vals, q_vals, info = lstdq_lambda(pi, pomdp, lambda_=lambda_)
     vals = {'v': v_vals, 'q': q_vals}
-    assert value_type == 'q'
+    # assert value_type == 'q'
 
     n_states = pomdp.base_mdp.state_space.n
     n_obs = pomdp.observation_space.n
