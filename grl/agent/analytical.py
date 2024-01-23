@@ -194,7 +194,7 @@ class AnalyticalAgent:
         params_grad = -params_grad
         updates, optimizer_state = self.pi_optim.update(params_grad, optim_state, params)
         params = optax.apply_updates(params, updates)
-        return v_0, td_v_vals, td_q_vals, params
+        return v_0, td_v_vals, td_q_vals, params, optimizer_state
 
     @partial(jit, static_argnames=['self', 'sign'])
     def policy_discrep_update(self,
@@ -212,14 +212,14 @@ class AnalyticalAgent:
         updates, optimizer_state = self.pi_optim.update(params_grad, optim_state, params)
         params = optax.apply_updates(params, updates)
 
-        return loss, mc_vals, td_vals, params
+        return loss, mc_vals, td_vals, params, optimizer_state
 
     def policy_improvement(self, pomdp: POMDP):
         if self.policy_optim_alg in ['policy_grad', 'policy_mem_grad', 'policy_mem_grad_unrolled']:
             policy_params = self.pi_params
             if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
                 policy_params = self.pi_aug_params
-            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params = \
+            v_0, prev_td_v_vals, prev_td_q_vals, new_pi_params, new_optim_state= \
                 self.policy_gradient_update(policy_params, self.pi_optim_state, pomdp)
             output = {
                 'v_0': v_0,
@@ -229,9 +229,10 @@ class AnalyticalAgent:
         elif self.policy_optim_alg == 'policy_iter':
             new_pi_params, prev_td_v_vals, prev_td_q_vals = self.policy_iteration_update(
                 self.pi_params, pomdp, eps=self.epsilon)
+            new_optim_state = self.pi_optim_state
             output = {'prev_td_q_vals': prev_td_q_vals, 'prev_td_v_vals': prev_td_v_vals}
         elif self.policy_optim_alg == 'discrep_max' or self.policy_optim_alg == 'discrep_min':
-            loss, mc_vals, td_vals, new_pi_params = self.policy_discrep_update(
+            loss, mc_vals, td_vals, new_pi_params, new_optim_state = self.policy_discrep_update(
                 self.pi_params,
                 self.pi_optim_state,
                 pomdp,
@@ -239,10 +240,12 @@ class AnalyticalAgent:
             output = {'loss': loss, 'mc_vals': mc_vals, 'td_vals': td_vals}
         else:
             raise NotImplementedError
+
         if self.policy_optim_alg in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             self.pi_aug_params = new_pi_params
         else:
             self.pi_params = new_pi_params
+        self.pi_optim_state = new_optim_state
         return output
 
     @partial(jit, static_argnames=['self'])
@@ -255,13 +258,14 @@ class AnalyticalAgent:
         updates, optimizer_state = self.mem_optim.update(params_grad, optim_state, params)
         params = optax.apply_updates(params, updates)
 
-        return loss, params
+        return loss, params, optimizer_state
 
     def memory_improvement(self, pomdp: POMDP):
         assert self.mem_params is not None, 'I have no memory params'
-        loss, new_mem_params = self.memory_update(self.mem_params, self.mem_optim_state,
+        loss, new_mem_params, new_mem_optim_state = self.memory_update(self.mem_params, self.mem_optim_state,
                                                   self.pi_params, pomdp)
         self.mem_params = new_mem_params
+        self.mem_optim_state = new_mem_optim_state
         return loss
 
     def __getstate__(self) -> dict:
