@@ -431,8 +431,7 @@ def mstd_err(
 
     # Calculate targets (R + gamma * Q') and stop_grad it.
     targets = R_soasoa + pomdp.gamma * qp_soasoa
-    if not residual:
-        targets = lax.stop_gradient(targets)
+    targets = lax.cond(residual, lambda x: x, lambda x: lax.stop_gradient(x), targets)
 
     # Compute errors
     tde_soasoa = (targets - q_soasoa)
