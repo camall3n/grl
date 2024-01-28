@@ -4,30 +4,76 @@ as well as the TD optimal policy, on a list of different measures.
 
 """
 import argparse
-import logging
-import pathlib
+from functools import partial
 from time import time
+from typing import Callable
 
 import numpy as np
 import jax
+import jax.numpy as jnp
+from jax import random, value_and_grad, jit
 from jax.config import config
+from jax.debug import print
+from jax_tqdm import scan_tqdm
+import optax
 
+from grl.agent.analytical import new_pi_over_mem
 from grl.environment import load_pomdp
+from grl.mdp import POMDP
+from grl.memory import memory_cross_product
+from grl.utils.file_system import results_path, numpyify_and_save
+from grl.utils.math import reverse_softmax
+from grl.utils.loss import (
+    pg_objective_func,
+    mem_tde_loss,
+    mem_discrep_loss,
+    mem_bellman_loss,
+    obs_space_mem_discrep_loss
+)
+from grl.utils.optimizer import get_optimizer
+from grl.vi import policy_iteration_step
 
-if __name__ == "__main__":
-    start_time = time()
-    # jax.disable_jit(True)
+def get_unif_policies(rng: random.PRNGKey, pi_shape: tuple[int, int], n_policies: int):
 
+    logits = random.exponential(rng, shape=(n_policies,) + pi_shape)
+    return logits / jnp.sum(logits, axis=-1, keepdims=True)
+
+def log_all_measures(pomdp: POMDP, mem_params: jnp.ndarray, pi_params: jnp.ndarray) -> dict:
+    """
+    Logs a few things:
+    1. values
+    2. lambda discrep
+    3. mstde
+    4. value error
+    """
+    pass
+
+def get_args():
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
+
+    # hyperparams for tmaze_hperparams
+    parser.add_argument('--tmaze_corridor_length',
+                        default=None,
+                        type=int,
+                        help='Length of corridor for tmaze_hyperparams')
+    parser.add_argument('--tmaze_discount',
+                        default=None,
+                        type=float,
+                        help='Discount rate for tmaze_hyperparams')
+    parser.add_argument('--tmaze_junction_up_pi',
+                        default=None,
+                        type=float,
+                        help='probability of traversing up at junction for tmaze_hyperparams')
+
     parser.add_argument('--spec', default='example_11', type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='For memory iteration, how many iterations of memory iterations do we do?')
-    parser.add_argument('--mi_steps', type=int, default=50000,
+    parser.add_argument('--mi_steps', type=int, default=20000,
                         help='For memory iteration, how many steps of memory improvement do we do per iteration?')
-    parser.add_argument('--pi_steps', type=int, default=50000,
+    parser.add_argument('--pi_steps', type=int, default=10000,
                         help='For memory iteration, how many steps of policy improvement do we do per iteration?')
 
 
@@ -38,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
 
-    parser.add_argument('--random_policies', default=64, type=int,
+    parser.add_argument('--random_policies', default=10, type=int,
                         help='How many random policies do we learn memory over?')
     parser.add_argument('--n_mem_states', default=2, type=int,
                         help='for memory_id = 0, how many memory states do we have?')
@@ -50,4 +96,236 @@ if __name__ == "__main__":
 
     parser.add_argument('--alpha', default=1., type=float,
                         help='Temperature parameter, for how uniform our lambda-discrep weighting is')
+    parser.add_argument('--lr', default=0.01, type=float)
+    parser.add_argument('--value_type', default='q', type=str,
+                        help='Do we use (v | q) for our discrepancies?')
+    parser.add_argument('--error_type', default='l2', type=str,
+                        help='Do we use (l2 | abs) for our discrepancies?')
+    parser.add_argument('--epsilon', default=0.1, type=float,
+                        help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--objectives', default=['discrep', 'tde', 'tde_residual'])
+
+    parser.add_argument('--study_name', default=None, type=str,
+                        help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
+    parser.add_argument('--platform', default='cpu', type=str,
+                        help='What platform do we run things on? (cpu | gpu)')
+    parser.add_argument('--seed', default=2024, type=int,
+                        help='What is the overall seed we use?')
+    parser.add_argument('--n_seeds', default=1, type=int,
+                        help='How many seeds do we run?')
+
+    args = parser.parse_args()
+    return args
+
+sweep_hparams = {
+    'alpha': 1,
+    'lr': 0.01,
+}
+
+def make_experiment(args):
+
+    # Get POMDP definition
+    pomdp, pi_dict = load_pomdp(args.spec,
+                                memory_id=0,
+                                n_mem_states=args.n_mem_states,
+                                corridor_length=args.tmaze_corridor_length,
+                                discount=args.tmaze_discount,
+                                junction_up_pi=args.tmaze_junction_up_pi)
+    def experiment(rng: random.PRNGKey):
+        info = {}
+
+        rng, mem_rng = random.split(rng)
+        mem_shape = (args.random_policies + 1, pomdp.action_space.n, pomdp.observation_space.n, args.n_mem_states, args.n_mem_states)
+        mem_params = random.normal(mem_rng, shape=mem_shape) * 0.5
+        info['init_mem_params'] = mem_params.copy()
+
+        rng, pi_rng = random.split(rng)
+        pi_shape = (pomdp.observation_space.n, pomdp.action_space.n)
+        pi_paramses = reverse_softmax(get_unif_policies(pi_rng, pi_shape, args.random_policies + 1))
+        updateable_pi_params = pi_paramses[-1]
+
+        info['all_init_pi_params'] = pi_paramses.copy()
+
+        optim = get_optimizer(args.optimizer, args.lr)
+
+        mem_tx_params = jax.vmap(optim.init, in_axes=0)(mem_params)
+        pi_tx_params = optim.init(updateable_pi_params)
+
+        print("Running initial policy improvement")
+
+        @scan_tqdm(args.pi_steps)
+        def update_pg_step(inps, i):
+            params, tx_params, pomdp = inps
+            outs, params_grad = value_and_grad(pg_objective_func, has_aux=True)(params, pomdp)
+            v_0, (td_v_vals, td_q_vals) = outs
+
+            # We add a negative here to params_grad b/c we're trying to
+            # maximize the PG objective (value of start state).
+            params_grad = -params_grad
+            updates, tx_params = optim.update(params_grad, tx_params, params)
+            params = optax.apply_updates(params, updates)
+            outs = (params, tx_params, pomdp)
+            return outs, {'v0': v_0, 'v': td_v_vals, 'q': td_q_vals}
+
+        @scan_tqdm(args.pi_steps)
+        def update_policy_iter_step(inps, i):
+            params, _, pomdp = inps
+            new_pi_params, prev_td_v_vals, prev_td_q_vals = policy_iteration_step(params, pomdp, eps=args.epsilon)
+            outs = (new_pi_params, _, pomdp)
+            return outs, {'v': prev_td_v_vals, 'q': prev_td_q_vals}
+
+        output_pi_tuple, init_pi_optim_info = jax.lax.scan(update_policy_iter_step,
+                                                           (updateable_pi_params, pi_tx_params, pomdp),
+                                                           jnp.arange(args.pi_steps),
+                                                           length=args.pi_steps)
+
+        memoryless_optimal_pi_params, _, _ = output_pi_tuple
+
+        info['initial_improvement_policy'] = jax.nn.softmax(memoryless_optimal_pi_params, axis=-1)
+        print("Learnt initial improvement policy:\n{}", info['initial_improvement_policy'])
+
+        pis_with_memoryless_optimal = pi_paramses.at[-1].set(memoryless_optimal_pi_params)
+        info['all_initial_pi_params'] = pis_with_memoryless_optimal
+
+        def update_mem_step(mem_params: jnp.ndarray,
+                            pi_params: jnp.ndarray,
+                            mem_tx_params: jnp.ndarray,
+                            objective: str = 'discrep',
+                            residual: bool = False):
+            partial_kwargs = {
+                'value_type': args.value_type,
+                'error_type': args.error_type,
+                'lambda_0': args.lambda_0,
+                'lambda_1': args.lambda_1,
+                'alpha': args.alpha,
+            }
+            mem_loss_fn = mem_discrep_loss
+            if objective == 'bellman':
+                mem_loss_fn = mem_bellman_loss
+                partial_kwargs['residual'] = residual
+            elif objective == 'tde':
+                mem_loss_fn = mem_tde_loss
+                partial_kwargs['residual'] = residual
+            elif objective == 'obs_space':
+                mem_loss_fn = obs_space_mem_discrep_loss
+
+            pi = jax.nn.softmax(pi_params, axis=-1)
+            loss, params_grad = value_and_grad(mem_loss_fn, argnums=0)(mem_params, pi, pomdp)
+
+            updates, mem_tx_params = optim.update(params_grad, mem_tx_params, mem_params)
+            new_mem_params = optax.apply_updates(mem_params, updates)
+
+            return new_mem_params, pi_params, mem_tx_params, loss
+
+        # Make our vmapped memory function
+        update_ld_step = jax.vmap(partial(update_mem_step, objective='discrep', residual=True), in_axes=0)
+        update_mstde_step = jax.vmap(partial(update_mem_step, objective='tde', residual=False), in_axes=0)
+        update_mstde_res_step = jax.vmap(partial(update_mem_step, objective='tde', residual=True), in_axes=0)
+
+        def scan_wrapper(inps, i, f: Callable):
+            mem_params, pi_params, mem_tx_params, = inps
+            new_mem_params, pi_params, mem_tx_params, loss = f(mem_params, pi_params, mem_tx_params)
+            return (new_mem_params, pi_params, mem_tx_params), loss
+
+        scan_tqdm_dec = scan_tqdm(args.mi_steps)
+        update_ld_step = scan_tqdm_dec(partial(scan_wrapper, f=update_ld_step))
+        update_mstde_step = scan_tqdm_dec(partial(scan_wrapper, f=update_mstde_step))
+        update_mstde_res_step = scan_tqdm_dec(partial(scan_wrapper, f=update_mstde_res_step))
+
+        mem_aug_pi_paramses = jax.vmap(new_pi_over_mem, in_axes=(0, None))(pis_with_memoryless_optimal, args.n_mem_states)
+        mem_input_tuple = (mem_params, mem_aug_pi_paramses, mem_tx_params)
+
+        print("Starting {} iterations of λ-discrepancy minimization", args.mi_steps)
+        ld_mem_out, losses = jax.lax.scan(update_ld_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
+        ld_mem_paramses, ld_pi_paramses, _ = ld_mem_out
+        info['lambda_discrep_mems'] = ld_mem_paramses
+
+        print("Starting {} iterations of MSTDE minimization", args.mi_steps)
+        mstde_mem_out, losses = jax.lax.scan(update_mstde_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
+        mstde_mem_paramses, mstde_pi_paramses, _ = mstde_mem_out
+        info['mstde_mems'] = mstde_mem_paramses
+
+        print("Starting {} iterations of residual MSTDE minimization", args.mi_steps)
+        mstde_res_mem_out, losses = jax.lax.scan(update_mstde_res_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
+        mstde_res_mem_paramses, mstde_res_pi_paramses, _ = mstde_res_mem_out
+        info['mstde_res_mems'] = mstde_res_mem_paramses
+
+        last_pi_over_mem = new_pi_over_mem(pi_paramses[-1], args.n_mem_states)
+
+        # reset the last index, to replace memoryless TD optimal
+        mem_aug_pi_paramses = mem_aug_pi_paramses.at[-1].set(last_pi_over_mem)
+
+        def cross_and_improve_pi(mem_params: jnp.ndarray,
+                                 pi_params: jnp.ndarray,
+                                 pi_tx_params: dict):
+            mem_pomdp = memory_cross_product(mem_params, pomdp)
+
+            output_pi_tuple, pi_optim_info = jax.lax.scan(update_pg_step,
+                                                               (pi_params, pi_tx_params, mem_pomdp),
+                                                               jnp.arange(args.pi_steps),
+                                                               length=args.pi_steps)
+            return output_pi_tuple, pi_optim_info
+
+        # Get our parameters ready for batch policy improvement
+        all_mem_paramses = jnp.stack((ld_mem_paramses, mstde_mem_paramses, mstde_res_mem_paramses), axis=0)
+        all_mem_aug_pi_params = jnp.stack((mem_aug_pi_paramses, mem_aug_pi_paramses, mem_aug_pi_paramses), axis=0)
+        all_mem_pi_tx_paramses = jax.vmap(optim.init, in_axes=0)(all_mem_aug_pi_params)
+
+        # Batch policy improvement with PG
+        all_improved_pi_tuple, all_improved_pi_info = jax.vmap(cross_and_improve_pi, in_axes=0)(all_mem_paramses,
+                                                                                                all_mem_aug_pi_params,
+                                                                                                all_mem_pi_tx_paramses)
+
+        # Retrieve each set of learned pi params
+        all_improved_pi_params, _, _ = all_improved_pi_tuple
+        ld_improved_pi_params = all_improved_pi_params[:args.random_policies]
+        mstde_improved_pi_params = all_improved_pi_params[args.random_policies: (args.random_policies * 2)]
+        mstde_res_improved_pi_params = all_improved_pi_params[(args.random_policies * 2):]
+
+        info['ld_final_pi_params'] = ld_improved_pi_params
+        info['mstde_final_pi_params'] = mstde_improved_pi_params
+        info['mstde_res_final_pi_params'] = mstde_res_improved_pi_params
+
+        return info
+
+
+    return experiment
+
+
+
+
+if __name__ == "__main__":
+    start_time = time()
+    # jax.disable_jit(True)
+
+    args = get_args()
+
+    np.set_printoptions(precision=4, suppress=True)
+    config.update('jax_platform_name', args.platform)
+    config.update("jax_enable_x64", True)
+
+    rng = random.PRNGKey(seed=args.seed)
+    rngs = random.split(rng, args.n_seeds + 1)
+    rng, exp_rngs = rngs[-1], rngs[:-1]
+
+    t0 = time()
+    experiment_vjit_fn = jax.jit(jax.vmap(make_experiment(args)))
+
+    outs = jax.block_until_ready(experiment_vjit_fn(exp_rngs))
+
+    time_finish = time()
+
+    # results_path = results_path(args)
+    # info = {'logs': logs, 'args': args.__dict__}
+    # agents_dir = results_path.parent / 'agent'
+    # agents_dir.mkdir(exist_ok=True)
+    #
+    # agents_path = agents_dir / f'{results_path.stem}.pkl'
+    # np.save(agents_path, agent)
+    #
+    # end_time = time()
+    # run_stats = {'start_time': start_time, 'end_time': end_time}
+    # info['run_stats'] = run_stats
+    #
+    # print(f"Saving results to {results_path}")
+    # numpyify_and_save(results_path, info)

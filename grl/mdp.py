@@ -3,6 +3,7 @@ from gmpy2 import mpz
 import gymnasium as gym
 from gymnasium import spaces
 import jax.numpy as jnp
+from jax import random
 from jax.tree_util import register_pytree_node_class
 import numpy as np
 
@@ -338,6 +339,7 @@ def test():
     assert np.allclose(mdp1.T, mdp3.T)
     assert np.allclose(mdp1.R, mdp3.R)
     print('All tests passed.')
+
 
 if __name__ == '__main__':
     test()
