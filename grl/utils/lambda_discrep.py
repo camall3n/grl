@@ -3,7 +3,7 @@ from typing import Callable
 from functools import partial
 
 from grl import POMDP
-from grl.utils.loss import discrep_loss
+from grl.utils.loss import discrep_loss, mstd_err
 from grl.utils.policy_eval import analytical_pe
 
 def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
@@ -34,9 +34,12 @@ def log_all_measures(pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
     4. value error
     Note: we assume pi_params is already augmented.
     """
+    # Lambda discrepancy
     pi = softmax(pi_params, axis=-1)
     ld_dict = lambda_discrep_measures(pomdp, pi)
 
-    mstde_dict =
+    # MSTDE
+    mstde_loss, vals, _ = mstd_err(pi, pomdp, error_type='l2', residual=False)
+    mstde_res_loss, vals, _ = mstd_err(pi, pomdp, error_type='l2', residual=True)
 
     pass
