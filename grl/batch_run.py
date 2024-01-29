@@ -38,15 +38,6 @@ def get_unif_policies(rng: random.PRNGKey, pi_shape: tuple[int, int], n_policies
     logits = random.exponential(rng, shape=(n_policies,) + pi_shape)
     return logits / jnp.sum(logits, axis=-1, keepdims=True)
 
-def log_all_measures(pomdp: POMDP, mem_params: jnp.ndarray, pi_params: jnp.ndarray) -> dict:
-    """
-    Logs a few things:
-    1. values
-    2. lambda discrep
-    3. mstde
-    4. value error
-    """
-    pass
 
 def get_args():
     # Args
@@ -267,8 +258,8 @@ def make_experiment(args):
             return output_pi_tuple, pi_optim_info
 
         # Get our parameters ready for batch policy improvement
-        all_mem_paramses = jnp.stack((ld_mem_paramses, mstde_mem_paramses, mstde_res_mem_paramses), axis=0)
-        all_mem_aug_pi_params = jnp.stack((mem_aug_pi_paramses, mem_aug_pi_paramses, mem_aug_pi_paramses), axis=0)
+        all_mem_paramses = jnp.concatenate((ld_mem_paramses, mstde_mem_paramses, mstde_res_mem_paramses), axis=0)
+        all_mem_aug_pi_params = jnp.concatenate((mem_aug_pi_paramses, mem_aug_pi_paramses, mem_aug_pi_paramses), axis=0)
         all_mem_pi_tx_paramses = jax.vmap(optim.init, in_axes=0)(all_mem_aug_pi_params)
 
         # Batch policy improvement with PG

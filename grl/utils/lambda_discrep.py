@@ -24,3 +24,19 @@ def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Call
         'p0': pomdp.p0.copy()
     }
     return measures
+
+def log_all_measures(pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
+    """
+    Logs a few things:
+    1. values
+    2. lambda discrep
+    3. mstde
+    4. value error
+    Note: we assume pi_params is already augmented.
+    """
+    pi = softmax(pi_params, axis=-1)
+    ld_dict = lambda_discrep_measures(pomdp, pi)
+
+    mstde_dict =
+
+    pass
