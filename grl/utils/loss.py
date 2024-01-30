@@ -111,7 +111,7 @@ def discrep_loss(
         lambda_1_vals = {'v': lambda_1_v_vals, 'q': lambda_1_q_vals}
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
-    c_s = info['occupancy'].at[-2:].set(0)
+    c_s = info['occupancy'] * (1 - pomdp.terminal_mask)
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
                                        pi,
@@ -190,9 +190,8 @@ def obs_space_mem_discrep_loss(
 
     diff = lambda_1_vals[value_type] - lambda_0_vals[value_type]
 
-    c_s = info['occupancy']
     # set terminal counts to 0
-    c_s = c_s.at[-1:].set(0)
+    c_s = info['occupancy'] * (1 - pomdp.terminal_mask)
 
     loss = weight_and_sum_discrep_loss(diff,
                                        c_s,
@@ -230,7 +229,9 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     """
     pi_abs = nn.softmax(pi_params, axis=-1)
     pi_ground = pomdp.phi @ pi_abs
-    occupancy = functional_get_occupancy(pi_ground, pomdp)
+
+    # Terminals have p(S) = 0.
+    occupancy = functional_get_occupancy(pi_ground, pomdp) * (1 - pomdp.terminal_mask)
 
     p_pi_of_s_given_o = get_p_s_given_o(pomdp.phi, occupancy)
     T_obs_obs, R_obs_obs = functional_create_td_model(p_pi_of_s_given_o, pomdp)
@@ -351,7 +352,7 @@ def bellman_loss(
 
 
     # set terminal counts to 0
-    c_s = c_s.at[-2:].set(0)
+    c_s = info['occupancy'] * (1 - pomdp.terminal_mask)
     loss = weight_and_sum_discrep_loss(diff, c_s, pi, pomdp,
                                        value_type=value_type,
                                        error_type=error_type,
@@ -444,8 +445,7 @@ def mstd_err(
         raise NotImplementedError(f"Error {error_type} not implemented yet in mem_loss fn.")
 
     # set terminal count to 0 and compute Pr(s)
-    c_s = info['occupancy']
-    c_s = c_s.at[-1:].set(0)
+    c_s = info['occupancy'] * (1 - pomdp.terminal_mask)
     pr_s = c_s / c_s.sum()
 
     # Retrieve Pr(o|s), Pr(s'|s,a)
