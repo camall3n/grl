@@ -490,7 +490,7 @@ def value_error(pi: jnp.ndarray,
     expanded_obs_vals = obs_vals[value_type] @ pomdp.phi.T
     diff = state_vals[value_type] - expanded_obs_vals
 
-    c_s = info['occupancy'].at[-2:].set(0) # set terminal counts to 0
+    c_s = info['occupancy'] * (1 - pomdp.terminal_mask)
     p_s = c_s / c_s.sum()
 
     pi_s = pomdp.phi @ pi
