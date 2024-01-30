@@ -68,8 +68,8 @@ def random_observation_fn(n_states, n_obs_per_block):
 
 @register_pytree_node_class
 class MDP(gym.Env):
-    def __init__(self, T, R, p0, gamma=0.9, terminal_mask: np.ndarray = None,
-                 rand_key: np.random.RandomState = None):
+    def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None,
+                 terminal_mask: np.ndarray = None):
         self.gamma = gamma
         self.T = T
         self.R = R

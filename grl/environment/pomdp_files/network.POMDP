@@ -7,8 +7,9 @@ states: s000 s020 s040 s060 s080 s100 crash
 actions: unrestrict steady restrict reboot
 observations: up down
 
-# start:
-# 1.0 0.0 0.0 0.0 0.0 0.0 0.0 
+start:
+1.0 0.0 0.0 0.0 0.0 0.0 0.0
+
 T: unrestrict : s000 : s000
  0.500000
 T: unrestrict : s000 : s020
