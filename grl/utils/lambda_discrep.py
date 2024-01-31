@@ -5,6 +5,7 @@ from functools import partial
 from jax.nn import softmax
 
 from grl import POMDP
+from grl.memory.analytical import memory_cross_product
 from grl.utils.loss import discrep_loss, mstd_err, value_error
 from grl.utils.policy_eval import analytical_pe
 
@@ -26,6 +27,12 @@ def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Call
         'p0': pomdp.p0.copy()
     }
     return measures
+
+def augment_and_log_all_measures(mem_params: jnp.ndarray, pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
+    n_mem_states = mem_params.shape[-1]
+    mem_pomdp = memory_cross_product(mem_params, pomdp)
+    mem_aug_pi_params = pi_params.repeat(n_mem_states, axis=0)
+    return log_all_measures(mem_pomdp, mem_aug_pi_params)
 
 def log_all_measures(pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
     """
@@ -56,6 +63,6 @@ def log_all_measures(pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
     }
 
     return {'errors':
-                {'ld': discrep, 'mstde': mstde_loss, 'mstde_residual': mstde_res_loss, 'value': value_error}
+                {'ld': discrep, 'mstde': mstde_loss, 'mstde_residual': mstde_res_loss, 'value': value_error},
             'values': value_dict
             }
