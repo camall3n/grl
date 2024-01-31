@@ -229,13 +229,15 @@ class BlockMDP(MDP):
 
 @register_pytree_node_class
 class POMDP(MDP):
-    def __init__(self, base_mdp, phi):
-        super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
+    def __init__(self, base_mdp: MDP, phi):
+        super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma,
+                         base_mdp.terminal_mask)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.state_space.n, n_abstract_states
 
     def tree_flatten(self):
-        children = (self.T, self.R, self.p0, self.gamma, self.phi)
+        children = (self.T, self.R, self.p0, self.gamma, self.terminal_mask,
+                    self.phi)
         aux_data = None
         return (children, aux_data)
 

@@ -38,7 +38,7 @@ def test_example_7_p():
                                    pomdp,
                                    mi_iterations=1,
                                    mi_per_step=0,
-                                   pi_per_step=int(1e3),
+                                   pi_per_step=int(2e3),
                                    init_pi_improvement=False)
     final_lambda_discrep_min_policy = softmax(info['final_discrep_min_pi_params'], axis=-1)
 
@@ -117,4 +117,4 @@ def test_example_7_m():
     assert np.allclose(memory_end, agent.memory, atol=1e-2)
 
 if __name__ == "__main__":
-    test_example_7_m()
+    test_example_7_p()
