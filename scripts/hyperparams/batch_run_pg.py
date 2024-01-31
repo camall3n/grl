@@ -47,7 +47,7 @@ hparams = {
         'mi_iterations': 1,
         'random_policies': 10,
         'n_seeds': 5,
-        'seed': [2024, 2025]
+        'seed': [2024, 2025],
         'platform': 'gpu'
     }
 
