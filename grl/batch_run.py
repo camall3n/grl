@@ -94,6 +94,8 @@ def get_args():
                         help='Do we use (l2 | abs) for our discrepancies?')
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
+
+    # CURRENTLY NOT USED
     parser.add_argument('--objectives', default=['discrep', 'tde', 'tde_residual'])
 
     parser.add_argument('--study_name', default=None, type=str,
@@ -141,7 +143,8 @@ def make_experiment(args):
 
         beginning_info['all_init_pi_params'] = pi_paramses.copy()
         beginning_info['all_init_measures'] = batch_log_all_measures(pomdp, pi_paramses)
-        beginning_info['all_init_mem_measures'] = (jax.vmap(augment_and_log_all_measures, in_axes=(None, None, 0))(mem_params, pomdp, pi_paramses))
+        mem_aug_pi_paramses = pi_paramses.repeat(mem_params.shape[-1], axis=1)
+        beginning_info['all_init_mem_measures'] = jax.vmap(augment_and_log_all_measures, in_axes=(0, None, 0))(mem_params, pomdp, mem_aug_pi_paramses)
         info['beginning'] = beginning_info
 
         optim = get_optimizer(args.optimizer, args.lr)
@@ -288,9 +291,10 @@ def make_experiment(args):
 
         # Retrieve each set of learned pi params
         all_improved_pi_params, _, _ = all_improved_pi_tuple
-        ld_improved_pi_params = all_improved_pi_params[:args.random_policies]
-        mstde_improved_pi_params = all_improved_pi_params[args.random_policies: (args.random_policies * 2)]
-        mstde_res_improved_pi_params = all_improved_pi_params[(args.random_policies * 2):]
+        n = args.random_policies + 1
+        ld_improved_pi_params = all_improved_pi_params[:n]
+        mstde_improved_pi_params = all_improved_pi_params[n: (n * 2)]
+        mstde_res_improved_pi_params = all_improved_pi_params[(n * 2):]
 
         final_info = {}
         final_info['ld_final_pi_params'] = ld_improved_pi_params
@@ -299,6 +303,8 @@ def make_experiment(args):
         final_info['mstde_final_measures'] = batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_improved_pi_params)
         final_info['mstde_res_final_pi_params'] = mstde_res_improved_pi_params
         final_info['mstde_res_final_measures'] = batch_mem_log_all_measures(mstde_res_mem_paramses, pomdp, mstde_res_improved_pi_params)
+
+        info['final'] = final_info
 
         return info
 
@@ -322,6 +328,9 @@ if __name__ == "__main__":
     t0 = time()
     experiment_vjit_fn = jax.jit(jax.vmap(make_experiment(args)))
 
+    # Run the experiment!
+    # results will be batched over (n_seeds, random_policies + 1).
+    # The + 1 is for the TD optimal policy.
     outs = jax.block_until_ready(experiment_vjit_fn(exp_rngs))
 
     time_finish = time()

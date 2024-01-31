@@ -68,8 +68,8 @@ def random_observation_fn(n_states, n_obs_per_block):
 
 @register_pytree_node_class
 class MDP(gym.Env):
-    def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None,
-                 terminal_mask: np.ndarray = None):
+    def __init__(self, T, R, p0, gamma=0.9, terminal_mask: np.ndarray = None,
+                 rand_key: np.random.RandomState = None):
         self.gamma = gamma
         self.T = T
         self.R = R
@@ -88,10 +88,10 @@ class MDP(gym.Env):
 
         # Terminal mask is a boolean mask across all states that indicates
         # whether the state is a terminal(/absorbing) state.
-        self.terminal_mask = terminal_mask if terminal_mask is not None else self.get_terminal_mask()
-
-    def get_terminal_mask(self):
-        return jnp.array([jnp.all(self.T[:, i, i] == 1.) for i in range(self.state_space.n)])
+        if terminal_mask is not None:
+           self.terminal_mask = terminal_mask
+        else:
+            self.terminal_mask = jnp.array([jnp.all(self.T[:, i, i] == 1.) for i in range(self.state_space.n)])
 
     def tree_flatten(self):
         children = (self.T, self.R, self.p0, self.gamma, self.terminal_mask)
