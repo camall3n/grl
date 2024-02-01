@@ -46,8 +46,8 @@ hparams = {
         'n_mem_states': 8,
         'mi_iterations': 1,
         'random_policies': 10,
-        'n_seeds': 5,
-        'seed': [2024, 2025],
+        'n_seeds': 2,
+        'seed': [2024 + i for i in range(5)],
         'platform': 'gpu'
     }
 
