@@ -67,11 +67,12 @@ all_res_df = parse_dirs(experiment_dirs,
 # FILTER OUT for what we want to plot
 # alpha = 1.
 #
-# residual = True
-# filtered_df = all_res_df[(all_res_df['alpha'] == alpha) & (all_res_df['residual'] == residual)].reset_index()
+# all_res_df
+residual = False
+filtered_df = all_res_df[(all_res_df['residual'] == residual)].reset_index()
 
 # %% codecell
-all_res_groups = all_res_df.groupby(split_by, as_index=False)
+all_res_groups = filtered_df.groupby(split_by, as_index=False)
 all_res_means = all_res_groups.mean()
 del all_res_means['seed']
 # all_res_means.to_csv(Path(ROOT_DIR, 'results', 'all_pomdps_means.csv'))
@@ -79,7 +80,7 @@ del all_res_means['seed']
 # %% codecell
 cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
 # merged_df = filtered_df.merge(compare_to_df, on='spec')
-merged_df = all_res_df
+merged_df = filtered_df
 
 # for col_name in cols_to_normalize:
 
@@ -114,44 +115,53 @@ def maybe_spec_map(id: str):
     return spec_map[id]
 
 groups = normalized_df.groupby(split_by, as_index=False)
-means = groups.mean()
-means['init_improvement_perf'].clip(lower=0, upper=1, inplace=True)
-means['final_mem_perf'].clip(lower=0, upper=1, inplace=True)
+all_means = groups.mean()
+all_means['init_improvement_perf'].clip(lower=0, upper=1, inplace=True)
+all_means['final_mem_perf'].clip(lower=0, upper=1, inplace=True)
 
-std_errs = groups.std()
-std_errs['init_improvement_perf'] /= np.sqrt(len(seeds))
-std_errs['final_mem_perf'] /= np.sqrt(len(seeds))
+all_std_errs = groups.std()
+all_std_errs['init_improvement_perf'] /= np.sqrt(len(seeds))
+all_std_errs['final_mem_perf'] /= np.sqrt(len(seeds))
+
+# %%
 
 # SORTING
 sorted_mean_df = pd.DataFrame()
 sorted_std_err_df = pd.DataFrame()
 
 for spec in spec_plot_order:
-    mean_spec_df = means[means['spec'] == spec]
-    std_err_spec_df = std_errs[std_errs['spec'] == spec]
+    mean_spec_df = all_means[all_means['spec'] == spec]
+    std_err_spec_df = all_std_errs[all_std_errs['spec'] == spec]
     sorted_mean_df = pd.concat([sorted_mean_df, mean_spec_df])
     sorted_std_err_df = pd.concat([sorted_std_err_df, std_err_spec_df])
 
-means = sorted_mean_df
-std_errs = sorted_std_err_df
-
-num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
+# %%
+experiments = normalized_df['experiment'].unique()
 
 group_width = 1
-bar_width = group_width / (len(num_n_mem) + 2)
-fig, ax = plt.subplots(figsize=(12, 6))
+num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
+specs = means['spec'].unique()
 
-specs = means[means['n_mem_states'] == num_n_mem[0]]['spec']
-# spec_order_mapping = [spec_plot_order.index(s) for s in specs]
 spec_order_mapping = np.arange(len(specs), dtype=int)
+
+exp_group_width = group_width / (len(experiments))
+bar_width = exp_group_width / (len(num_n_mem) + 3)
+
+fig, ax = plt.subplots(figsize=(12, 6))
 
 xlabels = [maybe_spec_map(l) for l in specs]
 x = np.arange(len(specs))
 
-init_improvement_perf_mean = np.array(means[means['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'])
-init_improvement_perf_std = np.array(std_errs[std_errs['n_mem_states'] == num_n_mem[0]]['init_improvement_perf'])
+init_improvement_perf_mean = np.array(all_means[
+                                        (all_means['n_mem_states'] == num_n_mem[0]) &
+                                        (all_means['experiment'] == experiments[0])
+                                        ]['init_improvement_perf'])
+init_improvement_perf_std = np.array(all_std_errs[
+                                        (all_std_errs['n_mem_states'] == num_n_mem[0]) &
+                                        (all_std_errs['experiment'] == experiments[0])
+                                        ]['init_improvement_perf'])
 
-ax.bar(x + (0 + 1) * bar_width,
+ax.bar(x + 0 * exp_group_width + (0 + 1) * bar_width,
        init_improvement_perf_mean,
        bar_width,
        yerr=init_improvement_perf_std,
@@ -159,16 +169,28 @@ ax.bar(x + (0 + 1) * bar_width,
        color='#5B97E0')
 
 mem_colors = ['#E0B625', '#DD8453', '#C44E52']
+exp_hatches = ['/', 'o', '+', '.']
 
-for i, n_mem_states in enumerate(num_n_mem):
-    curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states]['final_mem_perf'])
-    curr_mem_std = np.array(std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'])
-    ax.bar(x + (i + 2) * bar_width,
-           curr_mem_mean,
-           bar_width,
-           yerr=curr_mem_std,
-           label=f"{int(np.log2(n_mem_states))} Memory Bits",
-           color=mem_colors[i])
+for i, exp_name in enumerate(experiments):
+    means = sorted_mean_df[sorted_mean_df['experiment'] == exp_name]
+    std_errs = sorted_std_err_df[sorted_std_err_df['experiment'] == exp_name]
+
+    # means = sorted_mean_df
+    # std_errs = sorted_std_err_df
+
+    for j, n_mem_states in enumerate(num_n_mem):
+        curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states]['final_mem_perf'])
+        curr_mem_std = np.array(std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'])
+        to_add = i * exp_group_width + (j + 3) * bar_width
+        if i != 0:
+            to_add -= 2 * bar_width
+        ax.bar(x + to_add,
+               curr_mem_mean,
+               bar_width,
+               yerr=curr_mem_std,
+               label=f"{int(np.log2(n_mem_states))} Memory Bits",
+               hatch=exp_hatches[i],
+               color=mem_colors[j])
 
 ax.set_ylim([0, 1.05])
 ax.set_ylabel(f'Relative Performance\n (w.r.t. optimal {compare_to} & initial policy)')
@@ -178,7 +200,7 @@ ax.set_xticklabels(xlabels)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
 alpha_str = 'uniform' if alpha == 1. else 'occupancy'
 residual_str = 'semi_grad' if not residual else 'residual'
-ax.set_title(f"Memory: (MSTDE w/ {policy_optim_alg} ({residual_str}, {alpha_str}))")
+ax.set_title(f"Memory: (MSTDE (dashes, {residual_str}) vs LD (dots, {alpha_str}))")
 
 downloads = Path().home() / 'Downloads'
 fig_path = downloads / f"{results_dir.stem}_{residual_str}_{alpha_str}.pdf"
