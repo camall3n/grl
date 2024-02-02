@@ -12,6 +12,43 @@ from grl.utils.math import greedify
 
 from definitions import ROOT_DIR
 
+def parse_batch_dirs(exp_dirs: list[Path],
+                     baseline_dict: dict,
+                     args_to_keep: list[str]):
+    all_results = []
+
+
+    def parse_exp_dir(exp_dir: Path):
+        print(f"Parsing {exp_dir}")
+        for results_path in tqdm(list(exp_dir.iterdir())):
+            if results_path.is_dir() or results_path.suffix != '.npy':
+                continue
+
+            info = load_info(results_path)
+            args = info['args']
+            logs = info['logs']
+
+            if args['spec'] not in baseline_dict:
+                continue
+
+            def get_perf(d: dict):
+                return (d['state_vals_v'] * d['p0']).sum()
+
+            pomdp, _ = load_pomdp(args['spec'])
+
+            final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
+
+            greedy_policy = greedify(agent.policy)
+
+
+    for exp_dir in exp_dirs:
+        parse_exp_dir(exp_dir)
+
+    all_res_df = pd.DataFrame(all_results)
+
+    return all_res_df
+
+
 def parse_dirs(exp_dirs: list[Path],
                baseline_dict: dict,
                args_to_keep: list[str]):
@@ -111,3 +148,26 @@ def parse_baselines(
             compare_to_dict[spec] = load_state_val(spec)
 
     return compare_to_dict
+
+if __name__ == "__main__":
+    from pathlib import Path
+    from definitions import ROOT_DIR
+
+    compare_to = 'belief'
+
+    directory = Path(ROOT_DIR, 'results', "batch_run_pg")
+    vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
+    pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
+
+    args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual']
+    spec_plot_order = [
+        'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
+    ]
+
+    compare_to_dict = parse_baselines(spec_plot_order,
+                                      vi_results_dir,
+                                      pomdp_files_dir,
+                                      compare_to=compare_to)
+
+    res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
+

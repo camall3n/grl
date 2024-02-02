@@ -246,20 +246,24 @@ def make_experiment(args):
         after_mem_op_info = {}
         ld_mem_out, losses = jax.lax.scan(update_ld_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
         ld_mem_paramses, ld_pi_paramses, _ = ld_mem_out
-        after_mem_op_info['lambda_discrep_mems'] = ld_mem_paramses
-        after_mem_op_info['lambda_discrep_mems_measures'] = batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_pi_paramses)
+        ld_mem_info = {'mems': ld_mem_paramses,
+                       'measures': batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_pi_paramses)}
+        after_mem_op_info['ld'] = ld_mem_info
 
         print("Starting {} iterations of MSTDE minimization", args.mi_steps)
         mstde_mem_out, losses = jax.lax.scan(update_mstde_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
         mstde_mem_paramses, mstde_pi_paramses, _ = mstde_mem_out
-        after_mem_op_info['mstde_mems'] = mstde_mem_paramses
-        after_mem_op_info['mstde_mems_measures'] = batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_pi_paramses)
+        mstde_mem_info = {'mems': mstde_mem_paramses,
+                          'measures': batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_pi_paramses)}
+        after_mem_op_info['mstde'] = mstde_mem_info
 
         print("Starting {} iterations of residual MSTDE minimization", args.mi_steps)
         mstde_res_mem_out, losses = jax.lax.scan(update_mstde_res_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
         mstde_res_mem_paramses, mstde_res_pi_paramses, _ = mstde_res_mem_out
-        after_mem_op_info['mstde_res_mems'] = mstde_res_mem_paramses
-        after_mem_op_info['mstde_res_mems_measures'] = batch_mem_log_all_measures(mstde_res_mem_paramses, pomdp, mstde_res_pi_paramses)
+        mstde_res_mem_info = {'mems': mstde_res_mem_paramses,
+                              'measures': batch_mem_log_all_measures(mstde_res_mem_paramses, pomdp, mstde_res_pi_paramses)}
+        after_mem_op_info['mstde_res'] = mstde_res_mem_info
+
         info['after_mem_op'] = after_mem_op_info
 
         # now we do policy improvement over the learnt memory
@@ -298,7 +302,7 @@ def make_experiment(args):
 
         final_info = {}
         final_info['ld_final_pi_params'] = ld_improved_pi_params
-        final_info['lambda_discrep_final_measures'] = batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_improved_pi_params)
+        final_info['ld_final_measures'] = batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_improved_pi_params)
         final_info['mstde_final_pi_params'] = mstde_improved_pi_params
         final_info['mstde_final_measures'] = batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_improved_pi_params)
         final_info['mstde_res_final_pi_params'] = mstde_res_improved_pi_params
