@@ -15,6 +15,10 @@ if __name__ == "__main__":
         info = load_info(results_path)
 
         amo = info['logs']['after_mem_op']
+        if 'ld' in amo:
+            print(f"Already parsed {results_path}")
+            continue
+
         ld_dict = {'mems': amo['lambda_discrep_mems'], 'measures': amo['lambda_discrep_mems_measures'] }
         mstde_dict = { 'mems': amo['mstde_mems'], 'measures': amo['mstde_mems_measures'] }
         mstde_res_dict = { 'mems': amo['mstde_res_mems'], 'measures': amo['mstde_res_mems_measures'] }

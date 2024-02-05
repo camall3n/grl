@@ -32,14 +32,26 @@ def parse_batch_dirs(exp_dirs: list[Path],
             if args['spec'] not in baseline_dict:
                 continue
 
-            def get_perf(d: dict):
-                return (d['state_vals_v'] * d['p0']).sum()
-
             pomdp, _ = load_pomdp(args['spec'])
 
-            # final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
-            #
-            # greedy_policy = greedify(agent.policy)
+            after_pi_op = info['after_pi_op']
+
+            apo_measures = after_pi_op['initial_improvement_measures']
+            init_improvement_perf_seeds = np.dot(apo_measures['values']['state_vals']['v'],
+                                                 apo_measures['values']['p0'], axis=-1)
+            for key in keys:
+                final_stats = info['final'][key]['measures']
+                final_v, final_p0 = final_stats['values']['state_vals']['v'], final_stats['values']['p0']
+
+                # Average perf over random policies
+                final_perf_rand_avg = np.einsum('ijk,ijk->i',
+                                                final_v[:, :-1],
+                                                final_p0[:, :-1])
+
+                # Get perf for memoryless optimal policies
+                final_perf_mem_optimal = np.dot(final_v[:, -1], final_p0[:, -1], axis=-1)
+
+
 
 
     for exp_dir in exp_dirs:
