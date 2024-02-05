@@ -17,6 +17,7 @@ def parse_batch_dirs(exp_dirs: list[Path],
                      args_to_keep: list[str]):
     all_results = []
 
+    keys = ['ld', 'mstde', 'mstde_res']
 
     def parse_exp_dir(exp_dir: Path):
         print(f"Parsing {exp_dir}")
@@ -36,9 +37,9 @@ def parse_batch_dirs(exp_dirs: list[Path],
 
             pomdp, _ = load_pomdp(args['spec'])
 
-            final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
-
-            greedy_policy = greedify(agent.policy)
+            # final_mem_pomdp = memory_cross_product(agent.mem_params, pomdp)
+            #
+            # greedy_policy = greedify(agent.policy)
 
 
     for exp_dir in exp_dirs:

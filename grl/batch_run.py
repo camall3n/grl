@@ -300,13 +300,14 @@ def make_experiment(args):
         mstde_improved_pi_params = all_improved_pi_params[n: (n * 2)]
         mstde_res_improved_pi_params = all_improved_pi_params[(n * 2):]
 
-        final_info = {}
-        final_info['ld_final_pi_params'] = ld_improved_pi_params
-        final_info['ld_final_measures'] = batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_improved_pi_params)
-        final_info['mstde_final_pi_params'] = mstde_improved_pi_params
-        final_info['mstde_final_measures'] = batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_improved_pi_params)
-        final_info['mstde_res_final_pi_params'] = mstde_res_improved_pi_params
-        final_info['mstde_res_final_measures'] = batch_mem_log_all_measures(mstde_res_mem_paramses, pomdp, mstde_res_improved_pi_params)
+        final_info = {
+            'ld': {'pi_params': ld_improved_pi_params,
+                   'measures': batch_mem_log_all_measures(ld_mem_paramses, pomdp, ld_improved_pi_params)},
+            'mstde': {'pi_params': mstde_improved_pi_params,
+                      'measures': batch_mem_log_all_measures(mstde_mem_paramses, pomdp, mstde_improved_pi_params)},
+            'mstde_res': {'pi_params': mstde_res_improved_pi_params,
+                          'measures': batch_mem_log_all_measures(mstde_res_mem_paramses, pomdp, mstde_res_improved_pi_params)},
+        }
 
         info['final'] = final_info
 
