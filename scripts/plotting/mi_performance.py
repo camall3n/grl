@@ -17,35 +17,38 @@ np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
-from scripts.plotting.parse_experiments import parse_baselines, parse_dirs
+from scripts.plotting.parse_experiments import parse_baselines, parse_dirs, parse_batch_dirs
 from definitions import ROOT_DIR
 
 # %% codecell
 # results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
+# experiment_dirs = [
+#     Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
+#     Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
+# ]
+
 experiment_dirs = [
-    Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
-    Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
+    Path(ROOT_DIR, 'results', 'batch_run_pg'),
 ]
 
-# results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
-# results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
-args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual']
+args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual', 'objective']
 split_by = [arg for arg in args_to_keep if arg != 'seed'] + ['experiment']
 
 # this option allows us to compare to either the optimal belief state soln
 # or optimal state soln. ('belief' | 'state')
 compare_to = 'belief'
-# compare_to = 'state'
 
-# policy_optim_alg = 'policy_grad'
 policy_optim_alg = 'policy_grad'
 
 spec_plot_order = [
     'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
 ]
+
+plot_key = 'final_memoryless_optimal_perf'  # for batch_run
+plot_key = 'final_mem_perf'  # for batch_run
 
 # %% codecell
 
@@ -56,9 +59,12 @@ compare_to_dict = parse_baselines(spec_plot_order,
 
 
 # %% codecell
-all_res_df = parse_dirs(experiment_dirs,
-                        compare_to_dict,
-                        args_to_keep)
+# all_res_df = parse_dirs(experiment_dirs,
+#                         compare_to_dict,
+#                         args_to_keep)
+all_res_df = parse_batch_dirs(experiment_dirs,
+                              compare_to_dict,
+                              args_to_keep)
 
 
 
