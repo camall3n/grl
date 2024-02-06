@@ -22,14 +22,14 @@ from definitions import ROOT_DIR
 
 # %% codecell
 # results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
-# experiment_dirs = [
-#     Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
-#     Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
-# ]
-
 experiment_dirs = [
-    Path(ROOT_DIR, 'results', 'batch_run_pg'),
+    Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
+    Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
 ]
+
+# experiment_dirs = [
+#     Path(ROOT_DIR, 'results', 'batch_run_pg'),
+# ]
 
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -47,8 +47,10 @@ spec_plot_order = [
     'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
 ]
 
-plot_key = 'final_memoryless_optimal_perf'  # for batch_run
-# plot_key = 'final_mem_perf'  # for single runs
+# plot_key = 'final_memoryless_optimal_perf'  # for batch_run
+# plot_key = 'final_rand_avg_perf'  # for batch_run
+
+plot_key = 'final_mem_perf'  # for single runs
 
 # %% codecell
 
@@ -59,12 +61,12 @@ compare_to_dict = parse_baselines(spec_plot_order,
 
 
 # %% codecell
-# all_res_df = parse_dirs(experiment_dirs,
-#                         compare_to_dict,
-#                         args_to_keep)
-all_res_df = parse_batch_dirs(experiment_dirs,
-                              compare_to_dict,
-                              args_to_keep)
+all_res_df = parse_dirs(experiment_dirs,
+                        compare_to_dict,
+                        args_to_keep)
+# all_res_df = parse_batch_dirs(experiment_dirs,
+#                               compare_to_dict,
+#                               args_to_keep)
 
 
 
@@ -210,7 +212,9 @@ ax.set_xticklabels(xlabels)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
 # alpha_str = 'uniform' if alpha == 1. else 'occupancy'
 residual_str = 'semi_grad' if not residual else 'residual'
-ax.set_title(f"Memory: (MSTDE (dashes, {residual_str}) vs LD (dots))")
+title_str = " vs. ".join([f"{exp}" for exp in experiments]) + f"\n residual: {residual_str}, init_policy: {plot_key}"
+# ax.set_title(f"Memory: (MSTDE (dashes, {residual_str}) vs LD (dots))")
+ax.set_title(title_str)
 
 downloads = Path().home() / 'Downloads'
 # fig_path = downloads / f"{results_dir.stem}_{residual_str}_{alpha_str}.pdf"
