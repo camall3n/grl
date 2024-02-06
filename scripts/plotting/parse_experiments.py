@@ -38,7 +38,7 @@ def parse_batch_dirs(exp_dirs: list[Path],
             aim_measures = beginning['all_init_measures']
             init_policy_perf_seeds = np.einsum('ijk,ijk->i',
                                          aim_measures['values']['state_vals']['v'],
-                                              aim_measures['values']['p0'])
+                                              aim_measures['values']['p0']) / ()
 
             after_pi_op = logs['after_pi_op']
             apo_measures = after_pi_op['initial_improvement_measures']

@@ -318,7 +318,7 @@ def make_experiment(args):
 
 if __name__ == "__main__":
     start_time = time()
-    # jax.disable_jit(True)
+    jax.disable_jit(True)
 
     args = get_args()
 
