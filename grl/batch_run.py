@@ -171,7 +171,7 @@ def make_experiment(args):
             outs = (new_pi_params, _, pomdp)
             return outs, {'v': prev_td_v_vals, 'q': prev_td_q_vals}
 
-        output_pi_tuple, init_pi_optim_info = jax.lax.scan(update_policy_iter_step,
+        output_pi_tuple, init_pi_optim_info = jax.lax.scan(update_pg_step,
                                                            (updateable_pi_params, pi_tx_params, pomdp),
                                                            jnp.arange(args.pi_steps),
                                                            length=args.pi_steps)

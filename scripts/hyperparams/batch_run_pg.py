@@ -7,19 +7,12 @@ hparams = {
         f'runs_{exp_name}.txt',
     'entry': '-m grl.batch_run',
     'args': [{
-        # 'spec': ['paint.95', 'tmaze_5_two_thirds_up'],
         'spec': [
-            'tiger-alt-start', '4x3.95',
-            'cheese.95', 'network', 'shuttle.95'
+            'tiger-alt-start', 'tmaze_5_two_thirds_up', '4x3.95',
+            'cheese.95', 'network', 'shuttle.95', 'paint.95'
             # 'hallway'
             # 'bridge-repair',
         ],
-        # 'spec': [
-        #     'tiger-alt-start', 'tmaze_5_two_thirds_up', '4x3.95',
-        #     'cheese.95', 'network', 'shuttle.95', 'paint.95'
-        #     # 'hallway'
-        #     # 'bridge-repair',
-        # ],
         'policy_optim_alg': 'policy_grad',
         'value_type': 'q',
         'error_type': 'l2',
