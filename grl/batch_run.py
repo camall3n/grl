@@ -31,12 +31,8 @@ from grl.utils.loss import (
     obs_space_mem_discrep_loss
 )
 from grl.utils.optimizer import get_optimizer
+from grl.utils.policy import get_unif_policies
 from grl.vi import policy_iteration_step
-
-def get_unif_policies(rng: random.PRNGKey, pi_shape: tuple[int, int], n_policies: int):
-
-    logits = random.exponential(rng, shape=(n_policies,) + pi_shape)
-    return logits / jnp.sum(logits, axis=-1, keepdims=True)
 
 
 def get_args():

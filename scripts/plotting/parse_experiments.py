@@ -33,12 +33,15 @@ def parse_batch_dirs(exp_dirs: list[Path],
                 continue
 
             pomdp, _ = load_pomdp(args['spec'])
+            n_random_policies = args['random_policies']
 
             beginning = logs['beginning']
             aim_measures = beginning['all_init_measures']
+            # init_policy_perf_seeds = (aim_measures['values']['state_vals']['v'] * aim_measures['values']['p0'])
+            # init_policy_perf_seeds = init_policy_perf_seeds.sum(axis=-1).mean(axis=-1)
             init_policy_perf_seeds = np.einsum('ijk,ijk->i',
-                                         aim_measures['values']['state_vals']['v'],
-                                              aim_measures['values']['p0']) / ()
+                                               aim_measures['values']['state_vals']['v'],
+                                               aim_measures['values']['p0']) / (n_random_policies + 1)
 
             after_pi_op = logs['after_pi_op']
             apo_measures = after_pi_op['initial_improvement_measures']
@@ -56,17 +59,18 @@ def parse_batch_dirs(exp_dirs: list[Path],
                 args['objective'] = objective
 
                 single_res = {k: args[k] for k in args_to_keep}
-                single_res['experiment'] = exp_dir.name
+                single_res['experiment'] = exp_dir.name + f'_{objective}'
                 single_res['objective'] = objective
 
                 final_stats = logs['final'][key]['measures']
                 final_v, final_p0 = final_stats['values']['state_vals']['v'], final_stats['values']['p0']
 
                 # Average perf over random policies
-                n_random_policies = args['random_policies']
+                # final_rand_avg_perf_seeds = (final_v[:, :-1] * final_p0[:, :-1])
+                # final_rand_avg_perf_seeds = final_rand_avg_perf_seeds.mean(axis=-1).mean(axis=-1)
                 final_rand_avg_perf_seeds = np.einsum('ijk,ijk->i',
-                                                      final_v[:, :-1] / n_random_policies,
-                                                      final_p0[:, :-1] / n_random_policies)
+                                                      final_v[:, :-1],
+                                                      final_p0[:, :-1]) / n_random_policies
 
                 # Get perf for memoryless optimal policies
                 final_memoryless_optimal_perf_seeds = np.einsum('ij,ij->i', final_v[:, -1], final_p0[:, -1])
@@ -196,7 +200,9 @@ if __name__ == "__main__":
 
     compare_to = 'belief'
 
-    directory = Path(ROOT_DIR, 'results', "batch_run_pg")
+    # directory = Path(ROOT_DIR, 'results', "batch_run_pg")
+    directory = Path(ROOT_DIR, 'results', "final_discrep_kitchen_sinks_pg")
+
     vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
     pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
@@ -210,7 +216,8 @@ if __name__ == "__main__":
                                       pomdp_files_dir,
                                       compare_to=compare_to)
 
-    res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
+    # res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
+    res_df = parse_dirs([directory], compare_to_dict, args_to_keep)
 
     print()
 

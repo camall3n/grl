@@ -4,6 +4,7 @@ import time
 from jax_tqdm import scan_tqdm
 import jax
 import jax.numpy as jnp
+from jax import random
 from jax.nn import softmax
 from tqdm import trange
 from functools import partial
@@ -12,7 +13,7 @@ from typing import Callable
 from grl.agent.analytical import AnalyticalAgent
 from grl.mdp import POMDP
 from grl.memory import memory_cross_product
-from grl.utils.augment_policy import deconstruct_aug_policy
+from grl.utils.policy import deconstruct_aug_policy, get_unif_policies
 from grl.utils.math import glorot_init, greedify, reverse_softmax
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.utils.loss import discrep_loss, pg_objective_func
@@ -64,7 +65,11 @@ def run_memory_iteration(pomdp: POMDP,
     init_pi_improvement = False
     if pi_params is None:
         init_pi_improvement = True
-        pi_params = glorot_init((pomdp.observation_space.n, pomdp.action_space.n), scale=0.2)
+        rand_key, pi_key = random.split(rand_key)
+        pi = get_unif_policies(pi_key, (pomdp.observation_space.n, pomdp.action_space.n), 1)[0]
+        pi_params = reverse_softmax(pi)
+        # pi_params = glorot_init((pomdp.observation_space.n, pomdp.action_space.n), scale=0.2)
+
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params,

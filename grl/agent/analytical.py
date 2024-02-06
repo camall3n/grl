@@ -8,7 +8,7 @@ import numpy as np
 import optax
 
 from grl.mdp import POMDP
-from grl.utils.augment_policy import construct_aug_policy
+from grl.utils.policy import construct_aug_policy
 from grl.utils.loss import policy_discrep_loss, pg_objective_func, \
     mem_pg_objective_func, unrolled_mem_pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_bellman_loss, mem_tde_loss, obs_space_mem_discrep_loss
