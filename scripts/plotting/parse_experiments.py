@@ -63,16 +63,18 @@ def parse_batch_dirs(exp_dirs: list[Path],
                 final_v, final_p0 = final_stats['values']['state_vals']['v'], final_stats['values']['p0']
 
                 # Average perf over random policies
+                n_random_policies = args['random_policies']
                 final_rand_avg_perf_seeds = np.einsum('ijk,ijk->i',
-                                                final_v[:, :-1],
-                                                      final_p0[:, :-1])
+                                                      final_v[:, :-1] / n_random_policies,
+                                                      final_p0[:, :-1] / n_random_policies)
 
                 # Get perf for memoryless optimal policies
-                final_memoryless_optimal_perf_seeds = np.einsum('ij,ij->i',final_v[:, -1], final_p0[:, -1])
+                final_memoryless_optimal_perf_seeds = np.einsum('ij,ij->i', final_v[:, -1], final_p0[:, -1])
 
                 for i in range(args['n_seeds']):
                     all_results.append({
                         **single_res,
+                        'seed': i,
                         'init_policy_perf': init_policy_perf_seeds[i],
                         'init_improvement_perf': init_improvement_perf_seeds[i],
                         'final_memoryless_optimal_perf': final_memoryless_optimal_perf_seeds[i],

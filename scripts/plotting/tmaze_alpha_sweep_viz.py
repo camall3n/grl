@@ -82,7 +82,7 @@ for results_path in list(results_dir.iterdir()):
 
     single_row.update({
         'init_policy_perf': init_policy_info['discrep'].item(),
-        'final_mem_perf': final_mem_info['discrep'].item(),
+        plot_key: final_mem_info['discrep'].item(),
         'diff_start_bits_set': diff_start_bits_set,
         'is_toggle': is_toggle,
         'is_hold': is_hold,
