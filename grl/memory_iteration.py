@@ -262,23 +262,23 @@ def memory_iteration(
             print(f"Start MI {mem_it}")
 
             prev_time = time.time()
-            def mem_steps():
-                @scan_tqdm(mi_per_step)
-                def _mem_step(inps, _):
-                    params, optim_state, pi_params, pomdp = inps
-                    loss, params, optimizer_state = agent.memory_update(params, optim_state, pi_params, pomdp)
-                    return (params, optim_state, pi_params, pomdp), loss
-                input_tuple = (agent.mem_params, agent.mem_optim_state, agent.pi_params, pomdp)
-                return jax.lax.scan(_mem_step, input_tuple, jnp.arange(mi_per_step), length=mi_per_step)
+            # def mem_steps():
+            #     @scan_tqdm(mi_per_step)
+            #     def _mem_step(inps, _):
+            #         params, optim_state, pi_params, pomdp = inps
+            #         loss, params, optimizer_state = agent.memory_update(params, optim_state, pi_params, pomdp)
+            #         return (params, optim_state, pi_params, pomdp), loss
+            #     input_tuple = (agent.mem_params, agent.mem_optim_state, agent.pi_params, pomdp)
+            #     return jax.lax.scan(_mem_step, input_tuple, jnp.arange(mi_per_step), length=mi_per_step)
+            #
+            # output_tuple, mem_loss = jax.jit(mem_steps)()
+            # mem_params, mem_optim_state, _, _ = output_tuple
+            # agent.mem_params = mem_params
 
-            output_tuple, mem_loss = jax.jit(mem_steps)()
-            mem_params, mem_optim_state, _, _ = output_tuple
-            agent.mem_params = mem_params
-
-            # mem_loss = mem_improvement(agent,
-            #                            init_pomdp,
-            #                            iterations=mi_per_step,
-            #                            log_every=log_every)
+            mem_loss = mem_improvement(agent,
+                                       init_pomdp,
+                                       iterations=mi_per_step,
+                                       log_every=log_every)
             next_time = time.time()
             print(f"Time for MI {mem_it}: {next_time - prev_time:.4f} seconds")
             info['mem_loss'].append(mem_loss)
