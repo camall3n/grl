@@ -1,3 +1,4 @@
+from jax import random, numpy as jnp
 from jax.nn import softmax
 import jax.numpy as jnp
 
@@ -68,3 +69,8 @@ if __name__ == "__main__":
 
     softmax(mem_logits_reconstr, -1).round(3)
     softmax(mem_params, -1).round(3)
+
+
+def get_unif_policies(rng: random.PRNGKey, pi_shape: tuple[int, int], n_policies: int):
+    logits = random.exponential(rng, shape=(n_policies,) + pi_shape)
+    return logits / jnp.sum(logits, axis=-1, keepdims=True)

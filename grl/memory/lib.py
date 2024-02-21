@@ -3,6 +3,7 @@ from itertools import product
 import numpy as np
 from tqdm import tqdm
 
+from grl.utils import unif_simplex
 from grl.utils.math import glorot_init, reverse_softmax
 
 def get_memory(memory_id: str,
@@ -107,13 +108,6 @@ def all_n_state_deterministic_memory(n_mem_states: int):
     all_mem_funcs = id[all_idxes]
     return all_mem_funcs
 
-def unif_simplex(n: int):
-    """
-    Samples uniformly random vector from a simplex in n-dimensions.
-    Taken from https://stackoverflow.com/questions/65154622/sample-uniformly-at-random-from-a-simplex-in-python
-    """
-    logits = np.random.exponential(scale=1., size=n)
-    return logits / sum(logits)
 
 def generate_random_uniform_memory_fn(n_mem_states: int, n_obs: int, n_actions: int):
     T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))

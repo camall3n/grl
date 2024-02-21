@@ -8,13 +8,27 @@ import numpy as np
 import optax
 
 from grl.mdp import POMDP
-from grl.utils.augment_policy import construct_aug_policy
+from grl.utils.policy import construct_aug_policy
 from grl.utils.loss import policy_discrep_loss, pg_objective_func, \
     mem_pg_objective_func, unrolled_mem_pg_objective_func
 from grl.utils.loss import mem_discrep_loss, mem_bellman_loss, mem_tde_loss, obs_space_mem_discrep_loss
 from grl.utils.math import glorot_init, reverse_softmax
 from grl.utils.optimizer import get_optimizer
 from grl.vi import policy_iteration_step
+
+def new_pi_over_mem(pi_params: jnp.ndarray, add_n_mem_states: int,
+                    new_mem_pi: str = 'repeat'):
+    old_pi_params_shape = pi_params.shape
+
+    pi_params = pi_params.repeat(add_n_mem_states, axis=0)
+
+    if new_mem_pi == 'random':
+        # randomly init policy for new memory state
+        new_mem_params = glorot_init(old_pi_params_shape)
+        pi_params = pi_params.at[1::2].set(new_mem_params)
+
+    return pi_params
+
 
 class AnalyticalAgent:
     """
@@ -175,14 +189,9 @@ class AnalyticalAgent:
                 "Have not implemented adding bits to already existing memory.")
 
         add_n_mem_states = self.mem_params.shape[-1]
-        old_pi_params_shape = self.pi_params.shape
-
-        self.pi_params = self.pi_params.repeat(add_n_mem_states, axis=0)
-
-        if self.new_mem_pi == 'random':
-            # randomly init policy for new memory state
-            new_mem_params = glorot_init(old_pi_params_shape)
-            self.pi_params = self.pi_params.at[1::2].set(new_mem_params)
+        self.pi_params = new_pi_over_mem(self.pi_params,
+                                         add_n_mem_states=add_n_mem_states,
+                                         new_mem_pi=self.new_mem_pi)
 
     @partial(jit, static_argnames=['self'])
     def policy_gradient_update(self, params: jnp.ndarray, optim_state: jnp.ndarray, pomdp: POMDP):

@@ -12,6 +12,80 @@ from grl.utils.math import greedify
 
 from definitions import ROOT_DIR
 
+def parse_batch_dirs(exp_dirs: list[Path],
+                     baseline_dict: dict,
+                     args_to_keep: list[str]):
+    all_results = []
+
+    keys = ['ld', 'mstde', 'mstde_res']
+
+    def parse_exp_dir(exp_dir: Path):
+        print(f"Parsing {exp_dir}")
+        for results_path in tqdm(list(exp_dir.iterdir())):
+            if results_path.is_dir() or results_path.suffix != '.npy':
+                continue
+
+            info = load_info(results_path)
+            args = info['args']
+            logs = info['logs']
+
+            if args['spec'] not in baseline_dict:
+                continue
+
+            pomdp, _ = load_pomdp(args['spec'])
+            # n_random_policies = args['random_policies']
+
+            beginning = logs['beginning']
+            aim_measures = beginning['measures']
+            # init_policy_perf_seeds = (aim_measures['values']['state_vals']['v'] * aim_measures['values']['p0'])
+            # init_policy_perf_seeds = init_policy_perf_seeds.sum(axis=-1).mean(axis=-1)
+            init_policy_perf_seeds = np.einsum('ij,ij->i',
+                                               aim_measures['values']['state_vals']['v'],
+                                               aim_measures['values']['p0'])
+
+            after_pi_op = logs['after_pi_op']
+            apo_measures = after_pi_op['measures']
+            init_improvement_perf_seeds = np.einsum('ij,ij->i',
+                                                    apo_measures['values']['state_vals']['v'],
+                                                    apo_measures['values']['p0'])
+            compare_to_perf = baseline_dict[args['spec']]
+
+            for key in keys:
+                objective, residual = key, False
+                if key == 'mstde_res':
+                    objective, residual = 'mstde', True
+
+                args['residual'] = residual
+                args['objective'] = objective
+
+                single_res = {k: args[k] for k in args_to_keep}
+                single_res['experiment'] = exp_dir.name + f'_{objective}'
+                single_res['objective'] = objective
+
+                final = logs['final']
+                final_measures = final['measures']
+                final_mem_perf = np.einsum('ij,ij->i',
+                                           final_measures['values']['state_vals']['v'],
+                                           final_measures['values']['p0'])
+
+                for i in range(args['n_seeds']):
+                    all_results.append({
+                        **single_res,
+                        'seed': i,
+                        'init_policy_perf': init_policy_perf_seeds[i],
+                        'init_improvement_perf': init_improvement_perf_seeds[i],
+                        'final_mem_perf': final_mem_perf[i],
+                        'compare_to_perf': compare_to_perf,
+                    })
+
+    for exp_dir in exp_dirs:
+        parse_exp_dir(exp_dir)
+
+    all_res_df = pd.DataFrame(all_results)
+
+    return all_res_df
+
+
 def parse_dirs(exp_dirs: list[Path],
                baseline_dict: dict,
                args_to_keep: list[str]):
@@ -111,3 +185,31 @@ def parse_baselines(
             compare_to_dict[spec] = load_state_val(spec)
 
     return compare_to_dict
+
+if __name__ == "__main__":
+    from pathlib import Path
+    from definitions import ROOT_DIR
+
+    compare_to = 'belief'
+
+    directory = Path(ROOT_DIR, 'results', "discrep_interleave_pg")
+    # directory = Path(ROOT_DIR, 'results', "final_discrep_kitchen_sinks_pg")
+
+    vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
+    pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
+
+    args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha']
+    spec_plot_order = [
+        'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
+    ]
+
+    compare_to_dict = parse_baselines(spec_plot_order,
+                                      vi_results_dir,
+                                      pomdp_files_dir,
+                                      compare_to=compare_to)
+
+    res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
+    # res_df = parse_dirs([directory], compare_to_dict, args_to_keep)
+
+    print()
+

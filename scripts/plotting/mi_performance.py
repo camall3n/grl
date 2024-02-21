@@ -17,35 +17,39 @@ np.set_printoptions(precision=4)
 plt.rcParams['axes.facecolor'] = 'white'
 plt.rcParams.update({'font.size': 18})
 
-from scripts.plotting.parse_experiments import parse_baselines, parse_dirs
+from scripts.plotting.parse_experiments import parse_baselines, parse_dirs, parse_batch_dirs
 from definitions import ROOT_DIR
 
 # %% codecell
-# results_dir = Path(ROOT_DIR, 'results', 'final_analytical_kitchen_sinks')
+# experiment_dirs = [
+#     Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
+#     Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
+# ]
+
 experiment_dirs = [
-    Path(ROOT_DIR, 'results', 'mem_tde_kitchen_sinks_pg'),
-    Path(ROOT_DIR, 'results', 'final_discrep_kitchen_sinks_pg'),
+    Path(ROOT_DIR, 'results', 'discrep_interleave_pg'),
 ]
 
-# results_dir = Path(ROOT_DIR, 'results', 'prisoners_dilemma')
-# results_dir = Path(ROOT_DIR, 'results', 'pomdps_mi_dm')
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
 pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
 
-args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual']
+args_to_keep = ['spec', 'n_mem_states', 'seed', 'alpha', 'residual', 'objective']
 split_by = [arg for arg in args_to_keep if arg != 'seed'] + ['experiment']
 
 # this option allows us to compare to either the optimal belief state soln
 # or optimal state soln. ('belief' | 'state')
 compare_to = 'belief'
-# compare_to = 'state'
 
-# policy_optim_alg = 'policy_grad'
 policy_optim_alg = 'policy_grad'
 
 spec_plot_order = [
     'network', 'paint.95', '4x3.95', 'tiger-alt-start', 'shuttle.95', 'cheese.95', 'tmaze_5_two_thirds_up'
 ]
+
+# plot_key = 'final_memoryless_optimal_perf'  # for batch_run
+# plot_key = 'final_rand_avg_perf'  # for batch_run
+
+plot_key = 'final_mem_perf'  # for single runs
 
 # %% codecell
 
@@ -56,9 +60,12 @@ compare_to_dict = parse_baselines(spec_plot_order,
 
 
 # %% codecell
-all_res_df = parse_dirs(experiment_dirs,
-                        compare_to_dict,
-                        args_to_keep)
+# all_res_df = parse_dirs(experiment_dirs,
+#                         compare_to_dict,
+#                         args_to_keep)
+all_res_df = parse_batch_dirs(experiment_dirs,
+                              compare_to_dict,
+                              args_to_keep)
 
 
 
@@ -69,7 +76,15 @@ all_res_df = parse_dirs(experiment_dirs,
 #
 # all_res_df
 residual = False
-filtered_df = all_res_df[(all_res_df['residual'] == residual)].reset_index()
+alpha = 1.
+filtered_df = all_res_df[
+(all_res_df['residual'] == residual) &
+(all_res_df['alpha'] == alpha)
+].reset_index()
+
+
+# filtered_df['experiment'] = filtered_df['experiment'] + '_' + filtered_df['experiment']
+
 
 # %% codecell
 all_res_groups = filtered_df.groupby(split_by, as_index=False)
@@ -78,7 +93,7 @@ del all_res_means['seed']
 # all_res_means.to_csv(Path(ROOT_DIR, 'results', 'all_pomdps_means.csv'))
 
 # %% codecell
-cols_to_normalize = ['init_improvement_perf', 'final_mem_perf']
+cols_to_normalize = ['init_improvement_perf', plot_key]
 # merged_df = filtered_df.merge(compare_to_df, on='spec')
 merged_df = filtered_df
 
@@ -86,12 +101,12 @@ merged_df = filtered_df
 
 normalized_df = merged_df.copy()
 normalized_df['init_improvement_perf'] = (normalized_df['init_improvement_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_to_perf'] - merged_df['init_policy_perf'])
-normalized_df['final_mem_perf'] = (normalized_df['final_mem_perf'] - merged_df['init_policy_perf']) / (merged_df['compare_to_perf'] - merged_df['init_policy_perf'])
+normalized_df[plot_key] = (normalized_df[plot_key] - merged_df['init_policy_perf']) / (merged_df['compare_to_perf'] - merged_df['init_policy_perf'])
 del normalized_df['init_policy_perf']
 del normalized_df['compare_to_perf']
 
 # %% codecell
-normalized_df.loc[(normalized_df['spec'] == 'hallway') & (normalized_df['n_mem_states'] == 8), 'final_mem_perf'] = 0
+normalized_df.loc[(normalized_df['spec'] == 'hallway') & (normalized_df['n_mem_states'] == 8), plot_key] = 0
 
 # %% codecell
 # normalized_df[normalized_df['spec'] == 'prisoners_dilemma_all_c']
@@ -117,11 +132,11 @@ def maybe_spec_map(id: str):
 groups = normalized_df.groupby(split_by, as_index=False)
 all_means = groups.mean()
 all_means['init_improvement_perf'].clip(lower=0, upper=1, inplace=True)
-all_means['final_mem_perf'].clip(lower=0, upper=1, inplace=True)
+all_means[plot_key].clip(lower=0, upper=1, inplace=True)
 
 all_std_errs = groups.std()
 all_std_errs['init_improvement_perf'] /= np.sqrt(len(seeds))
-all_std_errs['final_mem_perf'] /= np.sqrt(len(seeds))
+all_std_errs[plot_key] /= np.sqrt(len(seeds))
 
 # %%
 
@@ -137,10 +152,12 @@ for spec in spec_plot_order:
 
 # %%
 experiments = normalized_df['experiment'].unique()
+objectives = normalized_df['objective'].unique()
+
 
 group_width = 1
 num_n_mem = list(sorted(normalized_df['n_mem_states'].unique()))
-specs = means['spec'].unique()
+specs = sorted_mean_df['spec'].unique()
 
 spec_order_mapping = np.arange(len(specs), dtype=int)
 
@@ -154,11 +171,13 @@ x = np.arange(len(specs))
 
 init_improvement_perf_mean = np.array(all_means[
                                         (all_means['n_mem_states'] == num_n_mem[0]) &
-                                        (all_means['experiment'] == experiments[0])
+                                        (all_means['experiment'] == experiments[0]) &
+                                        (all_means['objective'] == objectives[0])
                                         ]['init_improvement_perf'])
 init_improvement_perf_std = np.array(all_std_errs[
                                         (all_std_errs['n_mem_states'] == num_n_mem[0]) &
-                                        (all_std_errs['experiment'] == experiments[0])
+                                        (all_std_errs['experiment'] == experiments[0]) &
+                                        (all_std_errs['objective'] == objectives[0])
                                         ]['init_improvement_perf'])
 
 ax.bar(x + 0 * exp_group_width + (0 + 1) * bar_width,
@@ -179,8 +198,8 @@ for i, exp_name in enumerate(experiments):
     # std_errs = sorted_std_err_df
 
     for j, n_mem_states in enumerate(num_n_mem):
-        curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states]['final_mem_perf'])
-        curr_mem_std = np.array(std_errs[std_errs['n_mem_states'] == n_mem_states]['final_mem_perf'])
+        curr_mem_mean = np.array(means[means['n_mem_states'] == n_mem_states][plot_key])
+        curr_mem_std = np.array(std_errs[std_errs['n_mem_states'] == n_mem_states][plot_key])
         to_add = i * exp_group_width + (j + 3) * bar_width
         if i != 0:
             to_add -= 2 * bar_width
@@ -198,11 +217,13 @@ ax.set_xticks(x + group_width / 2)
 ax.set_xticklabels(xlabels)
 # ax.legend(bbox_to_anchor=(0.317, 0.62), framexalpha=0.95)
 # ax.set_title(f"Memory Iteration ({policy_optim_alg})")
-alpha_str = 'uniform' if alpha == 1. else 'occupancy'
+# alpha_str = 'uniform' if alpha == 1. else 'occupancy'
 residual_str = 'semi_grad' if not residual else 'residual'
-ax.set_title(f"Memory: (MSTDE (dashes, {residual_str}) vs LD (dots, {alpha_str}))")
+title_str = " vs. ".join([f"{exp} ({hatch})" for exp, hatch in zip(experiments, exp_hatches)]) + f"\n residual: {residual_str}, init_policy: {plot_key}"
+# ax.set_title(f"Memory: (MSTDE (dashes, {residual_str}) vs LD (dots))")
+ax.set_title(title_str)
 
 downloads = Path().home() / 'Downloads'
-fig_path = downloads / f"{results_dir.stem}_{residual_str}_{alpha_str}.pdf"
-fig.savefig(fig_path, bbox_inches='tight')
+# fig_path = downloads / f"{results_dir.stem}_{residual_str}_{alpha_str}.pdf"
+# fig.savefig(fig_path, bbox_inches='tight')
 # %% codecell

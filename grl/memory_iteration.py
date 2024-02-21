@@ -1,7 +1,10 @@
 import copy
 import numpy as np
+import time
+from jax_tqdm import scan_tqdm
 import jax
 import jax.numpy as jnp
+from jax import random
 from jax.nn import softmax
 from tqdm import trange
 from functools import partial
@@ -10,7 +13,7 @@ from typing import Callable
 from grl.agent.analytical import AnalyticalAgent
 from grl.mdp import POMDP
 from grl.memory import memory_cross_product
-from grl.utils.augment_policy import deconstruct_aug_policy
+from grl.utils.policy import deconstruct_aug_policy, get_unif_policies
 from grl.utils.math import glorot_init, greedify, reverse_softmax
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.utils.loss import discrep_loss, pg_objective_func
@@ -62,7 +65,11 @@ def run_memory_iteration(pomdp: POMDP,
     init_pi_improvement = False
     if pi_params is None:
         init_pi_improvement = True
-        pi_params = glorot_init((pomdp.observation_space.n, pomdp.action_space.n), scale=0.2)
+        rand_key, pi_key = random.split(rand_key)
+        pi = get_unif_policies(pi_key, (pomdp.observation_space.n, pomdp.action_space.n), 1)[0]
+        pi_params = reverse_softmax(pi)
+        # pi_params = glorot_init((pomdp.observation_space.n, pomdp.action_space.n), scale=0.2)
+
     initial_policy = softmax(pi_params, axis=-1)
 
     agent = AnalyticalAgent(pi_params,
@@ -253,10 +260,27 @@ def memory_iteration(
     for mem_it in range(mi_iterations):
         if agent.mem_params is not None and agent.policy_optim_alg not in ['policy_mem_grad', 'policy_mem_grad_unrolled']:
             print(f"Start MI {mem_it}")
+
+            prev_time = time.time()
+            # def mem_steps():
+            #     @scan_tqdm(mi_per_step)
+            #     def _mem_step(inps, _):
+            #         params, optim_state, pi_params, pomdp = inps
+            #         loss, params, optimizer_state = agent.memory_update(params, optim_state, pi_params, pomdp)
+            #         return (params, optim_state, pi_params, pomdp), loss
+            #     input_tuple = (agent.mem_params, agent.mem_optim_state, agent.pi_params, pomdp)
+            #     return jax.lax.scan(_mem_step, input_tuple, jnp.arange(mi_per_step), length=mi_per_step)
+            #
+            # output_tuple, mem_loss = jax.jit(mem_steps)()
+            # mem_params, mem_optim_state, _, _ = output_tuple
+            # agent.mem_params = mem_params
+
             mem_loss = mem_improvement(agent,
                                        init_pomdp,
                                        iterations=mi_per_step,
                                        log_every=log_every)
+            next_time = time.time()
+            print(f"Time for MI {mem_it}: {next_time - prev_time:.4f} seconds")
             info['mem_loss'].append(mem_loss)
 
             # Plotting for memory iteration

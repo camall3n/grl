@@ -104,3 +104,11 @@ def arg_mellowmax(
 
 def euclidian_dist(arr1: np.ndarray, arr2: np.ndarray):
     return jnp.linalg.norm(arr1 - arr2, 2)
+
+def unif_simplex(n: int):
+    """
+    Samples uniformly random vector from a simplex in n-dimensions.
+    Taken from https://stackoverflow.com/questions/65154622/sample-uniformly-at-random-from-a-simplex-in-python
+    """
+    logits = np.random.exponential(scale=1., size=n)
+    return logits / sum(logits)

@@ -9,7 +9,8 @@ from typing import Union
 
 from definitions import ROOT_DIR
 
-def results_path(args: Namespace):
+def results_path(args: Namespace,
+                 entry_point: str = None):
     results_dir = Path(ROOT_DIR, 'results')
     results_dir.mkdir(exist_ok=True)
 
@@ -19,7 +20,11 @@ def results_path(args: Namespace):
     if args.study_name is not None:
         results_dir /= args.study_name
     results_dir.mkdir(exist_ok=True)
-    results_path = results_dir / f"{args.spec}_seed({args.seed})_time({time_str})_{args_hash}.npy"
+    fname = f"{args.spec}"
+    if entry_point is not None:
+        fname += f"_{entry_point}"
+    fname += f"_seed({args.seed})_time({time_str})_{args_hash}.npy"
+    results_path = results_dir / fname
     return results_path
 
 def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):

@@ -3,6 +3,7 @@ from gmpy2 import mpz
 import gymnasium as gym
 from gymnasium import spaces
 import jax.numpy as jnp
+from jax import random
 from jax.tree_util import register_pytree_node_class
 import numpy as np
 
@@ -87,10 +88,10 @@ class MDP(gym.Env):
 
         # Terminal mask is a boolean mask across all states that indicates
         # whether the state is a terminal(/absorbing) state.
-        self.terminal_mask = terminal_mask if terminal_mask is not None else self.get_terminal_mask()
-
-    def get_terminal_mask(self):
-        return jnp.array([jnp.all(self.T[:, i, i] == 1.) for i in range(self.state_space.n)])
+        if terminal_mask is not None:
+           self.terminal_mask = terminal_mask
+        else:
+            self.terminal_mask = jnp.array([jnp.all(self.T[:, i, i] == 1.) for i in range(self.state_space.n)])
 
     def tree_flatten(self):
         children = (self.T, self.R, self.p0, self.gamma, self.terminal_mask)
@@ -338,6 +339,7 @@ def test():
     assert np.allclose(mdp1.T, mdp3.T)
     assert np.allclose(mdp1.R, mdp3.R)
     print('All tests passed.')
+
 
 if __name__ == '__main__':
     test()
