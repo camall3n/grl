@@ -27,7 +27,7 @@ from definitions import ROOT_DIR
 # ]
 
 experiment_dirs = [
-    Path(ROOT_DIR, 'results', 'batch_run_pg'),
+    Path(ROOT_DIR, 'results', 'discrep_interleave_pg'),
 ]
 
 vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
@@ -47,9 +47,9 @@ spec_plot_order = [
 ]
 
 # plot_key = 'final_memoryless_optimal_perf'  # for batch_run
-plot_key = 'final_rand_avg_perf'  # for batch_run
+# plot_key = 'final_rand_avg_perf'  # for batch_run
 
-# plot_key = 'final_mem_perf'  # for single runs
+plot_key = 'final_mem_perf'  # for single runs
 
 # %% codecell
 
@@ -76,7 +76,15 @@ all_res_df = parse_batch_dirs(experiment_dirs,
 #
 # all_res_df
 residual = False
-filtered_df = all_res_df[(all_res_df['residual'] == residual)].reset_index()
+alpha = 1.
+filtered_df = all_res_df[
+(all_res_df['residual'] == residual) &
+(all_res_df['alpha'] == alpha)
+].reset_index()
+
+
+# filtered_df['experiment'] = filtered_df['experiment'] + '_' + filtered_df['experiment']
+
 
 # %% codecell
 all_res_groups = filtered_df.groupby(split_by, as_index=False)

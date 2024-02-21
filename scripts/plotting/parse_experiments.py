@@ -33,18 +33,18 @@ def parse_batch_dirs(exp_dirs: list[Path],
                 continue
 
             pomdp, _ = load_pomdp(args['spec'])
-            n_random_policies = args['random_policies']
+            # n_random_policies = args['random_policies']
 
             beginning = logs['beginning']
-            aim_measures = beginning['all_init_measures']
+            aim_measures = beginning['measures']
             # init_policy_perf_seeds = (aim_measures['values']['state_vals']['v'] * aim_measures['values']['p0'])
             # init_policy_perf_seeds = init_policy_perf_seeds.sum(axis=-1).mean(axis=-1)
-            init_policy_perf_seeds = np.einsum('ijk,ijk->i',
+            init_policy_perf_seeds = np.einsum('ij,ij->i',
                                                aim_measures['values']['state_vals']['v'],
-                                               aim_measures['values']['p0']) / (n_random_policies + 1)
+                                               aim_measures['values']['p0'])
 
             after_pi_op = logs['after_pi_op']
-            apo_measures = after_pi_op['initial_improvement_measures']
+            apo_measures = after_pi_op['measures']
             init_improvement_perf_seeds = np.einsum('ij,ij->i',
                                                     apo_measures['values']['state_vals']['v'],
                                                     apo_measures['values']['p0'])
@@ -62,18 +62,11 @@ def parse_batch_dirs(exp_dirs: list[Path],
                 single_res['experiment'] = exp_dir.name + f'_{objective}'
                 single_res['objective'] = objective
 
-                final_stats = logs['final'][key]['measures']
-                final_v, final_p0 = final_stats['values']['state_vals']['v'], final_stats['values']['p0']
-
-                # Average perf over random policies
-                # final_rand_avg_perf_seeds = (final_v[:, :-1] * final_p0[:, :-1])
-                # final_rand_avg_perf_seeds = final_rand_avg_perf_seeds.mean(axis=-1).mean(axis=-1)
-                final_rand_avg_perf_seeds = np.einsum('ijk,ijk->i',
-                                                      final_v[:, :-1],
-                                                      final_p0[:, :-1]) / n_random_policies
-
-                # Get perf for memoryless optimal policies
-                final_memoryless_optimal_perf_seeds = np.einsum('ij,ij->i', final_v[:, -1], final_p0[:, -1])
+                final = logs['final']
+                final_measures = final['measures']
+                final_mem_perf = np.einsum('ij,ij->i',
+                                           final_measures['values']['state_vals']['v'],
+                                           final_measures['values']['p0'])
 
                 for i in range(args['n_seeds']):
                     all_results.append({
@@ -81,8 +74,7 @@ def parse_batch_dirs(exp_dirs: list[Path],
                         'seed': i,
                         'init_policy_perf': init_policy_perf_seeds[i],
                         'init_improvement_perf': init_improvement_perf_seeds[i],
-                        'final_memoryless_optimal_perf': final_memoryless_optimal_perf_seeds[i],
-                        'final_rand_avg_perf': final_rand_avg_perf_seeds[i],
+                        'final_mem_perf': final_mem_perf[i],
                         'compare_to_perf': compare_to_perf,
                     })
 
@@ -200,8 +192,8 @@ if __name__ == "__main__":
 
     compare_to = 'belief'
 
-    # directory = Path(ROOT_DIR, 'results', "batch_run_pg")
-    directory = Path(ROOT_DIR, 'results', "final_discrep_kitchen_sinks_pg")
+    directory = Path(ROOT_DIR, 'results', "discrep_interleave_pg")
+    # directory = Path(ROOT_DIR, 'results', "final_discrep_kitchen_sinks_pg")
 
     vi_results_dir = Path(ROOT_DIR, 'results', 'vi')
     pomdp_files_dir = Path(ROOT_DIR, 'grl', 'environment', 'pomdp_files')
@@ -216,8 +208,8 @@ if __name__ == "__main__":
                                       pomdp_files_dir,
                                       compare_to=compare_to)
 
-    # res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
-    res_df = parse_dirs([directory], compare_to_dict, args_to_keep)
+    res_df = parse_batch_dirs([directory], compare_to_dict, args_to_keep)
+    # res_df = parse_dirs([directory], compare_to_dict, args_to_keep)
 
     print()
 

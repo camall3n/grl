@@ -206,7 +206,7 @@ def make_experiment(args):
 
             # update memory
             new_mem_params, _, new_mem_tx_params, loss = update_mem_step(mem_params, pi_params, mem_tx_params,
-                                                                         objective='discrep')
+                                                                         objective=args.objective)
 
             # TODO: potentially remove this? does update_mem_step actually have a mem augmented POMDP already?
             mem_pomdp = memory_cross_product(new_mem_params, pomdp)
