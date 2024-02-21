@@ -4,6 +4,7 @@ as well as the TD optimal policy, on a list of different measures.
 
 """
 import argparse
+from functools import partial
 from time import time
 
 import numpy as np
@@ -91,7 +92,7 @@ def get_args():
                         help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
     parser.add_argument('--platform', default='cpu', type=str,
                         help='What platform do we run things on? (cpu | gpu)')
-    parser.add_argument('--seed', default=2024, type=int,
+    parser.add_argument('--seed', default=2020, type=int,
                         help='What is the overall seed we use?')
     parser.add_argument('--n_seeds', default=1, type=int,
                         help='How many seeds do we run?')
@@ -108,6 +109,25 @@ def make_experiment(args):
                                 corridor_length=args.tmaze_corridor_length,
                                 discount=args.tmaze_discount,
                                 junction_up_pi=args.tmaze_junction_up_pi)
+
+    partial_kwargs = {
+        'value_type': args.value_type,
+        'error_type': args.error_type,
+        'lambda_0': args.lambda_0,
+        'lambda_1': args.lambda_1,
+        'alpha': args.alpha,
+    }
+    mem_loss_fn = mem_discrep_loss
+    if args.objective == 'bellman':
+        mem_loss_fn = mem_bellman_loss
+        partial_kwargs['residual'] = args.residual
+    elif args.objective == 'tde':
+        mem_loss_fn = mem_tde_loss
+        partial_kwargs['residual'] = args.residual
+    elif args.objective == 'obs_space':
+        mem_loss_fn = obs_space_mem_discrep_loss
+    mem_loss_fn = partial(mem_loss_fn, **partial_kwargs)
+
     def experiment(rng: random.PRNGKey):
         info = {}
 
@@ -132,7 +152,9 @@ def make_experiment(args):
         mem_tx_params = optim.init(mem_params)
         pi_tx_params = optim.init(mem_aug_pi_params)
 
-        def update_pg_step(params, tx_params, pomdp):
+        @scan_tqdm(args.pi_steps)
+        def update_pg_step(inps, i):
+            params, tx_params, pomdp = inps
             outs, params_grad = value_and_grad(pg_objective_func, has_aux=True)(params, pomdp)
             v_0, (td_v_vals, td_q_vals) = outs
 
@@ -144,22 +166,19 @@ def make_experiment(args):
             outs = (params, tx_params, pomdp)
             return outs, {'v0': v_0, 'v': td_v_vals, 'q': td_q_vals}
 
-        def update_policy_iter_step(params, tx_params, pomdp):
+        @scan_tqdm(args.pi_steps)
+        def update_policy_iter_step(inps, i):
+            params, _, pomdp = inps
             new_pi_params, prev_td_v_vals, prev_td_q_vals = policy_iteration_step(params, pomdp, eps=args.epsilon)
             outs = (new_pi_params, _, pomdp)
             return outs, {'v': prev_td_v_vals, 'q': prev_td_q_vals}
 
-        @scan_tqdm(args.mi_steps)
-        def policy_improvement_scan_wrapper(inps, i):
-            params, tx_params, pomdp = inps
-            outs, info = update_pg_step(params, tx_params, pomdp)
-            return outs, info
-
         print("Finding memoryless optimal policy")
         memoryless_pi_tx_params = optim.init(pi_params)
         memoryless_pi_improvement_outs, memoryless_pi_improvement_info = \
-            jax.lax.scan(policy_improvement_scan_wrapper, (pi_params, memoryless_pi_tx_params, pomdp),
-                         jnp.arange(args.mi_steps), length=args.mi_steps)
+            jax.lax.scan(update_policy_iter_step, (pi_params, memoryless_pi_tx_params, pomdp),
+                         jnp.arange(args.pi_steps), length=args.pi_steps)
+
         memoryless_optimal_pi_params, _, _ = memoryless_pi_improvement_outs
         after_pi_op_info = {
             'pi_params': memoryless_optimal_pi_params,
@@ -170,71 +189,53 @@ def make_experiment(args):
 
         print("Running policy and memory improvement")
 
+        # Set up for batch memory iteration
         @scan_tqdm(args.mi_steps)
-        def update(inps, i):
-            mem_params, pi_params, mem_tx_params, pi_tx_params = inps
+        def update_mem_step(inps, i):
+            mem_params, pi_params, mem_tx_params = inps
 
+            pi = jax.nn.softmax(pi_params, axis=-1)
+            loss, params_grad = value_and_grad(mem_loss_fn, argnums=0)(mem_params, pi, pomdp)
 
-            # Set up for batch memory iteration
-            def update_mem_step(mem_params: jnp.ndarray,
-                                pi_params: jnp.ndarray,
-                                mem_tx_params: jnp.ndarray,
-                                objective: str = 'discrep',
-                                residual: bool = False):
-                partial_kwargs = {
-                    'value_type': args.value_type,
-                    'error_type': args.error_type,
-                    'lambda_0': args.lambda_0,
-                    'lambda_1': args.lambda_1,
-                    'alpha': args.alpha,
-                }
-                mem_loss_fn = mem_discrep_loss
-                if objective == 'bellman':
-                    mem_loss_fn = mem_bellman_loss
-                    partial_kwargs['residual'] = residual
-                elif objective == 'tde':
-                    mem_loss_fn = mem_tde_loss
-                    partial_kwargs['residual'] = residual
-                elif objective == 'obs_space':
-                    mem_loss_fn = obs_space_mem_discrep_loss
+            updates, mem_tx_params = optim.update(params_grad, mem_tx_params, mem_params)
+            new_mem_params = optax.apply_updates(mem_params, updates)
 
-                pi = jax.nn.softmax(pi_params, axis=-1)
-                loss, params_grad = value_and_grad(mem_loss_fn, argnums=0)(mem_params, pi, pomdp)
+            info = {'loss': loss}
 
-                updates, mem_tx_params = optim.update(params_grad, mem_tx_params, mem_params)
-                new_mem_params = optax.apply_updates(mem_params, updates)
+            # TODO: DEBUGGING
+            # info['grad'] = params_grad
+            info['intermediate_mem'] = new_mem_params
 
-                return new_mem_params, pi_params, mem_tx_params, loss
+            return (new_mem_params, pi_params, mem_tx_params), info
 
-            # update memory
-            new_mem_params, _, new_mem_tx_params, loss = update_mem_step(mem_params, pi_params, mem_tx_params,
-                                                                         objective=args.objective)
-
-            # TODO: potentially remove this? does update_mem_step actually have a mem augmented POMDP already?
-            mem_pomdp = memory_cross_product(new_mem_params, pomdp)
-
-            # update policy
-            output_pi_tuple, pi_optim_info = update_pg_step(pi_params, pi_tx_params, mem_pomdp)
-
-            new_pi_params, new_pi_tx_params, _ = output_pi_tuple
-
-            outs = (new_mem_params, new_pi_params, new_mem_tx_params, new_pi_tx_params)
-            return outs, {'pi_info': pi_optim_info, 'mem_loss': loss}
-
-        mem_input_tuple = (mem_params, mem_aug_pi_params, mem_tx_params, pi_tx_params)
+        mem_input_tuple = (mem_params, mem_aug_pi_params, mem_tx_params)
 
         # Memory iteration for all of our measures
-        print("Starting {} iterations of interleaving λ-discrepancy minimization and pi optimization", args.mi_steps)
-        out_tuple, update_info = jax.lax.scan(update, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
+        print("Starting {} steps of memory optimization", args.mi_steps)
+        out_tuple, update_info = jax.lax.scan(update_mem_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
 
-        final_mem_params, final_pi_params, _, _ = out_tuple
+        final_mem_params, mem_aug_pi_params, _ = out_tuple
 
         mem_info = {'mem_params': final_mem_params,
-                    'pi_params': final_pi_params,
-                    'measures': augment_and_log_all_measures(final_mem_params, pomdp, final_pi_params),
+                    'pi_params': mem_aug_pi_params,
+                    'measures': augment_and_log_all_measures(final_mem_params, pomdp, mem_aug_pi_params),
                     'update_logs': jax.tree_util.tree_map(lambda x: x[::args.log_every], update_info)}
 
-        info['final'] = mem_info
+        info['after_mem_op'] = mem_info
+
+        mem_pomdp = memory_cross_product(final_mem_params, pomdp)
+
+        final_pi_improvement_outs, final_pi_improvement_info = \
+            jax.lax.scan(update_policy_iter_step, (mem_aug_pi_params, pi_tx_params, mem_pomdp),
+                         jnp.arange(args.pi_steps), length=args.pi_steps)
+        final_pi_params, _, _ = final_pi_improvement_outs
+        final_info = {
+            'mem_params': final_mem_params,
+            'pi_params': final_pi_params,
+            'measures': log_all_measures(mem_pomdp, final_pi_params),
+            'update_logs': jax.tree_util.tree_map(lambda x: x[::args.log_every], final_pi_improvement_info)
+        }
+        info['final'] = final_info
 
         return info
 

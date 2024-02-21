@@ -4,6 +4,7 @@ as well as the TD optimal policy, on a list of different measures.
 
 """
 import argparse
+from functools import partial
 from time import time
 
 import numpy as np
@@ -106,6 +107,25 @@ def make_experiment(args):
                                 corridor_length=args.tmaze_corridor_length,
                                 discount=args.tmaze_discount,
                                 junction_up_pi=args.tmaze_junction_up_pi)
+    
+    partial_kwargs = {
+        'value_type': args.value_type,
+        'error_type': args.error_type,
+        'lambda_0': args.lambda_0,
+        'lambda_1': args.lambda_1,
+        'alpha': args.alpha,
+    }
+    mem_loss_fn = mem_discrep_loss
+    if args.objective == 'bellman':
+        mem_loss_fn = mem_bellman_loss
+        partial_kwargs['residual'] = args.residual
+    elif args.objective == 'tde':
+        mem_loss_fn = mem_tde_loss
+        partial_kwargs['residual'] = args.residual
+    elif args.objective == 'obs_space':
+        mem_loss_fn = obs_space_mem_discrep_loss
+    mem_loss_fn = partial(mem_loss_fn, **partial_kwargs)
+
     def experiment(rng: random.PRNGKey):
         info = {}
 
@@ -176,26 +196,7 @@ def make_experiment(args):
             # Set up for batch memory iteration
             def update_mem_step(mem_params: jnp.ndarray,
                                 pi_params: jnp.ndarray,
-                                mem_tx_params: jnp.ndarray,
-                                objective: str = 'discrep',
-                                residual: bool = False):
-                partial_kwargs = {
-                    'value_type': args.value_type,
-                    'error_type': args.error_type,
-                    'lambda_0': args.lambda_0,
-                    'lambda_1': args.lambda_1,
-                    'alpha': args.alpha,
-                }
-                mem_loss_fn = mem_discrep_loss
-                if objective == 'bellman':
-                    mem_loss_fn = mem_bellman_loss
-                    partial_kwargs['residual'] = residual
-                elif objective == 'tde':
-                    mem_loss_fn = mem_tde_loss
-                    partial_kwargs['residual'] = residual
-                elif objective == 'obs_space':
-                    mem_loss_fn = obs_space_mem_discrep_loss
-
+                                mem_tx_params: jnp.ndarray):
                 pi = jax.nn.softmax(pi_params, axis=-1)
                 loss, params_grad = value_and_grad(mem_loss_fn, argnums=0)(mem_params, pi, pomdp)
 
@@ -205,8 +206,7 @@ def make_experiment(args):
                 return new_mem_params, pi_params, mem_tx_params, loss
 
             # update memory
-            new_mem_params, _, new_mem_tx_params, loss = update_mem_step(mem_params, pi_params, mem_tx_params,
-                                                                         objective=args.objective)
+            new_mem_params, _, new_mem_tx_params, loss = update_mem_step(mem_params, pi_params, mem_tx_params)
 
             # TODO: potentially remove this? does update_mem_step actually have a mem augmented POMDP already?
             mem_pomdp = memory_cross_product(new_mem_params, pomdp)
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     final_perf = (final['state_vals']['v'] * final['p0']).mean(axis=0).sum()
     print(f"Performances over {args.n_seeds} seeds.\n"
           f"Beginning performance: {begin_perf.item()}\n"
-          f"Memory optimal performance: {pi_opt_perf.item()}\n"
+          f"Memoryless optimal performance: {pi_opt_perf.item()}\n"
           f"Ending performance: {final_perf.item()}")
 
     results_path = results_path(args, entry_point='batch_run')
