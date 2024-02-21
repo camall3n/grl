@@ -4,25 +4,21 @@ as well as the TD optimal policy, on a list of different measures.
 
 """
 import argparse
-from functools import partial
 from time import time
-from typing import Callable
 
 import numpy as np
 import jax
 import jax.numpy as jnp
-from jax import random, value_and_grad, nn
+from jax import random, value_and_grad
 from jax.config import config
 from jax.debug import print
 from jax_tqdm import scan_tqdm
 import optax
 
-from grl.agent.analytical import new_pi_over_mem
 from grl.environment import load_pomdp
 from grl.utils.lambda_discrep import log_all_measures, augment_and_log_all_measures
 from grl.memory import memory_cross_product
 from grl.utils.file_system import results_path, numpyify_and_save
-from grl.utils.math import reverse_softmax
 from grl.utils.loss import (
     pg_objective_func,
     mem_tde_loss,
@@ -31,7 +27,6 @@ from grl.utils.loss import (
     obs_space_mem_discrep_loss
 )
 from grl.utils.optimizer import get_optimizer
-from grl.utils.policy import get_unif_policies
 from grl.vi import policy_iteration_step
 
 
@@ -84,9 +79,8 @@ def get_args():
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
 
-    # CURRENTLY NOT USED
-    parser.add_argument('--objectives', default=['discrep', 'tde', 'tde_residual'])
-
+    parser.add_argument('--log_every', default=500, type=int,
+                        help='How many logs do we keep?')
     parser.add_argument('--study_name', default=None, type=str,
                         help='name of the experiment. Results saved to results/{experiment_name} directory if not None. Else, save to results directory directly.')
     parser.add_argument('--platform', default='cpu', type=str,
@@ -163,7 +157,8 @@ def make_experiment(args):
         memoryless_optimal_pi_params, _, _ = memoryless_pi_improvement_outs
         after_pi_op_info = {
             'pi_params': memoryless_optimal_pi_params,
-            'measures': log_all_measures(pomdp, memoryless_optimal_pi_params)
+            'measures': log_all_measures(pomdp, memoryless_optimal_pi_params),
+            'update_logs': jax.tree_util.tree_map(lambda x: x[::args.log_every], memoryless_pi_improvement_info)
         }
         info['after_pi_op'] = after_pi_op_info
 
@@ -231,7 +226,7 @@ def make_experiment(args):
         mem_info = {'mem_params': final_mem_params,
                     'pi_params': final_pi_params,
                     'measures': augment_and_log_all_measures(final_mem_params, pomdp, final_pi_params),
-                    'update': update_info}
+                    'update_logs': jax.tree_util.tree_map(lambda x: x[::args.log_every], update_info)}
 
         info['final'] = mem_info
 
@@ -264,12 +259,13 @@ if __name__ == "__main__":
 
     time_finish = time()
     begin = outs['beginning']['measures']['values']
-    begin_perf = (begin['state_vals']['v'] * begin['p0']).sum()
+    begin_perf = (begin['state_vals']['v'] * begin['p0']).mean(axis=0).sum()
     pi_opt = outs['after_pi_op']['measures']['values']
-    pi_opt_perf = (pi_opt['state_vals']['v'] * pi_opt['p0']).sum()
+    pi_opt_perf = (pi_opt['state_vals']['v'] * pi_opt['p0']).mean(axis=0).sum()
     final = outs['final']['measures']['values']
-    final_perf = (final['state_vals']['v'] * final['p0']).sum()
-    print(f"Beginning performance: {begin_perf.item()}\n"
+    final_perf = (final['state_vals']['v'] * final['p0']).mean(axis=0).sum()
+    print(f"Performances over {args.n_seeds} seeds.\n"
+          f"Beginning performance: {begin_perf.item()}\n"
           f"Memory optimal performance: {pi_opt_perf.item()}\n"
           f"Ending performance: {final_perf.item()}")
 
