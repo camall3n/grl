@@ -22,9 +22,7 @@ hparams = {
         'mi_steps': 20000,
         'optimizer': 'adam',
         'lr': 0.01,
-        'use_memory': 0,
         'n_mem_states': [2, 4, 8],
-        'mi_iterations': 1,
         'platform': 'gpu',
         'n_seeds': 10,
     }]
