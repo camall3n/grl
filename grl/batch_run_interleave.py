@@ -79,6 +79,10 @@ def get_args():
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
 
+    # CURRENTLY UNUSED
+    parser.add_argument('--objective', default='discrep', type=str,
+                        help='What objective do we use?')
+
     parser.add_argument('--log_every', default=500, type=int,
                         help='How many logs do we keep?')
     parser.add_argument('--study_name', default=None, type=str,
