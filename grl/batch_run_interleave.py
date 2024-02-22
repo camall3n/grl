@@ -80,9 +80,10 @@ def get_args():
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
 
-    # CURRENTLY UNUSED
     parser.add_argument('--objective', default='discrep', type=str,
                         help='What objective do we use?')
+    parser.add_argument('--residual', action='store_true',
+                        help='For Bellman and TD errors, do we add the residual term?')
 
     parser.add_argument('--log_every', default=500, type=int,
                         help='How many logs do we keep?')
@@ -256,8 +257,6 @@ if __name__ == "__main__":
     experiment_vjit_fn = jax.jit(jax.vmap(make_experiment(args)))
 
     # Run the experiment!
-    # results will be batched over (n_seeds, random_policies + 1).
-    # The + 1 is for the TD optimal policy.
     outs = jax.block_until_ready(experiment_vjit_fn(exp_rngs))
 
     time_finish = time()
