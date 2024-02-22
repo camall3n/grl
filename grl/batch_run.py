@@ -144,13 +144,11 @@ def make_experiment(args):
 
         beginning_info['pi_params'] = pi_params.copy()
         beginning_info['measures'] = log_all_measures(pomdp, pi_params)
-        mem_aug_pi_params = pi_params.repeat(mem_params.shape[-1], axis=0)
         info['beginning'] = beginning_info
 
         optim = get_optimizer(args.optimizer, args.lr)
 
         mem_tx_params = optim.init(mem_params)
-        pi_tx_params = optim.init(mem_aug_pi_params)
 
         @scan_tqdm(args.pi_steps)
         def update_pg_step(inps, i):
@@ -180,6 +178,8 @@ def make_experiment(args):
                          jnp.arange(args.pi_steps), length=args.pi_steps)
 
         memoryless_optimal_pi_params, _, _ = memoryless_pi_improvement_outs
+        mem_aug_memoryless_pi_params = memoryless_optimal_pi_params.repeat(mem_params.shape[-1], axis=0)
+
         after_pi_op_info = {
             'pi_params': memoryless_optimal_pi_params,
             'measures': log_all_measures(pomdp, memoryless_optimal_pi_params),
@@ -197,18 +197,18 @@ def make_experiment(args):
             pi = jax.nn.softmax(pi_params, axis=-1)
             loss, params_grad = value_and_grad(mem_loss_fn, argnums=0)(mem_params, pi, pomdp)
 
-            updates, mem_tx_params = optim.update(params_grad, mem_tx_params, mem_params)
+            updates, new_mem_tx_params = optim.update(params_grad, mem_tx_params, mem_params)
             new_mem_params = optax.apply_updates(mem_params, updates)
 
             info = {'loss': loss}
 
             # TODO: DEBUGGING
-            # info['grad'] = params_grad
+            info['grad'] = params_grad
             info['intermediate_mem'] = new_mem_params
 
-            return (new_mem_params, pi_params, mem_tx_params), info
+            return (new_mem_params, pi_params, new_mem_tx_params), info
 
-        mem_input_tuple = (mem_params, mem_aug_pi_params, mem_tx_params)
+        mem_input_tuple = (mem_params, mem_aug_memoryless_pi_params, mem_tx_params)
 
         # Memory iteration for all of our measures
         print("Starting {} steps of memory optimization", args.mi_steps)
@@ -223,10 +223,11 @@ def make_experiment(args):
 
         info['after_mem_op'] = mem_info
 
+        mem_aug_pi_tx_params = optim.init(mem_aug_pi_params)
         mem_pomdp = memory_cross_product(final_mem_params, pomdp)
 
         final_pi_improvement_outs, final_pi_improvement_info = \
-            jax.lax.scan(update_policy_iter_step, (mem_aug_pi_params, pi_tx_params, mem_pomdp),
+            jax.lax.scan(update_policy_iter_step, (mem_aug_pi_params, mem_aug_pi_tx_params, mem_pomdp),
                          jnp.arange(args.pi_steps), length=args.pi_steps)
         final_pi_params, _, _ = final_pi_improvement_outs
         final_info = {

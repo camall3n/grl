@@ -192,7 +192,6 @@ def make_experiment(args):
         def update(inps, i):
             mem_params, pi_params, mem_tx_params, pi_tx_params = inps
 
-
             # Set up for batch memory iteration
             def update_mem_step(mem_params: jnp.ndarray,
                                 pi_params: jnp.ndarray,
