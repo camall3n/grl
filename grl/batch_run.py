@@ -85,6 +85,8 @@ def get_args():
     # CURRENTLY UNUSED
     parser.add_argument('--objective', default='discrep', type=str,
                         help='What objective do we use?')
+    parser.add_argument('--residual', action='store_true',
+                        help='For Bellman and TD errors, do we add the residual term?')
 
     parser.add_argument('--log_every', default=500, type=int,
                         help='How many logs do we keep?')
