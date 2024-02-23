@@ -216,15 +216,16 @@ def make_experiment(args):
         print("Starting {} steps of memory optimization", args.mi_steps)
         out_tuple, update_info = jax.lax.scan(update_mem_step, mem_input_tuple, jnp.arange(args.mi_steps), length=args.mi_steps)
 
-        final_mem_params, mem_aug_pi_params, _ = out_tuple
+        final_mem_params, _, _ = out_tuple
 
         mem_info = {'mem_params': final_mem_params,
-                    'pi_params': mem_aug_pi_params,
-                    'measures': augment_and_log_all_measures(final_mem_params, pomdp, mem_aug_pi_params),
+                    'pi_params': mem_aug_memoryless_pi_params,
+                    'measures': augment_and_log_all_measures(final_mem_params, pomdp, mem_aug_memoryless_pi_params),
                     'update_logs': jax.tree_util.tree_map(lambda x: x[::args.log_every], update_info)}
 
         info['after_mem_op'] = mem_info
 
+        mem_aug_pi_params = pi_params.repeat(mem_params.shape[-1], axis=0)
         mem_aug_pi_tx_params = optim.init(mem_aug_pi_params)
         mem_pomdp = memory_cross_product(final_mem_params, pomdp)
 

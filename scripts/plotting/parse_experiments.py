@@ -17,8 +17,6 @@ def parse_batch_dirs(exp_dirs: list[Path],
                      args_to_keep: list[str]):
     all_results = []
 
-    keys = ['ld', 'mstde', 'mstde_res']
-
     def parse_exp_dir(exp_dir: Path):
         print(f"Parsing {exp_dir}")
         for results_path in tqdm(list(exp_dir.iterdir())):
@@ -49,6 +47,11 @@ def parse_batch_dirs(exp_dirs: list[Path],
                                                     apo_measures['values']['state_vals']['v'],
                                                     apo_measures['values']['p0'])
             compare_to_perf = baseline_dict[args['spec']]
+
+            if isinstance(args['objective'], str):
+                keys = [args['objective']]
+            else:
+                keys = args['objective']
 
             for key in keys:
                 objective, residual = key, False

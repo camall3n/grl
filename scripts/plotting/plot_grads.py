@@ -23,7 +23,7 @@ def plot_gradients_of_logits(results_path, plot_first: int = None):
     if plot_first is not None:
         grads = grads[:plot_first]
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axs = plt.subplots(1, 3, figsize=(9, 3))
 
     axslider = plt.axes([0.1, 0.1, 0.8, 0.05])
     slider = Slider(ax=axslider, label='Index', valmin=0, valmax=grads.shape[0] - 1, valinit=0, valstep=1)
@@ -66,7 +66,7 @@ def plot_stochastic_matrices_with_grid(results_path, plot_first: int = None):
     if plot_first is not None:
         mems = mems[:plot_first]
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axs = plt.subplots(1, 3, figsize=(9, 3))
     axslider = plt.axes([0.1, 0.1, 0.8, 0.05])
     slider = Slider(ax=axslider, label='Index', valmin=0, valmax=mems.shape[0] - 1, valinit=0, valstep=1)
 
@@ -80,17 +80,18 @@ def plot_stochastic_matrices_with_grid(results_path, plot_first: int = None):
             # Plot the matrix with grid lines
             axs[i].imshow(mem, cmap='gray', vmin=0, vmax=1)
 
-            # Adding grid lines
-            axs[i].grid(which='major', color='black', linestyle='-', linewidth=2)
-            axs[i].set_xticks(np.arange(-.5, 2, 1), minor=True)
-            axs[i].set_yticks(np.arange(-.5, 2, 1), minor=True)
-            axs[i].grid(which='minor', color='black', linestyle='-', linewidth=2)
+    # Adding grid lines
+    for i in range(len(axs)):
+        axs[i].grid(which='major', color='black', linestyle='-', linewidth=2)
+        axs[i].set_xticks(np.arange(-.5, 2, 1), minor=True)
+        axs[i].set_yticks(np.arange(-.5, 2, 1), minor=True)
+        axs[i].grid(which='minor', color='black', linestyle='-', linewidth=2)
 
-            axs[i].set_title(OBS_TITLES[i])
+        axs[i].set_title(OBS_TITLES[i])
 
-            # Hide the ticks
-            axs[i].set_xticks([])
-            axs[i].set_yticks([])
+        # Hide the ticks
+        axs[i].set_xticks([])
+        axs[i].set_yticks([])
 
     slider.on_changed(update)
     update(0)
@@ -168,8 +169,11 @@ if __name__ == "__main__":
     # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2020)_time(20240222-190925)_e58205e91751c77f3d7e7588d1db094b.npy')
     # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-191218)_8eff798d802246f1817333465051006d.npy')
 
-    # TDE
-    results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-193157)_4bbc8e57d9bcb06b407a5676ebf470e7.npy')
+    # broken lambda discrep
+    results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2022)_time(20240223-112401)_faa1d82d2611d80b1f129ee4f652a874.npy')
 
-    # plot_gradients_of_logits(results_path, plot_first=300)
-    plot_stochastic_matrices_with_grid(results_path, plot_first=300)
+    # TDE
+    # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-193157)_4bbc8e57d9bcb06b407a5676ebf470e7.npy')
+
+    plot_gradients_of_logits(results_path, plot_first=300)
+    # plot_stochastic_matrices_with_grid(results_path, plot_first=300)
