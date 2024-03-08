@@ -167,10 +167,10 @@ def get_plot_fns(results_path,
 if __name__ == "__main__":
     # Lambda discrep
     # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2020)_time(20240222-190925)_e58205e91751c77f3d7e7588d1db094b.npy')
-    # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-191218)_8eff798d802246f1817333465051006d.npy')
+    results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-191218)_8eff798d802246f1817333465051006d.npy')
 
     # broken lambda discrep
-    results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2022)_time(20240223-112401)_faa1d82d2611d80b1f129ee4f652a874.npy')
+    # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2022)_time(20240223-112401)_faa1d82d2611d80b1f129ee4f652a874.npy')
 
     # TDE
     # results_path = Path('/Users/ruoyutao/Documents/grl/results/tmaze_5_two_thirds_up_batch_run_seed(2026)_time(20240222-193157)_4bbc8e57d9bcb06b407a5676ebf470e7.npy')
