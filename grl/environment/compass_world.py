@@ -26,6 +26,7 @@ class CompassWorld:
 
         self.state_max = [self.size - 2, self.size - 2, 3]
         self.state_min = [1, 1, 0]
+        self.goal_state = np.array([self.size // 2, self.size // 2, 3])
 
         self._state = None
 
@@ -65,12 +66,14 @@ class CompassWorld:
         return obs
 
     def get_reward(self) -> int:
-        if (self.state == np.array([1, 1, 3])).all():
+        middle = self.size // 2
+        if (self.state == self.goal_state).all():
             return 1
         return 0
 
     def get_terminal(self) -> bool:
-        return (self.state == np.array([1, 1, 3])).all()
+        middle = self.size // 2
+        return (self.state == self.goal_state).all()
 
     def reset(self) -> np.ndarray:
         """
@@ -90,8 +93,9 @@ class CompassWorld:
 
             # Make sure to remove goal state from start states
             remove_idx = None
+            middle = self.size // 2
             for i in eligible_state_indices:
-                if (all_states[i] == np.array([1, 1, 3])).all():
+                if (all_states[i] == self.goal_state).all():
                     remove_idx = i
             delete_mask = np.ones_like(eligible_state_indices, dtype=np.bool)
             delete_mask[remove_idx] = False
@@ -100,7 +104,7 @@ class CompassWorld:
 
             self.state = all_states[start_state_idx]
         else:
-            self.state = np.array([3, 3, self.rng.choice(np.arange(0, 4))], dtype=np.int16)
+            self.state = np.array([self.size - 2, self.size - 2, self.rng.choice(np.arange(0, 4))], dtype=np.int16)
 
         return self.get_obs(self.state)
 
