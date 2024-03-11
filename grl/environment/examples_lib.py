@@ -1,11 +1,15 @@
 import numpy as np
 from pathlib import Path
 
-from .tmaze import tmaze, slippery_tmaze, four_tmaze
 from grl.mdp import random_stochastic_matrix
 from grl.environment.pomdp_file import POMDPFile
 from grl.utils.mdp import to_dict
+
 from definitions import ROOT_DIR
+
+from .tmaze import tmaze, slippery_tmaze, four_tmaze
+from .compass_world import compass_world
+
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -903,3 +907,10 @@ def short_corridor():
     ]
 
     return to_dict(T, R, 0.9999, p0, phi, Pi_phi, None)
+
+
+def compass_random():
+    Pi_phi = [
+        np.ones((5, 3)) / 3
+    ]
+    return to_dict(*compass_world(3), Pi_phi)
