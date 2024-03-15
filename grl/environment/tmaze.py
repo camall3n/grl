@@ -126,6 +126,7 @@ def four_tmaze(n: int = 1, discount: float = 0.9,
     J_DOWN_1 = -4
     J_UP_2 = -3
     J_DOWN_2 = -2
+    junctions = [J_UP_1, J_DOWN_1, J_UP_2, J_DOWN_2]
 
     S_UP_1 = 0
     S_DOWN_1 = 1
@@ -147,7 +148,7 @@ def four_tmaze(n: int = 1, discount: float = 0.9,
     T_down[zero_self_states, zero_self_states] = 0
 
     # If we go up or down at the junctions, we terminate
-    junctions, terminals = [J_UP_1, J_DOWN_1, J_UP_2, J_DOWN_2], [TERMINAL] * 4
+    terminals = [TERMINAL] * 4
     T_up[junctions, terminals] = 1
     T_down[junctions, terminals] = 1
 
