@@ -57,7 +57,7 @@ def get_args():
                         type=float,
                         help='probability of traversing up at junction for tmaze_hyperparams')
 
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec', default='tmaze_5_two_thirds_up', type=str,
                         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='For memory iteration, how many iterations of memory iterations do we do?')
@@ -116,7 +116,7 @@ sweep_hparams = {
 
 def get_kitchen_sink_policy(policies: jnp.ndarray, pomdp: POMDP, measure: Callable):
     batch_measures = jax.vmap(measure, in_axes=(0, None))
-    all_policy_measures = batch_measures(policies, pomdp)
+    all_policy_measures, _, _ = batch_measures(policies, pomdp)
     return policies[jnp.argmax(all_policy_measures)]
 
 def make_experiment(args):
@@ -134,12 +134,9 @@ def make_experiment(args):
         batch_log_all_measures = jax.vmap(log_all_measures, in_axes=(None, 0))
 
         rng, mem_rng = random.split(rng)
-        mem_shape = (args.random_policies + 1, pomdp.action_space.n, pomdp.observation_space.n, args.n_mem_states, args.n_mem_states)
-        mem_params = random.normal(mem_rng, shape=mem_shape) * 0.5
+
 
         beginning_info = {}
-        beginning_info['init_mem_params'] = mem_params.copy()
-
         rng, pi_rng = random.split(rng)
         pi_shape = (pomdp.observation_space.n, pomdp.action_space.n)
         pi_paramses = reverse_softmax(get_unif_policies(pi_rng, pi_shape, args.random_policies + 1))
@@ -149,12 +146,11 @@ def make_experiment(args):
         beginning_info['measures'] = batch_log_all_measures(pomdp, pi_paramses)
         info['beginning'] = beginning_info
 
-        # mem_aug_pi_paramses = pi_paramses.repeat(mem_params.shape[-1], axis=1)
+        # mem_aug_pi_paramses =
         # beginning_info['all_init_mem_measures'] = jax.vmap(augment_and_log_all_measures, in_axes=(0, None, 0))(mem_params, pomdp, mem_aug_pi_paramses)
 
         optim = get_optimizer(args.optimizer, args.lr)
 
-        mem_tx_params = jax.vmap(optim.init, in_axes=0)(mem_params)
         pi_tx_params = optim.init(updateable_pi_params)
 
         print("Running initial policy improvement")
@@ -195,8 +191,16 @@ def make_experiment(args):
         mstde_pi_params = get_kitchen_sink_policy(pis_with_memoryless_optimal, pomdp, mstd_err)
         pis_to_learn_mem = jnp.stack([ld_pi_params, mstde_pi_params, memoryless_optimal_pi_params])
 
-        kitchen_sinks_info['ld'] = ld_pi_params
-        kitchen_sinks_info['mstde'] = mstde_pi_params
+        kitchen_sinks_info['ld'] = ld_pi_params.copy()
+        kitchen_sinks_info['mstde'] = mstde_pi_params.copy()
+
+        # We initialize 3 mem params: 1 for LD, 1 for MSTDE, 1 for TD Memoryless Opt
+        mem_shape = (pis_to_learn_mem.shape[0], pomdp.action_space.n, pomdp.observation_space.n, args.n_mem_states, args.n_mem_states)
+        mem_params = random.normal(mem_rng, shape=mem_shape) * 0.5
+
+        mem_tx_params = jax.vmap(optim.init, in_axes=0)(mem_params)
+
+        info['beginning']['init_mem_params'] = mem_params.copy()
         info['after_kitchen_sinks'] = kitchen_sinks_info
 
         # Set up for batch memory iteration
@@ -274,11 +278,6 @@ def make_experiment(args):
 
         info['after_mem_op'] = after_mem_op_info
 
-        # now we do policy improvement over the learnt memory
-        last_pi_over_mem = new_pi_over_mem(pi_paramses[-1], args.n_mem_states)
-
-        # reset the last index, to replace memoryless TD optimal
-        mem_aug_pi_paramses = mem_aug_pi_paramses.at[-1].set(last_pi_over_mem)
 
         def cross_and_improve_pi(mem_params: jnp.ndarray,
                                  pi_params: jnp.ndarray,
@@ -293,6 +292,14 @@ def make_experiment(args):
 
         # Get our parameters ready for batch policy improvement
         all_mem_paramses = jnp.concatenate((ld_mem_paramses, mstde_mem_paramses, mstde_res_mem_paramses), axis=0)
+
+        # now we do policy improvement over the learnt memory
+        # reset pi indices, and mem_augment
+        rng, pi_rng = random.split(rng)
+        new_pi_paramses = reverse_softmax(get_unif_policies(pi_rng, pi_shape, mem_params.shape[0]))
+        mem_aug_pi_paramses = new_pi_paramses.repeat(mem_params.shape[-1], axis=1)
+
+        # Use the same initial random pi params across all final policy improvements.
         all_mem_aug_pi_params = jnp.concatenate((mem_aug_pi_paramses, mem_aug_pi_paramses, mem_aug_pi_paramses), axis=0)
         all_mem_pi_tx_paramses = jax.vmap(optim.init, in_axes=0)(all_mem_aug_pi_params)
 
@@ -303,7 +310,7 @@ def make_experiment(args):
 
         # Retrieve each set of learned pi params
         all_improved_pi_params, _, _ = all_improved_pi_tuple
-        n = args.random_policies + 1
+        n = 3
         ld_improved_pi_params = all_improved_pi_params[:n]
         mstde_improved_pi_params = all_improved_pi_params[n: (n * 2)]
         mstde_res_improved_pi_params = all_improved_pi_params[(n * 2):]
@@ -326,7 +333,7 @@ def make_experiment(args):
 
 if __name__ == "__main__":
     start_time = time()
-    jax.disable_jit(True)
+    # jax.disable_jit(True)
 
     args = get_args()
 
