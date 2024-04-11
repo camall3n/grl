@@ -50,8 +50,11 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='What optimizer do we use? (sgd | adam | rmsprop)')
     parser.add_argument('--init_pi', default=None, type=str,
-                        help='Do we initialize our policy to something?')
-    parser.add_argument('--use_memory', default='0', type=str,
+                        help='Do we initialize our policy to something? if kitchen_sink, randomly choose a policy,'
+                             'and take max over randomly chosen/TD optimal.')
+    parser.add_argument('--kitchen_sink_policies', default=0, type=int,
+                        help='Do we initialize the policy to max LD over n random policies + TD optimal?')
+    parser.add_argument('--use_memory', default=None, type=str,
         help='use memory function during policy eval if set')
     parser.add_argument('--mem_leakiness', default=0.1, type=float,
                         help='For the leaky identity memory function, how leaky is it?')
@@ -69,9 +72,11 @@ if __name__ == '__main__':
                         help='Do we use (v | q) for our discrepancies?')
     parser.add_argument('--error_type', default='l2', type=str,
                         help='Do we use (l2 | abs) for our discrepancies?')
-    parser.add_argument('--objective', default='obs_space', type=str,
-                        help='What objective are we trying to optimize? (discrep | magnitude | obs_space)')
-    parser.add_argument('--lr', default=0.01, type=float)
+    parser.add_argument('--objective', default='discrep', type=str,
+                        help='What objective are we trying to optimize? (discrep | bellman | tde | obs_space)')
+    parser.add_argument('--residual', action='store_true',
+                        help='For Bellman and TD errors, do we add the residual term?')
+    parser.add_argument('--lr', default=1, type=float)
     parser.add_argument('--epsilon', default=0.1, type=float,
                         help='(POLICY ITERATION AND TMAZE_EPS_HYPERPARAMS ONLY) What epsilon do we use?')
     parser.add_argument('--log', action='store_true',
@@ -163,11 +168,13 @@ if __name__ == '__main__':
                                        value_type=args.value_type,
                                        error_type=args.error_type,
                                        objective=args.objective,
+                                       residual=args.residual,
                                        lambda_0=args.lambda_0,
                                        lambda_1=args.lambda_1,
                                        alpha=args.alpha,
                                        epsilon=args.epsilon,
                                        pi_params=pi_params,
+                                       kitchen_sink_policies=args.kitchen_sink_policies,
                                        flip_count_prob=args.flip_count_prob)
 
     info = {'logs': logs, 'args': args.__dict__}

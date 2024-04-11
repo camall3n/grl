@@ -16,6 +16,7 @@ hparams = {
             ],
             'no_gamma_terminal': False,
             'max_episode_steps': 1000,
+            'feature_encoding': 'one_hot',
 
             # Agent
             'algo': 'multihead_rnn',

@@ -1,20 +1,21 @@
 from argparse import Namespace
-from typing import Union, Tuple
+from typing import Tuple
 
 import jax
 import numpy as np
+import gymnasium as gym
 
 from grl.agent import get_agent, RNNAgent
 from grl.environment import get_env
 from grl.evaluation import eval_episodes
-from grl.mdp import MDP, POMDP
 from grl.model import get_network
 from grl.run_sample_based import parse_arguments
 from grl.sample_trainer import Trainer
 from grl.utils.data import uncompress_episode_rewards
 from grl.utils.optimizer import get_optimizer
+from grl.environment.wrappers import GammaTerminalWrapper
 
-def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: Union[MDP, POMDP]) \
+def train_agent(rand_key: jax.random.PRNGKey, args: Namespace, env: gym.Env) \
         -> Tuple[RNNAgent, dict, jax.random.PRNGKey]:
     network = get_network(args, env.action_space.n)
 
@@ -32,6 +33,7 @@ def test_both_values():
     args = parse_arguments(return_defaults=True)
     chain_length = 5
     args.spec = 'po_simple_chain'
+    args.feature_encoding = 'one_hot'
     args.max_episode_steps = chain_length
     args.seed = 2020
 
@@ -63,7 +65,7 @@ def test_both_values():
     all_td_qs = [q_td.item()]
     all_mc_qs = [q_mc.item()]
     for t in range(args.max_episode_steps):
-        next_obs, reward, done, _, info = env.step(action, gamma_terminal=False)
+        next_obs, reward, done, _, info = env.step(action)
 
         next_action, rand_key, next_hs, _ = agent.act(network_params, next_obs, hs, rand_key)
         new_carry, q_td, q_mc = agent.Qs(network_params,
@@ -102,11 +104,13 @@ def test_gamma_terminal():
 
     args.total_steps = 10000
     args.algo = 'multihead_rnn'
+    args.feature_encoding = 'one_hot'
 
     np.random.seed(args.seed)
     rand_key = jax.random.PRNGKey(args.seed)
 
-    env = get_env(args, n=chain_length)
+    env = GammaTerminalWrapper(get_env(args, n=chain_length))
+    test_env = get_env(args, n=chain_length)
 
     args.multihead_loss_mode = 'td'
     args.multihead_action_mode = 'td'
@@ -117,14 +121,15 @@ def test_gamma_terminal():
 
     final_eval_info, rand_key = eval_episodes(agent,
                                               network_params,
-                                              env,
+                                              test_env,
                                               rand_key,
                                               n_episodes=1,
                                               test_eps=0.,
                                               max_episode_steps=args.max_episode_steps)
     all_qs = np.array([q.item() for q in final_eval_info['episode_qs'][0]])[:-1]
 
-    ground_truth_vals = env.gamma**(np.arange(chain_length - 1)[::-1])
+    ground_truth_vals = env.env.gamma**(np.arange(chain_length - 1)[::-1])
+    print(ground_truth_vals)
     mse = ((ground_truth_vals - all_qs)**2).mean()
 
     # we set a higher tolerance here b/c gamma termination introduces
@@ -136,6 +141,7 @@ def test_td_mc_values():
     args = parse_arguments(return_defaults=True)
     chain_length = 5
     args.spec = 'po_simple_chain'
+    args.feature_encoding = 'one_hot'
     args.max_episode_steps = chain_length
     args.seed = 2020
 
@@ -181,6 +187,7 @@ def test_actions():
     args.no_gamma_terminal = True
     args.spec = 'tmaze_hyperparams'
     args.algo = 'multihead_rnn'
+    args.feature_encoding = 'one_hot'
 
     # args.residual_obs_val_input = True
 
@@ -218,5 +225,5 @@ def test_actions():
 if __name__ == "__main__":
     # test_gamma_terminal()
     # test_td_mc_values()
-    # test_both_values()
-    test_actions()
+    test_both_values()
+    # test_actions()

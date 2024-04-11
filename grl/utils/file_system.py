@@ -1,13 +1,16 @@
-import numpy as np
+from argparse import Namespace
 import hashlib
-import time
+import importlib
 import jax.numpy as jnp
 from pathlib import Path
-from argparse import Namespace
-from definitions import ROOT_DIR
+import numpy as np
+import time
 from typing import Union
 
-def results_path(args: Namespace):
+from definitions import ROOT_DIR
+
+def results_path(args: Namespace,
+                 entry_point: str = None):
     results_dir = Path(ROOT_DIR, 'results')
     results_dir.mkdir(exist_ok=True)
 
@@ -17,7 +20,11 @@ def results_path(args: Namespace):
     if args.study_name is not None:
         results_dir /= args.study_name
     results_dir.mkdir(exist_ok=True)
-    results_path = results_dir / f"{args.spec}_seed({args.seed})_time({time_str})_{args_hash}.npy"
+    fname = f"{args.spec}"
+    if entry_point is not None:
+        fname += f"_{entry_point}"
+    fname += f"_seed({args.seed})_time({time_str})_{args_hash}.npy"
+    results_path = results_dir / fname
     return results_path
 
 def numpyify_dict(info: Union[dict, jnp.ndarray, np.ndarray, list, tuple]):
@@ -56,3 +63,11 @@ def make_hashable(o):
         return tuple(sorted(make_hashable(e) for e in o))
 
     return o
+
+
+def import_module_to_var(fpath: Path, var_name: str) -> Union[dict, list]:
+    spec = importlib.util.spec_from_file_location(var_name, fpath)
+    var_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(var_module)
+    instantiated_var = getattr(var_module, var_name)
+    return instantiated_var

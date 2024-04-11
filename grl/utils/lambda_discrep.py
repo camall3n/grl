@@ -2,8 +2,11 @@ import jax.numpy as jnp
 from typing import Callable
 from functools import partial
 
+from jax.nn import softmax
+
 from grl import POMDP
-from grl.utils.loss import discrep_loss
+from grl.memory.analytical import memory_cross_product
+from grl.utils.loss import discrep_loss, mstd_err, value_error
 from grl.utils.policy_eval import analytical_pe
 
 def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Callable = None):
@@ -24,3 +27,40 @@ def lambda_discrep_measures(pomdp: POMDP, pi: jnp.ndarray, discrep_loss_fn: Call
         'p0': pomdp.p0.copy()
     }
     return measures
+
+def augment_and_log_all_measures(mem_params: jnp.ndarray, pomdp: POMDP, mem_aug_pi_params: jnp.ndarray) -> dict:
+    mem_pomdp = memory_cross_product(mem_params, pomdp)
+    return log_all_measures(mem_pomdp, mem_aug_pi_params)
+
+def log_all_measures(pomdp: POMDP, pi_params: jnp.ndarray) -> dict:
+    """
+    Logs a few things:
+    1. values
+    2. lambda discrep
+    3. mstde
+    4. value error
+    Note: we assume pi_params is already augmented.
+    """
+    # Lambda discrepancy
+    pi = softmax(pi_params, axis=-1)
+    discrep, mc_vals, td_vals = discrep_loss(pi, pomdp, error_type='l2', value_type='q', alpha=1.)
+
+    # MSTDE
+    mstde_loss, vals, _ = mstd_err(pi, pomdp, error_type='l2', residual=False)
+    mstde_res_loss, vals, _ = mstd_err(pi, pomdp, error_type='l2', residual=True)
+
+    # Value error
+    value_err, state_vals, expanded_obs_vals = value_error(pi, pomdp, value_type='q', error_type='l2',
+                                                           lambda_=0.)
+
+    value_dict = {
+        'mc_vals': mc_vals,
+        'td_vals': td_vals,
+        'state_vals': state_vals,
+        'p0': pomdp.p0.copy()
+    }
+
+    return {'errors':
+                {'ld': discrep, 'mstde': mstde_loss, 'mstde_residual': mstde_res_loss, 'value': value_err},
+            'values': value_dict
+            }

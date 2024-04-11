@@ -3,6 +3,7 @@ from gmpy2 import mpz
 import gymnasium as gym
 from gymnasium import spaces
 import jax.numpy as jnp
+from jax import random
 from jax.tree_util import register_pytree_node_class
 import numpy as np
 
@@ -67,7 +68,8 @@ def random_observation_fn(n_states, n_obs_per_block):
 
 @register_pytree_node_class
 class MDP(gym.Env):
-    def __init__(self, T, R, p0, gamma=0.9, rand_key: np.random.RandomState = None):
+    def __init__(self, T, R, p0, gamma=0.9, terminal_mask: np.ndarray = None,
+                 rand_key: np.random.RandomState = None):
         self.gamma = gamma
         self.T = T
         self.R = R
@@ -84,8 +86,15 @@ class MDP(gym.Env):
         self.current_state = None
         self.rand_key = rand_key
 
+        # Terminal mask is a boolean mask across all states that indicates
+        # whether the state is a terminal(/absorbing) state.
+        if terminal_mask is not None:
+           self.terminal_mask = terminal_mask
+        else:
+            self.terminal_mask = jnp.array([jnp.all(self.T[:, i, i] == 1.) for i in range(self.state_space.n)])
+
     def tree_flatten(self):
-        children = (self.T, self.R, self.p0, self.gamma)
+        children = (self.T, self.R, self.p0, self.gamma, self.terminal_mask)
         aux_data = None
         return (children, aux_data)
 
@@ -133,7 +142,7 @@ class MDP(gym.Env):
             old_distr = state_distr
         return state_distr
 
-    def reset(self, state=None):
+    def reset(self, state=None, **kwargs):
         if state is None:
             if self.rand_key is not None:
                 state = self.rand_key.choice(self.state_space.n, p=self.p0)
@@ -153,14 +162,6 @@ class MDP(gym.Env):
         # Check if next_state is absorbing state
         is_absorbing = (self.T[:, next_state, next_state] == 1)
         terminal = is_absorbing.all() # absorbing for all actions
-        # Discounting: end episode with probability 1-gamma
-        if gamma_terminal:
-            if self.rand_key is not None:
-                unif = self.rand_key.uniform()
-            else:
-                unif = np.random.uniform()
-            if unif < (1 - self.gamma):
-                terminal = True
         truncated = False
         observation = self.observe(next_state)
         info = {'state': next_state}
@@ -229,13 +230,15 @@ class BlockMDP(MDP):
 
 @register_pytree_node_class
 class POMDP(MDP):
-    def __init__(self, base_mdp, phi):
-        super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma)
+    def __init__(self, base_mdp: MDP, phi):
+        super().__init__(base_mdp.T, base_mdp.R, base_mdp.p0, base_mdp.gamma,
+                         base_mdp.terminal_mask)
         self.base_mdp = copy.deepcopy(base_mdp)
         self.phi = phi # array: base_mdp.state_space.n, n_abstract_states
 
     def tree_flatten(self):
-        children = (self.T, self.R, self.p0, self.gamma, self.phi)
+        children = (self.T, self.R, self.p0, self.gamma, self.terminal_mask,
+                    self.phi)
         aux_data = None
         return (children, aux_data)
 
@@ -249,6 +252,7 @@ class POMDP(MDP):
         return base_str + '\n' + repr(self.phi)
 
     def observe(self, s):
+        assert self.phi[s].sum() == 1
         if self.rand_key is not None:
             return self.rand_key.choice(self.observation_space.n, p=self.phi[s])
 
@@ -335,6 +339,7 @@ def test():
     assert np.allclose(mdp1.T, mdp3.T)
     assert np.allclose(mdp1.R, mdp3.R)
     print('All tests passed.')
+
 
 if __name__ == '__main__':
     test()

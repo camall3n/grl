@@ -130,7 +130,7 @@ def test_count():
 
     print("Calculating analytical occupancy")
     c_s = functional_get_occupancy(pi_ground, mem_aug_mdp)
-    c_s = c_s.at[-2:].set(0)
+    c_s = c_s * (1 - pomdp.terminal_mask)
     analytical_count_dist = c_s / c_s.sum(axis=-1, keepdims=True)
 
     state_counts = np.zeros(mem_aug_mdp.state_space.n, dtype=int)

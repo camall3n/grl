@@ -1,11 +1,15 @@
 import numpy as np
 from pathlib import Path
 
-from .tmaze import tmaze, slippery_tmaze
 from grl.mdp import random_stochastic_matrix
 from grl.environment.pomdp_file import POMDPFile
 from grl.utils.mdp import to_dict
+
 from definitions import ROOT_DIR
+
+from .tmaze import tmaze, slippery_tmaze, four_tmaze
+from .compass_world import compass_world
+
 """
 Library of POMDP specifications. Each function returns a dict of the form:
     {
@@ -693,6 +697,25 @@ def tmaze_5_two_thirds_up():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
+def four_tmaze_two_thirds_up():
+    # n_obs x n_actions
+    n = 1
+    discount = 0.9
+    Pi_phi = [
+        np.array([
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [2 / 3, 1 / 3, 0, 0],
+            [1, 0, 0, 0]])
+    ]
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(*four_tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
+
 def tmaze_2_two_thirds_up():
     # n_obs x n_actions
     n = 2
@@ -884,3 +907,10 @@ def short_corridor():
     ]
 
     return to_dict(T, R, 0.9999, p0, phi, Pi_phi, None)
+
+
+def compass_random():
+    Pi_phi = [
+        np.ones((5, 3)) / 3
+    ]
+    return to_dict(*compass_world(3), Pi_phi)

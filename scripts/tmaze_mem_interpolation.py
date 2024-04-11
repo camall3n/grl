@@ -12,7 +12,7 @@ from grl.memory import memory_cross_product
 from grl.utils.math import reverse_softmax
 from grl.utils.lambda_discrep import lambda_discrep_measures
 from grl.utils.file_system import numpyify_and_save
-from grl.utils.loss import discrep_loss, magnitude_td_loss
+from grl.utils.loss import discrep_loss, bellman_loss
 from definitions import ROOT_DIR
 
 if __name__ == "__main__":
