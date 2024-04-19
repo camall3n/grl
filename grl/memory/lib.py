@@ -293,6 +293,20 @@ mem_12 = np.array([
 ])
 memory_12 = np.stack([mem_12, mem_12])
 
+mem_101 = np.array([
+    # always hold the bit!
+    [ # red
+        #s0, s1
+        [1, 0.],
+        [0, 1],
+    ],
+    [ # terminal
+        [1, 0],
+        [0, 1],
+    ],
+])
+memory_101 = np.stack([mem_101, mem_101])
+
 mem_102 = np.array([
     # always flip the bit!
     [ # red
