@@ -52,6 +52,7 @@ def parse_args():
     parser.add_argument('--normalize_reward_range', action='store_true')
     parser.add_argument('--mem_optimizer', type=str, default='queue',
                         choices=['queue', 'annealing', 'optuna'])
+    parser.add_argument('--mem_optim_objective', type=str, default='ld', choices=['ld', 'td'])
     parser.add_argument('--enable_priority_queue', action='store_true')
     parser.add_argument('--annealing_should_sample_hyperparams', action='store_true')
     parser.add_argument('--annealing_tmax', type=float, default=3.16e-3)
@@ -244,6 +245,7 @@ def main():
         policy_epsilon=args.policy_epsilon,
         replay_buffer_size=args.replay_buffer_size,
         mem_optimizer=args.mem_optimizer,
+        mem_optim_objective=args.mem_optim_objective,
         ignore_queue_priority=(not args.enable_priority_queue),
         annealing_should_sample_hyperparams=args.annealing_should_sample_hyperparams,
         annealing_tmax=args.annealing_tmax,

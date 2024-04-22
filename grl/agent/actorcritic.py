@@ -14,7 +14,7 @@ from optuna.storages import JournalStorage, JournalFileStorage
 from tqdm import tqdm
 from grl.memory.analytical import memory_cross_product
 from grl.utils.discrete_search import SearchNode, generate_hold_mem_fn
-from grl.utils.loss import mem_discrep_loss, value_error
+from grl.utils.loss import mem_discrep_loss, mem_tde_loss, value_error
 from grl.agent.td_lambda import TDLambdaQFunction
 from grl.utils.replaymemory import ReplayMemory
 from grl.utils.math import arg_hardmax, arg_mellowmax, arg_boltzman, one_hot
@@ -37,7 +37,8 @@ class ActorCritic:
         policy_epsilon: float = 0.10,
         mellowmax_beta: float = 10.0,
         replay_buffer_size: int = 1000000,
-        mem_optimizer='queue', # [queue, annealing, optuna]
+        mem_optimizer='queue', # ['queue', 'annealing', 'optuna']
+        mem_optim_objective='ld', #['ld', 'td']
         prune_if_parent_suboptimal=False, # search queue pruning
         ignore_queue_priority=False, # search queue priority
         annealing_should_sample_hyperparams=False,
@@ -48,7 +49,7 @@ class ActorCritic:
         study_name='default_study',
         use_existing_study=False,
         n_optuna_workers=1,
-        discrep_loss='abs',
+        discrep_loss='mse',
         disable_importance_sampling=False,
         override_mem_eval_with_analytical_env=None,
         analytical_lambda_discrep_noise=0.0,
@@ -63,6 +64,7 @@ class ActorCritic:
         self.policy_epsilon = policy_epsilon
         self.mellowmax_beta = mellowmax_beta
         self.mem_optimizer = mem_optimizer
+        self.mem_optim_objective = mem_optim_objective
         self.prune_if_parent_suboptimal = prune_if_parent_suboptimal
         self.ignore_queue_priority = ignore_queue_priority
         self.annealing_should_sample_hyperparams = annealing_should_sample_hyperparams
@@ -531,16 +533,20 @@ class ActorCritic:
         noise = 0
         if self.analytical_lambda_discrep_noise > 0:
             noise = np.random.normal(loc=0, scale=self.analytical_lambda_discrep_noise)
-        discrep = mem_discrep_loss(self.memory_logits, self.policy_probs,
-                                   self.override_mem_eval_with_analytical_env)
-        return discrep + noise
+        if self.mem_optim_objective == 'ld':
+            memory_cost = mem_discrep_loss(self.memory_logits, self.policy_probs,
+                                    self.override_mem_eval_with_analytical_env)
+        else:
+            memory_cost = mem_tde_loss(self.memory_logits, self.policy_probs,
+                                    self.override_mem_eval_with_analytical_env)
+        return memory_cost + noise
 
     def evaluate_memory(self):
         if self.override_mem_eval_with_analytical_env is not None:
-            discrep = self.evaluate_memory_analytical().item()
+            memory_cost = self.evaluate_memory_analytical().item()
             mem_aug_pomdp = memory_cross_product(self.memory_logits, self.override_mem_eval_with_analytical_env)
             value_err = value_error(self.policy_probs, mem_aug_pomdp)[0].item()
-            return discrep, value_err
+            return memory_cost, value_err
 
         assert len(self.replay.memory) > 0
         self.reset_memory_state()

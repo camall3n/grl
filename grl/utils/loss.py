@@ -228,8 +228,6 @@ def pg_objective_func(pi_params: jnp.ndarray, pomdp: POMDP):
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
-    # import jax
-    # jax.debug.breakpoint()
     pi_abs = nn.softmax(pi_params, axis=-1)
     pi_ground = pomdp.phi @ pi_abs
 
@@ -248,8 +246,6 @@ def augmented_pg_objective_func(augmented_pi_params: jnp.ndarray, pomdp: POMDP):
     Policy gradient objective function:
     sum_{s_0} p(s_0) v_pi(s_0)
     """
-    # import jax
-    # jax.debug.breakpoint()
     augmented_pi_probs = nn.softmax(augmented_pi_params)
     mem_probs, action_policy_probs = deconstruct_aug_policy(augmented_pi_probs)
     mem_logits = reverse_softmax(mem_probs)

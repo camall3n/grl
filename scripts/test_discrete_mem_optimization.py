@@ -79,6 +79,7 @@ learning_agent = ActorCritic(
     n_mem_values=args.n_memory_states,
     replay_buffer_size=args.replay_buffer_size,
     mem_optimizer=args.mem_optimizer,
+    mem_optim_objective=args.mem_optim_objective,
     ignore_queue_priority=(not args.enable_priority_queue),
     annealing_should_sample_hyperparams=args.annealing_should_sample_hyperparams,
     annealing_tmax=args.annealing_tmax,
@@ -127,7 +128,7 @@ pi_aug = learning_agent.policy_probs
 mem_probs = generate_hold_mem_fn(learning_agent.n_actions, learning_agent.n_obs,
                                  learning_agent.n_mem_states)
 learning_agent.set_memory(mem_probs, logits=False)
-mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
+mem_aug_pomdp = memory_cross_product(learning_agent.memory_logits, env)
 
 # Value stuff
 def get_start_obs_value(pi, mdp):
@@ -136,8 +137,8 @@ def get_start_obs_value(pi, mdp):
     value_fn, _, _ = lstdq_lambda(pi, mdp, lambda_=args.lambda1)
     return (value_fn @ (mdp.p0 @ mdp.phi)).item()
 
-start_value = get_start_obs_value(pi_aug, mem_aug_mdp)
-initial_discrep = discrep_loss(pi_aug, mem_aug_mdp)[0].item()
+start_value = get_start_obs_value(pi_aug, mem_aug_pomdp)
+initial_discrep = discrep_loss(pi_aug, mem_aug_pomdp)[0].item()
 
 print(f'Start value: {start_value}')
 print(f'Initial discrep: {initial_discrep}')
@@ -162,7 +163,7 @@ print(f'Best discrep: {info["best_discrep"]}')
 
 # Final performance stuff
 learning_agent.reset_policy()
-mem_aug_mdp = memory_cross_product(learning_agent.memory_logits, env)
+mem_aug_pomdp = memory_cross_product(learning_agent.memory_logits, env)
 planning_agent = AnalyticalAgent(
     pi_params=learning_agent.policy_logits,
     rand_key=jax.random.PRNGKey(args.seed + 10000),
@@ -171,11 +172,11 @@ planning_agent = AnalyticalAgent(
     value_type='q',
     policy_optim_alg=args.policy_optim_alg,
 )
-planning_agent.reset_pi_params((mem_aug_mdp.observation_space.n, mem_aug_mdp.action_space.n))
-pi_improvement(planning_agent, mem_aug_mdp, iterations=n_pi_iterations)
+planning_agent.reset_pi_params((mem_aug_pomdp.observation_space.n, mem_aug_pomdp.action_space.n))
+pi_improvement(planning_agent, mem_aug_pomdp, iterations=n_pi_iterations)
 learning_agent.set_policy(planning_agent.pi_params, logits=True)
 
-end_value = get_start_obs_value(learning_agent.policy_probs, mem_aug_mdp)
+end_value = get_start_obs_value(learning_agent.policy_probs, mem_aug_pomdp)
 print(f'Start value: {start_value}')
 print(f'End value: {end_value}')
 
@@ -190,6 +191,7 @@ results = {
     'init_policy_randomly': args.init_policy_randomly,
     'n_random_policies': args.n_random_policies,
     'mem_optimizer': args.mem_optimizer,
+    'mem_optim_objective': args.mem_optim_objective,
     'enable_priority_queue': args.enable_priority_queue,
     'tmax': args.annealing_tmax,
     'tmin': args.annealing_tmin,

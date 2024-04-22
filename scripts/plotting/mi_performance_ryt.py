@@ -7,7 +7,7 @@ import pandas as pd
 
 from argparse import Namespace
 from jax.nn import softmax
-from jax import config
+from jax.config import config
 from pathlib import Path
 from collections import namedtuple
 from tqdm import tqdm

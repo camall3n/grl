@@ -44,7 +44,7 @@ def reverse_softmax(dists: jnp.ndarray, eps: float = 1e-20) -> jnp.ndarray:
     """
     # c = jnp.log(jnp.exp(dists).sum(axis=-1))
     # params = jnp.log(dists) + c
-    params = jnp.log(dists + eps)
+    params = jnp.log(dists + jnp.array(eps, dtype=dists.dtype))
     return params
 
 def one_hot(x: np.ndarray, n: int, axis: int = -1) -> np.ndarray:

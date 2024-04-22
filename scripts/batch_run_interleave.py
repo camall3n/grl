@@ -108,7 +108,7 @@ def make_experiment(args):
                                 corridor_length=args.tmaze_corridor_length,
                                 discount=args.tmaze_discount,
                                 junction_up_pi=args.tmaze_junction_up_pi)
-    
+
     partial_kwargs = {
         'value_type': args.value_type,
         'error_type': args.error_type,
