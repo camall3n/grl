@@ -36,13 +36,13 @@ if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser()
     # yapf:disable
-    parser.add_argument('--spec', default='example_11', type=str,
+    parser.add_argument('--spec', default='tmaze_5_two_thirds_up', type=str,
         help='name of POMDP spec; evals Pi_phi policies by default')
     parser.add_argument('--mi_iterations', type=int, default=1,
                         help='For memory iteration, how many iterations of memory iterations do we do?')
-    parser.add_argument('--mi_steps', type=int, default=50000,
+    parser.add_argument('--mi_steps', type=int, default=20000,
                         help='For memory iteration, how many steps of memory improvement do we do per iteration?')
-    parser.add_argument('--pi_steps', type=int, default=50000,
+    parser.add_argument('--pi_steps', type=int, default=10000,
                         help='For memory iteration, how many steps of policy improvement do we do per iteration?')
     parser.add_argument('--policy_optim_alg', type=str, default='policy_iter',
                         help='policy improvement algorithm to use. "policy_iter" - policy iteration, "policy_grad" - policy gradient, '
@@ -147,10 +147,11 @@ if __name__ == '__main__':
         logging.info(f'Pi_phi_x:\n {pi_dict["Pi_phi_x"]}')
     if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
         logging.info(f'Pi_phi:\n {pi_dict["Pi_phi"]}')
-        if args.init_pi is not None:
-            pi_params = get_start_pi(args.init_pi,
-                                     pi_phi=pi_dict['Pi_phi'][0],
-                                     pomdp=pomdp)
+    if args.init_pi is not None:
+        try:
+            pi_params = get_start_pi(args.init_pi, pi_phi=pi_dict['Pi_phi'][0])
+        except TypeError:
+            pi_params = get_start_pi(args.init_pi, pi_phi=None)
 
     results_path = results_path(args)
 

@@ -15,7 +15,7 @@ from grl.utils.mdp import pomdp_get_occupancy
 from grl.utils.policy_eval import functional_solve_mdp
 
 #%%
-experiment_name = 'exp22-tmaze5'
+experiment_name = 'exp29*'
 env_name = 'tmaze_5_two_thirds_up'
 
 def get_perf(pi_obs: jnp.ndarray, env: POMDP):

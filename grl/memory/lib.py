@@ -108,7 +108,6 @@ def all_n_state_deterministic_memory(n_mem_states: int):
     all_mem_funcs = id[all_idxes]
     return all_mem_funcs
 
-
 def generate_random_uniform_memory_fn(n_mem_states: int, n_obs: int, n_actions: int):
     T_mem = np.zeros((n_actions, n_obs, n_mem_states, n_mem_states))
 
@@ -162,7 +161,6 @@ def tiger_alt_start_1bit_optimal():
     # Other two options don't matter, since you terminate after taking them.
     T_mem = np.stack([T_mem_listen, T_mem_listen, T_mem_listen])
     return T_mem
-
 
 """
 1 bit memory functions with three obs: r, b, t

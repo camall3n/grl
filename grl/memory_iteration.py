@@ -287,7 +287,7 @@ def memory_iteration(
             print(f"Learnt memory for iteration {mem_it}: \n"
                   f"{agent.memory}")
 
-            # Make a NEW memory AMDP
+            # Make a NEW memory POMDP
             pomdp = memory_cross_product(agent.mem_params, init_pomdp)
 
         if pi_per_step > 0:
