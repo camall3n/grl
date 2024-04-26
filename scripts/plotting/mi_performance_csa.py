@@ -23,11 +23,13 @@ from grl.utils.policy_eval import lstdq_lambda
 from grl.utils.discrete_search import generate_hold_mem_fn
 from grl.memory import memory_cross_product
 
-plot_dir = 'results/plots/iclr2023/'
+plot_dir = 'results/plots/neurips2024/'
 os.makedirs(plot_dir, exist_ok=True)
-policy_optim_alg = 'policy_iter'
+policy_optim_alg = 'policy_grad'
+mem_optim_objective = 'ld'
 
-title_note = 'PI' if policy_optim_alg == 'policy_iter' else 'PG'
+# title_note = 'PI' if policy_optim_alg == 'policy_iter' else 'PG'
+title_note = mem_optim_objective.upper()
 
 config.update('jax_platform_name', 'cpu')
 np.set_printoptions(precision=4)
@@ -91,10 +93,10 @@ for spec in spec_plot_order:
             if (fname.stem == f"{spec_to_belief_state.get(spec, spec)}-pomdp-solver-results"):
                 belief_info = load_info(fname)
                 coeffs = belief_info['coeffs']
-                max_start_vals = coeffs[belief_info['max_start_idx']]
+                belief_info.keys()
                 spec_compare_indv = {
                     'spec': spec,
-                    'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+                    'compare_perf': belief_info['start_val']
                 }
                 compare_to_list.append(spec_compare_indv)
                 break
@@ -106,7 +108,7 @@ for spec in spec_plot_order:
                     vi_info = load_info(vi_path)
                     spec_compare_indv = {
                         'spec': spec,
-                        'compare_perf': np.dot(max_start_vals, belief_info['p0'])
+                        'compare_perf': belief_info['start_val']
                     }
                     compare_to_list.append(spec_compare_indv)
 
@@ -129,6 +131,9 @@ for results_path in results_dir.iterdir():
 
     if args['policy_optim_alg'] != policy_optim_alg:
         continue
+
+    # if args['mem_optim_objective'] != mem_optim_objective:
+    #     continue
 
     # agent = info['agent']
     init_policy_info = info['logs']['initial_policy_stats']
@@ -296,6 +301,7 @@ plt.tight_layout()
 plt.subplots_adjust(bottom=0.2)
 
 fig_path = plot_dir + f'/analytical_{policy_optim_alg}.pdf'
+fig_path = plot_dir + f'/analytical_{mem_optim_objective}.pdf'
 fig.savefig(fig_path)
 
 #%%
@@ -322,7 +328,8 @@ def load_results(pathname):
     return data
 
 # data = load_results('results/discrete/tune07-1repeats*/*/*')
-discrete_oracle_data = load_results('results/discrete/locality07*/*/*')
+# discrete_oracle_data = load_results('results/discrete/locality07*/*/*')
+discrete_oracle_data = load_results('results/discrete/neurips24*/*/*')
 discrete_oracle_data['spec'] = discrete_oracle_data['env'] #.map(maybe_spec_map)
 del discrete_oracle_data['env']
 discrete_oracle_data = discrete_oracle_data.query(f'spec in {spec_plot_order}')
@@ -332,7 +339,7 @@ discrete_oracle_data = discrete_oracle_data.query(f'spec in {spec_plot_order}')
 # del discrete_oracle_data['policy_optimization']
 
 discrete_oracle_data['spec'] = discrete_oracle_data['spec'].sort_values()
-split_by = ['spec', 'n_mem_states', 'policy_optim_alg', 'mem_optimizer', 'init_policy_randomly']
+split_by = ['spec', 'n_mem_states', 'policy_optim_alg', 'mem_optimizer', 'init_policy_randomly', 'mem_optim_objective']
 group = discrete_oracle_data.groupby(split_by, sort=False, as_index=False)
 
 def sort_specs(series):
@@ -350,9 +357,11 @@ std_errs_with_discrete = pd.concat([std_errs, discrete_oracle_std_errs])
 
 means_with_discrete['policy_optim_alg'].fillna(policy_optim_alg, inplace=True)
 means_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
+means_with_discrete['mem_optim_objective'].fillna('ld', inplace=True)
 means_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
 std_errs_with_discrete['policy_optim_alg'].fillna(policy_optim_alg, inplace=True)
 std_errs_with_discrete['mem_optimizer'].fillna('analytical', inplace=True)
+std_errs_with_discrete['mem_optim_objective'].fillna('ld', inplace=True)
 std_errs_with_discrete['init_policy_randomly'].fillna(False, inplace=True)
 
 # sns.barplot(data=normalized_df, x='spec', y='final_mem_perf', hue='n_mem_states')
@@ -366,16 +375,17 @@ num_n_mem = list(sorted(means_with_discrete['n_mem_states'].unique()))
 xlabels = [maybe_spec_map(l) for l in list(spec_plot_order)]
 
 settings_list = [
-    ('analytical', ''),
-    ('annealing', '\\\\'),
+    ('td', ''),
+    ('ld', '\\\\'),
 ]
 
-subset = f'policy_optim_alg == "{policy_optim_alg}"'
+# subset = f'policy_optim_alg == "{policy_optim_alg}"'
+# subset = f'mem_optim_objective == "{mem_optim_objective}"'
 
 unique_runs = sorted(
     pd.unique(
         list(map(str,
-                 means_with_discrete.query(subset)[['n_mem_states', 'mem_optimizer']].values))))
+                 means_with_discrete.query(subset)[['n_mem_states', 'mem_optimizer', 'mem_optim_objective']].values))))
 n_bars = len(unique_runs) + 1
 bar_width = 1 / (n_bars + 2)
 
@@ -398,32 +408,31 @@ bar_colors = ['#E0B625', '#DD8453', '#C44E52']
 #     ('analytical', 'td', ''),
 # ]
 
-for chunk, (mem_optimizer, hatching) in enumerate(settings_list):
+for chunk, (mem_optim_objective, hatching) in enumerate(settings_list):
     for i, n_mem_states in enumerate(num_n_mem):
         query = (f'n_mem_states == {n_mem_states} '
-                 f'and mem_optimizer == "{mem_optimizer}" '
-                 f'and policy_optim_alg == "{policy_optim_alg}"')
-        optim_name = {'annealing': 'HC', 'analytical': 'Grad'}[mem_optimizer]
+                 # f'and mem_optimizer == "{mem_optimizer}" '
+                 # f'and policy_optim_alg == "{policy_optim_alg}"'
+                 f'and mem_optimizer == "annealing"'
+                 f'and mem_optim_objective == "{mem_optim_objective}"'
+                 )
+        # optim_name = {'annealing': 'HC', 'analytical': 'Grad'}[mem_optimizer]
         try:
             plt.bar(x + (3 * chunk + i + 2) * bar_width,
                     means_with_discrete.query(query)['final_mem_perf'],
                     bar_width,
                     yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
-                    label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
+                    label=f"{int(np.log(n_mem_states))+1}-bit, {mem_optim_objective.upper()}",
                     color=bar_colors[i],
                     hatch=hatching)
         except ValueError as e:
-            x_alt = np.array([0, 1, 2, 3, 4, 7])
-            plt.bar(x_alt + (3 * chunk + i + 2) * bar_width,
-                    means_with_discrete.query(query)['final_mem_perf'],
-                    bar_width,
-                    yerr=std_errs_with_discrete.query(query)['final_mem_perf'],
-                    label=f"{int(np.log(n_mem_states))+1}-bit, {optim_name}",
-                    color=bar_colors[i],
-                    hatch=hatching)
+            continue
+
 
 handles, labels = plt.gca().get_legend_handles_labels() # get existing handles and labels
 empty_patch = mpatches.Patch(color='none')
+handles.insert(3, empty_patch)
+labels.insert(3, '')
 handles.insert(4, empty_patch)
 labels.insert(4, '')
 first_handles, last_handles = handles[:len(handles)//2], handles[len(handles)//2:]
@@ -447,6 +456,7 @@ ax.hlines(1, x.min(), x.max() + 1, ls='--', color='k', alpha=0.5)
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.25)
 
-fig_path = plot_dir + f'annealing_{policy_optim_alg}.pdf'
+# fig_path = plot_dir + f'annealing_{policy_optim_alg}.pdf'
+fig_path = plot_dir + f'annealing_ld_vs_td.pdf'
 fig.savefig(fig_path)
-fig.show()
+plt.show()
