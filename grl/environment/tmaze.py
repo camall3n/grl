@@ -115,6 +115,41 @@ def slippery_tmaze(n: int, discount: float = 0.9, slip_prob: float = 0.1):
 def four_tmaze(n: int = 1, discount: float = 0.9,
                good_term_reward: float = 4.0,
                bad_term_reward: float = -0.1):
+    """
+    Return T, R, gamma, p0 and phi for parity tmaze, for a given corridor length n
+
+                               +---+     S:  Start
+             X                 | G |     SS: Second Start
+        +----+-----+---+   +---+---+     X:  Goal Indicator
+        | S1 | SS1 |   |...|   | J |     J:  Junction
+        +----+-----+---+   +---+---+     G:  Terminal (Goal)
+                     1       n | T |     T:  Terminal (Non-Goal)
+                               +---+
+
+                               +---+     S:  Start
+                               | T |     SS: Second Start
+        +----+-----+---+   +---+---+     X:  Goal Indicator
+        | S2 | SS2 |   |...|   | J |     J:  Junction
+        +----+-----+---+   +---+---+     G:  Terminal (Goal)
+             X       1       n | G |     T:  Terminal (Non-Goal)
+                               +---+
+
+                               +---+     S:  Start
+             X                 | G |     SS: Second Start
+        +----+-----+---+   +---+---+     X:  Goal Indicator
+        | S3 | SS3 |   |...|   | J |     J:  Junction
+        +----+-----+---+   +---+---+     G:  Terminal (Goal)
+                     1       n | T |     T:  Terminal (Non-Goal)
+                               +---+
+
+                               +---+     S:  Start
+                               | T |     SS: Second Start
+        +----+-----+---+   +---+---+     X:  Goal Indicator
+        | S4 | SS4 |   |...|   | J |     J:  Junction
+        +----+-----+---+   +---+---+     G:  Terminal (Goal)
+             X       1       n | G |     T:  Terminal (Non-Goal)
+                               +---+
+    """
 
     n_states = 4 * n # Corridor
     n_states += 4 # Start
