@@ -12,6 +12,8 @@ import jax
 from jax.config import config
 from jax.nn import softmax
 from jax import random
+from jax import tree_map
+import jax.numpy as jnp
 
 from grl.environment import load_pomdp
 from grl.environment.policy_lib import get_start_pi
@@ -29,7 +31,7 @@ from grl.utils.policy_eval import analytical_pe, lstdq_lambda
 
 np.set_printoptions(precision=8)
 
-spec = 'four_tmaze_two_thirds_up'
+spec = 'parity_check'
 seed = 42
 
 np.set_printoptions(precision=8, suppress=True)
@@ -42,7 +44,7 @@ rand_key = jax.random.PRNGKey(seed)
 
 pomdp, pi_dict = load_pomdp(spec, rand_key)
 pomdp.gamma = 0.9
-
+pomdp.phi
 if 'Pi_phi' in pi_dict and pi_dict['Pi_phi'] is not None:
     pi_phi = pi_dict['Pi_phi'][0]
     # print(f'Pi_phi:\n {pi_phi}')
@@ -52,7 +54,6 @@ lds = []
 ps = np.linspace(0, 1, 500)
 for p in tqdm(ps):
     pi_phi = np.array([
-        [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],
@@ -80,7 +81,6 @@ for p in tqdm(ps):
         [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],
-        [0,     0,     p, (1-p)],
         [2/3, 1/3,     0,     0],
         [1,     0,     0,     0.],
     ])
@@ -212,7 +212,7 @@ plt.show()
 #%%
 
 lds = []
-lambdas = np.linspace(0, 1, 20)
+lambdas = np.linspace(0, 1, 10)
 state_vals, mc_vals, td_vals, info = analytical_pe(pi_phi, pomdp)
 for l0 in tqdm(lambdas):
     for l1 in lambdas:
@@ -221,8 +221,8 @@ data = pd.DataFrame(lds)
 data['log ld'] = np.log10(data['ld'])
 #%%
 sns.heatmap(data.pivot(index="l1", columns="l0", values="ld"), square=True)
-plt.xticks([0, 20], [0, 1])
-plt.yticks([0, 20], [0, 1])
+plt.xticks([0, 10], [0, 1])
+plt.yticks([0, 10], [0, 1])
 plt.xlabel(r'$\lambda_0$')
 plt.ylabel(r'$\lambda_1$')
 plt.gca().invert_yaxis()
@@ -235,7 +235,6 @@ ps = np.linspace(0, 1, 500)
 for p in tqdm(ps):
     pi_phi = np.array([
         [p,     0, (1-p),     0],
-        [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],

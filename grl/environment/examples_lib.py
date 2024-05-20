@@ -833,6 +833,34 @@ def tmaze_5_two_thirds_up():
     Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
     return to_dict(*tmaze(n, discount=discount), Pi_phi, Pi_phi_x)
 
+def parity_check():
+    # n_obs x n_actions
+    n = 0
+    discount = 0.9
+    Pi_phi = [
+        np.array([
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [2 / 3, 1 / 3, 0, 0],
+            [1, 0, 0, 0]])
+    ]
+
+    T, R, discount, p0, phi = four_tmaze(n=0, discount=discount, good_term_reward=1, bad_term_reward=-1)
+    phi = np.concatenate((phi[:,:4], phi[:,5:]), axis=-1)
+    # phi = np.concatenate((phi[:10,:], phi[12:,:]), axis=0)
+    # T = np.concatenate((T[:,:10], T[:,12:]), axis=1)
+    # T = np.concatenate((T[:,:,:10], T[:,:,12:]), axis=2)
+    # R = np.concatenate((R[:,:10], R[:,12:]), axis=1)
+    # R = np.concatenate((R[:,:,:10], R[:,:,12:]), axis=2)
+    R = np.sign(R)
+    # p0 = np.concatenate((p0[:10], p0[12:]))
+
+    # memory policy is observations * memory bits (2) x n_actions
+    Pi_phi_x = [Pi_phi[0].repeat(2, axis=0)]
+    return to_dict(T, R, 0.9, p0, phi, Pi_phi, Pi_phi_x)
+
 def four_tmaze_two_thirds_up():
     # n_obs x n_actions
     n = 1
