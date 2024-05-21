@@ -43,31 +43,35 @@ handles = ax.get_legend().legend_handles
 texts = [x.get_text() for x in ax.get_legend().texts]
 title = ax.get_legend().get_title().get_text()
 
-ax.legend(title=title, handles=handles, labels=texts, ncols=4, loc='lower right', fancybox=True, framealpha=1)
+ax.legend(title=title, handles=handles, labels=texts, ncols=4, loc='upper left', fancybox=True)
 xlims = ax.get_xlim()
 ax.hlines(1, *xlims, color='k', ls='--', alpha=0.5)
 
-
-handles, labels = plt.gca().get_legend_handles_labels() # get existing handles and labels
-empty_patch = mpatches.Patch(color='none')
-handles.insert(4, empty_patch)
-labels.insert(4, '')
-first_handles, last_handles = handles[:len(handles)//2], handles[len(handles)//2:]
-first_labels, last_labels = labels[:len(labels)//2], labels[len(labels)//2:]
-handles = [val for tup in zip(*[first_handles, last_handles]) for val in tup]
-labels = [val for tup in zip(*[first_labels, last_labels]) for val in tup]
-ax.legend(handles, labels, loc='upper center', framealpha=0.8, ncols=4, bbox_to_anchor=(0.5, -.1))
-
-ax.set_ylim([0, 1.05])
-# ax.set_ylabel(f'Normalized Return')
-# ax.set_xticks(x + group_width / 2)
-# ax.set_xticklabels(xlabels)
-# ax.legend(
-#     loc='upper left',
-#     framealpha=0.8,
-#     ncols=2,
-# )
+ax.set_ylim([0.3,1.1])
 ax.set_title(f"Performance with Memory Optimization")
+
+
+ax_lim = ax.get_ylim()
+ax_rng = ax_lim[1] - ax_lim[0]
+
+d = .01  # how big to make the diagonal lines in axes coordinates
+# arguments to pass to plot, just so we don't keep repeating them
+kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+# ax.plot((-d, +d), (-d/ax_rng, +d/ax_rng), **kwargs)        # top-left diagonal
+# ax.plot((1 - d, 1 + d), (-d/ax_rng, +d/ax_rng), **kwargs)  # top-right diagonal
+
+top_y=0.08
+bottom_y=0.05
+
+kwargs.update(transform=ax.transAxes)  # switch to the bottom axes
+ax.plot((-d, +d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-left diagonal
+ax.plot((1 - d, 1 + d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-right diagonal
+ax.plot((-d, +d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-left diagonal
+ax.plot((1 - d, 1 + d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-right diagonal
 
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.25)
+plt.savefig('nice-barplot.png')
+plt.show()
+
+data['seed'].unique()
