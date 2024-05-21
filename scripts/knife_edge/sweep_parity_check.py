@@ -3,6 +3,7 @@ import logging
 import pathlib
 from time import time
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -29,6 +30,18 @@ from grl.utils.policy_eval import analytical_pe, lstdq_lambda
 
 #%%
 
+mpl.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Computer Modern Roman"],
+    "font.sans-serif": ["Computer Modern Sans serif"],
+    "font.monospace": ["Computer Modern Typewriter"],
+    "axes.labelsize": 12,  # LaTeX default is 10pt
+    "font.size": 12,
+    "legend.fontsize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+})
 np.set_printoptions(precision=8)
 
 spec = 'parity_check'
@@ -81,7 +94,7 @@ for p in tqdm(ps):
         [0,     0,     1,     0],
         [0,     0,     1,     0],
         [0,     0,     1,     0],
-        [2/3, 1/3,     0,     0],
+        [0,     0,     p, (1-p)],
         [1,     0,     0,     0.],
     ])
 
@@ -90,7 +103,7 @@ for p in tqdm(ps):
     lds.append({'p': p, 'ld': discrep_loss(pi_phi, pomdp, alpha=0)[0].item()})
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld')
-plt.xlabel(r'Hallway $\rightarrow$ (vs. $\leftarrow$) probability')
+plt.xlabel(r'Junction $\uparrow$ (vs. $\downarrow$) probability')
 plt.ylabel("")
 plt.title('Mean Squared Lambda Discrepancy')
 plt.show()
@@ -248,9 +261,9 @@ for p in tqdm(ps):
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld')
 plt.semilogy()
-plt.xlabel(r'"Purple" $\uparrow$ (vs. $\rightarrow$) probability')
+plt.xlabel(r'$\Pr(\textsc{stay}|\textsc{blue})$')
 plt.ylabel("")
-plt.title('Mean Squared Lambda Discrepancy')
+plt.title('Lambda Discrepancy')
 plt.show()
 
 #%%
@@ -274,8 +287,63 @@ for p in tqdm(ps):
 pomdp.p0 = orig_p0
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld')
-plt.xlabel(r'Probability of initializing to sub-maze 0')
+plt.xlabel(r'Probability of initializing to \textsc{red} $\rightarrow$ \textsc{pink} path')
 plt.semilogy()
 plt.ylabel(r'')
-plt.title('Mean Squared Lambda Discrepancy')
+plt.title('Lambda Discrepancy')
+plt.show()
+
+
+#%%
+fig, ax = plt.subplots(2, 1, sharex=True, figsize=(5,4))
+
+lds = []
+ps = np.linspace(0, 1, 500)
+for p in tqdm(ps):
+    pi_phi = np.array([
+        [p,     0, (1-p),     0],
+        [0,     0,     1,     0],
+        [0,     0,     1,     0],
+        [0,     0,     1,     0],
+        [2/3, 1/3,     0,     0],
+        [1,     0,     0,     0.],
+    ])
+
+    state_vals, mc_vals, td_vals, info = analytical_pe(pi_phi, pomdp)
+
+    lds.append({'p': p, 'ld': discrep_loss(pi_phi, pomdp, alpha=0)[0].item()})
+data = pd.DataFrame(lds)
+sns.lineplot(data=data, x='p', y='ld', ax=ax[0], label=r'$\Pr(\textsc{stay}|\textsc{blue})$')
+ax[0].semilogy()
+# ax[0].set_xlabel()
+ax[0].set_ylabel(r'$\lambda$-discrepancy')
+ax[0].legend(loc='lower center')
+
+
+pi_phi = pi_dict['Pi_phi'][0]
+lds = []
+orig_p0 = pomdp.p0
+ps = np.linspace(0, 1, 20000)
+for p in tqdm(ps):
+    # start at the beginning of the maze
+    unif_others = (1-p)/3 * np.ones(3)
+    p0 = np.concatenate(([p], unif_others, np.zeros(pomdp.state_space.n-4)))
+
+    # # start at any non-terminal state
+    # p0 = get_unif_policies(p0_key, (pomdp.state_space.n-1,), 1)[0]
+    # p0 = np.concatenate((p0, [0]))
+
+    pomdp.p0 = p0
+    state_vals, mc_vals, td_vals, info = analytical_pe(pi_phi, pomdp)
+
+    lds.append({'p': p, 'ld': discrep_loss(pi_phi, pomdp, alpha=0)[0].item()})
+pomdp.p0 = orig_p0
+data = pd.DataFrame(lds)
+sns.lineplot(data=data, x='p', y='ld', ax=ax[1], label=r'$p_0(\textsc{red} \rightarrow \textsc{pink})$')
+ax[1].semilogy()
+ax[1].set_xlabel(r'Probability')
+ax[1].set_ylabel(r'$\lambda$-discrepancy')
+ax[1].legend(loc='lower center')
+plt.tight_layout()
+plt.savefig('nice-sweeps.png')
 plt.show()
