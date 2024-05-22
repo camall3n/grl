@@ -295,7 +295,7 @@ plt.show()
 
 
 #%%
-fig, ax = plt.subplots(2, 1, sharex=True, figsize=(5,4))
+fig, ax = plt.subplots(1, 2, figsize=(6,2))
 
 lds = []
 ps = np.linspace(0, 1, 500)
@@ -317,7 +317,7 @@ sns.lineplot(data=data, x='p', y='ld', ax=ax[0], label=r'$\Pr(\textsc{stay}|\tex
 ax[0].semilogy()
 # ax[0].set_xlabel()
 ax[0].set_ylabel(r'$\lambda$-discrepancy')
-ax[0].legend(loc='lower center')
+ax[0].legend(loc='lower right')
 
 
 pi_phi = pi_dict['Pi_phi'][0]
@@ -341,9 +341,10 @@ pomdp.p0 = orig_p0
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld', ax=ax[1], label=r'$p_0(\textsc{red} \rightarrow \textsc{pink})$')
 ax[1].semilogy()
+ax[0].set_xlabel(r'Probability')
 ax[1].set_xlabel(r'Probability')
 ax[1].set_ylabel(r'$\lambda$-discrepancy')
-ax[1].legend(loc='lower center')
+ax[1].legend(loc='lower left')
 plt.tight_layout()
 plt.savefig('nice-sweeps.png')
 plt.show()
