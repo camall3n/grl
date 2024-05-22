@@ -6,6 +6,20 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+mpl.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Computer Modern Roman"],
+    "font.sans-serif": ["Computer Modern Sans serif"],
+    "font.monospace": ["Computer Modern Typewriter"],
+    "axes.labelsize": 12,  # LaTeX default is 10pt
+    "font.size": 12,
+    "legend.fontsize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+})
+
+
 data = pd.read_csv('results_kitchen_leave_out_30seeds.csv')
 belief = data.query('objective == "belief"').groupby(['spec'])['score'].mean()
 random = data.query('objective == "random"').groupby(['spec'])['score'].mean()
@@ -25,13 +39,13 @@ data['n_mem_bits'] = np.log2(data['n_mem_states'])
 data['n_mem_bits'] = data['n_mem_bits'].fillna(0).astype(int)
 
 env_names = {
-    'paint.95': 'paint',
-    'tmaze_5_two_thirds_up': 't-maze',
+    'paint.95': 'Paint',
+    'tmaze_5_two_thirds_up': 'T-maze',
     '4x3.95': '4x3',
-    'cheese.95': 'cheese',
-    'tiger-alt-start': 'tiger',
-    'shuttle.95': 'shuttle',
-    'network': 'network',
+    'cheese.95': 'Cheese',
+    'tiger-alt-start': 'Tiger',
+    'shuttle.95': 'Shuttle',
+    'network': 'Network',
 }
 col_names = {
     'spec': 'Environment',
@@ -80,7 +94,7 @@ handles = ax.get_legend().legend_handles
 texts = [x.get_text() for x in ax.get_legend().texts]
 title = ax.get_legend().get_title().get_text()
 
-ax.legend(title=title, handles=handles, labels=texts, ncols=4, loc='upper left', fancybox=True, framealpha=0.7)
+ax.legend(title=title, handles=handles, labels=texts, ncols=4, loc='upper left', fancybox=True, framealpha=0.9)
 xlims = ax.get_xlim()
 ax.hlines(1, *xlims, color='k', ls='--', alpha=0.5)
 
