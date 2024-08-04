@@ -123,6 +123,15 @@ def create_grid_image(observation: State, fog=False) -> np.ndarray:
     idx = observation.pellet_locations
     n = 3
 
+    if fog:
+        # hide distant walls
+        print(observation.grid.shape)
+        for row, grid_row in enumerate(observation.grid):
+            for col, grid_cell in enumerate(grid_row):
+                if not grid_cell: # found wall
+                    if distance(player_loc, (col, row)) > 1:
+                        layer_3[row, col] = 0
+
     # Power pellet are pink
     for i in range(len(pellets_loc)):
         p = pellets_loc[i]
@@ -319,6 +328,9 @@ def create_grid_image(observation: State, fog=False) -> np.ndarray:
     layer_1[player_loc.x * n + 1, player_loc.y * n + 1] = 1
     layer_2[player_loc.x * n + 1, player_loc.y * n + 1] = 1
     layer_3[player_loc.x * n + 1, player_loc.y * n + 1] = 0
+
+    if fog:
+        layer_3[0:n, 0:n] = 0
 
     obs = [layer_1, layer_2, layer_3]
     rgb = np.stack(obs, axis=-1)
