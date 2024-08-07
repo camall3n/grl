@@ -48,9 +48,12 @@ def plot_loghist(x, bins):
   plt.hist(x, bins=logbins)
   plt.xscale('log')
 
+#%%
+plt.subplots(figsize=(7,2.5))
 plot_loghist(lds, 100)
 plt.title('Parity Check with Random Memory')
 plt.xlabel(r'$\lambda$-discrepancy ($\Lambda$)')
 plt.ylabel('Number of memory functions')
+plt.tight_layout()
 plt.savefig('parity-check-memory.png')
 plt.show()
