@@ -40,7 +40,7 @@ rng = random.PRNGKey(seed=seed)
 np.random.seed(seed)
 
 
-def get_policy(spec, p, q=0.5, r=0.5, a=0.5):
+def get_policy(spec, p=0.5, q=0.5, r=0.5, a=0.5):
     if spec in ["ld_zero_by_t_projection", "ld_zero_by_mdp"]:
         pi = np.array(
             [
@@ -77,6 +77,11 @@ def get_policy(spec, p, q=0.5, r=0.5, a=0.5):
     else:
         raise NotImplementedError()
     return pi
+
+
+def get_random_policy(shape):
+    pi = np.random.rand(*shape)
+    return pi / pi.sum(axis=1)[:, None]
 
 
 def get_max_diffs(pi, pomdp):
@@ -193,22 +198,61 @@ specs_and_n_params = {
     "ld_zero_by_t_projection": 3,
     "ld_zero_by_r_projection": 1,
     "ld_zero_by_wr_projection": 1,
+    "tiger-alt-start": 0,
+    "network": 0,
+    "tmaze_5_two_thirds_up": 0,
+    "example_7": 0,
+    "4x3.95": 0,
+    "cheese.95": 0,
+    "network": 0,
+    "shuttle.95": 0,
+    "paint.95": 0,
+    "hallway": 0,
+    "bridge-repair": 0,
 }
 # %%
 data = []
 ps = np.linspace(0, 1, n_samples)
 for spec, n_params in specs_and_n_params.items():
     pomdp, info = load_pomdp(spec)
-    all_ps = np.reshape(np.meshgrid(*[ps] * n_params), (n_params, -1)).T
+    if n_params > 0:
+        all_ps = np.reshape(np.meshgrid(*[ps] * n_params), (n_params, -1)).T
+    else:  # n_params == 0
+        all_ps = range(10)
     for probs in tqdm(all_ps):
-        pi = get_policy(spec, *probs)
+        if n_params > 0:
+            pi = get_policy(spec, *probs)
+        else:
+            n_o = pomdp.phi.shape[1]
+            n_a = pomdp.T.shape[0]
+            pi = get_random_policy((n_o, n_a))
         diffs = get_max_diffs(pi, pomdp)
         diffs["spec"] = spec
         data.append(diffs)
 
-spec_order = lambda specs: [list(specs_and_n_params.keys()).index(spec) for spec in specs]
+spec_order = lambda specs: [
+    list(specs_and_n_params.keys()).index(spec) for spec in specs
+]
 
-# with open("output.txt", "w") as f:
-result = pd.DataFrame(data).groupby(["spec"]).max().round(4)[["∆ K", "∆ SR_sasa", "∆ Q_sa", "∆ Q_wa", "Δ SF_oasa", "Δ SF_oaoa_yellow_red", "Δ SF_oaoa_blue_red", "Δ SF_TD_yellow_blue"]].sort_index(key=spec_order)
-result
-# f.write(result.to_string())
+result = (
+    pd.DataFrame(data)
+    .groupby(["spec"])
+    .max()
+    .round(4)[
+        [
+            "∆ K",
+            "∆ SR_sasa",
+            "∆ Q_sa",
+            "∆ Q_wa",
+            "Δ SF_oasa",
+            "Δ SF_oaoa_yellow_red",
+            "Δ SF_oaoa_blue_red",
+            "Δ SF_TD_yellow_blue",
+        ]
+    ]
+    .sort_index(key=spec_order)
+)
+
+print(result)
+with open("output.txt", "w") as f:
+    f.write(result.to_string())

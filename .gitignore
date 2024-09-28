@@ -27,4 +27,5 @@ scripts/runs/
 *.npy
 *.csv
 *.zip
+output.txt
 
