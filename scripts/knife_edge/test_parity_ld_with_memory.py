@@ -13,11 +13,11 @@ mpl.rcParams.update({
     "font.serif": ["Computer Modern Roman"],
     "font.sans-serif": ["Computer Modern Sans serif"],
     "font.monospace": ["Computer Modern Typewriter"],
-    "axes.labelsize": 12,  # LaTeX default is 10pt
-    "font.size": 12,
-    "legend.fontsize": 12,
-    "xtick.labelsize": 12,
-    "ytick.labelsize": 12,
+    "axes.labelsize": 14,  # LaTeX default is 10pt
+    "font.size": 14,
+    "legend.fontsize": 14,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
 })
 np.set_printoptions(precision=8)
 
@@ -49,12 +49,12 @@ def plot_loghist(x, bins):
   plt.xscale('log')
 
 #%%
-plt.subplots(figsize=(6, 3))
+plt.subplots(figsize=(5, 3))
 plot_loghist(lds, 100)
 plt.title('Parity Check with Random Memory')
 plt.xlabel(r'$\lambda$-discrepancy ($\Lambda$)')
-plt.ylabel('Number of memory functions')
-plt.xlim([1e-9, 4e-2])
+plt.ylabel('No. of memory functions')
+plt.xlim([7.5e-8, 3e-2])
 plt.tight_layout()
-plt.savefig('parity-check-memory.png')
+plt.savefig('parity-check-memory-narrow.png', dpi=300)
 plt.show()

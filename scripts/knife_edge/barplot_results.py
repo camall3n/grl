@@ -12,11 +12,11 @@ mpl.rcParams.update({
     "font.serif": ["Computer Modern Roman"],
     "font.sans-serif": ["Computer Modern Sans serif"],
     "font.monospace": ["Computer Modern Typewriter"],
-    "axes.labelsize": 12,  # LaTeX default is 10pt
-    "font.size": 12,
-    "legend.fontsize": 12,
-    "xtick.labelsize": 12,
-    "ytick.labelsize": 12,
+    "axes.labelsize": 14,  # LaTeX default is 10pt
+    "font.size": 14,
+    "legend.fontsize": 14,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
 })
 
 data = pd.read_csv('results_parity_kitchen_leave_out_30seeds.csv')
@@ -86,7 +86,7 @@ palette = sns.color_palette(hex)
 
 data.query("Environment == 'Parity'").groupby(['objective', 'Memory Size (bits)'])['Normalized Return'].mean(),
 
-fig, ax = plt.subplots(figsize=(8, 3))
+fig, ax = plt.subplots(figsize=(10, 3))
 sns.barplot(
     data=data.query("Environment != 'Parity'"),
     x='Environment',
@@ -99,7 +99,9 @@ handles = ax.get_legend().legend_handles
 texts = [x.get_text() for x in ax.get_legend().texts]
 title = ax.get_legend().get_title().get_text()
 
-ax.legend(title=title, handles=handles, labels=texts, ncols=4, loc='upper left', fancybox=True, framealpha=0.9)
+leg = plt.legend(title='Memory Size\n(bits)', handles=handles, labels=texts, ncols=1, loc='center left', fancybox=True, framealpha=1.0, bbox_to_anchor=(1, 0.5))
+# leg._legend_box.align = "center"
+leg.get_title().set_ha("center")
 xlims = ax.get_xlim()
 ax.hlines(1, *xlims, color='k', ls='--', alpha=0.5)
 
@@ -121,18 +123,18 @@ top_y=0.08
 bottom_y=0.05
 
 kwargs.update(transform=ax.transAxes)  # switch to the bottom axes
-ax.plot((-d, +d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-left diagonal
-ax.plot((1 - d, 1 + d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-right diagonal
-ax.plot((-d, +d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-left diagonal
-ax.plot((1 - d, 1 + d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-right diagonal
+# ax.plot((-d, +d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-left diagonal
+# ax.plot((1 - d, 1 + d), (top_y - d/ax_rng, top_y + d/ax_rng), **kwargs)  # bottom-right diagonal
+# ax.plot((-d, +d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-left diagonal
+# ax.plot((1 - d, 1 + d), (bottom_y - d/ax_rng, bottom_y + d/ax_rng), **kwargs)  # bottom-right diagonal
 ax.containers[0]
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.25)
-plt.savefig(f'nice-barplot{"" if palette is None else "-byor"}.png')
+plt.savefig(f'nice-barplot{"" if palette is None else "-byor"}-legend-outside.png', dpi=300)
 plt.show()
 
 #%%
-fig, ax = plt.subplots(figsize=(2.2, 3))
+fig, ax = plt.subplots(figsize=(2.4, 3))
 ax = sns.barplot(
     data=data.query('Environment == "Parity" and n_mem_states <= 2'),
     x='Memory Size (bits)',
@@ -144,8 +146,8 @@ ax = sns.barplot(
 )
 labels = np.abs(data.query('Environment == "Parity" and n_mem_states <= 2').groupby(['n_mem_states'])['Normalized Return'].mean().to_numpy().round(3))
 
-ax.bar_label(ax.containers[0], fmt='%.3f', label_type='edge', padding=2, fontsize=10);
-ax.bar_label(ax.containers[1], fmt='%.3f', label_type='center', fontsize=10);
+ax.bar_label(ax.containers[0], fmt='%.3f', label_type='edge', padding=2, fontsize=14);
+ax.bar_label(ax.containers[1], fmt='%.3f', label_type='center', fontsize=14);
 # handles = ax.get_legend().legend_handles
 # texts = [x.get_text() for x in ax.get_legend().texts]
 # title = ax.get_legend().get_title().get_text()
@@ -158,8 +160,11 @@ ax.hlines(0, *xlims, 'k')
 ax.set_ylim([-0.02,1.03])
 # ax.set_title(f"Performance with Memory Optimization")
 ax.set_xlabel('Memory Size (bits)')
+title = ax.get_ylabel()
+ax.set_ylabel('')
+ax.set_title(title)
 
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.25)
-plt.savefig(f'parity-barplot.png')
+plt.savefig(f'parity-barplot-clean.png', dpi=300)
 plt.show()

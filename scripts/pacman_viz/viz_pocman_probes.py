@@ -397,11 +397,11 @@ def pack_states(states: list[dict]) -> list[State]:
 
 
 def mem_viz():
-    path = Path('/Users/cam/dev/grl/scripts/pacman_viz/pocman_pellet_probe_trajectory_bidx_1x3.mp4')
-    fig, axes = plt.subplots(1, 3, num=f"PocmanPredictionAnimation", figsize=(12, 4))
+    path = Path('/Users/cam/dev/grl/scripts/pacman_viz/pocman_pellet_probe_trajectory_bidx_3x1.mp4')
+    fig, axes = plt.subplots(3, 1, num=f"PocmanPredictionAnimation", figsize=(4, 12))
 
     def make_frame(idx: int) -> None:
-        p0_ax, state_ax, p1_ax = axes
+        p1_ax, state_ax, p0_ax = axes
         for a in axes:
             a.clear()
 
@@ -480,8 +480,8 @@ if __name__ == "__main__":
     states, predictions = pack_states(dataset['states']), dataset['predictions']
 
     # now we make our animation
-    # fig, make_frame, save_vod_path = mem_viz()
-    fig, make_frame, save_vod_path = obs_state()
+    fig, make_frame, save_vod_path = mem_viz()
+    # fig, make_frame, save_vod_path = obs_state()
     # fig, make_frame, save_vod_path = state_only()
     # fig, make_frame, save_vod_path = obs_only()
 

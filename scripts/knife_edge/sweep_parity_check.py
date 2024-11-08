@@ -36,7 +36,7 @@ mpl.rcParams.update({
     "font.serif": ["Computer Modern Roman"],
     "font.sans-serif": ["Computer Modern Sans serif"],
     "font.monospace": ["Computer Modern Typewriter"],
-    "axes.labelsize": 12,  # LaTeX default is 10pt
+    "axes.labelsize": 14,  # LaTeX default is 10pt
     "font.size": 12,
     "legend.fontsize": 12,
     "xtick.labelsize": 12,
@@ -314,10 +314,6 @@ for p in tqdm(ps):
     lds.append({'p': p, 'ld': discrep_loss(pi_phi, pomdp, alpha=0)[0].item()})
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld', ax=ax[0], label=r'$\Pr(\textsc{stay}|\textsc{blue})$')
-ax[0].semilogy()
-# ax[0].set_xlabel()
-ax[0].set_ylabel(r'$\lambda$-discrepancy')
-ax[0].legend(loc='lower right')
 
 
 pi_phi = pi_dict['Pi_phi'][0]
@@ -340,11 +336,16 @@ for p in tqdm(ps):
 pomdp.p0 = orig_p0
 data = pd.DataFrame(lds)
 sns.lineplot(data=data, x='p', y='ld', ax=ax[1], label=r'$p_0(\textsc{red} \rightarrow \textsc{pink})$')
+ax[0].semilogy()
 ax[1].semilogy()
+ax[0].set_ylim([1e-18, 1e-0])
+ax[1].set_ylim([1e-18, 1e-0])
 ax[0].set_xlabel(r'Probability')
 ax[1].set_xlabel(r'Probability')
+ax[0].set_ylabel(r'$\lambda$-discrepancy')
 ax[1].set_ylabel(r'$\lambda$-discrepancy')
+ax[0].legend(loc='lower right')
 ax[1].legend(loc='lower left')
 plt.tight_layout()
-plt.savefig('nice-sweeps.png')
+plt.savefig('nice-sweeps.png', dpi=300)
 plt.show()

@@ -19,9 +19,9 @@ mpl.rcParams.update({
     "font.serif": ["Computer Modern Roman"],
     "font.sans-serif": ["Computer Modern Sans serif"],
     "font.monospace": ["Computer Modern Typewriter"],
-    "axes.labelsize": 12,  # LaTeX default is 10pt
-    "font.size": 12,
-    "legend.fontsize": 12,
+    "axes.labelsize": 13,  # LaTeX default is 10pt
+    "font.size": 13,
+    "legend.fontsize": 13,
     "xtick.labelsize": 12,
     "ytick.labelsize": 12,
 })
@@ -337,7 +337,7 @@ ax.set_ylabel('State')
 ax.set_xticks(range(0, 15, 3))
 ax.set_yticks(range(0, 15, 3))
 
-ax.text( 7, 22, r'$\Phi_\mathrm{Perfect}$', ha='center', va='top')
+ax.text( 7, 22, r'$\Phi_\mathrm{Perfect}$', ha='center', va='top', fontsize=20)
 
 # ax = plt.subplot2grid((1, 6), (0, 3), fig=fig)
 # ax.imshow(pomdp_phi_hallway_alt, vmin=0, vmax=1)
@@ -363,7 +363,7 @@ ax.set_ylabel('State')
 ax.set_xticks(range(0, 15, 3))
 ax.set_yticks(range(0, 15, 3))
 
-ax.text( 7, 22, r'$\Phi_\mathrm{Aliased}$', ha='center', va='top')
+ax.text( 7, 22, r'$\Phi_\mathrm{Aliased}$', ha='center', va='top', fontsize=20)
 
 # ax = plt.subplot2grid((1, 6), (2, 3), fig=fig)
 # ax.imshow(pomdp_phi_blue_red, vmin=0, vmax=1)
@@ -396,5 +396,5 @@ ax.set_yticks(range(0, 15, 3))
 # ax.set_yscale('symlog', linthresh=0.0001)
 
 plt.tight_layout()
-plt.savefig('tmaze_po_sweep.png')
+plt.savefig('tmaze_po_sweep.png', dpi=300)
 plt.show()
