@@ -160,9 +160,10 @@ def is_prob_matrix(P, shape = None):
     return np.all(P >= 0) and np.allclose(P.sum(axis=-1), 1.0)
 
 def is_subprob_matrix(P, shape = None):
+    epsilon = 1e-7
     if shape is not None and P.shape != shape:
         return False
-    return np.all(P >= 0) and np.all(P.sum(axis=-1) <= 1.0)
+    return np.all(P >= -epsilon) and np.all(P.sum(axis=-1) <= 1.0 + epsilon)
 
 def make_subprob_matrix(T):
     """Find terminal states, which are those where every action just leads back to 
@@ -232,6 +233,7 @@ def calculate_sr_discrepancy_raw(
     assert n_actions != n_states, f"n_actions = n_states = {n_actions}, which means we can't tell if T has shape (S,A,S) or (A,S,S)"
     if T.shape == (n_actions, n_states, n_states):
         T = np.permute_dims(T, (1, 0, 2))
+    assert is_subprob_matrix(T, (n_states, n_actions, n_states))
     T = make_subprob_matrix(T)
     assert is_subprob_matrix(T, (n_states, n_actions, n_states))
 
@@ -313,142 +315,144 @@ def calculate_sr_discrepancy_raw(
 
 # %% 
 
-gamma = 1.0
-envs = {
-    "Two-goal T-Maze (up-probability 2/3)": setup_tmaze_two_goals(2 / 3, gamma=gamma),
-    "Two-goal T-Maze (up-probability 1/2)": setup_tmaze_two_goals(1 / 2, gamma=gamma),
-    "Ordinary T-Maze (up-probability 2/3)": setup_tmaze(2 / 3, gamma=gamma),
-    "Ordinary T-Maze (up-probability 1/2)": setup_tmaze(1 / 2, gamma=gamma),
-    "Parity check (up-probability 1/2, reward not included)":  setup_parity_check(1/2, gamma=gamma, reward_in_obs=False),
-    "Parity check (up-probability 1/2, reward is  included)":  setup_parity_check(1/2, gamma=gamma, reward_in_obs=True),
-    "Parity check (up-probability 2/3, reward not included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=False),
-    "Parity check (up-probability 2/3, reward is  included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=True),
-}
+if __name__ == "__main__":
+    gamma = 1.0
+    envs = {
+        #"Two-goal T-Maze (up-probability 2/3)": setup_tmaze_two_goals(2 / 3, gamma=gamma),
+        #"Two-goal T-Maze (up-probability 1/2)": setup_tmaze_two_goals(1 / 2, gamma=gamma),
+        #"Ordinary T-Maze (up-probability 2/3)": setup_tmaze(2 / 3, gamma=gamma),
+        #"Ordinary T-Maze (up-probability 1/2)": setup_tmaze(1 / 2, gamma=gamma),
+        "Parity check (up-probability 1/2, reward not included)":  setup_parity_check(1/2, gamma=gamma, reward_in_obs=False),
+        "Parity check (up-probability 1/2, reward is  included)":  setup_parity_check(1/2, gamma=gamma, reward_in_obs=True),
+        "Parity check (up-probability 2/3, reward not included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=False),
+        "Parity check (up-probability 2/3, reward is  included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=True),
+    }
 
-for name, x in envs.items():
-    mc, td = calculate_sr_discrepancy_from_env(*x)
-    discrepancy = np.sum(np.abs(mc - td))
-    print(f"discrepancy for {name}: {discrepancy:.3f}")
-    #print(mc)
-    #print(td)
-    #if not np.isclose(discrepancy, 0.0):
-    #    print(mc - td)
+    for name, x in envs.items():
+        mc, td = calculate_sr_discrepancy_from_env(*x)
+        discrepancy = np.sum(np.abs(mc - td))
+        print(f"discrepancy for {name}: {discrepancy:.3f}")
+        #print(mc)
+        #print(td)
+        if not np.isclose(discrepancy, 0.0):
+            print(mc - td)
 
 
 # %% non-trivial observations
 
-times_equal = 0
-for _ in range(10000):
-    A = 2
-    S = 4
-    O = 3
+if __name__ == "__main__":
+    times_equal = 0
+    for _ in range(10000):
+        A = 2
+        S = 4
+        O = 3
 
-    gamma = 0.9
+        gamma = 0.9
 
-    pi = np.random.rand(O, A)
-    pi = pi / pi.sum(axis=-1)[:, None]
+        pi = np.random.rand(O, A)
+        pi = pi / pi.sum(axis=-1)[:, None]
 
-    Phi = np.random.rand(S, O)
-    Phi = Phi / Phi.sum(axis=-1)[:, None]
+        Phi = np.random.rand(S, O)
+        Phi = Phi / Phi.sum(axis=-1)[:, None]
 
-    T = np.random.rand(S, A, S)
-    T = T / T.sum(axis=2)[:, :, None]
+        T = np.random.rand(S, A, S)
+        T = T / T.sum(axis=2)[:, :, None]
 
-    s0 = np.random.rand(S)
-    s0 = s0 / s0.sum()
+        s0 = np.random.rand(S)
+        s0 = s0 / s0.sum()
 
-    I_S = np.eye(S)
-    I_A = np.eye(A)
-    I_O = np.eye(O)
-    I_SA = np.eye(A * S).reshape((S, A, S, A))
-    Phi_A = kron(Phi, I_A)
+        I_S = np.eye(S)
+        I_A = np.eye(A)
+        I_O = np.eye(O)
+        I_SA = np.eye(A * S).reshape((S, A, S, A))
+        Phi_A = kron(Phi, I_A)
 
-    pi_s = dot(Phi, pi)
-    T_pi = np.einsum("ik,ikj->ij", pi_s, T)
-    Pi = np.eye(len(pi))[..., None] * pi[None, ...]
-    Pi_s = np.eye(len(pi_s))[..., None] * pi_s[None, ...]
+        pi_s = dot(Phi, pi)
+        T_pi = np.einsum("ik,ikj->ij", pi_s, T)
+        Pi = np.eye(len(pi))[..., None] * pi[None, ...]
+        Pi_s = np.eye(len(pi_s))[..., None] * pi_s[None, ...]
 
-    Pr_s = np.linalg.inv(I_S - gamma * T_pi.T).dot(s0)
-    Pr_s = Pr_s / np.sum(Pr_s)
-    W = np.zeros((O, S))
-    for i in range(O):
-        for j in range(S):
-            W[i][j] = (
-                Pr_s[j] * Phi[j][i] / np.sum([Pr_s[k] * Phi[k][i] for k in range(S)])
-            )
+        Pr_s = np.linalg.inv(I_S - gamma * T_pi.T).dot(s0)
+        Pr_s = Pr_s / np.sum(Pr_s)
+        W = np.zeros((O, S))
+        for i in range(O):
+            for j in range(S):
+                W[i][j] = (
+                    Pr_s[j] * Phi[j][i] / np.sum([Pr_s[k] * Phi[k][i] for k in range(S)])
+                )
 
-    W_Pi = ddot(Pi, kron(W, I_A))
+        W_Pi = ddot(Pi, kron(W, I_A))
 
-    SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
-    SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
+        SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
+        SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
 
-    SR_MC = I_O + gamma * dot(ddot(W_Pi, T), SR_MC_SS, Phi)
-    SR_TD = np.linalg.inv(I_O - gamma * dot(ddot(W_Pi, T), Phi))
+        SR_MC = I_O + gamma * dot(ddot(W_Pi, T), SR_MC_SS, Phi)
+        SR_TD = np.linalg.inv(I_O - gamma * dot(ddot(W_Pi, T), Phi))
 
-    SR_MC, SR_TD = calculate_sr_discrepancy_raw(A, S, O, Phi, T, s0, gamma, pi)
+        SR_MC, SR_TD = calculate_sr_discrepancy_raw(A, S, O, Phi, T, s0, gamma, pi)
 
-    if np.allclose(SR_MC, SR_TD):
-        times_equal += 1
+        if np.allclose(SR_MC, SR_TD):
+            times_equal += 1
 
-assert times_equal == 0
+    assert times_equal == 0
+
 
 # %% Test Markov obs
 
-times_equal = 0
-for _ in range(1000):
-    A = 2
-    S = 4
-    O = 4
+    times_equal = 0
+    for _ in range(1000):
+        A = 2
+        S = 4
+        O = 4
 
-    gamma = 0.9
+        gamma = 0.9
 
-    pi = np.random.rand(O, A)
-    pi = pi / pi.sum(axis=-1)[:, None]
+        pi = np.random.rand(O, A)
+        pi = pi / pi.sum(axis=-1)[:, None]
 
-    # we want a permutation of an identity matrix to verify that it's non-trivially working
-    while True:
-        Phi = np.random.permutation(np.eye(O))
-        if not np.allclose(Phi, np.eye(O)):
-            break
+        # we want a permutation of an identity matrix to verify that it's non-trivially working
+        while True:
+            Phi = np.random.permutation(np.eye(O))
+            if not np.allclose(Phi, np.eye(O)):
+                break
 
-    T = np.random.rand(S, A, S)
-    T = T / T.sum(axis=2)[:, :, None]
+        T = np.random.rand(S, A, S)
+        T = T / T.sum(axis=2)[:, :, None]
 
-    s0 = np.random.rand(S)
-    s0 = s0 / s0.sum()
+        s0 = np.random.rand(S)
+        s0 = s0 / s0.sum()
 
-    I_S = np.eye(S)
-    I_A = np.eye(A)
-    I_O = np.eye(O)
-    I_SA = np.eye(A * S).reshape((S, A, S, A))
-    Phi_A = kron(Phi, I_A)
+        I_S = np.eye(S)
+        I_A = np.eye(A)
+        I_O = np.eye(O)
+        I_SA = np.eye(A * S).reshape((S, A, S, A))
+        Phi_A = kron(Phi, I_A)
 
-    pi_s = dot(Phi, pi)
-    T_pi = np.einsum("ik,ikj->ij", pi_s, T)
-    Pi = np.eye(len(pi))[..., None] * pi[None, ...]
-    Pi_s = np.eye(len(pi_s))[..., None] * pi_s[None, ...]
+        pi_s = dot(Phi, pi)
+        T_pi = np.einsum("ik,ikj->ij", pi_s, T)
+        Pi = np.eye(len(pi))[..., None] * pi[None, ...]
+        Pi_s = np.eye(len(pi_s))[..., None] * pi_s[None, ...]
 
-    Pr_s = np.linalg.inv(I_S - gamma * T_pi.T).dot(s0)
-    Pr_s = Pr_s / np.sum(Pr_s)
-    W = np.zeros((O, S))
-    for i in range(O):
-        for j in range(S):
-            W[i][j] = (
-                Pr_s[j] * Phi[j][i] / np.sum([Pr_s[k] * Phi[k][i] for k in range(S)])
-            )
+        Pr_s = np.linalg.inv(I_S - gamma * T_pi.T).dot(s0)
+        Pr_s = Pr_s / np.sum(Pr_s)
+        W = np.zeros((O, S))
+        for i in range(O):
+            for j in range(S):
+                W[i][j] = (
+                    Pr_s[j] * Phi[j][i] / np.sum([Pr_s[k] * Phi[k][i] for k in range(S)])
+                )
 
-    W_Pi = ddot(Pi, kron(W, I_A))
+        W_Pi = ddot(Pi, kron(W, I_A))
 
-    SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
-    SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
+        SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
+        SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
 
-    SR_MC = I_O + gamma * dot(ddot(W_Pi, T), SR_MC_SS, Phi)
-    SR_TD = np.linalg.inv(I_O - gamma * dot(ddot(W_Pi, T), Phi))
+        SR_MC = I_O + gamma * dot(ddot(W_Pi, T), SR_MC_SS, Phi)
+        SR_TD = np.linalg.inv(I_O - gamma * dot(ddot(W_Pi, T), Phi))
 
-    SR_MC, SR_TD = calculate_sr_discrepancy_raw(A, S, O, Phi, T, s0, gamma, pi)
+        SR_MC, SR_TD = calculate_sr_discrepancy_raw(A, S, O, Phi, T, s0, gamma, pi)
 
-    if np.allclose(SR_MC, SR_TD):
-        times_equal += 1
+        if np.allclose(SR_MC, SR_TD):
+            times_equal += 1
 
-assert times_equal == 1000
-# %%
+    assert times_equal == 1000

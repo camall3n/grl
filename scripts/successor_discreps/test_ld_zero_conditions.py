@@ -13,8 +13,9 @@ from tqdm import tqdm
 
 from grl.environment import load_pomdp
 from grl.memory.lib import get_memory
-from grl.utils.loss import mem_discrep_loss, discrep_loss
-from grl.utils.mdp import pomdp_get_occupancy, get_p_s_given_o, MDP, POMDP
+from grl.loss.ld import mem_discrep_loss, discrep_loss
+from grl.mdp import MDP, POMDP
+from grl.utils.mdp_solver import pomdp_get_occupancy, get_p_s_given_o
 from grl.utils.policy_eval import analytical_pe
 
 mpl.rcParams.update(
@@ -177,6 +178,8 @@ def get_max_diffs(pi, pomdp):
     Q0_wa = W @ Q0_sa
     Q1_wa = W @ Q1_sa
 
+    sr_mc, sr_td = calculate_sr_discrepancy_from_env(pomdp, pi)
+
     diffs = {
         "∆ K": np.max(np.abs(K0 - K1)),
         "∆ SR_sasa": np.max(np.abs(SR_0 - SR_1)),
@@ -188,16 +191,19 @@ def get_max_diffs(pi, pomdp):
         "Δ SF_oaoa_yellow_red": np.max(np.abs(MC_SF_oaoa - TD_SF_yellow_oaoa)),
         "Δ SF_oaoa_blue_red": np.max(np.abs(MC_SF_oaoa - TD_SF_blue_oaoa)),
         "Δ SF_TD_yellow_blue": np.max(np.abs(TD_SF_blue_oaoa - TD_SF_yellow_oaoa)),
+        "Δ SR": np.max(np.abs(sr_mc - sr_td)),
     }
     return diffs
 
+from sr_discrepancy_testing import calculate_sr_discrepancy_from_env
 
 specs_and_n_params = {
-    "ld_zero_by_mdp": 3,
-    "ld_zero_by_k_equality": 3,
-    "ld_zero_by_t_projection": 3,
-    "ld_zero_by_r_projection": 1,
-    "ld_zero_by_wr_projection": 1,
+    # aaron/aaron branch
+    #"ld_zero_by_mdp": 3,
+    #"ld_zero_by_k_equality": 3,
+    #"ld_zero_by_t_projection": 3,
+    #"ld_zero_by_r_projection": 1,
+    #"ld_zero_by_wr_projection": 1,
     "tiger-alt-start": 0,
     "network": 0,
     "tmaze_5_two_thirds_up": 0,
@@ -248,6 +254,7 @@ result = (
             "Δ SF_oaoa_yellow_red",
             "Δ SF_oaoa_blue_red",
             "Δ SF_TD_yellow_blue",
+            "Δ SR"
         ]
     ]
     .sort_index(key=spec_order)
