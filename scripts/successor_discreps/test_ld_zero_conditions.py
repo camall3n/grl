@@ -198,35 +198,34 @@ def get_max_diffs(pi, pomdp):
 from sr_discrepancy_testing import calculate_sr_discrepancy_from_env
 
 specs_and_n_params = {
-    # aaron/aaron branch
-    #"ld_zero_by_mdp": 3,
-    #"ld_zero_by_k_equality": 3,
-    #"ld_zero_by_t_projection": 3,
-    #"ld_zero_by_r_projection": 1,
-    #"ld_zero_by_wr_projection": 1,
-    "tiger-alt-start": 0,
-    "network": 0,
-    "tmaze_5_two_thirds_up": 0,
-    "example_7": 0,
-    "4x3.95": 0,
-    "cheese.95": 0,
-    "network": 0,
-    "shuttle.95": 0,
-    "paint.95": 0,
-    "hallway": 0,
-    "bridge-repair": 0,
+    "ld_zero_by_mdp": 3,
+    "ld_zero_by_k_equality": 3,
+    "ld_zero_by_t_projection": 3,
+    "ld_zero_by_r_projection": 1,  # parity check environment
+    "ld_zero_by_wr_projection": 1,  # parity check env with different rewards (which makes no difference for sr)
+    #"tiger-alt-start": 0,
+    #"network": 0,
+    #"tmaze_5_two_thirds_up": 0,
+    #"example_7": 0,
+    #"4x3.95": 0,
+    #"cheese.95": 0,
+    #"network": 0,
+    #"shuttle.95": 0,
+    #"paint.95": 0,
+    #"hallway": 0,
+    #"bridge-repair": 0,
 }
 # %%
 data = []
 ps = np.linspace(0, 1, n_samples)
 for spec, n_params in specs_and_n_params.items():
-    pomdp, info = load_pomdp(spec)
+    pomdp, info = load_pomdp(spec, reward_in_obs=True)
     if n_params > 0:
         all_ps = np.reshape(np.meshgrid(*[ps] * n_params), (n_params, -1)).T
     else:  # n_params == 0
         all_ps = range(10)
     for probs in tqdm(all_ps):
-        if n_params > 0:
+        if False and n_params > 0:
             pi = get_policy(spec, *probs)
         else:
             n_o = pomdp.phi.shape[1]
