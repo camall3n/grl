@@ -196,7 +196,12 @@ def make_subprob_matrix(T):
             Tnew[s, :, :] = 0
     return Tnew
 
-def calculate_sr_discrepancy_from_env(env: POMDP, pi: np.ndarray):
+def calculate_sr_discrepancy_from_env(
+        env: POMDP,
+        pi: np.ndarray,
+        use_random_custom_gammas: bool=False,
+        custom_gammas: np.ndarray | None=None
+        ):
     n_actions = env.action_space.n
     n_states = env.state_space.n
     n_obs = env.observation_space.n
@@ -213,7 +218,9 @@ def calculate_sr_discrepancy_from_env(env: POMDP, pi: np.ndarray):
         T,
         p0,
         gamma,
-        pi
+        pi,
+        use_random_custom_gammas=use_random_custom_gammas,
+        custom_gammas=custom_gammas
     )
 
 def calculate_sr_discrepancy_raw(
@@ -225,6 +232,8 @@ def calculate_sr_discrepancy_raw(
         p0: np.ndarray,
         gamma: float,
         pi: np.ndarray,
+        use_random_custom_gammas: bool=False,
+        custom_gammas: np.ndarray | None=None
     ):
     # observation matrix
     assert is_prob_matrix(Phi, (n_states, n_obs))
@@ -240,12 +249,42 @@ def calculate_sr_discrepancy_raw(
     # initial state distribution
     assert is_prob_matrix(p0, (n_states,))
 
+    # custom gammas
+    if use_random_custom_gammas:
+        if custom_gammas is not None:
+            print(f"Warning, given custom gammas overwritte by random ones because `use_random_custom_gammas=True` was passed.")
+        min_gamma = 0.5
+        max_gamma = 0.9
+
+        seed = np.random.randint(1000)
+        print(f"seed={seed}")
+        rng = np.random.default_rng(seed)
+        custom_gammas = min_gamma + (max_gamma - min_gamma) * rng.random(size=(n_obs,))
+
+        #print(f"random custom gammas: {custom_gammas}")
+
+    if custom_gammas is not None:
+        assert np.all(np.count_nonzero(Phi, axis=1) == 1), f"custom gammas only available for strict aliasing, that is deterministic Phi"
+        phi = np.zeros(n_states, dtype=int)
+        for s in range(n_states):
+            for o in range(n_obs):
+                if Phi[s, o] != 0:
+                    phi[s] = o
+        assert custom_gammas.shape == (n_obs,)
+        Gamma_obs = np.diag(custom_gammas)
+        state_gammas = np.zeros(n_states, dtype=float)
+        for s in range(n_states):
+            state_gammas[s] = custom_gammas[phi[s]]
+        Gamma_s = np.diag(state_gammas)
+    else:
+        Gamma_obs = gamma * np.eye(n_obs)
+        Gamma_s = gamma * np.eye(n_states)
+
     I_S = np.eye(n_states)
     I_A = np.eye(n_actions)
     I_O = np.eye(n_obs)
     I_SA = np.eye(n_actions * n_states).reshape((n_states, n_actions, n_states, n_actions))
     Phi_A = kron(Phi, I_A)
-
     
     pi_s = dot(Phi, pi)
     assert is_prob_matrix(pi_s, (n_states, n_actions))
@@ -254,7 +293,8 @@ def calculate_sr_discrepancy_raw(
     Pi = np.eye(len(pi))[..., None] * pi[None, ...]
     Pi_s = np.eye(len(pi_s))[..., None] * pi_s[None, ...]
 
-    Pr_s = np.ones(n_states) / n_states
+    # Pr_s = np.ones(n_states) / n_states
+    # gamma-discounted state occupancy
     Pr_s = np.linalg.inv(I_S - gamma * T_pi.T).dot(p0)
     #Pr_s = np.random.random(n_states)
     Pr_s = Pr_s / np.sum(Pr_s)
@@ -275,8 +315,10 @@ def calculate_sr_discrepancy_raw(
 
     W_Pi = ddot(Pi, kron(W, I_A))
 
-    SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
-    SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
+    #SR_MC_SS = np.linalg.inv(I_S - gamma * ddot(Pi_s, T))
+    #SR_TD_SS = np.linalg.inv(I_S - gamma * ddot(dot(Phi, W_Pi), T))
+    SR_MC_SS = np.linalg.inv(I_S - dot(Gamma_s, ddot(Pi_s, T)))
+    SR_TD_SS = np.linalg.inv(I_S - dot(Gamma_s, ddot(dot(Phi, W_Pi), T)))
 
     """
     print(f"SR_MC_SS = SR_TD_SS? {np.allclose(SR_MC_SS, SR_TD_SS)}")
@@ -307,8 +349,8 @@ def calculate_sr_discrepancy_raw(
     print(f"WPi T X Phi equal? {np.allclose(A_MC, A_TD)}")
     """
 
-    SR_MC = I_O + gamma * dot(ddot(W_Pi, T), SR_MC_SS, Phi)
-    SR_TD = I_O + gamma * dot(ddot(W_Pi, T), SR_TD_SS, Phi)
+    SR_MC = I_O + dot(Gamma_obs, ddot(W_Pi, T), SR_MC_SS, Phi)
+    SR_TD = I_O + dot(Gamma_obs, ddot(W_Pi, T), SR_TD_SS, Phi)
     #SR_TD = np.linalg.inv(I_O - gamma * dot(ddot(W_Pi, T), Phi))
 
     return SR_MC, SR_TD
@@ -329,7 +371,7 @@ if __name__ == "__main__":
     }
 
     for name, x in envs.items():
-        mc, td = calculate_sr_discrepancy_from_env(*x)
+        mc, td = calculate_sr_discrepancy_from_env(*x, use_random_custom_gammas=True)
         discrepancy = np.sum(np.abs(mc - td))
         print(f"discrepancy for {name}: {discrepancy:.3f}")
         #print(mc)
