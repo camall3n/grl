@@ -223,6 +223,150 @@ def calculate_sr_discrepancy_from_env(
         custom_gammas=custom_gammas
     )
 
+def setup_order_aliasing_environment():
+    n_states = 11  # two corridors, one 0 - 1 - 2 - 0 - 1 and one 0 - 2 - 1 - 0 - 2, and then a joint terminal state
+    n_actions = 1
+    n_obs = 7  # 0: start, 1: colour1, 2: colour2, 3: corridor, 4: second color1, 5: second color2, 6: end
+    Phi = np.zeros((n_states, n_obs))
+    # upper corridor
+    Phi[0, 0] = 1
+    Phi[1, 1] = 1
+    Phi[2, 2] = 1
+    Phi[3, 3] = 1
+    Phi[4, 4] = 1
+
+    # lower corridor
+    Phi[5, 0] = 1
+    Phi[6, 2] = 1
+    Phi[7, 1] = 1
+    Phi[8, 3] = 1
+    Phi[9, 5] = 1
+
+    Phi[10, 6] = 1
+
+    T = np.zeros((n_states, n_actions, n_states))
+    # upper corridor
+    T[0, 0, 1] = 1
+    T[1, 0, 2] = 1
+    T[2, 0, 3] = 1
+    T[3, 0, 4] = 1
+    T[4, 0, 10] = 1
+
+    # lower corridor
+    T[5, 0, 6] = 1
+    T[6, 0, 7] = 1
+    T[7, 0, 8] = 1
+    T[8, 0, 9] = 1
+    T[9, 0, 10] = 1
+
+    p0 = np.zeros(n_states)
+    p0[0] = .5
+    p0[5] = .5
+
+    gamma = 1.0
+
+    # always same nop action
+    pi = np.ones((n_obs, n_actions))
+
+    return (n_actions, n_states, n_obs, Phi, T, p0, gamma, pi)
+
+def make_strictly_aliased(
+        n_actions: int,
+        n_states: int,
+        n_obs: int,
+        Phi: np.ndarray,
+        T: np.ndarray,
+        p0: np.ndarray
+    ):
+    assert T.shape == (n_states, n_actions, n_states)
+    if n_states == n_actions:
+        print(f"Warning: n_actions=n_states, so I cannot verify that T has shape (S,A,S) and not (A,S,S)")
+    assert Phi.shape == (n_states, n_obs)
+
+    n_states_new = 0
+    new_state_dict = {}
+    # add a new state (s,o) only if the state s can actually
+    # produce the observation o
+    for s in range(n_states):
+        for o in range(n_obs):
+            if Phi[s,o] > 0:
+                new_state_dict[(s,o)] = n_states_new
+                n_states_new += 1
+    
+    Phi_new = np.zeros((n_states_new, n_obs))
+    p0_new = np.zeros(n_states_new)
+    T_new = np.zeros((n_states_new, n_actions, n_states_new))
+    for (s, o), new_s in new_state_dict.items():
+            Phi_new[new_s, o] = 1.0
+            p0_new[new_s] = p0[s] * Phi[s, o]
+
+            for (s2, o2), new_s2 in new_state_dict.items():
+                for a in range(n_actions):
+                    T_new[new_s, a, new_s2] = T[s, a, s2] * Phi[s2, o2]
+    
+    return (n_actions, n_states_new, n_obs, Phi_new, T_new, p0_new)
+
+
+def make_strictly_aliased_naive(
+        n_actions: int,
+        n_states: int,
+        n_obs: int,
+        Phi: np.ndarray,
+        T: np.ndarray,
+        p0: np.ndarray
+    ):
+    assert T.shape == (n_states, n_actions, n_states)
+    if n_states == n_actions:
+        print(f"Warning: n_actions=n_states, so I cannot verify that T has shape (S,A,S) and not (A,S,S)")
+    assert Phi.shape == (n_states, n_obs)
+
+    n_states_new = n_states * n_obs
+    def new_state(s, o):
+        return s * n_obs + o
+    
+    Phi_new = np.zeros((n_states_new, n_obs))
+    p0_new = np.zeros(n_states_new)
+    T_new = np.zeros((n_states_new, n_actions, n_states_new))
+    for s in range(n_states):
+        for o in range(n_obs):
+            Phi_new[new_state(s, o), o] = 1.0
+            p0_new[new_state(s, o)] = p0[s] * Phi[s, o]
+
+            for s2 in range(n_states):
+                for o2 in range(n_obs):
+                    for a in range(n_actions):
+                        T_new[new_state(s, o), a, new_state(s2, o2)] = T[s, a, s2] * Phi[s2, o2]
+    
+    return (n_actions, n_states_new, n_obs, Phi_new, T_new, p0_new)
+
+#%%
+
+env, info = load_pomdp('tiger-alt-start')
+#env, _ = setup_parity_check()
+n_actions = env.action_space.n
+n_states = env.state_space.n
+n_obs = env.observation_space.n
+print(n_states)
+
+Phi = env.phi
+T = env.T
+T = np.permute_dims(T, (1, 0, 2))
+p0 = env.p0
+
+n_a, n_s, n_o, Phi_new, T_new, p0_new = make_strictly_aliased(n_actions, n_states, n_obs, Phi, T, p0)
+T_new = np.permute_dims(T_new, (1, 0, 2))
+print(f"p0:\n{p0_new}")
+print(f"T:\n{T_new}")
+print(f"O:\n{Phi_new}")
+# for an env that is already strictly aliased
+#assert n_a == n_actions
+#assert n_states == n_s
+#assert n_obs == n_o
+#assert np.allclose(Phi, Phi_new)
+#assert np.allclose(T, T_new)
+#assert np.allclose(p0, p0_new)
+
+#%%
 def calculate_sr_discrepancy_raw(
         n_actions: int,
         n_states: int,
@@ -256,8 +400,9 @@ def calculate_sr_discrepancy_raw(
         min_gamma = 0.5
         max_gamma = 0.9
 
-        seed = np.random.randint(1000)
-        print(f"seed={seed}")
+        #seed = np.random.randint(1000)
+        #print(f"seed={seed}")
+        seed = 23241
         rng = np.random.default_rng(seed)
         custom_gammas = min_gamma + (max_gamma - min_gamma) * rng.random(size=(n_obs,))
 
@@ -369,16 +514,23 @@ if __name__ == "__main__":
         "Parity check (up-probability 2/3, reward not included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=False),
         "Parity check (up-probability 2/3, reward is  included)":  setup_parity_check(2/3, gamma=gamma, reward_in_obs=True),
     }
+    raw_envs = {
+        "Order aliasing environment": setup_order_aliasing_environment()
+    }
 
     for name, x in envs.items():
         mc, td = calculate_sr_discrepancy_from_env(*x, use_random_custom_gammas=True)
         discrepancy = np.sum(np.abs(mc - td))
         print(f"discrepancy for {name}: {discrepancy:.3f}")
-        #print(mc)
-        #print(td)
         if not np.isclose(discrepancy, 0.0):
             print(mc - td)
 
+    for name, x in raw_envs.items():
+        mc, td = calculate_sr_discrepancy_raw(*x, use_random_custom_gammas=False)
+        discrepancy = np.sum(np.abs(mc - td))
+        print(f"discrepancy for {name}: {discrepancy:.3f}")
+        if not np.isclose(discrepancy, 0.0):
+            print(mc - td)
 
 # %% non-trivial observations
 
